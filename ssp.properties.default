@@ -4,6 +4,8 @@
 #Core settings
 #-------------
 listenPort = 8080
+#uriBase = auto
+#uriBase = http://www.myserver.tld:8080
 #ram = 2097152
 
 
