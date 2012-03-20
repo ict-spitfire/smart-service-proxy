@@ -25,4 +25,4 @@ ssp.properties
 **/**/*.iml
 **/**/*.ipr
 **/**/*.iws
-
+*.swp
