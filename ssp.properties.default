@@ -1,18 +1,40 @@
-#generator.features = 100
+#Copy this files content in a new file ssp.properties in the same directory to customize it
+
+#-------------
+#Core settings
+#-------------
+listenPort = 8080
+#ram = 2097152
+
+
+#--------------
+#Simple backend
+#--------------
+enableBackend = simple
+
+
+#-----------------
+#Generator backend
+#-----------------
 #enableBackend = generator
+#generator.features = 100
+#generator.pFeature = 0.01
+#generator.pValue = 0.8
+#generator.nodes = 1000000
+
+
+#------------
+#SLSE backend
+#-------------
 #enableBackend = slse
 #slse.waitForPolling = false
 #threads = 30
 #slse.parallelPolling = False
-#listenPort = 8080
-#generator.pFeature = 0.01
-#generator.pValue = 0.8
-#ram = 2097152
-#generator.nodes = 1000000
 
-enableBackend = simple
 
-#CoAP backend settings
+#------------
+#CoAP backend
+#------------
 #enableBackend = coap
 #coap.ipv6Prefix = 2001:638:70a:c003::
 
