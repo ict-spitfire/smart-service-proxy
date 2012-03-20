@@ -24,6 +24,7 @@
  */
 package eu.spitfire_project.smart_service_proxy.core;
 
+import org.apache.log4j.Logger;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
@@ -35,17 +36,15 @@ import org.jboss.netty.handler.execution.ExecutionHandler;
 
 
 /**
- * An {@link HttpEntityManagerPipelineFactory} is a factory to generate pipelines to handle imcoming HTTP requests which have
- * an {@link EntityManager} at the topmost position of the pipeline. The {@link EntityManager} handles the incoming
- * {@link org.jboss.netty.handler.codec.http.HttpRequest} and produces a
- * {@link org.jboss.netty.handler.codec.http.HttpResponse} to send write it on the downstream
+ * An {@link HttpEntityManagerPipelineFactory} is a factory to generate pipelines to handle imcoming
+ * {@link org.jboss.netty.handler.codec.http.HttpRequest}s.
  *	
  * @author Oliver Kleine
  *
  */
 public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory {
 
-    //public static Logger logger = Logger.getLogger("ssp");
+    private static Logger log = Logger.getLogger(HttpEntityManagerPipelineFactory.class.getName());
 
 	ExecutionHandler executionHandler;
 	
@@ -54,7 +53,6 @@ public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory 
 	}
 	
 	public ChannelPipeline getPipeline() throws Exception {
-		//System.out.println("# getPipeline()");
 		
 		ChannelPipeline pipeline = Channels.pipeline();
 		
@@ -69,9 +67,9 @@ public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory 
 		pipeline.addLast("execution handler", executionHandler);
 		pipeline.addLast("entity manager", EntityManager.getInstance());
 
-
-        //logger.debug("[Factory] New pipeline created.");
-		//System.out.println("# returning pipeline: " + pipeline);
+        if(log.isDebugEnabled()){
+            log.debug("[Factory] New pipeline created.");
+        }
 		return pipeline;
 	}
 	

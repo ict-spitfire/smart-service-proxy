@@ -34,7 +34,7 @@ import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Checks whether the incoming {@link HTTPRequest} can be answered with cached information. This depends on the
+ * Checks whether the incoming {@link HttpRequest} can be answered with cached information. This depends on the
  * existence of cached information and its age. If there is suitable information available, the request will be
  * answered by sending a corresponding Object of type @link{Model} to the downstream. Otherwise the request will
  * be send to the upstream unchanged to be processed by the {@link EntityManager}.
@@ -59,43 +59,74 @@ public class StatementCache extends SimpleChannelHandler {
     }
 
     /**
-     * Expected:
-     * - HTTP Request
+     * This method is invoked for upstream {@link MessageEvent}s and handles incoming {@link HttpRequest}s.
+     * It tries to find a fresh statement of the requested resource (identified using the requests target URI) in its
+     * internal cache. If a fresh statement is found, it sends this statement (as an instance of {@link Model})
+     * downstream to the {@link ModelFormatter}. 
+     * 
+     * @param ctx The {@link ChannelHandlerContext} to relate this handler with its current {@link Channel}
+     * @param me The {@link MessageEvent} containing the {@link HttpRequest}
+     * @throws Exception
      */
     @Override
-    public void messageReceived(ChannelHandlerContext ctx, MessageEvent e)
+    public void messageReceived(ChannelHandlerContext ctx, MessageEvent me)
             throws Exception {
-        Object msg = e.getMessage();
-//		System.out.println("# Statementcache received: " + msg);
 
-        if (msg instanceof HttpRequest) {
-            HttpRequest req = (HttpRequest) msg;
+        if (me.getMessage() instanceof HttpRequest) {
+            final HttpRequest req = (HttpRequest) me.getMessage();
 
-            CacheElement ce = cache.get(req.getUri());
-            //System.out.println("[StatementChache] Look up resource: " + req.getUri());
+            String resourceURI = EntityManager.getInstance().getURIBase() + req.getUri();
 
+            if(log.isDebugEnabled()){
+                log.debug("[StatementCache] Look up resoure " + resourceURI);
+            }
+            
+            //Try to get a statement from the cache
+            CacheElement ce = cache.get(resourceURI);
+            
             if (ce != null) {
-          //      System.out.println("# [StatementChache] Resource found in cache: " + req.getUri());
-
+                
                 if (!ce.expiry.before(new Date())) {
-                    ChannelFuture future = Channels.write(ctx.getChannel(), ce.model);
-                    if (HttpHeaders.isKeepAlive(req)) {
-                        future.addListener(ChannelFutureListener.CLOSE);
+
+                    if(log.isDebugEnabled()){
+                        log.debug("[StatementCache] Fresh statement found for " + req.getUri());
                     }
-                    //System.out.println("[StatementChache] Resource is fresh.");
+                    
+                    //Send cached resource
+                    ChannelFuture future = Channels.write(ctx.getChannel(), ce.model);
+                    future.addListener(ChannelFutureListener.CLOSE);
+                    
+                    if(log.isDebugEnabled()){
+                        future.addListener(new ChannelFutureListener() {
+                            @Override
+                            public void operationComplete(ChannelFuture future) throws Exception {
+                                log.debug("[StatementCache] Cached statement for " + req.getUri() + " sent");
+                            }
+                        });
+                    }
+                    
                     return;
-                } else {
-                    //System.out.println("[StatementChache] Resource is expired.");
+                }
+                else {
+                    if(log.isDebugEnabled()){
+                        log.debug("[StatementCache] Found expired statement for: " + req.getUri() +
+                                ". Trying to get a fresh one.");
+                    }    
                 }
             }
         }
-//		System.out.println("# Statementcache passing on: " + msg);
-        super.messageReceived(ctx, e);
+        
+        ctx.sendUpstream(me);
     }
 
     /**
-     * Outbound Message types:
-     * - Model
+     * This method is invoked for downstream {@link MessageEvent}s. If the {@link MessageEvent} contains an instance of
+     * {@link SelfDescription] as the message the contained {@link Model} instance will be cached. This instance of
+     * {@link Model} will be sent further downstream afterwards.
+     * 
+     * @param ctx The {@link ChannelHandlerContext} to relate this handler with its current {@link Channel}
+     * @param me The {@link MessageEvent} containing the {@link SelfDescription}
+     * @throws Exception
      */
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me)
@@ -117,6 +148,8 @@ public class StatementCache extends SimpleChannelHandler {
 
     }
 
+    //Wrapper class to add the expiry date to the cached model.
+    //TODO use observe
     private class CacheElement {
         public Date expiry;
         public Model model;

@@ -38,6 +38,7 @@ import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
+import eu.spitfire_project.smart_service_proxy.utils.HttpResponseFactory;
 import org.apache.log4j.Logger;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.*;
@@ -113,8 +114,17 @@ public class CoapBackendApp extends Backend{
             log.debug("[CoapBackendApp] Target URI to send the CoAP request to: " + targetURI);
         }
 
+        if(targetURI == null){
+            HttpResponse response = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+                                                                           HttpResponseStatus.NOT_FOUND);
+
+            ChannelFuture future = Channels.write(ctx.getChannel(), response);
+            future.addListener(ChannelFutureListener.CLOSE);
+            return;
+        }
+        
         try {
-            //Create CoAp request
+            //Create CoAP request
             CoapRequest coapRequest = Http2CoapConverter.convertHttpRequestToCoAPMessage(httpRequest, targetURI);
             coapRequest.setResponseCallback(new ResponseCallback() {
                 @Override
