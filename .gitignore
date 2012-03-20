@@ -4,6 +4,7 @@ target
 .project
 .classpath
 .settings
+.ssp.properties
 *.iml
 *.log
 *.ipr
