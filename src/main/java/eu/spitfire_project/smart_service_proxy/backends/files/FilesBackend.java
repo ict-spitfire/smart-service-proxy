@@ -24,106 +24,128 @@
  */
 package eu.spitfire_project.smart_service_proxy.backends.files;
 
-import com.google.common.collect.HashMultimap;
+import com.hp.hpl.jena.n3.turtle.TurtleParseException;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
+import eu.spitfire_project.smart_service_proxy.utils.HttpResponseFactory;
+import org.apache.log4j.Logger;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
+import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.Date;
 
 /**
+ * @author Oliver Kleine
  * @author Henning Hasemann
  */
 public class FilesBackend extends Backend {
-	private File baseDirectory = new File("data/files/");
+    
+    private static Logger log = Logger.getLogger(FilesBackend.class.getName());
+    
+    private String directory;	
 
-    private HashMultimap<InetSocketAddress, String> observers = HashMultimap.create();
 
-	@Override
+    public FilesBackend(String directory){
+        super();
+        this.directory = directory;
+    }
+    
+    @Override
 	public void bind(EntityManager em) {
 		super.bind(em);
-		
-		for(File file: baseDirectory.listFiles()) {
-			if(!file.isFile()) { continue; }
-			String filename = file.getName();
-			if(filename.endsWith(".swp") || filename.startsWith(".")) { continue; }
-			try {
-				entityManager.entityCreated(new URI(getPathPrefix() + "/" + filename), this);
-			}
-			catch(java.net.URISyntaxException e) {
-				e.printStackTrace();
-			}
-		} // for
-	} // bind()
+        registerFileResources();
+    }
 
-	
-//	//@Override
-//	public void getModel(URI uri_, final ChannelHandlerContext ctx, final boolean keepAlive) {
-//		Model m = ModelFactory.createDefaultModel();
-//
-//		URI uri = entityManager.normalizeURI(uri_);
-//		String f = baseDirectory + "/" + uri.getPath().substring(getPathPrefix().length());
-//
-//		try {
-//			m.read(new FileInputStream(new File(f)), uri.toString(), "N3");
-//		}
-//		catch(java.io.FileNotFoundException e) {
-//			e.printStackTrace();
-//		}
-//
-//		ChannelFuture future = Channels.write(ctx.getChannel(), new SelfDescription(m, uri));
-//		if(!keepAlive){
-//			future.addListener(ChannelFutureListener.CLOSE);
-//		}
-//	}
+    private void registerFileResources(){
+        File directoryFile = new File(directory);
+        File[] files = directoryFile.listFiles();
+
+        if(files != null){
+            for(File file : files){
+                try {
+                    URI uri = new URI(entityManager.getURIBase() + pathPrefix + file.getName());
+
+                    if(log.isDebugEnabled()){
+                        log.debug("[FilesBackend] Register file " + file.getAbsolutePath() +
+                                " as new resource at " + uri);
+                    }
+
+                    entityManager.entityCreated(uri, this);
+                }
+                catch (URISyntaxException e) {
+                    log.fatal("[FilesBackend] This should never happen.", e);
+                }
+            }
+        }
+    }
+
 
     @Override
-	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-        if(!(e.getMessage() instanceof HttpRequest)){
-            super.messageReceived(ctx, e);
+	public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
+        if(!(me.getMessage() instanceof HttpRequest)){
+            ctx.sendUpstream(me);
         }
 
-		HttpRequest request = (HttpRequest) e.getMessage();
-
-
-        Model m = ModelFactory.createDefaultModel();
-
-		URI uri = entityManager.normalizeURI(new URI(request.getUri()));
-		String f = baseDirectory + "/" + uri.getPath().substring(getPathPrefix().length());
-
-        boolean worked = false;
-        while(!worked) {
-            m.removeAll();
-            try {
-                m.read(new FileInputStream(new File(f)), uri.toString(), "N3");
-                worked = true;
+		HttpRequest request = (HttpRequest) me.getMessage();
+        Object response;
+                   
+        //Look up file
+        URI uri = entityManager.normalizeURI(new URI(request.getUri()));
+        String fileName = uri.getPath().substring(getPathPrefix().length());
+        
+        if(log.isDebugEnabled()){
+            log.debug("[FilesBackend] Request file has name: " + fileName);
+        }
+        
+        File file = new File(directory + "/" + fileName);
+        
+        if(file.isFile()){
+            
+            if(request.getMethod() == HttpMethod.GET){
+            
+                Model model = ModelFactory.createDefaultModel();
+                FileInputStream inputStream = new FileInputStream(file);
+                
+                try{
+                    model.read(inputStream, entityManager.getURIBase(), "N3");
+                    response = new SelfDescription(model, uri, new Date());
+                }
+                catch(TurtleParseException e){
+                    response = HttpResponseFactory.createHttpResponse(request.getProtocolVersion(),
+                            HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                    
+                    if(log.isDebugEnabled()){
+                        log.debug("[FilesBackend] Malformed file content in: " + file.getAbsolutePath());
+                    }
+                }
             }
-            catch(java.io.FileNotFoundException ex) {
-                ex.printStackTrace();
+            else {
+                response = HttpResponseFactory.createHttpResponse(request.getProtocolVersion(),
+                        HttpResponseStatus.METHOD_NOT_ALLOWED);
+
+                if(log.isDebugEnabled()){
+                    log.debug("[FilesBackend] File not found: " + file.getAbsolutePath());
+                }
             }
-            Thread.sleep(10);
         }
-
-        m.removeAll();
-        try {
-            m.read(new FileInputStream(new File(f)), uri.toString(), "N3");
+        else{
+            response = HttpResponseFactory.createHttpResponse(request.getProtocolVersion(),
+                    HttpResponseStatus.NOT_FOUND);
         }
-        catch(java.io.FileNotFoundException ex) {
-            ex.printStackTrace();
-        }
-
-		ChannelFuture future = Channels.write(ctx.getChannel(), new SelfDescription(m, uri));
-		if(!HttpHeaders.isKeepAlive(request)){
-			future.addListener(ChannelFutureListener.CLOSE);
-		}
-	}
+        
+        ChannelFuture future = Channels.write(ctx.getChannel(), response);
+        future.addListener(ChannelFutureListener.CLOSE);
+    }
 }
 

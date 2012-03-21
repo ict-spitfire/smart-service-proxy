@@ -25,10 +25,12 @@
 package eu.spitfire_project.smart_service_proxy;
 
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackendApp;
+import eu.spitfire_project.smart_service_proxy.backends.files.FilesBackend;
 import eu.spitfire_project.smart_service_proxy.backends.generator.GeneratorBackend;
 import eu.spitfire_project.smart_service_proxy.backends.simple.SimpleBackend;
 import eu.spitfire_project.smart_service_proxy.backends.slse.SLSEBackend;
 //import eu.spitfire_project.smart_service_proxy.backends.uberdust.UberdustBackend;
+import eu.spitfire_project.smart_service_proxy.backends.uberdust.UberdustBackend;
 import eu.spitfire_project.smart_service_proxy.backends.wiselib_test.WiselibTestBackend;
 import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.HttpEntityManagerPipelineFactory;
@@ -82,18 +84,18 @@ public class Main {
                 }
                 slsebe.bind(EntityManager.getInstance());
             }
-//            else if(backend.equals("uberdust")) {
-//                UberdustBackend be = new UberdustBackend();
-//
-//                for(String testbed: config.getStringArray("uberdust.testbed")) {
-//                    String[] tb = testbed.split(" ");
-//                    if(tb.length != 2) {
-//                        throw new Exception("Uberdust testbed has to be in the form 'http://server.tld:1234 5' (where 5 is the testbed-id)");
-//                    }
-//                    be.addUberdustTestbed(tb[0], tb[1]);
-//                }
-//                be.bind(EntityManager.getInstance());
-//            }
+            else if(backend.equals("uberdust")) {
+                UberdustBackend be = new UberdustBackend();
+
+                for(String testbed: config.getStringArray("uberdust.testbed")) {
+                    String[] tb = testbed.split(" ");
+                    if(tb.length != 2) {
+                        throw new Exception("Uberdust testbed has to be in the form 'http://server.tld:1234 5' (where 5 is the testbed-id)");
+                    }
+                    be.addUberdustTestbed(tb[0], tb[1]);
+                }
+                be.bind(EntityManager.getInstance());
+            }
             else if(backend.equals("wiselibtest")) {
                 WiselibTestBackend be = new WiselibTestBackend();
                 be.bind(EntityManager.getInstance());
@@ -105,6 +107,11 @@ public class Main {
             }
             else if(backend.equals("simple")){
                 SimpleBackend be = new SimpleBackend();
+                be.bind(EntityManager.getInstance());
+            }
+            else if(backend.equals("files")){
+                String directory = config.getString("files.directory");
+                FilesBackend be = new FilesBackend(directory);
                 be.bind(EntityManager.getInstance());
             }
             else {

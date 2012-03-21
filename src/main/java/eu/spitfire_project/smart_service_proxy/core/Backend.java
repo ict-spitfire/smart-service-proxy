@@ -49,50 +49,10 @@ import java.util.concurrent.Executors;
  */
 public abstract class Backend extends SimpleChannelHandler {
 
-    private static ClientBootstrap clientBootstrap =
-        new ClientBootstrap(new NioClientSocketChannelFactory(Executors.newCachedThreadPool(),
-                                                              Executors.newCachedThreadPool()));
-    static{
-        clientBootstrap.setPipelineFactory(new HttpPipelineFactory());
-    }
-
-    private Thread observationThread;
-    private Hashtable<String, ObservedEntity> observedEntities = new Hashtable<String, ObservedEntity>();
-    private Hashtable<String, EntityObserver> pendingObservations = new Hashtable<String, EntityObserver>();
-
     protected EntityManager entityManager;
 	protected String pathPrefix;
 
 
-    //Protected constructor starts one background thread per instance to handle observations
-    protected Backend(){
-        observationThread = new Thread(){
-            @Override
-            public void run(){
-                while(true){
-                    //Notify all entityObserver observing the observedEntity
-                    for(String entityPath : observedEntities.keySet()){
-                        ObservedEntity observedEntity = observedEntities.get(entityPath);
-                        observedEntity.notifyObservers(entityPath);
-                    }
-
-                    //Send HTTP messages to entityObservers observing service
-                    for(String entityPath : pendingObservations.keySet()){
-                        EntityObserver entityObserver = pendingObservations.get(entityPath);
-                        if(System.currentTimeMillis() - entityObserver.lastTimeUpdateSent > entityObserver.interval){
-                            String msg = "[MockUp] Send HTTP request for path " + entityPath +
-                            "to " + entityObserver.observerAddress + "!";
-                            System.out.println("[MockUp] Send HTTP Request for ");
-                            pendingObservations.remove(entityPath);
-                         }
-                    }
-                    System.out.println("[" + Thread.currentThread() +"] finished a circle!");
-                }
-            }
-        };
-
-        //observationThread.start();
-    }
     /**
      * Binds the {@link Backend} to an {@link EntityManager} which means, that this EntityManager gets known
      * of all resources (i.e. their URIs} provided by the Backend
@@ -104,24 +64,15 @@ public abstract class Backend extends SimpleChannelHandler {
 	}
 	
 	@Override
-	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-        if(!(e.getMessage() instanceof HttpRequest)){
-            super.messageReceived(ctx, e);
-        }
-	}
-	
+	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception{
+        super.messageReceived(ctx, e);
+    }
 	
 	@Override
 	public void writeRequested(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
 		super.writeRequested(ctx, e);
 	}
-
-//    public void respond(MessageEvent e) {
-//		ChannelFuture future = e.getChannel().write(this);
-//		HttpRequest request = (HttpRequest) e.getMessage();
-//    	future.addListener(ChannelFutureListener.CLOSE);
-//	}
-
+    
     public EntityManager getEntityManager() {
         return entityManager;
     }
@@ -159,97 +110,6 @@ public abstract class Backend extends SimpleChannelHandler {
 		return new Vector<UIElement>();
 	}
 
-    /**
-     * Sends an HttpResponse message to the client
-     * @param ctx The ChannelHandlerContext of the handler sending the response
-     * @param request The HttpRequest to respond to
-     * @param status The reponse status
-     */
-    public void sendHttpResponse(ChannelHandlerContext ctx, HttpMessage request, HttpResponseStatus status){
 
-        ChannelFuture future = Channels.write(ctx.getChannel(),
-                new DefaultHttpResponse(request.getProtocolVersion(), status));
-        future.addListener(ChannelFutureListener.CLOSE);
-    }
-
-    public void addObserving(ChannelHandlerContext ctx, MessageEvent e){
-        HttpRequest request = (HttpRequest) e.getMessage();
-        System.out.println("URI in FilesBackend: " + request.getUri());
-        try{
-            URI targetURI = new URI(request.getUri());
-
-            //try to extract query part (there is only one parameter 'observeInterval' allowed
-            String query = targetURI.getQuery();
-            if(query == null || query.split("&").length > 1 || !query.split("=").equals("observeInterval")){
-                sendHttpResponse(ctx, request, HttpResponseStatus.BAD_REQUEST);
-                return;
-            }
-
-            //Now its for sure that there is only one query parameter "observeInterval"
-            String value = query.split("=")[1];
-            System.out.println("Value = " + value);
-            try{
-                int interval = Integer.valueOf(value);
-
-                //get the proper observed entity or create a new one
-                ObservedEntity observedEntity = observedEntities.get(targetURI.getPath());
-                if(observedEntity == null){
-                    observedEntity = new ObservedEntity(targetURI.getPath());
-                }
-
-                //create the new entity observer and add it as observer to the ebserved entity
-                EntityObserver entityObserver =
-                        new EntityObserver(((InetSocketAddress)e.getRemoteAddress()).getAddress(), interval);
-                observedEntity.addObserver(entityObserver);
-
-                //add the modified observed entity to the list of observations
-                observedEntities.put(targetURI.getPath(), observedEntity);
-
-            }
-            catch(NumberFormatException ex){
-                System.out.println("Number Format Exception for: " + value);
-                sendHttpResponse(ctx, request, HttpResponseStatus.BAD_REQUEST);
-                return;
-            }
-        } catch (URISyntaxException e1) {
-            e1.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        }
-    }
-
-    protected class ObservedEntity extends Observable {
-        public String path;
-
-        public ObservedEntity(String path){
-            this.path = path;
-        }
-    }
-
-    protected class EntityObserver implements Observer{
-
-        InetAddress observerAddress;
-        int interval;
-        long lastTimeUpdateSent;
-
-        public EntityObserver(InetAddress observerAdress, int interval){
-            this.observerAddress = observerAdress;
-            this.interval = interval * 120000;
-            this.lastTimeUpdateSent = System.currentTimeMillis();
-        }
-
-        @Override
-        public void update(Observable o, Object arg) {
-            String observedEntityPath = (String) arg;
-
-            pendingObservations.put(observedEntityPath, this);
-
-//            HttpRequest request =
-//                    new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, pathToObserverService);
-//            HttpHeaders.setKeepAlive(request, false);
-//            request.setContent(ChannelBuffers.wrappedBuffer(observedEntityPath.getBytes(Charset.forName("UTF-8"))));
-//            clientBootstrap.getPipeline()
-//                           .getChannel()
-//                           .write(o, observerAddress);
-        }
-    }
 }
 
