@@ -52,7 +52,6 @@ public abstract class Backend extends SimpleChannelHandler {
     protected EntityManager entityManager;
 	protected String pathPrefix;
 
-
     /**
      * Binds the {@link Backend} to an {@link EntityManager} which means, that this EntityManager gets known
      * of all resources (i.e. their URIs} provided by the Backend
@@ -109,6 +108,10 @@ public abstract class Backend extends SimpleChannelHandler {
 	public Collection<UIElement> getUIElements() {
 		return new Vector<UIElement>();
 	}
+    
+    public Set<URI> getResources(){
+        return new HashSet<URI>();
+    }
 
 
 }

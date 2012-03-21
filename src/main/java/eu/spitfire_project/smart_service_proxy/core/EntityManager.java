@@ -58,12 +58,9 @@ public class EntityManager extends SimpleChannelHandler {
 	private ConcurrentHashMap<URI, Backend> entityBackends = new ConcurrentHashMap<URI, Backend>();
 	//Contains the individual paths to the backends (for Userinterface access)
 	private ConcurrentHashMap<String, Backend> pathBackends = new ConcurrentHashMap<String, Backend>();
-	//Contains open requests
-	//private ConcurrentHashMap<URI, ChannelHandlerContext> openRequests = new ConcurrentHashMap<URI, ChannelHandlerContext>();
-	
-	
+
 	private final String listPath = "/.well-known/servers";
-	private String uriBase; // = ""; //"http://localhost:8080";
+	private String uriBase;
 	private final String backendPrefixFormat = "/be-%04d/";
 	private final String entityURIFormat = "/entity-%04x/";
 	private final String staticPrefix = "/static/";
@@ -219,7 +216,6 @@ public class EntityManager extends SimpleChannelHandler {
                 ctx.getPipeline().addLast("Backend to handle request", be);
                 ctx.sendUpstream(e);
 
-            //be.getModel(toThing(uri), HttpHeaders.isKeepAlive(request));
 		    }
             else {
                 log.debug("! No backend found to handle path " + path + "  prefix=" + prefix);
@@ -245,7 +241,22 @@ public class EntityManager extends SimpleChannelHandler {
 			for(Map.Entry<URI, Backend> entry: entityBackends.entrySet()) {
 				buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", entry.getKey(), entry.getKey()));
 			}
-			buf.append("</ul>\n");
+            buf.append("</ul>\n");
+
+            //Retreive resources from Backends
+            for(Backend backend : pathBackends.values()){
+                buf.append("<h3> " + backend.getClass().getSimpleName() + "</h3>\n");
+                buf.append("<ul>\n");
+                
+                for(URI resourceURI : backend.getResources()){
+                    buf.append("<li><a href=\"" + resourceURI.toString() + "\">" +
+                            resourceURI.toString() + "</a></li>\n");
+                }
+                
+                buf.append("</ul>\n");
+            }
+            
+			
 			
 			buf.append("</body></html>\n");
 			Channels.write(ctx.getChannel(), Answer.create(buf.toString()));

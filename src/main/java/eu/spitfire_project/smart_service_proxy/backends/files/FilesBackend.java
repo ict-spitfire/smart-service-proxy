@@ -33,7 +33,6 @@ import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
 import eu.spitfire_project.smart_service_proxy.utils.HttpResponseFactory;
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -42,8 +41,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Set;
 
 /**
  * The FilesBackend is responsible for the services backed by the files (except of *.swp) in the directory given as
@@ -60,6 +60,8 @@ public class FilesBackend extends Backend {
     private static Logger log = Logger.getLogger(FilesBackend.class.getName());
     
     private String directory;
+    
+    private HashMap<URI, File> resources = new HashMap<URI, File>();
 
     /**
      * Constructor for a new FileBackend instance which provides all files in the specified directory
@@ -78,7 +80,7 @@ public class FilesBackend extends Backend {
         registerFileResources();
     }
 
-    //Register all files as new resources at the EntityManager
+    //Register all files as new resources at the EntityManager (ignore *.swp files)
     private void registerFileResources(){
         File directoryFile = new File(directory);
         File[] files = directoryFile.listFiles();
@@ -91,17 +93,17 @@ public class FilesBackend extends Backend {
             
             for(File file : files){
                 if(!file.getName().endsWith(".swp")){
-                    try {
-                        URI uri = new URI(entityManager.getURIBase() + pathPrefix + file.getName());
+                    try{
+                        URI resourceURI = new URI(entityManager.getURIBase() + pathPrefix + file.getName());
+                          
+                        resources.put(resourceURI, file);
 
                         if(log.isDebugEnabled()){
-                            log.debug("[FilesBackend] Register file " + file.getAbsolutePath() +
-                                    " as new resource at " + uri);
+                            log.debug("[FilesBackend] Added file " + file.getAbsolutePath() +
+                                    " as new resource at " + resourceURI);
                         }
 
-                        entityManager.entityCreated(uri, this);
-                    }
-                    catch (URISyntaxException e) {
+                    } catch (URISyntaxException e) {
                         log.fatal("[FilesBackend] This should never happen.", e);
                     }
                 }
@@ -111,7 +113,6 @@ public class FilesBackend extends Backend {
             log.fatal("[FilesBackend] Directory does not exist: " + directory);    
         }
     }
-
 
     @Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
@@ -123,30 +124,25 @@ public class FilesBackend extends Backend {
         Object response;
                    
         //Look up file
-        URI uri = entityManager.normalizeURI(new URI(request.getUri()));
-        String fileName = uri.getPath().substring(getPathPrefix().length());
-        
-        if(log.isDebugEnabled()){
-            log.debug("[FilesBackend] Request file has name: " + fileName);
-        }
-        
-        File file = new File(directory + "/" + fileName);
-        
-        if(file.isFile()){
-            
+        URI resourceURI = entityManager.normalizeURI(new URI(request.getUri()));
+        File file = resources.get(resourceURI);
+
+        if(file != null && file.isFile()){
+
             if(request.getMethod() == HttpMethod.GET){
-            
+
+                //Read file content and write it to the model
                 Model model = ModelFactory.createDefaultModel();
                 FileInputStream inputStream = new FileInputStream(file);
-                
+
                 try{
-                    model.read(inputStream, uri.toString(), "N3");
-                    response = new SelfDescription(model, uri, new Date());
+                    model.read(inputStream, resourceURI.toString(), "N3");
+                    response = new SelfDescription(model, resourceURI, new Date());
                 }
                 catch(TurtleParseException e){
                     response = HttpResponseFactory.createHttpResponse(request.getProtocolVersion(),
                             HttpResponseStatus.INTERNAL_SERVER_ERROR);
-                    
+
                     if(log.isDebugEnabled()){
                         log.debug("[FilesBackend] Malformed file content in: " + file.getAbsolutePath());
                     }
@@ -168,6 +164,11 @@ public class FilesBackend extends Backend {
         
         ChannelFuture future = Channels.write(ctx.getChannel(), response);
         future.addListener(ChannelFutureListener.CLOSE);
+    }
+
+    @Override
+    public Set<URI> getResources(){
+        return resources.keySet();
     }
 }
 
