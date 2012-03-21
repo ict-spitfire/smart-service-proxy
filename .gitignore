@@ -26,3 +26,6 @@ ssp.properties
 **/**/*.ipr
 **/**/*.iws
 *.swp
+*.dat
+*.idn
+*.info

@@ -31,6 +31,7 @@ import eu.spitfire_project.smart_service_proxy.backends.simple.SimpleBackend;
 import eu.spitfire_project.smart_service_proxy.backends.slse.SLSEBackend;
 import eu.spitfire_project.smart_service_proxy.backends.uberdust.UberdustBackend;
 import eu.spitfire_project.smart_service_proxy.backends.wiselib_test.WiselibTestBackend;
+import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.HttpEntityManagerPipelineFactory;
 import org.apache.commons.configuration.Configuration;
@@ -42,78 +43,114 @@ import org.jboss.netty.handler.execution.ExecutionHandler;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
 import java.net.InetSocketAddress;
-import java.util.Iterator;
+import java.util.*;
 import java.util.concurrent.Executors;
 
 public class Main {
 
+    private static Logger log = Logger.getLogger(Main.class.getName());
+    
     static{
         Logger.getLogger("eu.spitfire_project.smart_service_proxy").addAppender(new ConsoleAppender(new SimpleLayout()));
         Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
     }
 
-
     private static void createBackends(Configuration config) throws Exception {
-		SLSEBackend slsebe = null;
-        for(String backend: config.getStringArray("enableBackend")) {
-            System.out.println("enabling backend: " + backend);
-            if(backend.equals("generator")) {
-                GeneratorBackend be = new GeneratorBackend(
-                        config.getInt("generator.nodes", 100),
-                        config.getInt("generator.features", 10),
-                        config.getDouble("generator.pValue", 0.5),
-                        config.getDouble("generator.pFeature", 0.01)
-                );
-                be.bind(EntityManager.getInstance());
+        
+        String[] enabledBackends = config.getStringArray("enableBackend");
+
+        if(log.isDebugEnabled()){
+            log.debug("[Main] Instanciating Backends!");    
+        }
+        
+        for(String enabledBackend: enabledBackends){
+
+            Backend backend;
+
+            //GeneratorBackend
+            if(enabledBackend.equals("generator")) {
+
+                backend = new GeneratorBackend(config.getInt("generator.nodes", 100),
+                                               config.getInt("generator.features", 10),
+                                               config.getDouble("generator.pValue", 0.5),
+                                               config.getDouble("generator.pFeature", 0.01));
             }
-            else if(backend.equals("slse")) {
-                slsebe = new SLSEBackend(
-                        config.getBoolean("slse.waitForPolling", false),
-                        config.getBoolean("slse.parallelPolling", false)
-                );
+
+            //SLSEBackend
+            else if(enabledBackend.equals("slse")) {
+                
+                backend = new SLSEBackend(config.getBoolean("slse.waitForPolling", false),
+                                          config.getBoolean("slse.parallelPolling", false));
+                
                 for(String proxy: config.getStringArray("slse.proxy")) {
-                    slsebe.addProxy(proxy);
+                    ((SLSEBackend) backend).addProxy(proxy);
                 }
-                slsebe.bind(EntityManager.getInstance());
+
+                ((SLSEBackend) backend).pollProxiesForever();
+
             }
-            else if(backend.equals("uberdust")) {
-                UberdustBackend be = new UberdustBackend();
+
+            //UberdustBackend
+            else if(enabledBackend.equals("uberdust")) {
+
+                backend = new UberdustBackend();
 
                 for(String testbed: config.getStringArray("uberdust.testbed")) {
                     String[] tb = testbed.split(" ");
                     if(tb.length != 2) {
-                        throw new Exception("Uberdust testbed has to be in the form 'http://server.tld:1234 5' (where 5 is the testbed-id)");
+                        throw new Exception("Uberdust testbed has to be in the form 'http://server.tld:1234 5' " +
+                                "(where 5 is the testbed-id)");
                     }
-                    be.addUberdustTestbed(tb[0], tb[1]);
+                    ((UberdustBackend) backend).addUberdustTestbed(tb[0], tb[1]);
                 }
-                be.bind(EntityManager.getInstance());
             }
-            else if(backend.equals("wiselibtest")) {
-                WiselibTestBackend be = new WiselibTestBackend();
-                be.bind(EntityManager.getInstance());
-            }
-            else if(backend.equals("coap")) {
 
-                CoapBackend be = new CoapBackend(config.getString("coap.ipv6Prefix"));
-                be.bind(EntityManager.getInstance());
+            //WiselibTestBackend
+            else if(enabledBackend.equals("wiselibtest")) {
+
+               backend = new WiselibTestBackend();
             }
-            else if(backend.equals("simple")){
-                SimpleBackend be = new SimpleBackend();
-                be.bind(EntityManager.getInstance());
+
+            //CoAPBackend
+            else if(enabledBackend.equals("coap")) {
+
+                String ipv6Prefix = config.getString("coap.ipv6Prefix");
+                if(ipv6Prefix == null){
+                    throw new Exception("Propertiy 'coap.ipv6Prefix' not set.");
+                }
+                backend = new CoapBackend(ipv6Prefix);
             }
-            else if(backend.equals("files")){
+
+            //SimpleBackend
+            else if(enabledBackend.equals("simple")){
+
+                backend = new SimpleBackend();
+            }
+
+            //FilesBackend
+            else if(enabledBackend.equals("files")){
                 String directory = config.getString("files.directory");
-                FilesBackend be = new FilesBackend(directory);
-                be.bind(EntityManager.getInstance());
+                if(directory == null){
+                    throw new Exception("Propertiy 'files.directory' not set.");
+                }
+                backend = new FilesBackend(directory);
             }
-            else {
-                throw new Exception("Config file error: Backend '" + backend + "' not found.");
-            }
-        } // for backend
 
-		if(slsebe != null) {
-        	slsebe.pollProxiesForever();
-		}
+            //Unknown Backend Type
+            else {
+                throw new Exception("Config file error: Backend '" + enabledBackend + "' not found.");
+            }
+
+            backend.bind(EntityManager.getInstance());
+
+            if(log.isDebugEnabled()){
+                log.debug("[Main] Enabled new " + backend.getClass().getSimpleName() + " with path prefix " +
+                    backend.getPathPrefix());
+            }
+        }
+
+
+
     }
 
     /**
@@ -146,15 +183,15 @@ public class Main {
         
         createBackends(config);
 
-        System.out.println("# begin_config_dump");
-        Iterator iter = config.getKeys();
-        while(iter.hasNext()) {
-            String key = (String)iter.next();
-            System.out.println("# " + key + " = " + config.getString(key));
-        }
-        System.out.println("# end_config_dump");
-
-		System.out.println(System.currentTimeMillis() + " boot");
+//        System.out.println("# begin_config_dump");
+//        Iterator iter = config.getKeys();
+//        while(iter.hasNext()) {
+//            String key = (String)iter.next();
+//            System.out.println("# " + key + " = " + config.getString(key));
+//        }
+//        System.out.println("# end_config_dump");
+//
+//		System.out.println(System.currentTimeMillis() + " boot");
 	}
 	
 }

@@ -93,11 +93,14 @@ public class CoapBackend extends Backend{
                 
         //Look up CoAP target URI
         final URI mirrorURI = URI.create(entityManager.getURIBase()).resolve(httpRequest.getUri() + "#").normalize();
-        final URI targetURI = resources.get(mirrorURI);
 
         if(log.isDebugEnabled()){
             log.debug("[CoapBackend] Look up resource for mirror URI: " + mirrorURI);
         }
+
+        final URI targetURI = resources.get(mirrorURI);
+
+
 
         if(targetURI != null){
             try {
@@ -114,17 +117,17 @@ public class CoapBackend extends Backend{
                             response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
                             ((DefaultHttpResponse) response).setContent(coapResponse.getPayload());
                         }
-    
+
                         //Send response
                         ChannelFuture future = Channels.write(ctx.getChannel(), response);
                         future.addListener(ChannelFutureListener.CLOSE);
                     }
                 });
-    
+
                 //Send CoAP request
                 InetSocketAddress remoteSocketAddress = new InetSocketAddress(targetURI.getHost(), targetURI.getPort());
                 ChannelFuture future = Channels.write(clientChannel, coapRequest, remoteSocketAddress);
-    
+
                 if(log.isDebugEnabled()){
                     future.addListener(new ChannelFutureListener() {
                         @Override
@@ -133,11 +136,11 @@ public class CoapBackend extends Backend{
                         }
                     });
                 }
-                
+
                 return;
-    
             }
             catch (MethodNotAllowedException e) {
+                //If there is no equivalent CoAP code for the HTTP request method
                 response = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
                         HttpResponseStatus.METHOD_NOT_ALLOWED);
 
