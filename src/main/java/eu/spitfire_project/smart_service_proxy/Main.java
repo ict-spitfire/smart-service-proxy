@@ -36,14 +36,17 @@ import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.HttpEntityManagerPipelineFactory;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.log4j.*;
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.SimpleLayout;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.execution.ExecutionHandler;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.*;
 import java.util.concurrent.Executors;
 
 public class Main {
@@ -55,12 +58,45 @@ public class Main {
         Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
     }
 
+    /**
+     * @throws Exception might be everything
+     */
+    public static void main(String[] args) throws Exception {
+
+        Configuration config = new PropertiesConfiguration("ssp.properties");
+
+        ServerBootstrap bootstrap = new ServerBootstrap(
+                new NioServerSocketChannelFactory(
+                        Executors.newCachedThreadPool(),
+                        Executors.newCachedThreadPool()));
+
+        ExecutionHandler executionHandler = new ExecutionHandler(
+                new OrderedMemoryAwareThreadPoolExecutor(
+                        config.getInt("threads", 30),
+                        config.getLong("ram", 1024 * 1024),
+                        config.getLong("ram", 1024 * 1024)));
+
+        HttpEntityManagerPipelineFactory empf = new HttpEntityManagerPipelineFactory(executionHandler);
+        bootstrap.setPipelineFactory(empf);
+        int listenPort = config.getInt("listenPort", 8080);
+        bootstrap.bind(new InetSocketAddress(listenPort));
+
+        //Set URI base
+        String defaultHost = InetAddress.getLocalHost().getCanonicalHostName();
+        String baseURIHost = config.getString("baseURIHost", defaultHost);
+        EntityManager.getInstance().setURIBase("http://" + baseURIHost + ":" + listenPort);
+
+        //Create enabled backends
+        createBackends(config);
+    }
+    
+    //Create the backends enabled in ssp.properties 
     private static void createBackends(Configuration config) throws Exception {
         
         String[] enabledBackends = config.getStringArray("enableBackend");
 
         if(log.isDebugEnabled()){
-            log.debug("[Main] Instanciating Backends!");    
+            log.debug("[Main] Start creating enabled Backends!");
         }
         
         for(String enabledBackend: enabledBackends){
@@ -153,46 +189,7 @@ public class Main {
 
     }
 
-    /**
-     * @param args [waitForPolling] [pollParallel]
-     * @throws Exception might be everything
-     */
-	public static void main(String[] args) throws Exception {
-
-        Configuration config = new PropertiesConfiguration("ssp.properties");
-
-        ServerBootstrap bootstrap = new ServerBootstrap(
-                new NioServerSocketChannelFactory(
-                        Executors.newCachedThreadPool(),
-                        Executors.newCachedThreadPool()));
-
-        ExecutionHandler executionHandler = new ExecutionHandler(
-                new OrderedMemoryAwareThreadPoolExecutor(
-                        config.getInt("threads", 30),
-                        config.getLong("ram", 1024 * 1024),
-                        config.getLong("ram", 1024 * 1024)));
-
-        HttpEntityManagerPipelineFactory empf = new HttpEntityManagerPipelineFactory(executionHandler);
-        bootstrap.setPipelineFactory(empf);
-        bootstrap.bind(new InetSocketAddress(config.getInt("listenPort", 8080)));
-		
-		String uriBase = config.getString("uriBase", "auto");
-		if(!"auto".equals(uriBase)) {
-			EntityManager.getInstance().setURIBase(uriBase);
-		}
-        
-        createBackends(config);
-
-//        System.out.println("# begin_config_dump");
-//        Iterator iter = config.getKeys();
-//        while(iter.hasNext()) {
-//            String key = (String)iter.next();
-//            System.out.println("# " + key + " = " + config.getString(key));
-//        }
-//        System.out.println("# end_config_dump");
-//
-//		System.out.println(System.currentTimeMillis() + " boot");
-	}
+    
 	
 }
 
