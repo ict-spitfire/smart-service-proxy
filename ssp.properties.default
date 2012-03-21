@@ -38,3 +38,9 @@ enableBackend = simple
 #enableBackend = coap
 #coap.ipv6Prefix = 2001:638:70a:c003::
 
+#-------------
+#Files backend
+#-------------
+#enableBackend = files
+#files.directory = /home/olli/impl/smart-service-proxy/src/main/resources/files
+
