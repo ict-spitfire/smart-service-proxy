@@ -84,7 +84,10 @@ public class Main {
         //Set URI base
         String defaultHost = InetAddress.getLocalHost().getCanonicalHostName();
         String baseURIHost = config.getString("baseURIHost", defaultHost);
-        EntityManager.getInstance().setURIBase("http://" + baseURIHost + ":" + listenPort);
+        if(listenPort != 80){
+            baseURIHost = baseURIHost + ":" + listenPort;
+        }
+        EntityManager.getInstance().setURIBase("http://" + baseURIHost);
 
         //Create enabled backends
         createBackends(config);
