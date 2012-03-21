@@ -37,6 +37,7 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -243,17 +244,20 @@ public class EntityManager extends SimpleChannelHandler {
 			}
             buf.append("</ul>\n");
 
-            //Retreive resources from Backends
+            //Retreive resources from all registered Backends
             for(Backend backend : pathBackends.values()){
-                buf.append("<h3> " + backend.getClass().getSimpleName() + "</h3>\n");
-                buf.append("<ul>\n");
+                Set<URI> resourceURIs = backend.getResources();
+                if(!resourceURIs.isEmpty()){
+                    buf.append("<h3> " + backend.getClass().getSimpleName() + "</h3>\n");
+                    buf.append("<ul>\n");
+
+                    for(URI resourceURI : resourceURIs){
+                        buf.append("<li><a href=\"" + resourceURI.toString() + "\">" +
+                                resourceURI.toString() + "</a></li>\n");
+                    }
                 
-                for(URI resourceURI : backend.getResources()){
-                    buf.append("<li><a href=\"" + resourceURI.toString() + "\">" +
-                            resourceURI.toString() + "</a></li>\n");
+                    buf.append("</ul>\n");
                 }
-                
-                buf.append("</ul>\n");
             }
             
 			
