@@ -44,5 +44,5 @@ enableBackend = simple
 #Files backend
 #-------------
 #enableBackend = files
-#files.directory = /home/olli/impl/smart-service-proxy/src/main/resources/files
+#files.directory = /home/spitfire/n3files
 
