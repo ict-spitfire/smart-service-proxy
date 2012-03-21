@@ -53,9 +53,16 @@ public class FilesBackend extends Backend {
     
     private static Logger log = Logger.getLogger(FilesBackend.class.getName());
     
-    private String directory;	
+    private String directory;
 
-
+    /**
+     * Constructor for a new FileBackend instance which provides all files in the specified directory
+     * as resources. There are only GET requests supported. Other methods but GET cause a response
+     * with status "method not allowed". GET requests on resources backed by malformed files (i.e. content
+     * is anything but valid "N3") cause an "internal server error" response.
+     *
+     * @param directory the path to the directory where the files are located
+     */
     public FilesBackend(String directory){
         super();
         this.directory = directory;
@@ -67,6 +74,7 @@ public class FilesBackend extends Backend {
         registerFileResources();
     }
 
+    //Register all files as new resources at the EntityManager
     private void registerFileResources(){
         File directoryFile = new File(directory);
         File[] files = directoryFile.listFiles();

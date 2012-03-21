@@ -48,13 +48,6 @@ import java.util.concurrent.Executors;
 
 public class Main {
 
-//    private static Logger log = Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication");
-//    static{
-//        Appender appender = new ConsoleAppender(new SimpleLayout());
-//        log.addAppender(appender);
-//        log.setLevel(Level.DEBUG);
-//    }
-    
     static{
         Logger.getLogger("eu.spitfire_project.smart_service_proxy").addAppender(new ConsoleAppender(new SimpleLayout()));
         Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
