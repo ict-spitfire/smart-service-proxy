@@ -1,0 +1,28 @@
+# vim: set ft=n3:
+
+@prefix dul: <http://www.loa-cnr.it/ontologies/DUL.owl#> .
+@prefix ssn: <http://purl.oclc.org/NET/ssnx/ssn#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix sweet: <http://sweet.jpl.nasa.gov/2.2/sweetAll.owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix : </static/ontology.owl#> .
+
+<#>
+	a :ISenseNode ;
+	
+	:locatedIn :room006 ;
+	
+	ssn:attachedSystem [
+		a ssn:Sensor ;
+		ssn:observedProperty :temperature ;
+		ssn:featureOfInterest :room006 ;
+		dul:hasValue "292.1"^^xsd:float ;
+	] ;
+
+	ssn:attachedSystem [
+		a ssn:Sensor ;
+		ssn:observedProperty :relativeHumidity ;
+		ssn:featureOfInterest :room006 ;
+		dul:hasValue "53"^^xsd:float ;
+	] .
+
