@@ -46,6 +46,12 @@ import java.net.URL;
 import java.util.Date;
 
 /**
+ * The FilesBackend is responsible for the services backed by the files (except of *.swp) in the directory given as
+ * constructor parameter. That means every file gets a URI to be requested via GET request to read its content.
+ * There are only GET requests supported. Other methods but GET cause a response
+ * with status "method not allowed". GET requests on resources backed by malformed files (i.e. content
+ * is anything but valid "N3") cause an "internal server error" response.
+ *
  * @author Oliver Kleine
  * @author Henning Hasemann
  */
@@ -57,9 +63,7 @@ public class FilesBackend extends Backend {
 
     /**
      * Constructor for a new FileBackend instance which provides all files in the specified directory
-     * as resources. There are only GET requests supported. Other methods but GET cause a response
-     * with status "method not allowed". GET requests on resources backed by malformed files (i.e. content
-     * is anything but valid "N3") cause an "internal server error" response.
+     * as resources.
      *
      * @param directory the path to the directory where the files are located
      */
@@ -78,23 +82,33 @@ public class FilesBackend extends Backend {
     private void registerFileResources(){
         File directoryFile = new File(directory);
         File[] files = directoryFile.listFiles();
-
+        
         if(files != null){
+            
+            if(files.length == 0){
+                log.info("[FilesBackend] Directory is empty: " + directory);
+            }
+            
             for(File file : files){
-                try {
-                    URI uri = new URI(entityManager.getURIBase() + pathPrefix + file.getName());
+                if(!file.getName().endsWith(".swp")){
+                    try {
+                        URI uri = new URI(entityManager.getURIBase() + pathPrefix + file.getName());
 
-                    if(log.isDebugEnabled()){
-                        log.debug("[FilesBackend] Register file " + file.getAbsolutePath() +
-                                " as new resource at " + uri);
+                        if(log.isDebugEnabled()){
+                            log.debug("[FilesBackend] Register file " + file.getAbsolutePath() +
+                                    " as new resource at " + uri);
+                        }
+
+                        entityManager.entityCreated(uri, this);
                     }
-
-                    entityManager.entityCreated(uri, this);
-                }
-                catch (URISyntaxException e) {
-                    log.fatal("[FilesBackend] This should never happen.", e);
+                    catch (URISyntaxException e) {
+                        log.fatal("[FilesBackend] This should never happen.", e);
+                    }
                 }
             }
+        }
+        else{
+            log.fatal("[FilesBackend] Directory does not exist: " + directory);    
         }
     }
 
