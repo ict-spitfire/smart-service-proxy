@@ -140,7 +140,7 @@ public class FilesBackend extends Backend {
                 FileInputStream inputStream = new FileInputStream(file);
                 
                 try{
-                    model.read(inputStream, entityManager.getURIBase(), "N3");
+                    model.read(inputStream, uri.toString(), "N3");
                     response = new SelfDescription(model, uri, new Date());
                 }
                 catch(TurtleParseException e){
