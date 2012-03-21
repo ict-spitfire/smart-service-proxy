@@ -40,7 +40,7 @@ import java.util.NoSuchElementException;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
-//import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackendApp;
+//import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
 
 /**
  * The EntityManager is the topmost upstream handler of an HTTPEntityMangerPipeline. It contains a list of {@link Backend}s to manage

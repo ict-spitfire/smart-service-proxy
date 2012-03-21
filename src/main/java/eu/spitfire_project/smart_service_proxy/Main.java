@@ -24,7 +24,7 @@
  */
 package eu.spitfire_project.smart_service_proxy;
 
-import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackendApp;
+import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
 import eu.spitfire_project.smart_service_proxy.backends.files.FilesBackend;
 import eu.spitfire_project.smart_service_proxy.backends.generator.GeneratorBackend;
 import eu.spitfire_project.smart_service_proxy.backends.simple.SimpleBackend;
@@ -94,7 +94,7 @@ public class Main {
             }
             else if(backend.equals("coap")) {
 
-                CoapBackendApp be = new CoapBackendApp(config.getString("coap.ipv6Prefix"));
+                CoapBackend be = new CoapBackend(config.getString("coap.ipv6Prefix"));
                 be.bind(EntityManager.getInstance());
             }
             else if(backend.equals("simple")){
