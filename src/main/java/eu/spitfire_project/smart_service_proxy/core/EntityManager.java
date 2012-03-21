@@ -77,14 +77,14 @@ public class EntityManager extends SimpleChannelHandler {
 	private static EntityManager instance = new EntityManager();
 	
 	private EntityManager(){
-        uriBase = "http://www.coap3.wisebed.itm.uni-luebeck.de:8080";
-//		try {
-//			uriBase = "http://" + InetAddress.getLocalHost().getCanonicalHostName() + ":8080";
-//
-//		} catch (UnknownHostException e) {
-//			// TODO Auto-generator catch block
-//			e.printStackTrace();
-//		}
+        //uriBase = "http://www.coap3.wisebed.itm.uni-luebeck.de:8080";
+		try {
+			uriBase = "http://" + InetAddress.getLocalHost().getCanonicalHostName() + ":8080";
+
+		} catch (UnknownHostException e) {
+			// TODO Auto-generator catch block
+			e.printStackTrace();
+		}
 	}
 	
 	public static EntityManager getInstance() {
@@ -154,6 +154,10 @@ public class EntityManager extends SimpleChannelHandler {
 	 */
 	public String getURIBase() {
 		return uriBase;
+	}
+	
+	public void setURIBase(String uriBase) {
+		this.uriBase = uriBase;
 	}
 	
 	/**

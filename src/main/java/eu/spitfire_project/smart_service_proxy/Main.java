@@ -146,6 +146,11 @@ public class Main {
         HttpEntityManagerPipelineFactory empf = new HttpEntityManagerPipelineFactory(executionHandler);
         bootstrap.setPipelineFactory(empf);
         bootstrap.bind(new InetSocketAddress(config.getInt("listenPort", 8080)));
+		
+		String uriBase = config.getString("uriBase", "auto");
+		if(!"auto".equals(uriBase)) {
+			EntityManager.getInstance().setURIBase(uriBase);
+		}
         
         createBackends(config);
 
