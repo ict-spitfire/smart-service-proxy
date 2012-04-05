@@ -99,7 +99,7 @@ public class SelfDescription {
             //TODO add more media types
             //Try to create a Jena model from the message payload
             String lang = null;
-            if(mediaType == OptionRegistry.MediaType.TEXT_N3){
+            if(mediaType == OptionRegistry.MediaType.APP_N3){
 			    lang = "N3";
             }
             else if (mediaType == OptionRegistry.MediaType.APP_XML){

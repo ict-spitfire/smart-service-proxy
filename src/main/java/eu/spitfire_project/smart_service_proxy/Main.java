@@ -170,7 +170,7 @@ public class Main {
             else if(enabledBackend.equals("files")){
                 String directory = config.getString("files.directory");
                 if(directory == null){
-                    throw new Exception("Propertiy 'files.directory' not set.");
+                    throw new Exception("Property 'files.directory' not set.");
                 }
                 backend = new FilesBackend(directory);
             }
