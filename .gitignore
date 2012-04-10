@@ -26,3 +26,4 @@ ssp.properties
 **/**/*.ipr
 **/**/*.iws
 *.swp
+data/slse/tdb
