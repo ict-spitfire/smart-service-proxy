@@ -40,7 +40,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -52,15 +52,31 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
 
     private static Logger log = Logger.getLogger(CoapNodeRegistrationServer.class.getName());
 
-    private CoapBackend coapBackend;
+    private ArrayList<CoapBackend> coapBackends = new ArrayList<CoapBackend>();
 
     private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
 
-    public CoapNodeRegistrationServer(CoapBackend coapBackend){
+    private static CoapNodeRegistrationServer instance = new CoapNodeRegistrationServer();
+
+
+    private CoapNodeRegistrationServer(){
         super();
-        this.coapBackend = coapBackend;
         log.debug("[CoapNodeRegistrationServer] Constructed.");
     }
+
+    public static CoapNodeRegistrationServer getInstance(){
+        return instance;
+    }
+
+    public boolean addCoapBackend(CoapBackend coapBackend){
+        boolean added = coapBackends.add(coapBackend);
+        if(added){
+            log.debug("[CoapNodeRegistrationServer] Registered new backend for prefix: " + coapBackend.getPathPrefix());
+        }
+        return added;
+    }
+
+
 
     /**
      * This method is invoked by the Netty framework whenever a new incoming CoAP request is to be processed. It only
@@ -81,7 +97,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
         CoapResponse coapResponse = null;
 
         if(coapRequest.getTargetUri().getPath().equals("/here_i_am")){
-            if(coapRequest.getCode() == Code.GET){
+            if(coapRequest.getCode() == Code.POST){
                 if(coapRequest.getMessageType() == MsgType.CON){
                     coapResponse =  new CoapResponse(MsgType.ACK, Code.CONTENT_205);
                 }
@@ -115,19 +131,28 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
 
         @Override
         public void run(){
-
-            log.debug("[Tut was 1]")  ;
-
+            
+            CoapBackend coapBackend = null;
+            
+            for(CoapBackend backend : coapBackends){
+                if(remoteAddress.getHostAddress().startsWith(backend.getIpv6Prefix())){
+                    coapBackend = backend;   
+                }
+            }
+            
+            if(coapBackend == null){
+                log.debug("[CoapNodeRegistrationServer] No backend found for IPv6 address: " +
+                        remoteAddress.getHostAddress());
+                return;
+            }
+            
             //Only register new nodes (avoid duplicates)
             Set<InetAddress> addressList = coapBackend.getSensorNodes();
-            log.debug("[Set ist da]");
 
             if(addressList.contains(remoteAddress)){
                 log.debug("[CoapNodeRegistration] Remote address already known.");
                 return;
             }
-
-            log.debug("[Tut was 2]")  ;
 
             //Add new sensornode to the list of known nodes
             coapBackend.getSensorNodes().add(remoteAddress);

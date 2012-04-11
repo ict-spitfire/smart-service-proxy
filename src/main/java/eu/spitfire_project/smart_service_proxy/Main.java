@@ -25,6 +25,7 @@
 package eu.spitfire_project.smart_service_proxy;
 
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
+import eu.spitfire_project.smart_service_proxy.backends.coap.CoapNodeRegistrationServer;
 import eu.spitfire_project.smart_service_proxy.backends.files.FilesBackend;
 import eu.spitfire_project.smart_service_proxy.backends.generator.GeneratorBackend;
 import eu.spitfire_project.smart_service_proxy.backends.simple.SimpleBackend;
@@ -151,13 +152,13 @@ public class Main {
             }
 
             //CoAPBackend
-            else if(enabledBackend.equals("coap")) {
-
-                String ipv6Prefix = config.getString("coap.ipv6Prefix");
+            else if(enabledBackend.startsWith("coap")) {
+                String ipv6Prefix = config.getString(enabledBackend + ".ipv6Prefix");
                 if(ipv6Prefix == null){
-                    throw new Exception("Propertiy 'coap.ipv6Prefix' not set.");
+                    throw new Exception("Property '" + enabledBackend + ".ipv6Prefix' not set.");
                 }
                 backend = new CoapBackend(ipv6Prefix);
+                CoapNodeRegistrationServer.getInstance().addCoapBackend((CoapBackend) backend);
             }
 
             //SimpleBackend

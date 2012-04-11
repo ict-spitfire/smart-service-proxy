@@ -68,10 +68,11 @@ public class CoapBackend extends Backend{
      */
     public CoapBackend(String ipv6Prefix) throws Exception{
         super();
-        this.pathPrefix = "/%5B" + ipv6Prefix.substring(0, ipv6Prefix.lastIndexOf(":"));
+        //this.pathPrefix = "/%5B" + ipv6Prefix.substring(0, ipv6Prefix.lastIndexOf(":"));
+        this.pathPrefix = "/%5B" + ipv6Prefix;
 
         //Create CoAP server to handle incoming requests
-        new CoapNodeRegistrationServer(this);
+        //new CoapNodeRegistrationServer(this);
     }
 
     @Override
@@ -220,5 +221,13 @@ public class CoapBackend extends Backend{
     @Override
     public Set<URI> getResources(){
         return resources.keySet();
+    }
+
+    /**
+     * Returns the IPv6 prefix of the net the CoapBackend is responsible for (e.g. 2001:638:b157:1)
+     * @return the IPv6 prefix of the net the CoapBackend is responsible for (e.g. 2001:638:b157:1)
+     */
+    public String getIpv6Prefix(){
+        return pathPrefix.substring(4);
     }
 }
