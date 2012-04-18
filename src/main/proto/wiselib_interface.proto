@@ -1,0 +1,64 @@
+
+package wiselib_interface;
+
+option java_package = "eu.spitfire_project.smart_service_proxy.core.wiselib_interface";
+option java_outer_classname = "WiselibProtocol";
+
+
+message Statement {
+	optional string subject = 1;
+	optional string predicate = 2;
+	optional string object = 3;
+}
+
+message Assignment {
+	optional string variable = 1;
+	optional string value = 2;
+}
+
+	
+message SemanticEntity {
+	message Created {
+		// optionally provide a list of element-entities
+		repeated string elements = 1;
+	}
+
+	message Destroyed {
+		optional int32 reason = 1;
+	}
+
+	message Description {
+		repeated Statement statement = 1;
+	}
+
+	message Data {
+		repeated Statement statement = 1;
+	}
+
+	message Query {
+		optional string id = 1;
+		repeated Statement statement = 2;
+	}	
+
+	message QueryResponse {
+		optional string id = 1;
+		repeated Assignment assignment = 2;
+	}
+		
+	message Rule {
+		optional string groupByPredicate = 1;
+	}
+		
+		
+	
+	optional string id = 1;
+
+	optional Created created = 2;
+	optional Destroyed destroyed = 3;
+	optional Description description = 4;
+	optional Query query = 5;
+	optional QueryResponse queryResponse = 6;
+	optional Rule rule = 7;
+}
+
+
