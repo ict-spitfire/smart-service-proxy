@@ -80,6 +80,12 @@
             <artifactId>protocol-collection</artifactId>
             <version>1.3</version>
         </dependency>
+		
+		<dependency>
+			<groupId>com.google.protobuf</groupId>
+			<artifactId>protobuf-java</artifactId>
+			<version>2.3.0</version>
+		</dependency>
 
     </dependencies>
 
@@ -114,9 +120,83 @@
         </repository>
 
 	</repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>central</id>
+            <name>Maven Plugin Repository</name>
+            <url>http://repo1.maven.org/maven2</url>
+            <layout>default</layout>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <releases>
+                <updatePolicy>never</updatePolicy>
+            </releases>
+        </pluginRepository>
+
+        <pluginRepository>
+            <id>CodeHaus</id>
+            <name></name>
+            <url>http://snapshots.maven.codehaus.org/maven2</url>
+            <layout>default</layout>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <releases>
+                <enabled>false</enabled>
+                <updatePolicy>never</updatePolicy>
+            </releases>
+        </pluginRepository>
+                <pluginRepository>
+                    <id>dtrott</id>
+                    <url>http://maven.davidtrott.com/repository</url>
+                </pluginRepository>
+            </pluginRepositories>  
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>com.google.protobuf.tools</groupId>
+				<artifactId>maven-protoc-plugin</artifactId>
+				<version>0.1.8</version>
+                <configuration>
+                    <protocExecutable>/usr/local/bin/protoc</protocExecutable>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+			</plugin>
+
+<!--
+		<plugin>
+			<groupId>com.google.protobuf.tools</groupId>
+			<artifactId>maven-protoc-plugin</artifactId>
+			<executions>
+			<execution>
+				<id>generate-sources</id>
+				<phase>generate-sources</phase>
+				<goals>
+					<goal>compile</goal>
+				</goals>
+				<configuration>
+					<protoSourceRoot>${basedir}/src/main/protobuf/</protoSourceRoot>
+					<includes>
+						<param>**/*.proto</param> 
+					</includes>
+				</configuration>
+			</execution>
+			</executions>
+                <configuration>
+                    <protocExecutable>/usr/local/bin/protoc</protocExecutable>
+                </configuration>
+			</plugin>
+		-->
+			
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<version>2.2-beta-5</version>
