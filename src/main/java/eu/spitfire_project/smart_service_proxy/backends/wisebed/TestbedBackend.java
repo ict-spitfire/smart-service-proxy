@@ -22,7 +22,7 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire_project.smart_service_proxy.backends.testbed;
+package eu.spitfire_project.smart_service_proxy.backends.wisebed;
 
 import com.google.common.collect.HashMultimap;
 import com.hp.hpl.jena.rdf.model.Model;
@@ -34,49 +34,29 @@ import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
-import eu.wisebed.testbed.api.rs.RSServiceHelper;
-import eu.wisebed.api.rs.PublicReservationData;
-import eu.wisebed.api.rs.RS;
-
-import eu.wisebed.api.snaa.SNAA;
-import eu.wisebed.api.snaa.AuthenticationTriple;
-import eu.wisebed.api.snaa.SecretAuthenticationKey;
-import eu.wisebed.testbed.api.snaa.helpers.SNAAServiceHelper;
-
-import eu.wisebed.testbed.api.wsn.WSNServiceHelper;
-import eu.wisebed.api.controller.*;
-import eu.wisebed.api.common.*;
-import eu.wisebed.api.sm.*;
-import eu.wisebed.api.wsn.*;
-
-import de.uniluebeck.itm.tr.util.*;
-import de.itm.uniluebeck.tr.wiseml.WiseMLHelper;
-
-import de.uniluebeck.itm.wisebed.cmdlineclient.*;
+import eu.spitfire_project.smart_service_proxy.core.wiselib_interface.WiselibProtocol.*;
 
 import com.google.common.base.*;
 import com.google.common.collect.*;
 
-
+import org.apache.commons.io.input.*;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.ByteBuffer;
 
 /**
  * @author Henning Hasemann
  */
-public class TestbedBackend extends Backend {
+public class TestbedBackend extends Backend implements TailerListener {
     private HashMultimap<InetSocketAddress, String> observers = HashMultimap.create();
+	private Tailer tailer;
 	
-	TestbedBackend() {
-		authenticationSystem = SNAAServiceHelper.getSNAAService(snaaEndpointURL);
-		reservationSystem = RSServiceHelper.getRSService(rsEndpointURL);
-		sessionManagement = WSNServiceHelper.getSessionManagementService(sessionManagementEndpointURL); 
+	public TestbedBackend(String path) {
+		tailer = Tailer.create(new File(path), this);
 	}
-
-
 
 	@Override
 	public void bind(EntityManager em) {
@@ -84,25 +64,45 @@ public class TestbedBackend extends Backend {
 	} // bind()
 
 	
-	public void connectToTestbed() {
-			List credentialsList = new ArrayList();
-		for (int i=0; i<urnPrefixes.size(); i++) {
-			
-			AuthenticationTriple credentials = new AuthenticationTriple();
-			
-			credentials.setUrnPrefix(urnPrefixes.get(i));
-			credentials.setUsername(usernames.get(i));
-			credentials.setPassword(passwords.get(i));
-			
-			credentialsList.add(credentials);
-		}
-
-		// do the authentication
-		//log.info("Authenticating...");
-		secretAuthenticationKeys = authenticationSystem.authenticate(credentialsList);
-		//log.info("Successfully authenticated!");
+	public void open(String path) {
+		tailer = Tailer.create(new File(path), this);
 	}
-
+	
+	
+	public void init(Tailer tailer) {
+	}
+	
+	public void fileNotFound() {
+	}
+	
+	public void fileRotated() {
+	}
+	
+	public void handle(Exception ex) {
+		ex.printStackTrace();
+	}
+	
+	public void handle(String line) {
+		int pos = line.indexOf('|');
+		pos = line.indexOf('|', pos+1);
+		pos = line.indexOf('|', pos+1);
+		
+		String[] stringbytes = line.substring(pos+1).trim().split(" ");
+		byte[] bytes = new byte[stringbytes.length];
+		int i =0;
+		for(String s: stringbytes) {
+			bytes[i++] = Byte.parseByte(s.substring(2), 16);
+		}
+		
+		try {
+			SemanticEntity se = SemanticEntity.parseFrom(bytes);
+			System.out.println(se.toString());
+		}
+		catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+	}
 	
 	//public void reserveTestbed() {
 		
@@ -123,6 +123,7 @@ public class TestbedBackend extends Backend {
 		
 		
 		
+		/*
         m.removeAll();
         try {
             m.read(new FileInputStream(new File(f)), uri.toString(), "N3");
@@ -130,6 +131,7 @@ public class TestbedBackend extends Backend {
         catch(java.io.FileNotFoundException ex) {
             ex.printStackTrace();
         }
+		*/
 
 		ChannelFuture future = Channels.write(ctx.getChannel(), new SelfDescription(m, uri));
 		if(!HttpHeaders.isKeepAlive(request)){

@@ -24,106 +24,151 @@
  */
 package eu.spitfire_project.smart_service_proxy.backends.files;
 
-import com.google.common.collect.HashMultimap;
+import com.hp.hpl.jena.n3.turtle.TurtleParseException;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
+import eu.spitfire_project.smart_service_proxy.utils.HttpResponseFactory;
+import org.apache.log4j.Logger;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.HttpHeaders;
+import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Set;
 
 /**
+ * The FilesBackend is responsible for the services backed by the files (except of *.swp) in the directory given as
+ * constructor parameter. That means every file gets a URI to be requested via GET request to read its content.
+ * There are only GET requests supported. Other methods but GET cause a response
+ * with status "method not allowed". GET requests on resources backed by malformed files (i.e. content
+ * is anything but valid "N3") cause an "internal server error" response.
+ *
+ * @author Oliver Kleine
  * @author Henning Hasemann
  */
 public class FilesBackend extends Backend {
-	private File baseDirectory = new File("data/files/");
+    
+    private static Logger log = Logger.getLogger(FilesBackend.class.getName());
+    
+    private String directory;
+    
+    private HashMap<URI, File> resources = new HashMap<URI, File>();
 
-    private HashMultimap<InetSocketAddress, String> observers = HashMultimap.create();
-
-	@Override
+    /**
+     * Constructor for a new FileBackend instance which provides all files in the specified directory
+     * as resources.
+     *
+     * @param directory the path to the directory where the files are located
+     */
+    public FilesBackend(String directory){
+        super();
+        this.directory = directory;
+    }
+    
+    @Override
 	public void bind(EntityManager em) {
 		super.bind(em);
-		
-		for(File file: baseDirectory.listFiles()) {
-			if(!file.isFile()) { continue; }
-			String filename = file.getName();
-			if(filename.endsWith(".swp") || filename.startsWith(".")) { continue; }
-			try {
-				entityManager.entityCreated(new URI(getPathPrefix() + "/" + filename), this);
-			}
-			catch(java.net.URISyntaxException e) {
-				e.printStackTrace();
-			}
-		} // for
-	} // bind()
+        registerFileResources();
+    }
 
-	
-//	//@Override
-//	public void getModel(URI uri_, final ChannelHandlerContext ctx, final boolean keepAlive) {
-//		Model m = ModelFactory.createDefaultModel();
-//
-//		URI uri = entityManager.normalizeURI(uri_);
-//		String f = baseDirectory + "/" + uri.getPath().substring(getPathPrefix().length());
-//
-//		try {
-//			m.read(new FileInputStream(new File(f)), uri.toString(), "N3");
-//		}
-//		catch(java.io.FileNotFoundException e) {
-//			e.printStackTrace();
-//		}
-//
-//		ChannelFuture future = Channels.write(ctx.getChannel(), new SelfDescription(m, uri));
-//		if(!keepAlive){
-//			future.addListener(ChannelFutureListener.CLOSE);
-//		}
-//	}
+    //Register all files as new resources at the EntityManager (ignore *.swp files)
+    private void registerFileResources(){
+        File directoryFile = new File(directory);
+        File[] files = directoryFile.listFiles();
+        
+        if(files != null){
+            
+            if(files.length == 0){
+                log.info("[FilesBackend] Directory is empty: " + directory);
+            }
+            
+            for(File file : files){
+                if(!file.getName().endsWith(".swp")){
+                    try{
+                        URI resourceURI = new URI(entityManager.getURIBase() + pathPrefix + file.getName());
+                          
+                        resources.put(resourceURI, file);
+
+                        if(log.isDebugEnabled()){
+                            log.debug("[FilesBackend] Added file " + file.getAbsolutePath() +
+                                    " as new resource at " + resourceURI);
+                        }
+
+                    } catch (URISyntaxException e) {
+                        log.fatal("[FilesBackend] This should never happen.", e);
+                    }
+                }
+            }
+        }
+        else{
+            log.fatal("[FilesBackend] Directory does not exist: " + directory);    
+        }
+    }
 
     @Override
-	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-        if(!(e.getMessage() instanceof HttpRequest)){
-            super.messageReceived(ctx, e);
+	public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
+        if(!(me.getMessage() instanceof HttpRequest)){
+            ctx.sendUpstream(me);
         }
 
-		HttpRequest request = (HttpRequest) e.getMessage();
+		HttpRequest request = (HttpRequest) me.getMessage();
+        Object response;
+                   
+        //Look up file
+        URI resourceURI = entityManager.normalizeURI(new URI(request.getUri()));
+        File file = resources.get(resourceURI);
 
+        if(file != null && file.isFile()){
 
-        Model m = ModelFactory.createDefaultModel();
+            if(request.getMethod() == HttpMethod.GET){
 
-		URI uri = entityManager.normalizeURI(new URI(request.getUri()));
-		String f = baseDirectory + "/" + uri.getPath().substring(getPathPrefix().length());
+                //Read file content and write it to the model
+                Model model = ModelFactory.createDefaultModel();
+                FileInputStream inputStream = new FileInputStream(file);
 
-        boolean worked = false;
-        while(!worked) {
-            m.removeAll();
-            try {
-                m.read(new FileInputStream(new File(f)), uri.toString(), "N3");
-                worked = true;
+                try{
+                    model.read(inputStream, resourceURI.toString(), "N3");
+                    response = new SelfDescription(model, resourceURI, new Date());
+                }
+                catch(TurtleParseException e){
+                    response = HttpResponseFactory.createHttpResponse(request.getProtocolVersion(),
+                            HttpResponseStatus.INTERNAL_SERVER_ERROR);
+
+                    if(log.isDebugEnabled()){
+                        log.debug("[FilesBackend] Malformed file content in: " + file.getAbsolutePath());
+                    }
+                }
             }
-            catch(java.io.FileNotFoundException ex) {
-                ex.printStackTrace();
+            else {
+                response = HttpResponseFactory.createHttpResponse(request.getProtocolVersion(),
+                        HttpResponseStatus.METHOD_NOT_ALLOWED);
+
+                if(log.isDebugEnabled()){
+                    log.debug("[FilesBackend] File not found: " + file.getAbsolutePath());
+                }
             }
-            Thread.sleep(10);
         }
+        else{
+            response = HttpResponseFactory.createHttpResponse(request.getProtocolVersion(),
+                    HttpResponseStatus.NOT_FOUND);
+        }
+        
+        ChannelFuture future = Channels.write(ctx.getChannel(), response);
+        future.addListener(ChannelFutureListener.CLOSE);
+    }
 
-        m.removeAll();
-        try {
-            m.read(new FileInputStream(new File(f)), uri.toString(), "N3");
-        }
-        catch(java.io.FileNotFoundException ex) {
-            ex.printStackTrace();
-        }
-
-		ChannelFuture future = Channels.write(ctx.getChannel(), new SelfDescription(m, uri));
-		if(!HttpHeaders.isKeepAlive(request)){
-			future.addListener(ChannelFutureListener.CLOSE);
-		}
-	}
+    @Override
+    public Set<URI> getResources(){
+        return resources.keySet();
+    }
 }
 

@@ -26,7 +26,6 @@ package eu.spitfire_project.smart_service_proxy.backends.coap;
 
 import de.uniluebeck.itm.spitfire.nCoap.application.CoapClientApplication;
 import de.uniluebeck.itm.spitfire.nCoap.application.CoapServerApplication;
-import de.uniluebeck.itm.spitfire.nCoap.communication.callback.ResponseCallback;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
 import de.uniluebeck.itm.spitfire.nCoap.message.InvalidMessageException;
@@ -34,20 +33,14 @@ import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.log4j.SimpleLayout;
-import org.jboss.netty.buffer.ChannelBuffer;
 import sun.net.util.IPAddressUtil;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -59,11 +52,11 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
 
     private static Logger log = Logger.getLogger(CoapNodeRegistrationServer.class.getName());
 
-    private CoapBackendApp coapBackend;
+    private CoapBackend coapBackend;
 
     private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
 
-    public CoapNodeRegistrationServer(CoapBackendApp coapBackend){
+    public CoapNodeRegistrationServer(CoapBackend coapBackend){
         super();
         this.coapBackend = coapBackend;
         log.debug("[CoapNodeRegistrationServer] Constructed.");

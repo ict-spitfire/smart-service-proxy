@@ -3,9 +3,8 @@
 #-------------
 #Core settings
 #-------------
-listenPort = 8080
-#uriBase = auto
-#uriBase = http://www.myserver.tld:8080
+#baseURIHost = www.coap2.wisebed.itm.uni-luebeck.de
+#listenPort = 8080
 #ram = 2097152
 
 
@@ -22,7 +21,7 @@ enableBackend = simple
 #generator.features = 100
 #generator.pFeature = 0.01
 #generator.pValue = 0.8
-#generator.nodes = 1000000
+#generator.nodes = 10
 
 
 #------------
@@ -40,3 +39,8 @@ enableBackend = simple
 #enableBackend = coap
 #coap.ipv6Prefix = 2001:638:70a:c003::
 
+#-------------
+#Files backend
+#-------------
+#enableBackend = files
+#files.directory = /home/spitfire/ssp-data/files

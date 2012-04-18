@@ -31,6 +31,7 @@ import com.hp.hpl.jena.vocabulary.VCARD;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
+import eu.spitfire_project.smart_service_proxy.utils.HttpResponseFactory;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.*;
@@ -38,6 +39,9 @@ import org.jboss.netty.handler.codec.http.*;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * A {@link SimpleBackend} instance hosts a simple standard model. This backend is basicly to ensure the functionality
@@ -53,10 +57,7 @@ public class SimpleBackend extends Backend {
 
     private static Logger log = Logger.getLogger(SimpleBackend.class.getName());
 
-    private static String personURI = "http://example.org/JohnSmith";
-    private static String fullName = "John Smith";
-    private static Model model = ModelFactory.createDefaultModel();
-    private static Resource johnSmith = model.createResource(personURI).addProperty(VCARD.FN, fullName);
+    private HashMap<URI, Model> resources = new HashMap<URI, Model>();
 
     /**
      * Returns a new Backend instance and reads the actual configuration from ssp.properties
@@ -68,21 +69,28 @@ public class SimpleBackend extends Backend {
         super();
     }
 
-    /**
-     * Binds the {@link Backend} to an {@link EntityManager} which means, that this EntityManager gets known
-     * of all resources (i.e. their URIs} provided by the Backend
-     *
-     * @param em The EntityManager instance the Backend should be bound to
-     */
     public void bind(EntityManager em){
+        super.bind(em);
+        registerResources();
+    }
+    
+    private void registerResources(){
         try {
-            super.bind(em);
-            em.entityCreated(new URI(getPathPrefix() + "JohnSmith"), this);
+            String personURI = "http://example.org/JohnSmith";
+            Model model = ModelFactory.createDefaultModel();
+            model.createResource(personURI).addProperty(VCARD.FN, "John Smith");
+            
+            URI resourceURI = new URI(entityManager.getURIBase() + pathPrefix + "JohnSmith");
+            resources.put(resourceURI, model);
+
+            if(log.isDebugEnabled()){
+                log.debug("[SimpleBackend] Successfully added new resource at " + resourceURI);
+            }
+
         } catch (URISyntaxException e) {
-            log.fatal("[SimpleBackend] Error while registering /JohnSmith resource. This should never happen!", e);
+            log.fatal("[SimpleBackend] This should never happen.", e);
         }
     }
-
 
     @Override
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception{
@@ -92,15 +100,44 @@ public class SimpleBackend extends Backend {
         }
 
         HttpRequest request = (HttpRequest) me.getMessage();
-
         Object response;
-        if(request.getMethod() == HttpMethod.GET){
-            response = new SelfDescription(model, new URI(request.getUri()));
+
+        //Look up resource
+        URI resourceURI = entityManager.normalizeURI(new URI(request.getUri()));
+        Model model = resources.get(resourceURI);
+            
+        if(model != null){
+            if(request.getMethod() == HttpMethod.GET){
+                response = new SelfDescription(model, new URI(request.getUri()));
+                
+                if(log.isDebugEnabled()){
+                    log.debug("[SimpleBackend] Resource found: " + resourceURI);
+                }
+            }
+            else{
+                response = new DefaultHttpResponse(request.getProtocolVersion(), HttpResponseStatus.METHOD_NOT_ALLOWED);
+
+                if(log.isDebugEnabled()){
+                    log.debug("[SimpleBackend] Method not allowed: " + request.getMethod());
+                }
+            }
         }
         else{
-            response = new DefaultHttpResponse(request.getProtocolVersion(), HttpResponseStatus.METHOD_NOT_ALLOWED);
+            response = HttpResponseFactory.createHttpResponse(request.getProtocolVersion(),
+                    HttpResponseStatus.NOT_FOUND);
+            
+            if(log.isDebugEnabled()){
+                log.debug("[SimpleBackend] Resource not found: " + resourceURI);
+            }
         }
+       
+        //Send response
         ChannelFuture future = Channels.write(ctx.getChannel(), response);
         future.addListener(ChannelFutureListener.CLOSE);
+    }
+
+    @Override
+    public Set<URI> getResources(){
+        return resources.keySet();
     }
 }

@@ -37,10 +37,11 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
-//import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackendApp;
+//import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
 
 /**
  * The EntityManager is the topmost upstream handler of an HTTPEntityMangerPipeline. It contains a list of {@link Backend}s to manage
@@ -58,12 +59,9 @@ public class EntityManager extends SimpleChannelHandler {
 	private ConcurrentHashMap<URI, Backend> entityBackends = new ConcurrentHashMap<URI, Backend>();
 	//Contains the individual paths to the backends (for Userinterface access)
 	private ConcurrentHashMap<String, Backend> pathBackends = new ConcurrentHashMap<String, Backend>();
-	//Contains open requests
-	//private ConcurrentHashMap<URI, ChannelHandlerContext> openRequests = new ConcurrentHashMap<URI, ChannelHandlerContext>();
-	
-	
+
 	private final String listPath = "/.well-known/servers";
-	private String uriBase; // = ""; //"http://localhost:8080";
+	private String uriBase;
 	private final String backendPrefixFormat = "/be-%04d/";
 	private final String entityURIFormat = "/entity-%04x/";
 	private final String staticPrefix = "/static/";
@@ -77,14 +75,6 @@ public class EntityManager extends SimpleChannelHandler {
 	private static EntityManager instance = new EntityManager();
 	
 	private EntityManager(){
-        //uriBase = "http://www.coap3.wisebed.itm.uni-luebeck.de:8080";
-		try {
-			uriBase = "http://" + InetAddress.getLocalHost().getCanonicalHostName() + ":8080";
-
-		} catch (UnknownHostException e) {
-			// TODO Auto-generator catch block
-			e.printStackTrace();
-		}
 	}
 	
 	public static EntityManager getInstance() {
@@ -219,7 +209,6 @@ public class EntityManager extends SimpleChannelHandler {
                 ctx.getPipeline().addLast("Backend to handle request", be);
                 ctx.sendUpstream(e);
 
-            //be.getModel(toThing(uri), HttpHeaders.isKeepAlive(request));
 		    }
             else {
                 log.debug("! No backend found to handle path " + path + "  prefix=" + prefix);
@@ -245,7 +234,25 @@ public class EntityManager extends SimpleChannelHandler {
 			for(Map.Entry<URI, Backend> entry: entityBackends.entrySet()) {
 				buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", entry.getKey(), entry.getKey()));
 			}
-			buf.append("</ul>\n");
+            buf.append("</ul>\n");
+
+            //Retreive resources from all registered Backends
+            for(Backend backend : pathBackends.values()){
+                Set<URI> resourceURIs = backend.getResources();
+                if(!resourceURIs.isEmpty()){
+                    buf.append("<h3> " + backend.getClass().getSimpleName() + "</h3>\n");
+                    buf.append("<ul>\n");
+
+                    for(URI resourceURI : resourceURIs){
+                        buf.append("<li><a href=\"" + resourceURI.toString() + "\">" +
+                                resourceURI.toString() + "</a></li>\n");
+                    }
+                
+                    buf.append("</ul>\n");
+                }
+            }
+            
+			
 			
 			buf.append("</body></html>\n");
 			Channels.write(ctx.getChannel(), Answer.create(buf.toString()));
