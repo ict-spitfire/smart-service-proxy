@@ -144,7 +144,7 @@ public class FilesBackend extends Backend {
                             HttpResponseStatus.INTERNAL_SERVER_ERROR);
 
                     if(log.isDebugEnabled()){
-                        log.debug("[FilesBackend] Malformed file content in: " + file.getAbsolutePath());
+                        log.debug("[FilesBackend] Malformed file content in: " + file.getAbsolutePath(), e);
                     }
                 }
             }

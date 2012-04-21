@@ -36,8 +36,14 @@ enableBackend = simple
 #------------
 #CoAP backend
 #------------
-#enableBackend = coap
-#coap.ipv6Prefix = 2001:638:70a:c003::
+#enableBackend = coap1
+#coap1.ipv6Prefix = 2001:123:abc:c003
+
+#enableBackend = coap2
+#coap2.ipv6Prefix = 2001:123:abc:c006
+
+#enableBackend = coapXXX
+#coapXXX.ipv6Prefix = 2001:110:efa:456
 
 #-------------
 #Files backend

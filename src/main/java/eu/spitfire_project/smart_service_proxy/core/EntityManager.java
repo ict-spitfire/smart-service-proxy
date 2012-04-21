@@ -156,14 +156,17 @@ public class EntityManager extends SimpleChannelHandler {
 	 */
 	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-		// System.out.println("# EntityManager received msg: " + e.getMessage());
-		
-		if(!(e.getMessage() instanceof HttpRequest)) {
+
+        if(!(e.getMessage() instanceof HttpRequest)) {
 			super.messageReceived(ctx, e);
             return;
 		}
-		
-		HttpRequest request = (HttpRequest) e.getMessage();
+
+        HttpRequest request = (HttpRequest) e.getMessage();
+
+        if(log.isDebugEnabled()){
+            log.debug("[EntityManager] Received HTTP request for target: " + request.getUri());
+        }
 		
 		URI uri = URI.create(uriBase).resolve(request.getUri()).normalize();
 		String path = uri.getRawPath();
@@ -193,6 +196,8 @@ public class EntityManager extends SimpleChannelHandler {
                 for(int i = 0; i < 4; i++){
                     prefix += (components[i] + ":");
                 }
+                //Remove the last ":"
+                prefix = prefix.substring(0, prefix.length() - 1);
             }
 
             log.debug("Try to find backend for prefix " + prefix);
