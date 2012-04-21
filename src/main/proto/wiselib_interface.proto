@@ -9,6 +9,8 @@ message Statement {
 	optional string subject = 1;
 	optional string predicate = 2;
 	optional string object = 3;
+	optional string bitmask = 4;
+	optional string context = 5;
 }
 
 message Assignment {
