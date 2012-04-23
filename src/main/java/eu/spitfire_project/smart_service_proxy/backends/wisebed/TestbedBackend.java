@@ -25,27 +25,21 @@
 package eu.spitfire_project.smart_service_proxy.backends.wisebed;
 
 import com.google.common.collect.HashMultimap;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
+import eu.spitfire_project.smart_service_proxy.core.wiselib_interface.WiselibProtocol;
+import org.apache.commons.io.input.Tailer;
+import org.apache.commons.io.input.TailerListener;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
-import eu.spitfire_project.smart_service_proxy.core.wiselib_interface.WiselibProtocol.*;
-
-import com.google.common.base.*;
-import com.google.common.collect.*;
-
-import org.apache.commons.io.input.*;
-
 import java.io.File;
-import java.io.FileInputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.ByteBuffer;
+import java.util.*;
 
 /**
  * @author Henning Hasemann
@@ -53,9 +47,36 @@ import java.nio.ByteBuffer;
 public class TestbedBackend extends Backend implements TailerListener {
     private HashMultimap<InetSocketAddress, String> observers = HashMultimap.create();
 	private Tailer tailer;
+
+	private class SE {
+		public Model model;
+		public long lastUpdate;
+		public String uri;
+	}
+	
+	Map<String, SE> seCache = new HashMap<String, SE>();
 	
 	public TestbedBackend(String path) {
 		tailer = Tailer.create(new File(path), this);
+		Timer t = new Timer();
+		t.scheduleAtFixedRate(new TimerTask() {
+			@Override
+			public void run() {
+				checkOnSEs();
+			}
+		}, 1000, 10000);
+	}
+	
+	public void checkOnSEs() {
+		//System.out.println("check on ses");
+		// TODO: check which SEs are timed out
+		for(Map.Entry<String, SE> seEntry: seCache.entrySet()) {
+			//Calendar out = seEntry.getValue().lastUpdate;
+			if(seEntry.getValue().lastUpdate + 10000 < System.currentTimeMillis()) {
+				entityManager.entityDestroyed(seEntry.getKey());
+				seCache.remove(seEntry.getKey());
+			}
+		}
 	}
 
 	@Override
@@ -83,25 +104,56 @@ public class TestbedBackend extends Backend implements TailerListener {
 	}
 	
 	public void handle(String line) {
+		System.out.println("reading line: " + line);
+
 		int pos = line.indexOf('|');
 		pos = line.indexOf('|', pos+1);
 		pos = line.indexOf('|', pos+1);
 		
 		String[] stringbytes = line.substring(pos+1).trim().split(" ");
-		byte[] bytes = new byte[stringbytes.length];
+		byte[] bytes = new byte[stringbytes.length - 1];
 		int i =0;
+		boolean first = true;
 		for(String s: stringbytes) {
+			// skip first element (always 0x68)
+			if(first) { first = false; continue; }
 			bytes[i++] = Byte.parseByte(s.substring(2), 16);
 		}
 		
 		try {
-			SemanticEntity se = SemanticEntity.parseFrom(bytes);
+			WiselibProtocol.SemanticEntity se = WiselibProtocol.SemanticEntity.parseFrom(bytes);
 			System.out.println(se.toString());
+			createSEFromDescription(se);
+			
 		}
 		catch(Exception e) {
 			e.printStackTrace();
 		}
 		
+	}
+
+	String normalize(String u) {
+		URI base = URI.create("http://somewhere/blah.rdf#");
+		return base.resolve(URI.create(u)).toString();
+	}
+
+	private void createSEFromDescription(WiselibProtocol.SemanticEntity se_desc) {
+		URI uri = entityManager.normalizeURI(getPathPrefix() + se_desc.getId());
+		Model m = ModelFactory.createDefaultModel();
+		for(WiselibProtocol.Statement statement: se_desc.getDescription().getStatementList()) {
+			Resource s = m.createResource(normalize(statement.getSubject()));
+			Property p = m.createProperty(normalize(statement.getPredicate()));
+			String obj = statement.getObject();
+			RDFNode o = obj.startsWith("\"") ? m.createLiteral(obj.substring(1)) : m.createResource(normalize(obj));
+
+			m.add(m.createStatement(s, p, o));
+		}
+		SE s = new SE();
+		s.uri = uri.toString();
+		s.model = m;
+		s.lastUpdate = System.currentTimeMillis();
+		seCache.put(s.uri, s);
+		entityManager.entityCreated(URI.create(s.uri), this);
 	}
 	
 	//public void reserveTestbed() {
@@ -116,11 +168,11 @@ public class TestbedBackend extends Backend implements TailerListener {
 		HttpRequest request = (HttpRequest) e.getMessage();
 
 
-        Model m = ModelFactory.createDefaultModel();
+        //Model m = ModelFactory.createDefaultModel();
 
 		URI uri = entityManager.normalizeURI(new URI(request.getUri()));
 
-		
+		Model m = seCache.get(uri.toString()).model;
 		
 		
 		/*

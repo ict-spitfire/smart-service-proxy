@@ -32,9 +32,7 @@ import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
 import java.io.File;
-import java.net.InetAddress;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -303,13 +301,6 @@ public class EntityManager extends SimpleChannelHandler {
 	}
 	
 	/**
-	 * Will be called by a bounded Backend when an entity has been destroyed.
-	 */
-	/*public void entityDestroyed(URI uri) {
-		entityBackends.remove(uri);
-	}*/
-	
-	/**
 	 * Will be called by a bounded Backend whenever the description of an entity changed.
 	 */
 	/*public void descriptionChanged(URI entity, Model model) {
@@ -326,6 +317,14 @@ public class EntityManager extends SimpleChannelHandler {
 			b = pathBackends.get(pathPart);
 		}
 		return b;
+	}
+
+	public void entityDestroyed(String u) {
+		URI uri = toThing(u);
+		for(URI x: entityBackends.keySet()) {System.out.println(x); }
+		log.debug("Destroyed Entity: " + uri);
+		entityBackends.remove(uri);
+		for(URI x: entityBackends.keySet()) {System.out.println(x); }
 	}
 }
 
