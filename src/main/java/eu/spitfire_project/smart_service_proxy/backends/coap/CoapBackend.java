@@ -183,6 +183,9 @@ public class CoapBackend extends Backend{
                 + new String(payloadBuffer.array()));
 
         String remoteIP = remoteAddress.getHostAddress();
+        if(remoteIP.indexOf("%") != -1){
+            remoteIP = remoteIP.substring(0, remoteIP.indexOf("%"));
+        }
         
         //register each link as new entity
         String payload = new String(payloadBuffer.array());
@@ -199,6 +202,7 @@ public class CoapBackend extends Backend{
             try {
                 //create mirror URI
                 String encodedIP = remoteIP;
+               
                 if(IPAddressUtil.isIPv6LiteralAddress(encodedIP)){
                     encodedIP = "%5B" + encodedIP + "%5D";
                 }
