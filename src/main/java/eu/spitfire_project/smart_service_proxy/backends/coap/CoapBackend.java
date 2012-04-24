@@ -62,14 +62,16 @@ public class CoapBackend extends Backend{
     private HashSet<InetAddress> sensornodes = new HashSet<InetAddress>();
     
     private DatagramChannel clientChannel = CoapClientDatagramChannelFactory.getInstance().getChannel();
+    private int heartbeatInterval;
 
     /**
      * Create a new instance of the CoAPBackend-Application with a listening Datagram Socket on port 5683.
      */
-    public CoapBackend(String ipv6Prefix) throws Exception{
+    public CoapBackend(int heartbeatInterval, String ipv6Prefix) throws Exception{
         super();
         //this.pathPrefix = "/%5B" + ipv6Prefix.substring(0, ipv6Prefix.lastIndexOf(":"));
         this.pathPrefix = "/%5B" + ipv6Prefix;
+        this.heartbeatInterval = heartbeatInterval;
 
         //Create CoAP server to handle incoming requests
         //new CoapNodeRegistrationServer(this);

@@ -157,7 +157,7 @@ public class Main {
                 if(ipv6Prefix == null){
                     throw new Exception("Property '" + enabledBackend + ".ipv6Prefix' not set.");
                 }
-                backend = new CoapBackend(ipv6Prefix);
+                backend = new CoapBackend(30, ipv6Prefix);
                 CoapNodeRegistrationServer.getInstance().addCoapBackend((CoapBackend) backend);
             }
 

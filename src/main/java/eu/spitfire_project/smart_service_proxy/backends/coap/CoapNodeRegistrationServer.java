@@ -91,8 +91,9 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
     @Override
     public CoapResponse receiveCoapRequest(CoapRequest coapRequest, InetSocketAddress remoteSocketAddress) {
 
-        log.debug("[CoapNodeRegistrationServer] Received request from " + remoteSocketAddress + " for" +
-            " resource " + coapRequest.getTargetUri());
+        log.debug("[CoapNodeRegistrationServer] Received request from " +
+                remoteSocketAddress.getAddress().getHostAddress() + ":" + remoteSocketAddress.getPort()
+                + " for resource " + coapRequest.getTargetUri());
 
         CoapResponse coapResponse = null;
 
@@ -163,6 +164,10 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
             try {
                 //Send request to the .well-known/core resource of the new sensornode
                 String remoteIP = remoteAddress.getHostAddress();
+                //Remove eventual scope ID
+                if(remoteIP.indexOf("%") != -1){
+                    remoteIP = remoteIP.substring(0, remoteIP.indexOf("%"));
+                }
                 if(IPAddressUtil.isIPv6LiteralAddress(remoteIP)){
                     remoteIP = "[" + remoteIP + "]";
                 }
