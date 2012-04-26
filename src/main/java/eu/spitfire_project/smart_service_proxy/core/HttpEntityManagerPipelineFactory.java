@@ -61,6 +61,7 @@ public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory 
 		pipeline.addLast("encoder", new HttpResponseEncoder());
 		pipeline.addLast("deflater", new HttpContentCompressor());
 		
+        pipeline.addLast("GWConMapper", new HttpRequestTranslatorGwConMapper());
 		pipeline.addLast("answer formatter", new AnswerFormatter());
 		pipeline.addLast("model formatter", new ModelFormatter());
 		pipeline.addLast("statement cache", StatementCache.getInstance());

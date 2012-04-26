@@ -24,6 +24,7 @@
  */
 package eu.spitfire_project.smart_service_proxy.backends.coap;
 
+import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionTable;
 import de.uniluebeck.itm.spitfire.nCoap.communication.callback.ResponseCallback;
 import de.uniluebeck.itm.spitfire.nCoap.communication.core.CoapClientDatagramChannelFactory;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
@@ -35,12 +36,14 @@ import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
 import eu.spitfire_project.smart_service_proxy.utils.HttpResponseFactory;
 import org.apache.log4j.Logger;
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.socket.DatagramChannel;
 import org.jboss.netty.handler.codec.http.*;
 import sun.net.util.IPAddressUtil;
 
 import java.net.*;
+import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -92,8 +95,28 @@ public class CoapBackend extends Backend{
         }
         
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
+
+        HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+                HttpResponseStatus.OK);
+
+        int internalSourcePort = ((InetSocketAddress) (ctx.getChannel().getRemoteAddress())).getPort();
+
+        httpResponse.setContent(ChannelBuffers.wrappedBuffer(("Alles gut! Zieladresse war: "
+                + ConnectionTable.getInstance().getTcpRequest(internalSourcePort)).
+                getBytes(Charset.forName("UTF-8"))));
+
+        ChannelFuture fut = Channels.write(ctx.getChannel(), httpResponse);
+        fut.addListener(ChannelFutureListener.CLOSE);
+
+        if(true) {
+            return;
+        }
+
         Object response;
-                
+        
+        
+        
+                        
         //Look up CoAP target URI
         final URI mirrorURI = URI.create(entityManager.getURIBase()).resolve(httpRequest.getUri() + "#").normalize();
 
@@ -113,6 +136,8 @@ public class CoapBackend extends Backend{
                     @Override
                     public void receiveCoapResponse(CoapResponse coapResponse) {
                         Object response;
+
+                        //TODO Core-Link-Format to HTTP links.
                         try{
                             response = new SelfDescription(coapResponse, mirrorURI);
                         }
