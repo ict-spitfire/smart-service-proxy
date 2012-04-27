@@ -54,14 +54,14 @@ public class ElementSemanticEntityCache {
 	public Dataset dataset;
 	private final String tdbLocation = "data/slse/tdb";
 	private Set<String> proxies;
-	private final long defaultValidInterval = 5 * 60 * 1000;
+	private final long defaultValidInterval = 10 * 1000;
 	private Set<ElementSemanticEntityCacheListener> listeners;
 	private HashMap<String, Model> oldModels;
 	private Set<ElementSemanticEntity> addedEntities;
 	private Set<ElementSemanticEntity> changedEntities;
 	private boolean pollComplete = false;
 	private final boolean pollParallel;
-	private int pollTimeoutProxy = 5 * 60 * 1000;
+	private int pollTimeoutProxy = 20 * 1000;
 	//private final long pollTimeoutEntity = 10 * 1000;
 
 	public ElementSemanticEntityCache(SLSEBackend backend, boolean pollParallel, int pollInterval) {
@@ -73,7 +73,7 @@ public class ElementSemanticEntityCache {
 		proxies = new HashSet<String>();
 		this.listeners = new HashSet<ElementSemanticEntityCacheListener>();
 		this.pollParallel = pollParallel;
-		this.pollTimeoutProxy = pollInterval;
+		this.defaultValidInterval = pollInterval;
 	}
 
 	void addProxy(String proxy) {
