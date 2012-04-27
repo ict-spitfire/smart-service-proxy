@@ -61,10 +61,10 @@ public class ElementSemanticEntityCache {
 	private Set<ElementSemanticEntity> changedEntities;
 	private boolean pollComplete = false;
 	private final boolean pollParallel;
-	private final int pollTimeoutProxy = 5 * 60 * 1000;
+	private int pollTimeoutProxy = 5 * 60 * 1000;
 	//private final long pollTimeoutEntity = 10 * 1000;
 
-	public ElementSemanticEntityCache(SLSEBackend backend, boolean pollParallel) {
+	public ElementSemanticEntityCache(SLSEBackend backend, boolean pollParallel, int pollInterval) {
 		elementSEs = new HashMap<String, ElementSemanticEntity>();
 		knownSEs = new HashMap<String, Set<String>>();
 		this.backend = backend;
@@ -73,6 +73,7 @@ public class ElementSemanticEntityCache {
 		proxies = new HashSet<String>();
 		this.listeners = new HashSet<ElementSemanticEntityCacheListener>();
 		this.pollParallel = pollParallel;
+		this.pollTimeoutProxy = pollInterval;
 	}
 
 	void addProxy(String proxy) {

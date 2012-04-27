@@ -162,7 +162,9 @@ public class Main {
             else if(enabledBackend.equals("slse")) {
                 
                 backend = new SLSEBackend(config.getBoolean("slse.waitForPolling", false),
-                                          config.getBoolean("slse.parallelPolling", false));
+                                          config.getBoolean("slse.parallelPolling", false),
+										  config.getInt("slse.pollInterval", 10000)
+										  );
                 
                 for(String proxy: config.getStringArray("slse.proxy")) {
                     ((SLSEBackend) backend).addProxy(proxy);

@@ -67,8 +67,8 @@ public class SLSEBackend extends Backend {
         }
     }
 
-    public SLSEBackend(boolean waitForPolling, boolean pollParallel) {
-		eseCache = new ElementSemanticEntityCache(this, pollParallel);
+    public SLSEBackend(boolean waitForPolling, boolean pollParallel, int pollInterval) {
+		eseCache = new ElementSemanticEntityCache(this, pollParallel, pollInterval);
         this.waitForPolling = waitForPolling;
 		slseCache = new ServiceLevelSemanticEntityCache(this, waitForPolling);
 		slseBuilder = new ServiceLevelSemanticEntityBuilder(eseCache, slseCache, this);
