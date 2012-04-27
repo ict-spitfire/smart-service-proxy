@@ -119,7 +119,7 @@
             </snapshots>
         </repository>
 
-	</repositories>     l
+	</repositories>
 
 	<build>
 		<plugins>
