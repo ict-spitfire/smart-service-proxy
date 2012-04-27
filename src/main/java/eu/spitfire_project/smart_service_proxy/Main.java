@@ -24,6 +24,7 @@
  */
 package eu.spitfire_project.smart_service_proxy;
 
+import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionMapper;
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapNodeRegistrationServer;
 import eu.spitfire_project.smart_service_proxy.backends.files.FilesBackend;
@@ -46,14 +47,17 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.execution.ExecutionHandler;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
+import java.io.File;
+import java.net.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.Executors;
 
 public class Main {
 
     private static Logger log = Logger.getLogger(Main.class.getName());
-    
+
     static{
         Logger.getLogger("eu.spitfire_project.smart_service_proxy").addAppender(new ConsoleAppender(new SimpleLayout()));
         Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
@@ -92,6 +96,44 @@ public class Main {
 
         //Create enabled backends
         createBackends(config);
+
+
+        startConnectionMapper(config);
+    }
+    
+    private static void startConnectionMapper(Configuration config) throws URISyntaxException {
+        List<InetAddress> boundAddresses = new ArrayList<InetAddress>();
+
+        //URL url = Main.class.getResource("libTUNWrapperCdl.so");
+        File file = new File("libTUNWrapperCdl.so");
+        
+        System.out.println("File exists: " + file.exists());
+
+        List<InetAddress> addresses = new ArrayList<InetAddress>();
+        for(String s : config.getStringArray("connectionMapper.localBoundIP"))
+            try {
+                addresses.add(Inet6Address.getByName(s));
+            } catch (UnknownHostException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
+
+        try {
+            ConnectionMapper.start(file.getAbsolutePath(),
+                                   log,
+                                   config.getString("connectionMapper.tunBoundIP"),
+                    config.getInt("connectionMapper.localUdpServerPort"),
+                    config.getInt("listenPort"),
+                    config.getString("connectionMapper.tunUdpIP"),
+                    config.getString("connectionMapper.tunTcpIP"),
+                    config.getString("connectionMapper.udpNetIf"),
+                    config.getString("connectionMapper.udpNetIfMac"),
+                    config.getString("connectionMapper.tcpNetIf"),
+                    config.getString("connectionMapper.tcpNetIfMac"),
+                    config.getString("connectionMapper.tunNetIf"),
+                    addresses);
+        } catch (Exception e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
     }
     
     //Create the backends enabled in ssp.properties 

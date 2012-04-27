@@ -80,7 +80,7 @@ public class SelfDescription {
                 contentTypeOption = (UintOption) coapResponse.getOption(OptionRegistry.OptionName.CONTENT_TYPE).get(0);
             }
             catch(IndexOutOfBoundsException e){
-                log.info("[SelfDescription] CoapResponse did not contain a content type option. No SelfDescription" +
+                log.fatal("[SelfDescription] CoapResponse did not contain a content type option. No SelfDescription" +
                         "object created!");
                 throw e;
             }
