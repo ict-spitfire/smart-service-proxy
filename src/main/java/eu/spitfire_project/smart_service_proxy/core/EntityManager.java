@@ -346,6 +346,8 @@ public class EntityManager extends SimpleChannelHandler {
 		if(b == null && elementSE.length() >= backendPrefixLength) {
 			URI uri = URI.create(uriBase).resolve(elementSE).normalize();
 			String path = uri.getRawPath();
+			
+			if(path.length() < backendPrefixLength) { return null; }
 
 			String pathPart = path.substring(0, backendPrefixLength);
 			b = pathBackends.get(pathPart);
