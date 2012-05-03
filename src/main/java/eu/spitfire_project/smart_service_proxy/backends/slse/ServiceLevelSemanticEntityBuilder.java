@@ -165,7 +165,7 @@ public class ServiceLevelSemanticEntityBuilder implements ElementSemanticEntityC
 
                     // SLSEs we need to remove the ESE from
                     Set<String> remove_from = new HashSet<String>();
-					if(slseByElement.get(uri))
+					if(!slseByElement.get(uri).isEmpty())
 						remove_from.addAll(slseByElement.get(uri));
                     remove_from.removeAll(new_slses);
 
