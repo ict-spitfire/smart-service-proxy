@@ -35,6 +35,7 @@ import org.apache.commons.io.input.TailerListener;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
+import java.util.concurrent.*;
 
 import java.io.File;
 import java.net.InetSocketAddress;
@@ -47,6 +48,7 @@ import java.util.*;
 public class TestbedBackend extends Backend implements TailerListener {
     private HashMultimap<InetSocketAddress, String> observers = HashMultimap.create();
 	private Tailer tailer;
+	private Map<String, String> translations = new HashMap<String, String>();
 
 	private class SE {
 		public Model model;
@@ -54,7 +56,7 @@ public class TestbedBackend extends Backend implements TailerListener {
 		public String uri;
 	}
 	
-	Map<String, SE> seCache = new HashMap<String, SE>();
+	Map<String, SE> seCache = new ConcurrentHashMap<String, SE>();
 	
 	public TestbedBackend(String path) {
 		tailer = Tailer.create(new File(path), this);
@@ -65,6 +67,8 @@ public class TestbedBackend extends Backend implements TailerListener {
 				checkOnSEs();
 			}
 		}, 1000, 10000);
+		
+		translations.put("ex:", "http://example.org/#");
 	}
 	
 	public void checkOnSEs() {
@@ -103,37 +107,99 @@ public class TestbedBackend extends Backend implements TailerListener {
 		ex.printStackTrace();
 	}
 	
+	
+	Vector< Vector<Byte> > deHex(String[] stringbytes) {
+		Vector<Byte> r = new Vector<Byte>();
+		for(int i=0; i<stringbytes.length; i++) {
+			System.out.println(stringbytes[i]);
+			int v = Integer.decode(stringbytes[i]);
+			r.add((byte)(v <= 127 ? v : -128 - v)); // seriously java, fuck off.
+		}
+		Vector< Vector<Byte> > rr = new Vector< Vector<Byte> >();
+		rr.add(r);
+		return rr;
+	}
+	
+	Vector< Vector<Byte> > decodeDLE(Vector<Byte> in) {
+		boolean escaped = false;
+		Byte dle = 0x10, stx = 0x02, etx = 0x03;
+		Vector< Vector<Byte> > r = new Vector< Vector<Byte> >();
+		Vector<Byte> currentPacket = new Vector<Byte>();
+		
+		for(Byte b: in) {
+			if(escaped) {
+				if(b.equals(stx)) {
+				}
+				else if(b.equals(etx)) {
+					r.add(currentPacket);
+					currentPacket = new Vector<Byte>();
+				}
+				else if(b.equals(dle)) {
+					currentPacket.add(b);
+				}
+				else {
+					assert(false);
+				}
+				escaped = false;
+			}
+			else {
+				if(b.equals(dle)) {
+					escaped = true;
+				}
+				else {
+					currentPacket.add(b);
+				}
+			}
+		}
+		
+		return r;
+	}
+	
+	Vector< Vector<Byte> > filterType(byte type, Vector< Vector<Byte> > in) {
+		Vector< Vector<Byte> > r = new Vector< Vector<Byte> >();
+		for(Vector<Byte> v: in) {
+			//System.out.println("filterType " + v.get(0) + " " + v.get(1) + " " + v.get(2));
+			if(v.size() >= 3 && v.get(1) == type) {
+				r.add(v);
+			}
+		}
+		return r;
+	}
+	
 	public void handle(String line) {
-		System.out.println("reading line: " + line);
+		System.out.println("reading line: >>>" + line + "<<<");
 
 		int pos = line.indexOf('|');
 		pos = line.indexOf('|', pos+1);
 		pos = line.indexOf('|', pos+1);
 		
 		String[] stringbytes = line.substring(pos+1).trim().split(" ");
-		byte[] bytes = new byte[stringbytes.length - 1];
-		int i =0;
-		boolean first = true;
-		for(String s: stringbytes) {
-			// skip first element (always 0x68)
-			if(first) { first = false; continue; }
-			bytes[i++] = Byte.parseByte(s.substring(2), 16);
-		}
 		
-		try {
-			WiselibProtocol.SemanticEntity se = WiselibProtocol.SemanticEntity.parseFrom(bytes);
-			System.out.println(se.toString());
-			createSEFromDescription(se);
+		//for(Vector<Byte> v: filterType((byte)'X', decodeDLE(deHex(stringbytes)))) {
+		for(Vector<Byte> v: filterType((byte)'X', deHex(stringbytes))) {
+			//byte[] bytes = v.toArray();
+			System.out.println("analysing msg of len " + v.size());
 			
-		}
-		catch(Exception e) {
-			e.printStackTrace();
+			byte[] fuckYouJava = new byte[v.size()];
+			for(int i=0; i<v.size(); i++) {
+				fuckYouJava[i] = v.get(i);
+			}
+		
+			try {
+				WiselibProtocol.SemanticEntity se = WiselibProtocol.SemanticEntity.parseFrom(fuckYouJava);
+				System.out.println(se.toString());
+				createSEFromDescription(se);
+				
+			}
+			catch(Exception e) {
+				e.printStackTrace();
+			}
 		}
 		
 	}
 
 	String normalize(String u) {
-		URI base = URI.create("http://somewhere/blah.rdf#");
+		URI base = URI.create("http://spitfire-project.eu/spitfireCC.n3#");
 		return base.resolve(URI.create(u)).toString();
 	}
 
