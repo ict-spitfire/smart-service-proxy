@@ -79,9 +79,10 @@ public class SimpleBackend extends Backend {
             String personURI = "http://example.org/JohnSmith";
             Model model = ModelFactory.createDefaultModel();
             model.createResource(personURI).addProperty(VCARD.FN, "John Smith");
-            
+
             URI resourceURI = new URI(entityManager.getURIBase() + pathPrefix + "JohnSmith");
             resources.put(resourceURI, model);
+            entityManager.entityCreated(resourceURI, this);
 
             if(log.isDebugEnabled()){
                 log.debug("[SimpleBackend] Successfully added new resource at " + resourceURI);

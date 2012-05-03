@@ -54,7 +54,7 @@ public class ElementSemanticEntityCache {
 	public Dataset dataset;
 	private final String tdbLocation = "data/slse/tdb";
 	private Set<String> proxies;
-	private final long defaultValidInterval = 10 * 1000;
+	private long defaultValidInterval = 10 * 1000;
 	private Set<ElementSemanticEntityCacheListener> listeners;
 	private HashMap<String, Model> oldModels;
 	private Set<ElementSemanticEntity> addedEntities;

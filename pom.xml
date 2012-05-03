@@ -63,17 +63,8 @@
         <dependency>
             <groupId>de.uniluebeck.itm.spitfire</groupId>
             <artifactId>gatewayconnectionmapper</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>1.0</version>
         </dependency>
-
-        <!--
-        <dependency>
-            <groupId>de.uniluebeck.itm.spitfire</groupId>
-            <artifactId>coap.protocol</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-        </dependency>
-        -->
-
 
         <dependency>
             <version>1.0.2</version>
@@ -98,7 +89,7 @@
         </repository>
 
         <repository>
-            <id>itm-maven-repository-releases</id>
+            <id>itm-maven-repository-releases-site</id>
             <url>http://www.itm.uni-luebeck.de/projects/maven/releases/</url>
             <releases>
                 <enabled>true</enabled>
@@ -109,7 +100,7 @@
         </repository>
 
         <repository>
-            <id>itm-maven-repository-snapshots</id>
+            <id>itm-maven-repository-snapshots-site</id>
             <url>http://www.itm.uni-luebeck.de/projects/maven/snapshots/</url>
             <releases>
                 <enabled>false</enabled>

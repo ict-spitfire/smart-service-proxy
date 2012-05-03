@@ -34,6 +34,7 @@ import de.uniluebeck.itm.spitfire.nCoap.message.options.UintOption;
 import org.apache.log4j.Logger;
 import org.jboss.netty.buffer.ChannelBufferInputStream;
 
+import java.io.StringWriter;
 import java.net.URI;
 import java.util.Date;
 
@@ -106,6 +107,16 @@ public class SelfDescription {
                 lang = "RDF/XML";
             }
             model.read(istream, localURI, lang);
+
+            StringWriter writer = new StringWriter();
+
+            //------------TEST!
+            model.write(writer, "RDF/XML");
+            log.debug("[SelfDescription] Output after Model serialization (RDF/XML):\n " + writer.toString());
+            
+            model.write(writer, "N3");
+            log.debug("[SelfDescription] Output after Model serialization (N3):\n " + writer.toString());
+            //-------------
 
 			//Set expiry
 			long maxAge =

@@ -96,38 +96,55 @@ public class CoapBackend extends Backend{
         
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
-        HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
-                HttpResponseStatus.OK);
+//        HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+//                HttpResponseStatus.OK);
+//
+//        int internalSourcePort = ((InetSocketAddress) (ctx.getChannel().getRemoteAddress())).getPort();
 
-        int internalSourcePort = ((InetSocketAddress) (ctx.getChannel().getRemoteAddress())).getPort();
-
-        httpResponse.setContent(ChannelBuffers.wrappedBuffer(("Alles gut! Zieladresse war: "
-                + ConnectionTable.getInstance().getTcpRequest(internalSourcePort)).
-                getBytes(Charset.forName("UTF-8"))));
-
-        ChannelFuture fut = Channels.write(ctx.getChannel(), httpResponse);
-        fut.addListener(ChannelFutureListener.CLOSE);
-
-        if(true) {
-            return;
-        }
+//        httpResponse.setContent(ChannelBuffers.wrappedBuffer(("Alles gut! Zieladresse war: "
+//                + ConnectionTable.getInstance().getTcpRequest(internalSourcePort)).
+//                getBytes(Charset.forName("UTF-8"))));
+//
+//        ChannelFuture fut = Channels.write(ctx.getChannel(), httpResponse);
+//        fut.addListener(ChannelFutureListener.CLOSE);
+//
+//        if(true) {
+//            return;
+//        }
 
         Object response;
-        
-        
-        
-                        
-        //Look up CoAP target URI
-        final URI mirrorURI = URI.create(entityManager.getURIBase()).resolve(httpRequest.getUri() + "#").normalize();
 
-        if(log.isDebugEnabled()){
-            log.debug("[CoapBackend] Look up resource for mirror URI: " + mirrorURI);
+        String path = httpRequest.getUri();
+        int index = path.indexOf("?");
+        if(index != -1){
+            path = path.substring(0, index);
         }
 
-        final URI targetURI = resources.get(mirrorURI);
+        //Look up CoAP target URI
+        URI tmpMirrorURI = URI.create(entityManager.getURIBase()).resolve(path + "#").normalize();
+
+        if(log.isDebugEnabled()){
+            log.debug("[CoapBackend] Look up resource for mirror URI: " + tmpMirrorURI);
+        }
+
+        URI tmpTargetURI = resources.get(tmpMirrorURI);
+
+        if(tmpTargetURI == null){
 
 
+            tmpMirrorURI = URI.create("http://" + httpRequest.getHeader(HttpHeaders.Names.HOST) +
+                    path + "#").normalize();
 
+            if(log.isDebugEnabled()){
+                log.debug("[CoapBackend] Look up resource for mirror URI: " + tmpMirrorURI);
+            }
+
+            tmpTargetURI = resources.get(tmpMirrorURI);
+        }
+        
+        final URI mirrorURI = tmpMirrorURI;
+        final URI targetURI = tmpTargetURI;
+        
         if(targetURI != null){
             try {
                 //Create CoAP request
@@ -137,6 +154,15 @@ public class CoapBackend extends Backend{
                     public void receiveCoapResponse(CoapResponse coapResponse) {
                         Object response;
 
+                        //------TEST!!!
+                        ChannelBuffer copy = ChannelBuffers.copiedBuffer(coapResponse.getPayload());
+                        byte[] copyArray = new byte[copy.readableBytes()];
+                        copy.readBytes(copyArray);
+                        log.debug("[CoapBackend] Payload of received packet: " +
+                                new String(copyArray, Charset.forName("UTF-8")));
+
+                        //-------TEST ENDE!!!
+
                         //TODO Core-Link-Format to HTTP links.
                         try{
                             response = new SelfDescription(coapResponse, mirrorURI);
@@ -144,6 +170,11 @@ public class CoapBackend extends Backend{
                         catch (InvalidOptionException e) {
                             response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
                             ((DefaultHttpResponse) response).setContent(coapResponse.getPayload());
+                        }
+                        catch(Exception e){
+                            response = new DefaultHttpResponse(HttpVersion.HTTP_1_1,
+                                    HttpResponseStatus.OK);
+                            ((HttpResponse) response).setContent(ChannelBuffers.wrappedBuffer(copyArray));
                         }
 
                         //Send response
@@ -173,7 +204,7 @@ public class CoapBackend extends Backend{
                         HttpResponseStatus.METHOD_NOT_ALLOWED);
 
                 if(log.isDebugEnabled()){
-                    log.debug("[CoapBackend] Resource not found: " + mirrorURI);
+                    log.debug("[CoapBackend] Method (" + e.getMethod() + ") not allowed: " + mirrorURI);
                 }
             }
         }
@@ -231,6 +262,8 @@ public class CoapBackend extends Backend{
                 if(IPAddressUtil.isIPv6LiteralAddress(encodedIP)){
                     encodedIP = "%5B" + encodedIP + "%5D";
                 }
+                
+                //DNS based mirror URI
                 URI mirrorURI = new URI(entityManager.getURIBase() + "/" + encodedIP + ":" + NODES_COAP_PORT + path + "#");
 
                 //create CoAP URI
@@ -241,7 +274,13 @@ public class CoapBackend extends Backend{
                 URI coapURI = new URI("coap://" + encodedIP + ":" + NODES_COAP_PORT + path);
 
                 resources.put(mirrorURI, coapURI);
-
+                //entityManager.entityCreated(mirrorURI, this);
+                
+                //Virtual HTTP Server for Sensor nodes
+                URI mirrorURI2 = new URI("http://[" + remoteIP + "]" + path + "#");
+                log.debug("[CoapBackend] New virtual HTTP service address: " + mirrorURI2);
+                resources.put(mirrorURI2, coapURI);
+                entityManager.entityCreated(mirrorURI2, this);
                 
             } catch (URISyntaxException e) {
                 log.fatal("[CoapBackend] Error while creating URI. This should never happen.", e);
