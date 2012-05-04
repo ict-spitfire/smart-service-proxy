@@ -111,7 +111,7 @@ public class TestbedBackend extends Backend implements TailerListener {
 	Vector< Vector<Byte> > deHex(String[] stringbytes) {
 		Vector<Byte> r = new Vector<Byte>();
 		for(int i=0; i<stringbytes.length; i++) {
-			System.out.println(stringbytes[i]);
+			//System.out.println(stringbytes[i]);
 			int v = Integer.decode(stringbytes[i]);
 			r.add((byte)(v <= 127 ? v : -128 - v)); // seriously java, fuck off.
 		}
@@ -167,7 +167,7 @@ public class TestbedBackend extends Backend implements TailerListener {
 	}
 	
 	public void handle(String line) {
-		System.out.println("reading line: >>>" + line + "<<<");
+	//	System.out.println("reading line: >>>" + line + "<<<");
 
 		int pos = line.indexOf('|');
 		pos = line.indexOf('|', pos+1);
@@ -178,7 +178,7 @@ public class TestbedBackend extends Backend implements TailerListener {
 		//for(Vector<Byte> v: filterType((byte)'X', decodeDLE(deHex(stringbytes)))) {
 		for(Vector<Byte> v: filterType((byte)'X', deHex(stringbytes))) {
 			//byte[] bytes = v.toArray();
-			System.out.println("analysing msg of len " + v.size());
+			//System.out.println("analysing msg of len " + v.size());
 			
 			byte[] fuckYouJava = new byte[v.size()];
 			for(int i=0; i<v.size(); i++) {
@@ -204,9 +204,14 @@ public class TestbedBackend extends Backend implements TailerListener {
 	}
 
 	private void createSEFromDescription(WiselibProtocol.SemanticEntity se_desc) {
+		if(se_desc.getId().equals("")) { return; }
+		
 		URI uri = entityManager.normalizeURI(getPathPrefix() + se_desc.getId());
 		Model m = ModelFactory.createDefaultModel();
 		for(WiselibProtocol.Statement statement: se_desc.getDescription().getStatementList()) {
+			System.out.println("(" + statement.getSubject() + " " + statement.getPredicate() + " " + statement.getObject() + ")");
+			
+			
 			Resource s = m.createResource(normalize(statement.getSubject()));
 			Property p = m.createProperty(normalize(statement.getPredicate()));
 			String obj = statement.getObject();
