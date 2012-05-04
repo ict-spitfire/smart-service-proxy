@@ -50,7 +50,7 @@ import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 import java.io.File;
 import java.net.*;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.Executors;
 
@@ -61,6 +61,13 @@ public class Main {
     static{
         Logger.getLogger("eu.spitfire_project.smart_service_proxy").addAppender(new ConsoleAppender(new SimpleLayout()));
         Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
+
+        Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").addAppender(new ConsoleAppender(new SimpleLayout()));
+        Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").setLevel(Level.DEBUG);
+
+        Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.core").addAppender(new ConsoleAppender(new SimpleLayout()));
+        Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.core").setLevel(Level.DEBUG);
+
     }
 
     /**
@@ -81,7 +88,15 @@ public class Main {
                         config.getLong("ram", 1024 * 1024),
                         config.getLong("ram", 1024 * 1024)));
 
-        HttpEntityManagerPipelineFactory empf = new HttpEntityManagerPipelineFactory(executionHandler);
+        boolean enableVirtualHttpServerForCoap = config.getBoolean("coap.enableVirtualHttpServer", false);
+        log.debug("Enable virtual HTTP server for CoAP devices: " + enableVirtualHttpServerForCoap);
+
+        if(enableVirtualHttpServerForCoap){
+            startConnectionMapper(config);
+        }
+
+        HttpEntityManagerPipelineFactory empf =
+                new HttpEntityManagerPipelineFactory(executionHandler, enableVirtualHttpServerForCoap);
         bootstrap.setPipelineFactory(empf);
         int listenPort = config.getInt("listenPort", 8080);
         bootstrap.bind(new InetSocketAddress(listenPort));
@@ -96,45 +111,88 @@ public class Main {
 
         //Create enabled backends
         createBackends(config);
-
-
-        startConnectionMapper(config);
     }
     
-    private static void startConnectionMapper(Configuration config) throws URISyntaxException {
-        List<InetAddress> boundAddresses = new ArrayList<InetAddress>();
+    private static void startConnectionMapper(Configuration config) throws Exception{
+        String udpNetworkInterfaceName = config.getString("udpInterfaceName");
+        String tcpNetworkInterfaceName = config.getString("tcpInterfaceName");
+        String tunInterfaceName = config.getString("tunInterfaceName");
 
-        //URL url = Main.class.getResource("libTUNWrapperCdl.so");
-        File file = new File("libTUNWrapperCdl.so");
-        
-        System.out.println("File exists: " + file.exists());
-
-        List<InetAddress> addresses = new ArrayList<InetAddress>();
-        for(String s : config.getStringArray("connectionMapper.localBoundIP"))
-            try {
-                addresses.add(Inet6Address.getByName(s));
-            } catch (UnknownHostException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        }
-
-        try {
-            ConnectionMapper.start(file.getAbsolutePath(),
-                                   log,
-                                   config.getString("connectionMapper.tunBoundIP"),
-                    config.getInt("connectionMapper.localUdpServerPort"),
-                    config.getInt("listenPort"),
-                    config.getString("connectionMapper.tunUdpIP"),
-                    config.getString("connectionMapper.tunTcpIP"),
-                    config.getString("connectionMapper.udpNetIf"),
-                    config.getString("connectionMapper.udpNetIfMac"),
-                    config.getString("connectionMapper.tcpNetIf"),
-                    config.getString("connectionMapper.tcpNetIfMac"),
-                    config.getString("connectionMapper.tunNetIf"),
-                    addresses);
-        } catch (Exception e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        }
+        ConnectionMapper.start(udpNetworkInterfaceName, tcpNetworkInterfaceName, tunInterfaceName,
+                5683, config.getInt("listenPort", 8080));
     }
+    
+//    private static void startConnectionMapper(Configuration config) throws URISyntaxException, SocketException {
+//
+//        File file = new File(Main.class.getResource("/libTUNWrapperCdl.so").toURI());
+//        log.debug("File exists: " + file.exists());
+//
+//        //Get identifiers for UDP interface
+//        NetworkInterface udpNetworkInterface = NetworkInterface.getByName(config.getString("udpInterfaceName"));
+//        Inet6Address udpInterfaceGlobalIpv6 = getGlobalUniqueIpv6Address(udpNetworkInterface);
+//        byte[] udpInterfaceHardwareAddress = udpNetworkInterface.getHardwareAddress();
+//
+//
+//        //Get global IPv6 address for TCP interface
+//        Inet6Address tcpInterfaceGlobalIpv6 = getGlobalUniqueIpv6Address(config.getString("tcpInterfaceName"));
+//
+//        //Get global IPv6 address for TUN interface
+//        Inet6Address tunInterfaceGlobalIpv6 = getGlobalUniqueIpv6Address(config.getString("tunInterfaceName"));
+//
+//
+//
+//
+//
+//
+//
+////        try {
+////            ConnectionMapper.start(file.getAbsolutePath(),
+////                                   log,
+////                                   config.getString("connectionMapper.tunBoundIP"),
+////                    config.getInt("connectionMapper.localUdpServerPort"),
+////                    config.getInt("listenPort"),
+////                    config.getString("connectionMapper.tunUdpIP"),
+////                    config.getString("connectionMapper.tunTcpIP"),
+////                    config.getString("connectionMapper.udpNetIf"),
+////                    config.getString("connectionMapper.udpNetIfMac"),
+////                    config.getString("connectionMapper.tcpNetIf"),
+////                    config.getString("connectionMapper.tcpNetIfMac"),
+////                    config.getString("connectionMapper.tunNetIf"),
+////                    addresses);
+////        } catch (Exception e) {
+////            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+////        }
+//            
+//
+//        List<InetAddress> addresses = new ArrayList<InetAddress>();
+//        
+//        for(String s : config.getStringArray("connectionMapper.localBoundIP"))
+//            try {
+//                addresses.add(Inet6Address.getByName(s));
+//            } catch (UnknownHostException e) {
+//                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+//        }
+//
+////        try {
+////            ConnectionMapper.start(file.getAbsolutePath(),
+////                                   log,
+////                                   config.getString("connectionMapper.tunBoundIP"),
+////                    config.getInt("connectionMapper.localUdpServerPort"),
+////                    config.getInt("listenPort"),
+////                    config.getString("connectionMapper.tunUdpIP"),
+////                    config.getString("connectionMapper.tunTcpIP"),
+////                    config.getString("connectionMapper.udpNetIf"),
+////                    config.getString("connectionMapper.udpNetIfMac"),
+////                    config.getString("connectionMapper.tcpNetIf"),
+////                    config.getString("connectionMapper.tcpNetIfMac"),
+////                    config.getString("connectionMapper.tunNetIf"),
+////                    addresses);
+////        } catch (Exception e) {
+////            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+////        }
+//    }
+    
+
     
     //Create the backends enabled in ssp.properties 
     private static void createBackends(Configuration config) throws Exception {
@@ -232,10 +290,8 @@ public class Main {
                     backend.getPathPrefix());
             }
         }
-
-
-
     }
+    
 
     
 	

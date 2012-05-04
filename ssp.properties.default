@@ -45,6 +45,16 @@ enableBackend = simple
 #enableBackend = coapXXX
 #coapXXX.ipv6Prefix = 2001:110:efa:456
 
+
+#------------
+#Virtual HTTP services for CoAP devices
+#------------
+#coap.enableVirtualHttpServer = true
+#tunInterfaceName = tun0
+#tcpInterfaceName = eth1
+#udpInterfaceName = eth0
+
+
 #-------------
 #Files backend
 #-------------

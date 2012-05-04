@@ -47,9 +47,11 @@ public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory 
     private static Logger log = Logger.getLogger(HttpEntityManagerPipelineFactory.class.getName());
 
 	ExecutionHandler executionHandler;
+    private boolean enableVirtualHttpServerForCoap;
 	
-	public HttpEntityManagerPipelineFactory(ExecutionHandler executionHandler) {
+	public HttpEntityManagerPipelineFactory(ExecutionHandler executionHandler, boolean enableVirtualHttpServerForCoap) {
 		this.executionHandler = executionHandler;
+        this.enableVirtualHttpServerForCoap = enableVirtualHttpServerForCoap;
 	}
 	
 	public ChannelPipeline getPipeline() throws Exception {
@@ -60,8 +62,11 @@ public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory 
 		pipeline.addLast("aggregator", new HttpChunkAggregator(1048576));
 		pipeline.addLast("encoder", new HttpResponseEncoder());
 		pipeline.addLast("deflater", new HttpContentCompressor());
-		
-        pipeline.addLast("GWConMapper", new HttpRequestTranslatorGwConMapper());
+
+        if(enableVirtualHttpServerForCoap){
+            pipeline.addLast("GWConMapper", new HttpRequestTranslatorGwConMapper());
+        }
+
 		pipeline.addLast("answer formatter", new AnswerFormatter());
 		pipeline.addLast("model formatter", new ModelFormatter());
 		pipeline.addLast("statement cache", StatementCache.getInstance());
