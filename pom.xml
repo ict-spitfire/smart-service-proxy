@@ -66,7 +66,7 @@
             <version>1.1-SNAPSHOT</version>
         </dependency>
 
-        <dependency>
+        <!--dependency>
             <version>1.0.2</version>
             <groupId>de.uniluebeck.itm.wsn-device-utils</groupId>
             <artifactId>wsn-device-utils</artifactId>
@@ -76,7 +76,7 @@
             <groupId>de.uniluebeck.itm.netty.handlerstack</groupId>
             <artifactId>protocol-collection</artifactId>
             <version>1.3</version>
-        </dependency>
+        </dependency-->
 
     </dependencies>
 
