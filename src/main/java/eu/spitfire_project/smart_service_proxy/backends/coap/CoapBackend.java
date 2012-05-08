@@ -166,7 +166,9 @@ public class CoapBackend extends Backend{
                                 response = Http2CoapConverter.convertCoapToHttpResponse(coapResponse,
                                         httpRequest.getProtocolVersion());
                                 ((DefaultHttpResponse) response)
-                                        .setContent(ChannelBuffers.buffer(0));
+                                        .setContent(ChannelBuffers.
+                                                wrappedBuffer("OK".getBytes(Charset.forName("UTF-8"))));
+                                log.debug("[CoapBackend] Conversion CoapResponse to HttpResponse finished.");
                             }
                         }
                         catch (InvalidOptionException e) {
