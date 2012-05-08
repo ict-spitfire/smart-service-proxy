@@ -25,6 +25,7 @@
 package eu.spitfire_project.smart_service_proxy.backends.coap;
 
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
+import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
 import de.uniluebeck.itm.spitfire.nCoap.message.InvalidMessageException;
 import de.uniluebeck.itm.spitfire.nCoap.message.MessageDoesNotAllowPayloadException;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
@@ -32,8 +33,7 @@ import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
 import org.apache.log4j.Logger;
-import org.jboss.netty.handler.codec.http.HttpMethod;
-import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.*;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -86,6 +86,13 @@ public class Http2CoapConverter {
         return coapRequest;
     }
 
+    public static HttpResponse convertCoapToHttpResponse(CoapResponse coapResponse, HttpVersion httpVersion){
+        HttpResponseStatus httpResponseStatus;
+
+        //TODO map Response Codes
+        return new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK);
+    }
+    
 //    private static HttpResponse convertCoAPMessageToHttpResponse(CoAPMessage coapResponse) throws Exception {
 //        //convert status code / response code
 //        int responseCode = coapResponse.getHeader().getCode().getNumber();

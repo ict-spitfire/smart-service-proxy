@@ -154,18 +154,14 @@ public class CoapBackend extends Backend{
                     public void receiveCoapResponse(CoapResponse coapResponse) {
                         Object response;
 
-                        //------TEST!!!
-                        ChannelBuffer copy = ChannelBuffers.copiedBuffer(coapResponse.getPayload());
-                        byte[] copyArray = new byte[copy.readableBytes()];
-                        copy.readBytes(copyArray);
-                        log.debug("[CoapBackend] Payload of received packet: " +
-                                new String(copyArray, Charset.forName("UTF-8")));
-
-                        //-------TEST ENDE!!!
-
-                        //TODO Core-Link-Format to HTTP links.
                         try{
-                            response = new SelfDescription(coapResponse, mirrorURI);
+                            if(coapResponse.getPayload().readableBytes() > 0){
+                                response = new SelfDescription(coapResponse, mirrorURI);
+                            }
+                            else{
+                                response = Http2CoapConverter.convertCoapToHttpResponse(coapResponse,
+                                        httpRequest.getProtocolVersion());
+                            }
                         }
                         catch (InvalidOptionException e) {
                             response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
@@ -174,8 +170,22 @@ public class CoapBackend extends Backend{
                         catch(Exception e){
                             response = new DefaultHttpResponse(HttpVersion.HTTP_1_1,
                                     HttpResponseStatus.OK);
-                            ((HttpResponse) response).setContent(ChannelBuffers.wrappedBuffer(copyArray));
+                            ((HttpResponse) response)
+                                    .setContent(ChannelBuffers.wrappedBuffer(coapResponse.getPayload()));
                         }
+
+//                        //------TEST!!!
+//                        ChannelBuffer copy = ChannelBuffers.copiedBuffer(coapResponse.getPayload());
+//                        byte[] copyArray = new byte[copy.readableBytes()];
+//                        copy.readBytes(copyArray);
+//                        log.debug("[CoapBackend] Payload of received packet: " +
+//                                new String(copyArray, Charset.forName("UTF-8")));
+
+                        //-------TEST ENDE!!!
+
+                        //TODO Core-Link-Format to HTTP links.
+
+
 
                         //Send response
                         ChannelFuture future = Channels.write(ctx.getChannel(), response);
