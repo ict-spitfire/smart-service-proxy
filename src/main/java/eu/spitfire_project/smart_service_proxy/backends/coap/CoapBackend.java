@@ -87,7 +87,7 @@ public class CoapBackend extends Backend{
     }
     
     @Override
-    public void messageReceived(final ChannelHandlerContext ctx, MessageEvent me){
+    public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent me){
         
         if(!(me.getMessage() instanceof HttpRequest)) {
             ctx.sendUpstream(me);
@@ -152,6 +152,9 @@ public class CoapBackend extends Backend{
                 coapRequest.setResponseCallback(new ResponseCallback() {
                     @Override
                     public void receiveCoapResponse(CoapResponse coapResponse) {
+                        
+                        log.debug("[CoapBackend] Received response from " + me.getRemoteAddress());
+                        
                         Object response;
 
                         try{
@@ -159,8 +162,11 @@ public class CoapBackend extends Backend{
                                 response = new SelfDescription(coapResponse, mirrorURI);
                             }
                             else{
+                                log.debug("[CoapBackend] Convert CoapResponse to HttpResponse");
                                 response = Http2CoapConverter.convertCoapToHttpResponse(coapResponse,
                                         httpRequest.getProtocolVersion());
+                                ((DefaultHttpResponse) response)
+                                        .setContent(ChannelBuffers.buffer(0));
                             }
                         }
                         catch (InvalidOptionException e) {
