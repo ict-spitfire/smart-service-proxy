@@ -26,6 +26,7 @@ package eu.spitfire_project.smart_service_proxy.backends.coap;
 
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
 import de.uniluebeck.itm.spitfire.nCoap.message.InvalidMessageException;
+import de.uniluebeck.itm.spitfire.nCoap.message.MessageDoesNotAllowPayloadException;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
@@ -68,6 +69,16 @@ public class Http2CoapConverter {
             log.fatal("[Http2CoapConverter] Error while creating CoapRequest. This should never happen.", e);
         } catch (URISyntaxException e) {
             log.fatal("[Http2CoapConverter] Error while creating CoapRequest. This should never happen.", e);
+        }
+
+        if(code == Code.POST || code == Code.PUT){
+            try {
+                if(rq.getContent().readableBytes() > 0){
+                    coapRequest.setPayload(rq.getContent());
+                }
+            } catch (MessageDoesNotAllowPayloadException e) {
+                log.fatal("Error while converting payload of HttpRequest to CoapRequest!", e);
+            }
         }
 
         //TODO Set CoAP "Accept-Options" according to the HTTP "Accept-Header"
