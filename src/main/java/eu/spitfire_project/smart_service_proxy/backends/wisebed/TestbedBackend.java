@@ -179,7 +179,8 @@ public class TestbedBackend extends Backend implements TailerListener {
 		for(Vector<Byte> v: filterType((byte)'X', deHex(stringbytes))) {
 			//byte[] bytes = v.toArray();
 			//System.out.println("analysing msg of len " + v.size());
-			
+
+
 			byte[] fuckYouJava = new byte[v.size()];
 			for(int i=0; i<v.size(); i++) {
 				fuckYouJava[i] = v.get(i);
