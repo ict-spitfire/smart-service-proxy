@@ -206,7 +206,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
 
 
         @Override
-        public void receiveCoapResponse(CoapResponse coapResponse) {
+        public void receiveResponse(CoapResponse coapResponse) {
             log.debug("Received response for well-known/core");
             synchronized (monitor){
                 this.coapResponse = coapResponse;

@@ -151,7 +151,7 @@ public class CoapBackend extends Backend{
                 CoapRequest coapRequest = Http2CoapConverter.convertHttpRequestToCoAPMessage(httpRequest, targetURI);
                 coapRequest.setResponseCallback(new ResponseCallback() {
                     @Override
-                    public void receiveCoapResponse(CoapResponse coapResponse) {
+                    public void receiveResponse(CoapResponse coapResponse) {
                         
                         log.debug("[CoapBackend] Received response from " + me.getRemoteAddress());
                         
