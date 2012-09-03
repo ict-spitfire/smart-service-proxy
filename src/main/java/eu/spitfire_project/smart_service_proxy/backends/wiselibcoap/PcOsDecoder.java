@@ -30,8 +30,9 @@ public class PcOsDecoder extends OneToOneDecoder {
             System.out.println( "received IsensePacket length: " + packet.getPayload().readableBytes() + " Bytes: " + packet.toString());
             if(packet.getPayload().getByte(0) == (byte)'I'){
                 int offset = 16 ;//+ packet.getPayload().arrayOffset();
-                int nodeId = 0xFF & packet.getPayload().getByte(2);
-                nodeId += (0xFF & packet.getPayload().getByte(3)) << 8;
+                int nodeId = 0xFF & packet.getPayload().getByte(3);
+                nodeId += (0xFF & packet.getPayload().getByte(2)) << 8;
+                System.out.println( "message from nodeId: " + nodeId);
 //                byte[] message = new byte[packet.getPayload().readableBytes()-offset];
 //                System.arraycopy(packet.getPayload().array(),offset,message,0,packet.getPayload().readableBytes()-offset);
 //                System.out.println("readable bytes of wrapped buffer: " + packet.getPayload().readableBytes());
@@ -39,7 +40,8 @@ public class PcOsDecoder extends OneToOneDecoder {
                 messageWrapperBuilder.setMessage(
                         ByteString.copyFrom(packet.getPayload().toByteBuffer(offset,packet.getPayload().readableBytes()-offset)));
                 messageWrapperBuilder.setNodeId(nodeId);
-                messageWrapperBuilder.setUrl(nodeRegistry.getUrlAddress(nodeId));
+                if(nodeRegistry.getUrlAddress(nodeId)!=null)
+                    messageWrapperBuilder.setUrl(nodeRegistry.getUrlAddress(nodeId));
 //                ChannelBuffer buffer = packet.getPayload().slice(offset,packet.getPayload().readableBytes()-offset);
                 return messageWrapperBuilder.build();
 //                return ChannelBuffers.wrappedBuffer(message);

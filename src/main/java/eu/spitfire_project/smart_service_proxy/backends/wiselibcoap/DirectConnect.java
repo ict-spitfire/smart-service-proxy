@@ -4,7 +4,6 @@ import de.uniluebeck.itm.netty.handlerstack.dlestxetx.DleStxEtxFramingDecoder;
 import de.uniluebeck.itm.netty.handlerstack.dlestxetx.DleStxEtxFramingEncoder;
 import de.uniluebeck.itm.netty.handlerstack.isense.ISensePacketDecoder;
 import de.uniluebeck.itm.netty.handlerstack.isense.ISensePacketEncoder;
-import de.uniluebeck.itm.spitfire.nCoap.communication.encoding.CoapMessageEncoder;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
 import de.uniluebeck.itm.spitfire.nCoap.message.InvalidMessageException;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
@@ -57,7 +56,7 @@ public class DirectConnect {
 
     public static void main(String[] args) {
         configureLoggingDefaults();
-        DirectConnect connection = new DirectConnect("/dev/tty.usbserial-000013FD");
+        DirectConnect connection = new DirectConnect("/dev/tty.usbserial-000013FD", new NodeRegistry());
         try {
             Thread.sleep(3000);
             while(true){
@@ -80,7 +79,7 @@ public class DirectConnect {
     }
 
 
-    DirectConnect(String DeviceAddress) {
+    DirectConnect(String DeviceAddress,final NodeRegistry nodeRegistry) {
 
         // Replace this ExecutorService with your existing one
         ExecutorService executorService = Executors.newCachedThreadPool();
@@ -101,7 +100,7 @@ public class DirectConnect {
             outWriter = new HumanReadableWriter(System.out);
             coapMessageHandler = new CoapMessageHandler();
 
-            nodeRegistry = new NodeRegistry();
+            this.nodeRegistry = nodeRegistry;
 
             bootstrap.setPipelineFactory(
                     new ChannelPipelineFactory() {
@@ -126,7 +125,7 @@ public class DirectConnect {
                             pipeline.addLast("isenseDec", new ISensePacketDecoder());
                             pipeline.addLast("PcOsEncoder", new PcOsEncoder(nodeRegistry));
                             pipeline.addLast("PcOsDecoder", new PcOsDecoder(nodeRegistry));
-                            pipeline.addLast("coapMessageEncoder", new CoapMessageEncoder());
+                            pipeline.addLast("coapMessageEncoder", new WiselibCoapMessageEncoder());
                             pipeline.addLast("coapMessageDecoder", new WiselibCoapMessageDecoder());
                             pipeline.addLast("CoapMessageHandler", coapMessageHandler);
                             return pipeline;
@@ -183,7 +182,7 @@ public class DirectConnect {
 
     public void sendCoapRequest()
             throws Exception, InvalidOptionException, URISyntaxException, InvalidMessageException {
-        CoapRequest request = new CoapRequest(MsgType.CON, Code.GET, URI.create("coap://some.de/sensors/light"));
+        CoapRequest request = new CoapRequest(MsgType.CON, Code.GET, URI.create("coap://" + 0xFF +".de" + "/sensor1_complete"));
         request.setMessageID(1);
         log.info("sending coap packet");
         channel.write(request);

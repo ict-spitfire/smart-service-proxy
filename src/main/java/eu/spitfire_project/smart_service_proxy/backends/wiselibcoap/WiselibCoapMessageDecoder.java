@@ -41,6 +41,9 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.oneone.OneToOneDecoder;
 
+import java.net.InetAddress;
+import java.net.URI;
+
 /**
  *
  * @author Oliver Kleine
@@ -108,14 +111,18 @@ public class WiselibCoapMessageDecoder extends OneToOneDecoder{
             else{
                 result = new CoapResponse(header, optionList, buffer);
             }
+            
+            InetAddress address;
+            if(messageWrapper.hasUrl())
+                address = InetAddress.getByName(URI.create("coap://" + messageWrapper.getNodeId()  + ".de").getHost());
+            else
+                address = InetAddress.getByName(URI.create("coap://" + messageWrapper.getNodeId() +".de").getHost());
 
-//            //TODO Set IP address of server socket (currently [0::] for wildcard address)
-//            InetAddress rcptAddress = ((InetSocketAddress)channel.getLocalAddress()).getAddress();
-//            result.setRcptAdress(rcptAddress);
+            result.setRcptAdress(address);
 
-//            if(log.isDebugEnabled()){
-//                log.debug("[CoapMessageDecoder] Set receipient address to: " + rcptAddress);
-//            }
+            if(log.isDebugEnabled()){
+                log.debug("[CoapMessageDecoder] Set receipient address to: " + address);
+            }
             
             return result;
         }

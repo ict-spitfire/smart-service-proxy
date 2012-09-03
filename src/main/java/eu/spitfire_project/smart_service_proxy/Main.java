@@ -33,6 +33,7 @@ import eu.spitfire_project.smart_service_proxy.backends.slse.SLSEBackend;
 import eu.spitfire_project.smart_service_proxy.backends.uberdust.UberdustBackend;
 import eu.spitfire_project.smart_service_proxy.backends.wiselib_test.WiselibTestBackend;
 import eu.spitfire_project.smart_service_proxy.backends.wisebed.TestbedBackend;
+import eu.spitfire_project.smart_service_proxy.backends.wiselibcoap.NodeRegistry;
 import eu.spitfire_project.smart_service_proxy.backends.wiselibcoap.WiselibCoapBackend;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.EntityManager;
@@ -175,7 +176,7 @@ public class Main {
             }
             else if(enabledBackend.equals("wiselibCoap")){
 
-                backend = new WiselibCoapBackend();
+                backend = new WiselibCoapBackend(new NodeRegistry());
             }
 
             //FilesBackend

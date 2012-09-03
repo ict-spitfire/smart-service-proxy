@@ -2,6 +2,7 @@ package eu.spitfire_project.smart_service_proxy.backends.wiselibcoap;
 
 import com.google.common.collect.HashMultimap;
 import com.hp.hpl.jena.rdf.model.*;
+import com.hp.hpl.jena.shared.Lock;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
@@ -27,6 +28,7 @@ public class WiselibCoapBackend extends Backend implements CoapListener{
     private HashMultimap<InetSocketAddress, String> observers = HashMultimap.create();
 	private Map<String, String> translations = new HashMap<String, String>();
     private DirectConnect connector;
+    private NodeRegistry nodeRegistry;
 
 
     private class SE {
@@ -37,7 +39,7 @@ public class WiselibCoapBackend extends Backend implements CoapListener{
 
 	Map<String, SE> seCache = new ConcurrentHashMap<String, SE>();
 
-	public WiselibCoapBackend() {
+	public WiselibCoapBackend(NodeRegistry nodeRegistry) {
 		Timer t = new Timer();
 		t.scheduleAtFixedRate(new TimerTask() {
 			@Override
@@ -45,9 +47,9 @@ public class WiselibCoapBackend extends Backend implements CoapListener{
 				checkOnSEs();
 			}
 		}, 1000, 10000);
-
+        this.nodeRegistry = nodeRegistry;
 		translations.put("ex:", "http://example.org/#");
-        connector = new DirectConnect("/dev/tty.usbserial-000013FD");
+        connector = new DirectConnect("/dev/tty.usbserial-A100DEWA",nodeRegistry);
         connector.getCoapMessageHandler().addListener(this);
         connector.requestEnteties();
 	}
@@ -115,10 +117,40 @@ public class WiselibCoapBackend extends Backend implements CoapListener{
 		s.model = m;
 		s.lastUpdate = System.currentTimeMillis();
 		seCache.put(s.uri, s);
+
+        extractRadioAddress(m);
+
 		entityManager.entityCreated(URI.create(s.uri), this);
 	}
 
-	//public void reserveTestbed() {
+    private void extractRadioAddress(Model model) {
+//        String query = String.format(
+//					"PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#> \n" +
+//                    "select ?sensor where { " +
+//                    " <%s> ssn:attachedSystem ?sensor ." +
+//                    " ?sensor ssn:observedProperty <%s> . " +
+//                    "}", uri, property);
+//
+//        String query = String.format(
+//					"PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#> \n" +
+//                    "select ?RadioId where { " +
+//                    " <%s> ssn:RadioId ?sensor ." +
+//                    " ?sensor ssn:observedProperty <%s> . " +
+//                    "}", uri, property);
+
+			Set<Resource> toDelete = new HashSet<Resource>();
+
+			model.enterCriticalSection(Lock.WRITE);
+
+//            QueryExecution qexec = QueryExecutionFactory.create(query, model);
+//            ResultSet r = qexec.execSelect();
+//            while(r.hasNext()) {
+//                QuerySolution s = r.nextSolution();
+//                toDelete.add(s.getResource("sensor"));
+//            }
+    }
+
+    //public void reserveTestbed() {
 
 
 

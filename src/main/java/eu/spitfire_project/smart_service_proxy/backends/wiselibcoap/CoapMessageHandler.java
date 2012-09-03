@@ -47,7 +47,8 @@ public class CoapMessageHandler extends SimpleChannelHandler {
             
             try {
 
-
+//                WiselibProtocol.SemanticEntity.Description se = WiselibProtocol.SemanticEntity.Description.parseFrom(payloadBuffer);
+//                logger.debug(payloadBuffer[i]);
                 WiselibProtocol.SemanticEntity se = WiselibProtocol.SemanticEntity.parseFrom(payloadBuffer);
                 System.out.println(se.toString());
                 notifyListeners(se);
