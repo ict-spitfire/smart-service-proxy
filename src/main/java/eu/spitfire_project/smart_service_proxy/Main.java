@@ -25,8 +25,12 @@
 package eu.spitfire_project.smart_service_proxy;
 
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionMapper;
+import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
+import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
+import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapNodeRegistrationServer;
+import eu.spitfire_project.smart_service_proxy.backends.coap.uberdust.UberdustCoapServerBackend;
 import eu.spitfire_project.smart_service_proxy.backends.files.FilesBackend;
 import eu.spitfire_project.smart_service_proxy.backends.generator.GeneratorBackend;
 import eu.spitfire_project.smart_service_proxy.backends.simple.SimpleBackend;
@@ -59,14 +63,17 @@ public class Main {
     private static Logger log = Logger.getLogger(Main.class.getName());
 
     static{
-        Logger.getLogger("eu.spitfire_project.smart_service_proxy").addAppender(new ConsoleAppender(new SimpleLayout()));
+        //Logger.getLogger("eu.spitfire_project.smart_service_proxy").addAppender(new ConsoleAppender(new SimpleLayout()));
+        Logger.getRootLogger().addAppender(new ConsoleAppender(new SimpleLayout()));
         Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
 
-        Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").addAppender(new ConsoleAppender(new SimpleLayout()));
+        //Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").addAppender(new ConsoleAppender(new SimpleLayout()));
         Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").setLevel(Level.DEBUG);
 
-        Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.core").addAppender(new ConsoleAppender(new SimpleLayout()));
+        //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.core").addAppender(new ConsoleAppender(new SimpleLayout()));
         Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.core").setLevel(Level.DEBUG);
+
+        Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.encoding").setLevel(Level.DEBUG);
 
     }
 
@@ -259,8 +266,19 @@ public class Main {
                 if(ipv6Prefix == null){
                     throw new Exception("Property '" + enabledBackend + ".ipv6Prefix' not set.");
                 }
-                backend = new CoapBackend(30, ipv6Prefix);
+                backend = new CoapBackend(ipv6Prefix, config.getBoolean("coap.enableVirtualHttpServer", false));
                 CoapNodeRegistrationServer.getInstance().addCoapBackend((CoapBackend) backend);
+            }
+
+            //UberdustCoapServerBackend
+            else if(enabledBackend.equals("uberdustcoapserver")){
+                String uberdustServerDnsName = config.getString("uberdustcoapserver.dnsName");
+                if (uberdustServerDnsName == null){
+                    throw new Exception("Property uberdustcoapserver.dnsName' not set.");
+                }
+
+                backend = new UberdustCoapServerBackend(uberdustServerDnsName, config);
+                CoapNodeRegistrationServer.getInstance().addCoapBackend((UberdustCoapServerBackend) backend);
             }
 
             //SimpleBackend

@@ -33,13 +33,11 @@ import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sun.net.util.IPAddressUtil;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.*;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -50,7 +48,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class CoapNodeRegistrationServer extends CoapServerApplication {
 
-    private static Logger log = Logger.getLogger(CoapNodeRegistrationServer.class.getName());
+    private static Logger log = LoggerFactory.getLogger(CoapNodeRegistrationServer.class.getName());
 
     private ArrayList<CoapBackend> coapBackends = new ArrayList<CoapBackend>();
 
@@ -136,13 +134,27 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
             CoapBackend coapBackend = null;
             
             for(CoapBackend backend : coapBackends){
-                if(remoteAddress.getHostAddress().startsWith(backend.getIpv6Prefix())){
-                    coapBackend = backend;   
+                log.debug("Backend: " + backend.getPrefix());
+                //Prefix is an IP address
+                log.debug("Look up backend for address " + remoteAddress.getHostAddress());
+                if(remoteAddress.getHostAddress().startsWith(backend.getPrefix())){
+                    coapBackend = backend;
+                    log.debug("Backend found for address " + remoteAddress.getHostAddress());
+                    break;
+                }
+                //Prefix is a DNS name
+                else{
+                    log.debug("Look up backend for DNS name " + remoteAddress.getHostName());
+                    if((remoteAddress.getHostName()).equals(backend.getPrefix())){
+                        coapBackend = backend;
+                        log.debug("Backend found for DNS name " + remoteAddress.getHostName());
+                        break;
+                    }
                 }
             }
             
             if(coapBackend == null){
-                log.debug("[CoapNodeRegistrationServer] No backend found for IPv6 address: " +
+                log.debug("[CoapNodeRegistrationServer] No backend found for IP address: " +
                         remoteAddress.getHostAddress());
                 return;
             }
@@ -192,15 +204,15 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 }
 
             } catch (InvalidMessageException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             } catch (ToManyOptionsException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             } catch (InvalidOptionException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             } catch (URISyntaxException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             } catch (InterruptedException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             }
         }
 

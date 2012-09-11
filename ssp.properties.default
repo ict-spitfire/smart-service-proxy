@@ -45,6 +45,13 @@ enableBackend = simple
 #enableBackend = coapXXX
 #coapXXX.ipv6Prefix = 2001:110:efa:456
 
+#------------
+#Uberdust CoAP Server backend
+#------------
+#enableBackend = uberdustcoapserver
+#uberdustcoapserver.dnsName = uberdust.cti.gr
+#uberdustcoapserver.port = 5683
+
 
 #------------
 #Virtual HTTP services for CoAP devices

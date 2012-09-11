@@ -33,9 +33,7 @@ import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
 import java.io.File;
-import java.net.InetAddress;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -184,9 +182,9 @@ public class EntityManager extends SimpleChannelHandler {
             System.out.println("Class of Backend: " + backend.getClass());
             if(backend instanceof CoapBackend){
                 CoapBackend coapBackend = (CoapBackend) backend;
-                System.out.println("CoapBackend Prefix: " + coapBackend.getIpv6Prefix());
+                System.out.println("CoapBackend Prefix: " + coapBackend.getPrefix());
                 System.out.println("HttpRequest Host Header: " + hostHeader);
-                if(hostHeader.indexOf(coapBackend.getIpv6Prefix()) != -1){
+                if(hostHeader.indexOf(coapBackend.getPrefix()) != -1){
                     ctx.getPipeline().addLast("Backend to handle request", coapBackend);
                     System.out.println("EntityManager: Forward Request to CoapBackend!!!");
                     ctx.sendUpstream(e);
@@ -225,6 +223,14 @@ public class EntityManager extends SimpleChannelHandler {
                 prefix = prefix.substring(0, prefix.length() - 1);
             }
 
+            //Remove the "/" at the beginning and the end
+            if(prefix.startsWith("/")){
+                prefix = prefix.substring(1, prefix.length());
+            }
+            if(prefix.endsWith("/")){
+                prefix = prefix.substring(0, prefix.length()-1);
+            }
+
             log.debug("Try to find backend for prefix " + prefix);
             
             //Find backend for prefix
@@ -241,7 +247,7 @@ public class EntityManager extends SimpleChannelHandler {
 
 		    }
             else {
-                log.debug("! No backend found to handle path " + path + "  prefix=" + prefix);
+                log.debug("! No backend found to handle path " + path + " , prefix=" + prefix);
             }
 		}
 //		// Handle request for UserInterface access
@@ -316,38 +322,25 @@ public class EntityManager extends SimpleChannelHandler {
 	 * allocated URI for the entity.
 	 */
 	public URI entityCreated(URI uri, Backend backend) {
-        log.debug("Create new entity: " + uri);
 		if(uri == null) {
 			uri = nextEntityURI();
 		}
 		uri = toThing(uri);
 		entityBackends.put(uri, backend);
-		//System.out.println("[EntityManager] New entity created: " + uri);
+		log.debug("New entity created: " + uri);
 		
 		return uri;
 	}
 	
-	/**
-	 * Will be called by a bounded Backend when an entity has been destroyed.
-	 */
-	/*public void entityDestroyed(URI uri) {
-		entityBackends.remove(uri);
-	}*/
-	
-	/**
-	 * Will be called by a bounded Backend whenever the description of an entity changed.
-	 */
-	/*public void descriptionChanged(URI entity, Model model) {
-		// TODO
-	}*/
-
 	public Backend getBackend(String elementSE) {
 		Backend b = entityBackends.get(elementSE);
 		if(b == null && elementSE.length() >= backendPrefixLength) {
 			URI uri = URI.create(uriBase).resolve(elementSE).normalize();
 			String path = uri.getRawPath();
 			
-			if(path.length() < backendPrefixLength) { return null; }
+			if(path.length() < backendPrefixLength){
+                return null;
+            }
 
 			String pathPart = path.substring(0, backendPrefixLength);
 			b = pathBackends.get(pathPart);
