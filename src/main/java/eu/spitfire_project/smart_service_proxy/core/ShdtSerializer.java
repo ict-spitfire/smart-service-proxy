@@ -147,8 +147,9 @@ public class ShdtSerializer {
 					i += s.length() + 1;
 				}
 				else if(cmd == CMD_END) {
-					// reading of buffer done successfully
-					return;
+					i--; continue;
+					//reading of buffer done successfully
+					//return;
 				}
 			}
 
