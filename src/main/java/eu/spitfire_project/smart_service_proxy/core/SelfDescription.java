@@ -26,12 +26,12 @@ package eu.spitfire_project.smart_service_proxy.core;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
-import de.uniluebeck.itm.spitfire.nCoap.message.CoapMessage;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.UintOption;
 import org.apache.log4j.Logger;
+import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferInputStream;
 
 import java.io.StringWriter;
@@ -73,7 +73,8 @@ public class SelfDescription {
             log.debug("[SelfDescription] Local URI: " + localURI);
 
 			//Set model
-			ChannelBufferInputStream istream = new ChannelBufferInputStream(coapResponse.getPayload());
+			ChannelBuffer buf = coapResponse.getPayload();
+			ChannelBufferInputStream istream = new ChannelBufferInputStream(buf);
 			model = ModelFactory.createDefaultModel();
             
             UintOption contentTypeOption;
@@ -102,15 +103,20 @@ public class SelfDescription {
             String lang = null;
             if(mediaType == OptionRegistry.MediaType.APP_N3){
 			    lang = "N3";
-            }
+				model.read(istream, localURI, lang);
+			}
             else if (mediaType == OptionRegistry.MediaType.APP_XML){
                 lang = "RDF/XML";
-            }
-            model.read(istream, localURI, lang);
+				model.read(istream, localURI, lang);
+			}
+			else if (mediaType == OptionRegistry.MediaType.APP_SHDT){
+				byte[] bytebuffer = new byte[10 * 1024];
+				buf.getBytes(0, bytebuffer);
+				(new ShdtSerializer(64)).read_buffer(model, bytebuffer);
+			}
 
             StringWriter writer = new StringWriter();
-
-            //------------TEST!
+//------------TEST!
             model.write(writer, "RDF/XML");
             log.debug("[SelfDescription] Output after Model serialization (RDF/XML):\n " + writer.toString());
             

@@ -24,10 +24,11 @@
  */
 package eu.spitfire_project.smart_service_proxy;
 
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.rdf.model.StmtIterator;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionMapper;
-import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
-import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
-import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapNodeRegistrationServer;
 import eu.spitfire_project.smart_service_proxy.backends.coap.uberdust.UberdustCoapServerBackend;
@@ -40,6 +41,7 @@ import eu.spitfire_project.smart_service_proxy.backends.wiselib_test.WiselibTest
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.HttpEntityManagerPipelineFactory;
+import eu.spitfire_project.smart_service_proxy.core.ShdtSerializer;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.ConsoleAppender;
@@ -51,11 +53,8 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.execution.ExecutionHandler;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
-import java.io.File;
-import java.net.*;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 
 public class Main {
@@ -77,10 +76,36 @@ public class Main {
 
     }
 
+	private static void testShdt() {
+		Model m = ModelFactory.createDefaultModel();
+		//m.read("http://dbpedia.neofonie.de/browse/rdf-type:River/River-mouth:Rhine/Place-length~:50000~/?fc=30");
+		m.read("http://spitfire.ibr.cs.tu-bs.de/be-0001/b4ec27c5-d543-496a-b2bf-a960134dcb37/2/sensor#");
+		ShdtSerializer shdt = new ShdtSerializer(128);
+		byte[] buffer = new byte[10 * 1024];
+		int l = shdt.fill_buffer(buffer, m.listStatements());
+		for(int i=l; i<buffer.length; i++) { buffer[i] = (byte) 0xff; }
+
+		//System.out.println(Arrays.toString(buffer));
+		//System.out.println(new String(buffer));
+
+		shdt.reset();
+
+		Model m2 = ModelFactory.createDefaultModel();
+		shdt.read_buffer(m2, buffer);
+		System.out.println(m2.toString());
+		System.out.println("equal: " + m.isIsomorphicWith(m2));
+		StmtIterator iter = m2.listStatements();
+		while(true) {
+			Statement st = iter.nextStatement();
+			System.out.println(st);
+		}
+	}
+
     /**
      * @throws Exception might be everything
      */
     public static void main(String[] args) throws Exception {
+		//testShdt();
 
         Configuration config = new PropertiesConfiguration("ssp.properties");
 
