@@ -266,7 +266,10 @@ public class Main {
                 if(ipv6Prefix == null){
                     throw new Exception("Property '" + enabledBackend + ".ipv6Prefix' not set.");
                 }
-                backend = new CoapBackend(ipv6Prefix, config.getBoolean("coap.enableVirtualHttpServer", false));
+                backend = new CoapBackend(ipv6Prefix,
+                                         config.getString("baseURIHost", "localhost"),
+                                         config.getInt("listenPort", 8080),
+                                         config.getBoolean("coap.enableVirtualHttpServer", false));
                 CoapNodeRegistrationServer.getInstance().addCoapBackend((CoapBackend) backend);
             }
 

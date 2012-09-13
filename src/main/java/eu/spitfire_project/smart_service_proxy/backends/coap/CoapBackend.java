@@ -62,6 +62,9 @@ public class CoapBackend extends Backend{
 
     private ConcurrentHashMap<URI, URI> resources = new ConcurrentHashMap<URI, URI>();
     private HashSet<InetAddress> sensornodes = new HashSet<InetAddress>();
+
+    private String sspHostName;
+    private int sspHostPort;
     private boolean enableVirtualHttp;
     
     private DatagramChannel clientChannel = CoapClientDatagramChannelFactory.getInstance().getChannel();
@@ -69,10 +72,12 @@ public class CoapBackend extends Backend{
     /**
      * Create a new instance of the CoAPBackend-Application with a listening Datagram Socket on port 5683.
      */
-    public CoapBackend(String pathPrefix, boolean enableVirtualHttp) throws Exception{
+    public CoapBackend(String pathPrefix, String sspHostName, int sspHostPort, boolean enableVirtualHttp) throws Exception{
         super();
         this.enableVirtualHttp = enableVirtualHttp;
         this.pathPrefix = "/%5B" + pathPrefix;
+        this.sspHostName = sspHostName;
+        this.sspHostPort = sspHostPort;
 
         //Create CoAP server to handle incoming requests
         //new CoapNodeRegistrationServer(this);
@@ -165,14 +170,6 @@ public class CoapBackend extends Backend{
                                     .setContent(ChannelBuffers.wrappedBuffer(coapResponse.getPayload()));
                         }
 
-//                        //------TEST!!!
-//                        ChannelBuffer copy = ChannelBuffers.copiedBuffer(coapResponse.getPayload());
-//                        byte[] copyArray = new byte[copy.readableBytes()];
-//                        copy.readBytes(copyArray);
-//                        log.debug("[CoapBackend] Payload of received packet: " +
-//                                new String(copyArray, Charset.forName("UTF-8")));
-
-                        //-------TEST ENDE!!!
 
                         //TODO Core-Link-Format to HTTP links.
 
@@ -303,7 +300,7 @@ public class CoapBackend extends Backend{
             encodedIP = "%5B" + encodedIP + "%5D";
         }
 
-        return new URI("http://" + encodedIP + ":" + NODES_COAP_PORT + path + "#");
+        return new URI("http://" + sspHostName + ":" + sspHostPort + "/" + encodedIP + path + "#");
     }
 
     public URI createCoapTargetURI(String remoteIP, String path) throws URISyntaxException {

@@ -27,7 +27,7 @@ public class UberdustCoapServerBackend extends CoapBackend {
     Configuration config;
 
     public UberdustCoapServerBackend(String pathPrefix, Configuration config) throws Exception {
-        super(pathPrefix, config.getBoolean("coap.enableVirtualHttpServer", false));
+        super(pathPrefix, "", 0, config.getBoolean("coap.enableVirtualHttpServer", false));
         this.pathPrefix = pathPrefix;
         this.config = config;
         log.debug("Prefix Uberdust: " + getPrefix());
