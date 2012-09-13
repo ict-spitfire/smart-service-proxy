@@ -59,8 +59,8 @@ public class ServiceLevelSemanticEntityCache {
 	private String makeURI(String describes) {
 		return backend.getEntityManager().toThing(
 				backend.getPathPrefix() +
-						URI.create(describes).getHost() + "/" +
-						URI.create(describes).getPath() + "/" +
+						URI.create(describes).getHost().replace('[', '_').replace(']', '_') + "/" +
+						URI.create(describes).getPath().replace('[', '_').replace(']', '_') + "/" +
 						URI.create(describes).getFragment()
 		).toString();
 	}
