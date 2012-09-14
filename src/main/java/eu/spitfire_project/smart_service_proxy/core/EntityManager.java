@@ -173,18 +173,15 @@ public class EntityManager extends SimpleChannelHandler {
 		URI uri = URI.create(uriBase).resolve(request.getUri()).normalize();
 		String path = uri.getRawPath();
 
-        String hostHeader = request.getHeader(HOST);
-        System.out.println("Host Header:" + hostHeader);
-        
-        System.out.println("Anzahl Backends: " + pathBackends.values().size());
-        
+        String targetURI = request.getUri();
+
         for(Backend backend : pathBackends.values()){
             System.out.println("Class of Backend: " + backend.getClass());
             if(backend instanceof CoapBackend){
                 CoapBackend coapBackend = (CoapBackend) backend;
                 System.out.println("CoapBackend Prefix: " + coapBackend.getPrefix());
-                System.out.println("HttpRequest Host Header: " + hostHeader);
-                if(hostHeader.indexOf(coapBackend.getPrefix()) != -1){
+                System.out.println("TargetURI: " + targetURI);
+                if(targetURI.indexOf(coapBackend.getPrefix()) != -1){
                     ctx.getPipeline().addLast("Backend to handle request", coapBackend);
                     System.out.println("EntityManager: Forward Request to CoapBackend!!!");
                     ctx.sendUpstream(e);
@@ -247,7 +244,7 @@ public class EntityManager extends SimpleChannelHandler {
 
 		    }
             else {
-                log.debug("! No backend found to handle path " + path + " , prefix=" + prefix);
+                log.debug("No backend found to handle path " + path + " , prefix=" + prefix);
             }
 		}
 //		// Handle request for UserInterface access

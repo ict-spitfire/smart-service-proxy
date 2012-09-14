@@ -44,10 +44,7 @@ import eu.spitfire_project.smart_service_proxy.core.HttpEntityManagerPipelineFac
 import eu.spitfire_project.smart_service_proxy.core.ShdtSerializer;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.SimpleLayout;
+import org.apache.log4j.*;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.execution.ExecutionHandler;
@@ -62,12 +59,14 @@ public class Main {
     private static Logger log = Logger.getLogger(Main.class.getName());
 
     static{
+        String pattern = "[%t] %d{ABSOLUTE}: [%C{1}] %m %n";
+        PatternLayout patternLayout = new PatternLayout(pattern);
         //Logger.getLogger("eu.spitfire_project.smart_service_proxy").addAppender(new ConsoleAppender(new SimpleLayout()));
-        Logger.getRootLogger().addAppender(new ConsoleAppender(new SimpleLayout()));
+        Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
         Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
 
         //Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").addAppender(new ConsoleAppender(new SimpleLayout()));
-        Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").setLevel(Level.DEBUG);
+        //Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").setLevel(Level.DEBUG);
 
         //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.core").addAppender(new ConsoleAppender(new SimpleLayout()));
         Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.core").setLevel(Level.DEBUG);

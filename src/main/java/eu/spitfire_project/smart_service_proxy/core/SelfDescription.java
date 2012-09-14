@@ -110,6 +110,7 @@ public class SelfDescription {
 				model.read(istream, localURI, lang);
 			}
 			else if (mediaType == OptionRegistry.MediaType.APP_SHDT){
+                log.debug("SHDT payload in CoAPResponse");
 				byte[] bytebuffer = new byte[10 * 1024];
 				buf.getBytes(0, bytebuffer);
 				(new ShdtSerializer(64)).read_buffer(model, bytebuffer);

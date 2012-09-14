@@ -132,11 +132,13 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
         public void run(){
             
             CoapBackend coapBackend = null;
-            
+
+            //log.debug("Look up backend for address " + remoteAddress.getHostAddress());
             for(CoapBackend backend : coapBackends){
-                log.debug("Backend: " + backend.getPrefix());
                 //Prefix is an IP address
-                log.debug("Look up backend for address " + remoteAddress.getHostAddress());
+
+                log.debug("remoteAddress.getHostAddress(): " + remoteAddress.getHostAddress());
+                log.debug("backend.getPrefix(): " + backend.getPrefix());
                 if(remoteAddress.getHostAddress().startsWith(backend.getPrefix())){
                     coapBackend = backend;
                     log.debug("Backend found for address " + remoteAddress.getHostAddress());
@@ -145,6 +147,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 //Prefix is a DNS name
                 else{
                     log.debug("Look up backend for DNS name " + remoteAddress.getHostName());
+                    log.debug("backend.getPrefix(): " + backend.getPrefix());
                     if((remoteAddress.getHostName()).equals(backend.getPrefix())){
                         coapBackend = backend;
                         log.debug("Backend found for DNS name " + remoteAddress.getHostName());
