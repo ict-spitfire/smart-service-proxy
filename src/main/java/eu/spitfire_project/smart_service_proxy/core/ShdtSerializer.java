@@ -132,14 +132,22 @@ public class ShdtSerializer {
 		while(i < buffer.length) {
 			byte tid = buffer[i]; i++;
 			if(tid == nidx) { // command mode
-				if(buffer.length - i < 1) {
+				/*if(buffer.length - i < 1) {
 					// reading of buffer done successfully
 					return;
-				}
+				}*/
+				if(i >= buffer.length) { break; }
 
 				byte cmd = buffer[i]; i++;
 				if(cmd == CMD_INSERT) {
 					byte pos = buffer[i]; i++;
+
+					// i >= buffer.length should not happen at this point if the
+					// input is legitimate
+					if(i >= buffer.length) {
+						System.out.println("SHDT: buffer ended with CMD_INSERT, ignored!");
+						break;
+					}
 
 					String s = new String(buffer, i, buffer.length - i);
 					s = s.substring(0, s.indexOf('\0'));
@@ -154,6 +162,10 @@ public class ShdtSerializer {
 			}
 
 			else { // tuple mode
+				if(i + 1 >= buffer.length) {
+					System.out.println("SHDT: buffer ended with incomplete tuple command, ignored!");
+					break;
+				}
 				byte sid = tid, pid = buffer[i], oid = buffer[i + 1];
 
 				String s = lookup_table.get(sid);

@@ -36,6 +36,7 @@ import org.jboss.netty.buffer.ChannelBufferInputStream;
 
 import java.io.StringWriter;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Date;
 
 /**
@@ -100,13 +101,19 @@ public class SelfDescription {
 
             //TODO add more media types
             //Try to create a Jena model from the message payload
-            String lang = null;
+
+			try {
+
+			ChannelBuffer buf = coapResponse.getPayload();
+			String lang = null;
             if(mediaType == OptionRegistry.MediaType.APP_N3){
 			    lang = "N3";
+				ChannelBufferInputStream istream = new ChannelBufferInputStream(buf);
 				model.read(istream, localURI, lang);
 			}
-            else if (mediaType == OptionRegistry.MediaType.APP_XML){
+			else if (mediaType == OptionRegistry.MediaType.APP_XML){
                 lang = "RDF/XML";
+				ChannelBufferInputStream istream = new ChannelBufferInputStream(buf);
 				model.read(istream, localURI, lang);
 			}
 			else if (mediaType == OptionRegistry.MediaType.APP_SHDT){
@@ -138,6 +145,11 @@ public class SelfDescription {
 			expiry = new Date((new Date()).getTime() + maxAge * 1000);
             log.debug("[SelfDescription] Status of resource " + localURI + " expires on " + expiry +
                     " ( that means in " + maxAge + " seconds).");
+
+			} catch(Exception e) {
+				log.debug(e);
+				e.printStackTrace();
+			}
 
 			//Set Observe value (only if resource is observable)
 //			if(coapResponse.getOptions().getOption(10) != null){
