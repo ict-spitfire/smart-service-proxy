@@ -74,7 +74,9 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
         return added;
     }
 
-
+    public void fakeRegistration(InetAddress inetAddress){
+        executorService.schedule(new NodeRegistration(inetAddress), 0, TimeUnit.SECONDS);
+    }
 
     /**
      * This method is invoked by the Netty framework whenever a new incoming CoAP request is to be processed. It only

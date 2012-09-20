@@ -87,6 +87,7 @@ public class CoapBackend extends Backend{
     public void bind(EntityManager entityManager){
         this.entityManager = entityManager;
         entityManager.registerBackend(this, pathPrefix);
+
     }
     
     @Override

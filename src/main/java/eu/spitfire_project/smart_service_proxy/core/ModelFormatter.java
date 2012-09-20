@@ -60,14 +60,18 @@ public class ModelFormatter extends SimpleChannelHandler {
 	 * (remembers requested mime type for response)
 	 */
 	@Override
-	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-		Object m = e.getMessage();
+	public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
+		Object m = me.getMessage();
 
 		if(m instanceof HttpRequest) {
             log.debug("[ModelFormatter] Received httpRequest for " + ((HttpRequest) m).getUri());
+
 			httpRequest = (HttpRequest) m;
+
+            String acceptHeader = httpRequest.getHeader("Accept");
+            log.debug("Accept: " + acceptHeader);
 		}
-		super.messageReceived(ctx, e);
+		ctx.sendUpstream(me);
 	}
 	
 	/**
@@ -87,7 +91,8 @@ public class ModelFormatter extends SimpleChannelHandler {
             
 			if(httpRequest != null) {
 				String acceptHeader = httpRequest.getHeader("Accept");
-						
+				log.debug("Accept: " + acceptHeader);
+
 				if(acceptHeader != null) {
 					if(acceptHeader.indexOf("application/rdf+xml") != -1){
                         lang = "RDF/XML";

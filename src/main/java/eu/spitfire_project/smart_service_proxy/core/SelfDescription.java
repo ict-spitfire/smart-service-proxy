@@ -73,8 +73,8 @@ public class SelfDescription {
             log.debug("[SelfDescription] Local URI: " + localURI);
 
 			//Set model
-			ChannelBuffer buf = coapResponse.getPayload();
-			ChannelBufferInputStream istream = new ChannelBufferInputStream(buf);
+			ChannelBuffer payload = coapResponse.getPayload();
+			ChannelBufferInputStream istream = new ChannelBufferInputStream(payload);
 			model = ModelFactory.createDefaultModel();
             
             UintOption contentTypeOption;
@@ -111,11 +111,17 @@ public class SelfDescription {
 			}
 			else if (mediaType == OptionRegistry.MediaType.APP_SHDT){
                 log.debug("SHDT payload in CoAPResponse");
-				byte[] bytebuffer = new byte[10 * 1024];
-				buf.getBytes(0, bytebuffer);
-				(new ShdtSerializer(64)).read_buffer(model, bytebuffer);
+				byte[] bytebuffer = new byte[payload.readableBytes()];
+				payload.getBytes(0, bytebuffer);
+                try{
+				    (new ShdtSerializer(64)).read_buffer(model, bytebuffer);
+                }
+                catch(Exception e){
+                    log.error("SHDT error!", e);
+                }
 			}
 
+            log.debug("TEST123");
             StringWriter writer = new StringWriter();
 //------------TEST!
             model.write(writer, "RDF/XML");

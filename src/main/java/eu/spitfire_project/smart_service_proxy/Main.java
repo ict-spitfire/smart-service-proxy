@@ -62,16 +62,18 @@ public class Main {
         String pattern = "[%t] %d{ABSOLUTE}: [%C{1}] %m %n";
         PatternLayout patternLayout = new PatternLayout(pattern);
         //Logger.getLogger("eu.spitfire_project.smart_service_proxy").addAppender(new ConsoleAppender(new SimpleLayout()));
-        Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
+        //
         Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
+        Logger.getRootLogger().removeAllAppenders();
+        Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
 
         //Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").addAppender(new ConsoleAppender(new SimpleLayout()));
         //Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").setLevel(Level.DEBUG);
 
         //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.core").addAppender(new ConsoleAppender(new SimpleLayout()));
-        Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.core").setLevel(Level.DEBUG);
+        //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication").setLevel(Level.DEBUG);
 
-        Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.encoding").setLevel(Level.DEBUG);
+        //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.encoding").setLevel(Level.DEBUG);
 
     }
 
@@ -335,6 +337,9 @@ public class Main {
                     backend.getPathPrefix());
             }
         }
+
+        CoapNodeRegistrationServer.getInstance()
+                                  .fakeRegistration(InetAddress.getByName("[2001:db08:0:c0a1:215:8d00:11:a88]"));
     }
     
 
