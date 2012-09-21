@@ -71,7 +71,7 @@ public class Main {
         //Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").setLevel(Level.DEBUG);
 
         //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.core").addAppender(new ConsoleAppender(new SimpleLayout()));
-        //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication").setLevel(Level.DEBUG);
+        Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication").setLevel(Level.DEBUG);
 
         //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.encoding").setLevel(Level.DEBUG);
 
@@ -338,8 +338,11 @@ public class Main {
             }
         }
 
+//        CoapNodeRegistrationServer.getInstance()
+//                                  .fakeRegistration(InetAddress.getByName("[2001:db08:0:c0a1:215:8d00:11:a88]"));
+
         CoapNodeRegistrationServer.getInstance()
-                                  .fakeRegistration(InetAddress.getByName("[2001:db08:0:c0a1:215:8d00:11:a88]"));
+                .fakeRegistration(InetAddress.getByName("[2001:db08:0:c0a1:215:8d00:14:8e82]"));
     }
     
 

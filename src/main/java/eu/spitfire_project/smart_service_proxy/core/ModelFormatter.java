@@ -119,7 +119,11 @@ public class ModelFormatter extends SimpleChannelHandler {
 			response.setHeader(CONTENT_TYPE, mimeType + "; charset=utf-8");
 			response.setContent(ChannelBuffers.copiedBuffer(os.toString(), Charset.forName("UTF-8")));
 			response.setHeader(CONTENT_LENGTH, response.getContent().readableBytes());
-            Channels.write(ctx, me.getFuture(), response);
+
+            //Channels.write(ctx, me.getFuture(), response);
+            DownstreamMessageEvent dme =
+                    new DownstreamMessageEvent(ctx.getChannel(), me.getFuture(), response, me.getRemoteAddress());
+            ctx.sendDownstream(dme);
 		}
 		else {
 			ctx.sendDownstream(me);

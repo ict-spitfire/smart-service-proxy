@@ -27,7 +27,6 @@ package eu.spitfire_project.smart_service_proxy.core;
 import com.hp.hpl.jena.rdf.model.Model;
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
 import java.util.Date;
@@ -138,9 +137,13 @@ public class StatementCache extends SimpleChannelHandler {
             log.debug("[StatementCache] Received SelfDescription of resource " + sd.getLocalURI() + " to be cached.");
             
             //Store new Element in Cache
-            cache.put(sd.getLocalURI(), new CacheElement(sd.getModel(), sd.getExpiry(), sd.getObserve()));
+            //cache.put(sd.getLocalURI(), new CacheElement(sd.getModel(), sd.getExpiry(), sd.getObserve()));
+            //Channels.write(ctx, me.getFuture(), sd.getModel());
 
-            Channels.write(ctx, me.getFuture(), sd.getModel());
+            DownstreamMessageEvent downstreamMessageEvent =
+                    new DownstreamMessageEvent(ctx.getChannel(), me.getFuture(), sd.getModel(), me.getRemoteAddress());
+
+            ctx.sendDownstream(downstreamMessageEvent);
         }
         else{
             ctx.sendDownstream(me);

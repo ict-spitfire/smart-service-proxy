@@ -163,7 +163,7 @@ public class ShdtSerializer {
 					System.out.println("SHDT: inserted \"" + s + "\" at " + pos);
 				}
 				else { // if(cmd == CMD_END) {
-					System.out.println("SHDT: CMD_END i-- @", i);
+					//System.out.println("SHDT: CMD_END i-- @", i);
 					i--;
 					continue;
 					//reading of buffer done successfully
