@@ -45,6 +45,6 @@ public class URIs {
 	public static final String observes = "http://purl.oclc.org/NET/ssnx/ssn#observes";
 	public static final String type = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 	public static final String sameAs = "http://www.w3.org/2002/07/owl#sameAs";
-	public static final String hasValue = "http://www.loa-cnr.it/ontologies/DUL.owl#hasValue";
+	public static final String hasValue = "http://spitfire-project.eu/ontology/ns/value";
 }
 
