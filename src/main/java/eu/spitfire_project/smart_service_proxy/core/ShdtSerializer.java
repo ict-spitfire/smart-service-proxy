@@ -25,7 +25,7 @@ public class ShdtSerializer {
 	private static final byte TUPLE_SIZE = 3;
 
 	//enum Commands { CMD_INSERT = 0, CMD_END = 0xff };
-	private static final byte CMD_INSERT = 0;
+	private static final byte CMD_INSERT = (byte)0xfe;
 	private static final byte CMD_END = (byte)0xff;
 
 	public ShdtSerializer(int table_size) {
@@ -144,7 +144,7 @@ public class ShdtSerializer {
 				if(i >= buffer.length) { break; }
 
 				byte cmd = buffer[i]; i++;
-				System.out.println("SHDT: cmd=" + tid);
+				System.out.println("SHDT: cmd=" + cmd);
 				
 				if(cmd == CMD_INSERT) {
 					byte pos = buffer[i]; i++;
@@ -162,8 +162,10 @@ public class ShdtSerializer {
 					i += s.length() + 1;
 					System.out.println("SHDT: inserted \"" + s + "\" at " + pos);
 				}
-				else if(cmd == CMD_END) {
-					i--; continue;
+				else { // if(cmd == CMD_END) {
+					System.out.println("SHDT: CMD_END i-- @", i);
+					i--;
+					continue;
 					//reading of buffer done successfully
 					//return;
 				}
