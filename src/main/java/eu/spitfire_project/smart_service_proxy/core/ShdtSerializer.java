@@ -187,9 +187,9 @@ public class ShdtSerializer {
 
 				boolean isLiteral = o.startsWith("\"");
 				model.add(model.createStatement(
-						model.createResource(s),
-						model.createProperty(p),
-						isLiteral ? model.createLiteral(o) : model.createResource(o)
+						model.createResource(s.substring(1, s.length() - 2)),
+						model.createProperty(p.substring(1, p.length() - 2)),
+						isLiteral ? model.createLiteral(o.substring(1, o.length() - 2)) : model.createResource(o.substring(1, o.length() - 2))
 				));
 
 			}
