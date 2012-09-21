@@ -40,12 +40,12 @@ public class UberdustCoapServerBackend extends CoapBackend {
         int sspPort;
 
         try {
-            sspHostname = config.getString("baseURIHost", InetAddress.getLocalHost().getHostAddress());
+            sspHostname = config.getString("serverDnsName", InetAddress.getLocalHost().getHostAddress());
             } catch (UnknownHostException e) {
             log.error(e);
         }
 
-        sspPort = config.getInt("listenPort");
+        sspPort = config.getInt("httpServerPort");
         return new URI("http://" + sspHostname + ":" + sspPort + "/" + uberdustServerDns + path + "#");
     }
 
@@ -91,7 +91,7 @@ public class UberdustCoapServerBackend extends CoapBackend {
                 InetSocketAddress uberdustServerSocketAddress =
                         new InetSocketAddress(InetAddress.getByName(uberdustServerDnsName), uberdustServerPort);
 
-                String baseURI = config.getString("baseURIHost", "localhost");
+                String baseURI = config.getString("serverDnsName", "localhost");
                 CoapRequest fakeRequest = new CoapRequest(MsgType.NON, Code.POST,
                         new URI("coap://" + baseURI + ":5683/here_i_am"));
 

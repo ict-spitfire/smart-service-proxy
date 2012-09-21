@@ -59,11 +59,12 @@ public class Main {
     private static Logger log = Logger.getLogger(Main.class.getName());
 
     static{
-        String pattern = "[%t] %d{ABSOLUTE}: [%C{1}] %m %n";
+        String pattern = "%-23d{yyyy-MM-dd HH:mm:ss,SSS} | %-32.32t | %-30.30c{1} | %-5p | %m%n";
         PatternLayout patternLayout = new PatternLayout(pattern);
         //Logger.getLogger("eu.spitfire_project.smart_service_proxy").addAppender(new ConsoleAppender(new SimpleLayout()));
         //
         Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
+        Logger.getLogger("eu.spitfire_project.smart_service_proxy.core.ShdtSerializer").setLevel(Level.DEBUG);
         Logger.getRootLogger().removeAllAppenders();
         Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
 
@@ -131,12 +132,12 @@ public class Main {
         HttpEntityManagerPipelineFactory empf =
                 new HttpEntityManagerPipelineFactory(executionHandler, enableVirtualHttpServerForCoap);
         bootstrap.setPipelineFactory(empf);
-        int listenPort = config.getInt("listenPort", 8080);
+        int listenPort = config.getInt("httpServerPort", 8080);
         bootstrap.bind(new InetSocketAddress(listenPort));
 
         //Set URI base
         String defaultHost = InetAddress.getLocalHost().getCanonicalHostName();
-        String baseURIHost = config.getString("baseURIHost", defaultHost);
+        String baseURIHost = config.getString("serverDnsName", defaultHost);
         if(listenPort != 80){
             baseURIHost = baseURIHost + ":" + listenPort;
         }
@@ -152,7 +153,7 @@ public class Main {
         String tunInterfaceName = config.getString("tunInterfaceName");
 
         ConnectionMapper.start(udpNetworkInterfaceName, tcpNetworkInterfaceName, tunInterfaceName,
-                5683, config.getInt("listenPort", 8080));
+                5683, config.getInt("httpServerPort", 8080));
     }
     
 //    private static void startConnectionMapper(Configuration config) throws URISyntaxException, SocketException {
@@ -293,8 +294,8 @@ public class Main {
                     throw new Exception("Property '" + enabledBackend + ".ipv6Prefix' not set.");
                 }
                 backend = new CoapBackend(ipv6Prefix,
-                                         config.getString("baseURIHost", "localhost"),
-                                         config.getInt("listenPort", 8080),
+                                         config.getString("serverDnsName", "localhost"),
+                                         config.getInt("httpServerPort", 8080),
                                          config.getBoolean("coap.enableVirtualHttpServer", false));
                 CoapNodeRegistrationServer.getInstance().addCoapBackend((CoapBackend) backend);
             }

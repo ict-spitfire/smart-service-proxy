@@ -7,6 +7,7 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 import eu.spitfire_project.smart_service_proxy.utils.Cell;
+import org.apache.log4j.Logger;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,6 +20,9 @@ import java.util.NoSuchElementException;
  * - table_size <= 255
  */
 public class ShdtSerializer {
+
+    private static Logger log = Logger.getLogger(ShdtSerializer.class.getName());
+
 	private Map<Byte, String> lookup_table;
 	private int TABLE_SIZE;
 	private static final byte nidx = (byte)0xff;
@@ -130,11 +134,11 @@ public class ShdtSerializer {
 	public void read_buffer(Model model, byte[] buffer) {
 		int i = 0;
 		while(i < buffer.length) {
-			System.out.println("SHDT: i=" + i + " buflen=" + buffer.length);
+			log.debug("SHDT: i=" + i + " buflen=" + buffer.length);
 				
 			byte tid = buffer[i]; i++;
 			
-			System.out.println("SHDT: tid=" + tid);
+			log.debug("SHDT: tid=" + tid);
 			
 			if(tid == nidx) { // command mode
 				/*if(buffer.length - i < 1) {
@@ -144,7 +148,7 @@ public class ShdtSerializer {
 				if(i >= buffer.length) { break; }
 
 				byte cmd = buffer[i]; i++;
-				System.out.println("SHDT: cmd=" + cmd);
+				log.debug("SHDT: cmd=" + cmd);
 				
 				if(cmd == CMD_INSERT) {
 					byte pos = buffer[i]; i++;
@@ -152,7 +156,7 @@ public class ShdtSerializer {
 					// i >= buffer.length should not happen at this point if the
 					// input is legitimate
 					if(i >= buffer.length) {
-						System.out.println("SHDT: buffer ended with CMD_INSERT, ignored!");
+						log.debug("SHDT: buffer ended with CMD_INSERT, ignored!");
 						break;
 					}
 
@@ -160,10 +164,10 @@ public class ShdtSerializer {
 					s = s.substring(0, s.indexOf('\0'));
 					lookup_table.put(pos, s);
 					i += s.length() + 1;
-					System.out.println("SHDT: inserted \"" + s + "\" at " + pos);
+					log.debug("SHDT: inserted \"" + s + "\" at " + pos);
 				}
 				else { // if(cmd == CMD_END) {
-					//System.out.println("SHDT: CMD_END i-- @", i);
+					//log.debug("SHDT: CMD_END i-- @", i);
 					i--;
 					continue;
 					//reading of buffer done successfully
@@ -173,12 +177,12 @@ public class ShdtSerializer {
 
 			else { // tuple mode
 				if(i + 1 >= buffer.length) {
-					System.out.println("SHDT: buffer ended with incomplete tuple command, ignored!");
+					log.debug("SHDT: buffer ended with incomplete tuple command, ignored!");
 					break;
 				}
 				byte sid = tid, pid = buffer[i], oid = buffer[i + 1];
 				
-				System.out.println("SHDT: tuple: (" + sid + " " + pid + " " + oid + ")");
+				log.debug("SHDT: tuple: (" + sid + " " + pid + " " + oid + ")");
 
 				String s = lookup_table.get(sid);
 				String p = lookup_table.get(pid);

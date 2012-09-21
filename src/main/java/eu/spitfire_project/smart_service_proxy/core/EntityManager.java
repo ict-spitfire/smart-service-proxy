@@ -40,13 +40,11 @@ import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.*;
-
 //import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
 
 /**
- * The EntityManager is the topmost upstream handler of an HTTPEntityMangerPipeline. It contains a list of {@link Backend}s to manage
- * all available entities behind them.
+ * The EntityManager is the topmost upstream handler of an HTTPEntityMangerPipeline.
+ * It contains a list of {@link Backend}s to manage all available entities behind them.
  * 
  * @author Henning Hasemann
  * @author Oliver Kleine
@@ -101,13 +99,12 @@ public class EntityManager extends SimpleChannelHandler {
     public void registerBackend(Backend backend, String prefix){
         if(pathBackends.put(prefix, backend) != backend){
             log.debug("New Backend for path prefix " + prefix);
-        };
+        }
         if(backend.getUIElements() != null){
             uiElements.addAll(backend.getUIElements());
         }
     }
 
-	
 	/**
 	 * Normalize uri.
 	 * I.e.
@@ -126,20 +123,20 @@ public class EntityManager extends SimpleChannelHandler {
 		return r;
 	}
 	
-	/// ditto
-	public URI toDocument(String uri) { return normalizeURI(uri); }
-	/// ditto
-	public URI toDocument(URI uri) { return normalizeURI(uri); }
-	
+
 	/**
-	 * Like \ref toDocument but add "#" to the URI so as to refer to a
+	 * Like \ref normalizeURI but add "#" to the URI so as to refer to a
 	 * semantic object instead of the document describing it.
 	 * Do not use this on already correct semantic URIs, as it will strip the
 	 * "#something" part and replace it with just "#"!
 	 */
-	public URI toThing(String uri) { return URI.create(normalizeURI(uri).toString() + "#"); }
+	public URI toThing(String uri) {
+        return URI.create(normalizeURI(uri).toString() + "#");
+    }
 	
-	public URI toThing(URI uri) { return URI.create(normalizeURI(uri).toString() + "#"); }
+	public URI toThing(URI uri) {
+        return URI.create(normalizeURI(uri).toString() + "#");
+    }
 	
 	/**
 	 */
