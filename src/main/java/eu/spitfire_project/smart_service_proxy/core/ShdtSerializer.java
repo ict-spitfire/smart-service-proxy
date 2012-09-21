@@ -130,7 +130,12 @@ public class ShdtSerializer {
 	public void read_buffer(Model model, byte[] buffer) {
 		int i = 0;
 		while(i < buffer.length) {
+			System.out.println("SHDT: i=" + i + " buflen=" + buffer.length);
+				
 			byte tid = buffer[i]; i++;
+			
+			System.out.println("SHDT: tid=" + tid);
+			
 			if(tid == nidx) { // command mode
 				/*if(buffer.length - i < 1) {
 					// reading of buffer done successfully
@@ -139,6 +144,8 @@ public class ShdtSerializer {
 				if(i >= buffer.length) { break; }
 
 				byte cmd = buffer[i]; i++;
+				System.out.println("SHDT: cmd=" + tid);
+				
 				if(cmd == CMD_INSERT) {
 					byte pos = buffer[i]; i++;
 
@@ -153,6 +160,7 @@ public class ShdtSerializer {
 					s = s.substring(0, s.indexOf('\0'));
 					lookup_table.put(pos, s);
 					i += s.length() + 1;
+					System.out.println("SHDT: inserted \"" + s + "\" at " + pos);
 				}
 				else if(cmd == CMD_END) {
 					i--; continue;
@@ -167,6 +175,8 @@ public class ShdtSerializer {
 					break;
 				}
 				byte sid = tid, pid = buffer[i], oid = buffer[i + 1];
+				
+				System.out.println("SHDT: tuple: (" + sid + " " + pid + " " + oid + ")");
 
 				String s = lookup_table.get(sid);
 				String p = lookup_table.get(pid);
