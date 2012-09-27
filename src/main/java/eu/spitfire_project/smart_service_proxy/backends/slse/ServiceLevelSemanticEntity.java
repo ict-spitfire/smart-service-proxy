@@ -173,9 +173,11 @@ public class ServiceLevelSemanticEntity extends SemanticEntity {
 			boolean literal = true;
 			String query = String.format(
 					"PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#> \n" +
+					"PREFIX spit: <http://spitfire-project.eu/ontology/ns/> \n" +
                     "select ?sensor where { " +
                     " <%s> ssn:attachedSystem ?sensor ." +
-                    " ?sensor ssn:observedProperty <%s> . " +
+                    //" ?sensor ssn:observedProperty <%s> . " +
+                    " ?sensor spit:obs <%s> . " +
                     "}", uri, property);
 
 			Set<Resource> toDelete = new HashSet<Resource>();
@@ -203,11 +205,12 @@ public class ServiceLevelSemanticEntity extends SemanticEntity {
 				String tmpl = String.format(
                     "@prefix ssn: <http://purl.oclc.org/NET/ssnx/ssn#> .\n" +
                     "@prefix dul: <http://www.loa-cnr.it/ontologies/DUL.owl#> .\n" +
+					"@prefix spit: <http://spitfire-project.eu/ontology/ns/> .\n" +
                     "@prefix : <%s/static/ontology.owl#> .\n" +
                     "<%s>\n" +
                     "  ssn:attachedSystem [ \n" +
-                    "	 ssn:observedProperty <%s> ; \n" +
-                    "	 dul:hasValue %s \n" +
+                    "	 spit:obs <%s> ; \n" +
+                    "	 spit:value %s \n" +
                     "  ] . \n"
                     , EntityManager.SSP_DNS_NAME,
                     uri,

@@ -43,8 +43,10 @@ public abstract class SemanticEntity {
 	protected static Query sensorQuery = QueryFactory.create(
 			"select ?property ?value where {" +
 					//" ?sensor a <http://purl.oclc.org/NET/ssnx/ssn#Sensor> . " +
-					" ?sensor <http://www.loa-cnr.it/ontologies/DUL.owl#hasValue> ?value . " +
-					" ?sensor <http://purl.oclc.org/NET/ssnx/ssn#observedProperty> ?property . " +
+					//" ?sensor <http://www.loa-cnr.it/ontologies/DUL.owl#hasValue> ?value . " +
+					" ?sensor <http://www.spitfire-project.eu/ontology/ns/value> ?value . " +
+					//" ?sensor <http://purl.oclc.org/NET/ssnx/ssn#observedProperty> ?property . " +
+					" ?sensor <http://www.spitfire-project.eu/ontology/ns/obs> ?property . " +
 					"}"
 	);
 
