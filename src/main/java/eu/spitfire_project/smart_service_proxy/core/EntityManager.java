@@ -24,7 +24,9 @@
  */
 package eu.spitfire_project.smart_service_proxy.core;
 
-import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.Channels;
@@ -32,11 +34,9 @@ import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
-import java.io.File;
+import java.net.Inet6Address;
 import java.net.URI;
 import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -53,26 +53,42 @@ public class EntityManager extends SimpleChannelHandler {
 
     private static Logger log = Logger.getLogger(EntityManager.class.getName());
 
-	private int backendId = 0;
-	//Contains the URIs of services (e.g. on sensor nodes) and the proper backend
-	private ConcurrentHashMap<URI, Backend> entityBackends = new ConcurrentHashMap<URI, Backend>();
-	//Contains the individual paths to the backends (for Userinterface access)
-	private ConcurrentHashMap<String, Backend> pathBackends = new ConcurrentHashMap<String, Backend>();
+    private static Configuration config;
+    static{
+        try {
+            config = new PropertiesConfiguration("ssp.properties");
+        } catch (ConfigurationException e) {
+            log.error("Error while loading config.", e);
+        }
+    }
 
-	private final String listPath = "/.well-known/servers";
-	private String uriBase;
-	private final String backendPrefixFormat = "/be-%04d/";
-	private final String entityURIFormat = "/entity-%04x/";
-	private final String staticPrefix = "/static/";
-	private final String staticDirectory = "data/static/";
-	private final int backendPrefixLength = String.format(backendPrefixFormat, 0).length();
-	
-	private int nextEntityId = 0;
-	private Vector<UIElement> uiElements = new Vector<UIElement>();
+    public static final String SSP_DNS_NAME = config.getString("SSP_DNS_NAME", "localhost");
+    public static final int SSP_HTTP_SERVER_PORT = config.getInt("SSP_HTTP_SERVER_PORT", 8080);
+    public static final String DNS_WILDCARD_POSTFIX = config.getString("IPv4_SERVER_DNS_WILDCARD_POSTFIX", null);
+
+
+    //Services offered by EntityManager
+    private final String PATH_TO_SERVER_LIST = "/.well-known/servers";
+//    private final String SERVER_PATH_TO_SLSE_UI = "/static/";
+//    private final String LOCAL_PATH_TO_SLSE_UI = "data/slse/ui";
+
+    //Parameters for Backend and Entity creation
+    private int nextBackendId = 0;
+    private final String BACKEND_PREFIX_FORMAT = "/be-%04d/";
+    private int nextEntityId = 0;
+    private final String ENTITY_FORMAT = "/entity-%04x/";
+
+
+
+	//Contains the URIs of services (e.g. on sensor nodes) and the proper backend
+	private ConcurrentHashMap<URI, Backend> entities = new ConcurrentHashMap<URI, Backend>();
+	//Contains the individual paths to the backends (for Userinterface access)
+	private ConcurrentHashMap<String, Backend> backends = new ConcurrentHashMap<String, Backend>();
+
+    private Vector<UIElement> uiElements = new Vector<UIElement>();
 
     //Make EntityManager a Singleton
 	private static EntityManager instance = new EntityManager();
-	
 	private EntityManager(){
 	}
 	
@@ -84,20 +100,20 @@ public class EntityManager extends SimpleChannelHandler {
 	 */
 	URI nextEntityURI() {
 		nextEntityId++;
-		return normalizeURI(String.format(entityURIFormat, nextEntityId));
+		return normalizeURI(String.format(ENTITY_FORMAT, nextEntityId));
 	}
 	
 	/**
 	 */
 	public void registerBackend(Backend backend) {
-		backendId++;
-		String prefix = String.format(backendPrefixFormat, backendId);
-		backend.setPathPrefix(prefix);
+		nextBackendId++;
+		String prefix = String.format(BACKEND_PREFIX_FORMAT, nextBackendId);
+		backend.setPrefix(prefix);
         registerBackend(backend, prefix);
 	}
     
     public void registerBackend(Backend backend, String prefix){
-        if(pathBackends.put(prefix, backend) != backend){
+        if(backends.put(prefix, backend) != backend){
             log.debug("New Backend for path prefix " + prefix);
         }
         if(backend.getUIElements() != null){
@@ -105,48 +121,59 @@ public class EntityManager extends SimpleChannelHandler {
         }
     }
 
-	/**
-	 * Normalize uri.
-	 * I.e.
-	 * - Normalize syntactically (remove unnecessary /'s etc....)
-	 * - Normalize semantically (if relative uri, make absolute)
-	 * - Strip "#something"-part
-	 */
-	public URI normalizeURI(URI uri) { return normalizeURI(uri.toString()); }
-	
-	/// ditto
+    /**
+     * Normalizes the given URI. It removes unnecessary slashes (/) or unnecessary parts of the path
+     * (e.g. /part_1/part_2/../path_3 to /path_1/part_3), removes the # and following characters at the
+     * end of the path and makes relative URIs absolute.
+     *
+     * @param uri The URI to be normalized
+     */
+	public URI normalizeURI(URI uri) {
+        return normalizeURI(uri.toString());
+    }
+
+    /**
+     * Normalizes the given URI. It removes unnecessary slashes (/) or unnecessary parts of the path
+     * (e.g. /part_1/part_2/../path_3 to /path_1/part_3), removes the # and following characters at the
+     * end of the path and makes relative URIs absolute.
+     *
+     * @param uri The URI to be normalized
+     */
 	public URI normalizeURI(String uri) {
 		while(uri.substring(uri.length()-1).equals("#")) {
 			uri = uri.substring(0, uri.length()-1);
 		}
-		URI r = URI.create(uriBase).resolve(uri).normalize();
+		URI r = URI.create(SSP_DNS_NAME).resolve(uri).normalize();
 		return r;
 	}
-	
 
-	/**
-	 * Like \ref normalizeURI but add "#" to the URI so as to refer to a
-	 * semantic object instead of the document describing it.
-	 * Do not use this on already correct semantic URIs, as it will strip the
-	 * "#something" part and replace it with just "#"!
-	 */
+
+
+    /**
+     * Normalizes the given URI and adds a # at the end. It removes unnecessary slashes (/) or
+     * unnecessary parts of the path (e.g. /part_1/part_2/../path_3 to /path_1/part_3), removes the # and following
+     * characters at the end of the path and makes relative URIs absolute. After normalizing it adds a # at the end.
+     * Example: Both, http://localhost/path/to/service#something and http://localhost/path/to/service result into
+     * http://localhost/path/to/service#
+     *
+     * @param uri The URI to be normalized and converted to represent a thing
+     */
 	public URI toThing(String uri) {
         return URI.create(normalizeURI(uri).toString() + "#");
     }
-	
+
+    /**
+     * Normalizes the given URI and adds a # at the end. It removes unnecessary slashes (/) or
+     * unnecessary parts of the path (e.g. /part_1/part_2/../path_3 to /path_1/part_3), removes the # and following
+     * characters at the end of the path and makes relative URIs absolute. After normalizing it adds a # at the end.
+     * Example: Both, http://localhost/path/to/service#something and http://localhost/path/to/service result into
+     * http://localhost/path/to/service#
+     *
+     * @param uri The URI to be normalized and converted to represent a thing
+     */
 	public URI toThing(URI uri) {
         return URI.create(normalizeURI(uri).toString() + "#");
     }
-	
-	/**
-	 */
-	public String getURIBase() {
-		return uriBase;
-	}
-	
-	public void setURIBase(String uriBase) {
-		this.uriBase = uriBase;
-	}
 	
 	/**
 	 * Expected Message types:
@@ -160,154 +187,175 @@ public class EntityManager extends SimpleChannelHandler {
             return;
 		}
 
-        HttpRequest request = (HttpRequest) e.getMessage();
+        HttpRequest httpRequest = (HttpRequest) e.getMessage();
+        URI targetUri = toThing(URI.create("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri()));
 
-        if(log.isDebugEnabled()){
-            log.debug("[EntityManager] Received HTTP request for target: " + request.getUri());
+        log.debug("Received HTTP request for " + targetUri);
+
+        String targetUriHost = Inet6Address.getByName(targetUri.getHost()).getHostAddress();
+        log.debug("Target host: " + targetUriHost);
+
+		String targetUriPath = targetUri.getRawPath();
+        log.debug("Target path: " + targetUriPath);
+
+        if(entities.containsKey(targetUri)){
+            Backend backend = entities.get(targetUri);
+            ctx.getPipeline().addLast("Backend to handle request", backend);
+            log.debug("Forward request to " + backend);
+            ctx.sendUpstream(e);
+            return;
         }
-		
-        
-		URI uri = URI.create(uriBase).resolve(request.getUri()).normalize();
-		String path = uri.getRawPath();
 
-        String targetURI = request.getUri();
-
-        for(Backend backend : pathBackends.values()){
-            System.out.println("Class of Backend: " + backend.getClass());
-            if(backend instanceof CoapBackend){
-                CoapBackend coapBackend = (CoapBackend) backend;
-                System.out.println("CoapBackend Prefix: " + coapBackend.getPrefix());
-                System.out.println("TargetURI: " + targetURI);
-                if(targetURI.indexOf(coapBackend.getPrefix()) != -1){
-                    ctx.getPipeline().addLast("Backend to handle request", coapBackend);
-                    System.out.println("EntityManager: Forward Request to CoapBackend!!!");
-                    ctx.sendUpstream(e);
-                    return;
-                }
-            }
-        }
-            
-        
-        if(path.equals(listPath)) {
+        if (targetUriPath.equals(PATH_TO_SERVER_LIST)) {
             // Handle request for resource at path ".well-known/core"
-			StringBuilder buf = new StringBuilder();
-			for(URI entity: getEntities()) {
-				buf.append(toThing(entity).toString() + "\n");
-			}
-			Channels.write(ctx.getChannel(), Answer.create(buf.toString()).setMime("text/plain"));
-		}
-        else if(path.startsWith(staticPrefix)) {
-            String f = staticDirectory + path.substring(staticPrefix.length());
-            Channels.write(ctx.getChannel(), Answer.create(new File(f)).setMime("text/n3"));
+            StringBuilder buf = new StringBuilder();
+            for(URI entity: getEntities()) {
+                buf.append(toThing(entity).toString() + "\n");
+            }
+            Channels.write(ctx.getChannel(), Answer.create(buf.toString()).setMime("text/plain"));
+            return;
         }
 
-        else if(path.length() >= backendPrefixLength) {
+        else if(targetUriPath.equals("/favicon.ico")){
+        }
 
-            String prefix = path.substring(0, path.indexOf("/", 1) + 1);
-
-            //Create /64-Prefix for IPv6
-            if(prefix.startsWith("/%5B")){
-                prefix = prefix.substring(4, prefix.length() - 1);
-                String[] components = prefix.split(":");
-                prefix = "/%5B";
-                for(int i = 0; i < 4; i++){
-                    prefix += (components[i] + ":");
-                }
-                //Remove the last ":"
-                prefix = prefix.substring(0, prefix.length() - 1);
+        else{
+            StringBuilder buf = new StringBuilder();
+            buf.append("<html><body>\n");
+            buf.append("<h1>Smart Service Proxy</h1>\n");
+            buf.append("<h2>Operations</h2>\n");
+            buf.append("<ul>\n");
+            for(UIElement elem: uiElements) {
+                buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", elem.getURI(), elem.getTitle()));
             }
-
-            //Remove the "/" at the beginning and the end
-            if(prefix.startsWith("/")){
-                prefix = prefix.substring(1, prefix.length());
-            }
-            if(prefix.endsWith("/")){
-                prefix = prefix.substring(0, prefix.length()-1);
-            }
-
-            log.debug("Try to find backend for prefix " + prefix);
-            
-            //Find backend for prefix
-            if(pathBackends.containsKey(prefix)){
-                // Get resource from appropriate backend and send response
-                Backend be = pathBackends.get(prefix);  //entityBackends.get(toThing(uri));
-                try{
-                    ctx.getPipeline().remove("Backend to handle request");
-                }catch(NoSuchElementException ex){
-                    //No such backend in the pipeline and thus nothing to remove. That's fine.
-                }
-                ctx.getPipeline().addLast("Backend to handle request", be);
-                ctx.sendUpstream(e);
-
-		    }
-            else {
-                log.debug("No backend found to handle path " + path + " , prefix=" + prefix);
-            }
-		}
-//		// Handle request for UserInterface access
-//		else if((pathBackendPrefix != null) && pathBackends.containsKey(pathBackendPrefix)) {
-//			pathBackends.get(pathBackendPrefix).handleUpstream(ctx, e);
-//		}
-		else {
-			StringBuilder buf = new StringBuilder();
-			buf.append("<html><body>\n");
-			buf.append("<h1>Smart Service Proxy</h1>\n");
-			buf.append("<h2>Operations</h2>\n");
-			buf.append("<ul>\n");
-			for(UIElement elem: uiElements) {
-				buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", elem.getURI(), elem.getTitle()));
-			}
-			buf.append("</ul>\n");
-			
-			buf.append("<h2>Entities</h2>\n");
-			buf.append("<ul>\n");
-			for(Map.Entry<URI, Backend> entry: entityBackends.entrySet()) {
-				buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", entry.getKey(), entry.getKey()));
-			}
             buf.append("</ul>\n");
 
-            //Retreive resources from all registered Backends
-            for(Backend backend : pathBackends.values()){
-                Set<URI> resourceURIs = backend.getResources();
-                if(!resourceURIs.isEmpty()){
-                    buf.append("<h3> " + backend.getClass().getSimpleName() + "</h3>\n");
-                    buf.append("<ul>\n");
-
-                    for(URI resourceURI : resourceURIs){
-                        buf.append("<li><a href=\"" + resourceURI.toString() + "\">" +
-                                resourceURI.toString() + "</a></li>\n");
-                    }
-                
-                    buf.append("</ul>\n");
-                }
+            buf.append("<h2>Entities</h2>\n");
+            buf.append("<ul>\n");
+            for(Map.Entry<URI, Backend> entry: entities.entrySet()) {
+                buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", entry.getKey(), entry.getKey()));
             }
-            
-			
-			
-			buf.append("</body></html>\n");
-			Channels.write(ctx.getChannel(), Answer.create(buf.toString()));
-		}
-	} // handleHttpRequest
-	
-	/**
-	 * Outbound Message types:
-	 * - SelfDescription
-	 */
-	/*
-	@Override
-	public void writeRequested(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-		//TODO write the requested SelfDescription to the Downstream
-		System.out.println("Nachricht soll gesendet werden");
-		super.handleDownstream(ctx, e);
-	}
-	*/
-	
+            buf.append("</ul>\n");
+
+//            //Retreive resources from all registered Backends
+//            for(Backend backend : backends.values()){
+//                Set<URI> resourceURIs = backend.getResources();
+//                if(!resourceURIs.isEmpty()){
+//                    buf.append("<h3> " + backend.getClass().getSimpleName() + "</h3>\n");
+//                    buf.append("<ul>\n");
+//
+//                    for(URI resourceURI : resourceURIs){
+//                        buf.append("<li><a href=\"" + resourceURI.toString() + "\">" +
+//                                resourceURI.toString() + "</a></li>\n");
+//                    }
+//
+//                    buf.append("</ul>\n");
+//                }
+//            }
+
+            buf.append("</body></html>\n");
+            Channels.write(ctx.getChannel(), Answer.create(buf.toString()));
+            return;
+        }
+
+        log.debug("Error. This should never be reached!");
+
+//        else if(path.startsWith(SERVER_PATH_TO_SLSE_UI)) {
+//            String f = LOCAL_PATH_TO_SLSE_UI + path.substring(SERVER_PATH_TO_SLSE_UI.length());
+//            Channels.write(ctx.getChannel(), Answer.create(new File(f)).setMime("text/n3"));
+//        }
+
+//        else{
+//            boolean backendFound = false;
+//            log.debug("Lookup backend for " + targetUri);
+//
+//            for(Backend backend : backends.values()){
+//
+//                if(backend instanceof CoapBackend){
+//                    CoapBackend coapBackend = (CoapBackend) backend;
+//                    if(targetUriHost.startsWith(coapBackend.getPrefix())){
+//                        ctx.getPipeline().addLast("Backend to handle request", coapBackend);
+//                        backendFound = true;
+//                        break;
+//                    }
+//                }
+//                else{
+//                    if(targetUriPath.startsWith(backend.getPrefix())){
+//                        ctx.getPipeline().addLast("Backend to handle request", backend);
+//                        backendFound = true;
+//                        break;
+//                    }
+//                }
+//
+//                if(backendFound){
+//                    log.debug("Forward request to " + backend);
+//                    ctx.sendUpstream(e);
+//                    return;
+//                }
+//                else{
+//                    log.debug("Backend " + backend + " is not responsible.");
+//                }
+//            }
+//        }
+    }
+//
+//
+//        }
+//        else if(targetUriPath.length() >= backendPrefixLength) {
+//
+//            String prefix = targetUriPath.substring(0, targetUriPath.indexOf("/", 1) + 1);
+//
+//            //Create /64-Prefix for IPv6
+//            if(prefix.startsWith("/%5B")){
+//                prefix = prefix.substring(4, prefix.length() - 1);
+//                String[] components = prefix.split(":");
+//                prefix = "/%5B";
+//                for(int i = 0; i < 4; i++){
+//                    prefix += (components[i] + ":");
+//                }
+//                //Remove the last ":"
+//                prefix = prefix.substring(0, prefix.length() - 1);
+//            }
+//
+//            //Remove the "/" at the beginning and the end
+//            if(prefix.startsWith("/")){
+//                prefix = prefix.substring(1, prefix.length());
+//            }
+//            if(prefix.endsWith("/")){
+//                prefix = prefix.substring(0, prefix.length()-1);
+//            }
+//
+//            log.debug("Lookup backend for prefix " + prefix);
+//
+//            //Find backend for prefix
+//            if(backends.containsKey(prefix)){
+//                // Get resource from appropriate backend and send response
+//                Backend be = backends.get(prefix);  //entities.get(toThing(uri));
+//                try{
+//                    ctx.getPipeline().remove("Backend to handle request");
+//                }catch(NoSuchElementException ex){
+//                    //No such backend in the pipeline and thus nothing to remove. That's fine.
+//                }
+//                ctx.getPipeline().addLast("Backend to handle request", be);
+//                ctx.sendUpstream(e);
+//
+//		    }
+//            else {
+//                log.debug("No backend found to handle path " + targetUriPath + " , prefix=" + prefix);
+//            }
+//		}
+//		// Handle request for UserInterface access
+//		else if((pathBackendPrefix != null) && backends.containsKey(pathBackendPrefix)) {
+//			backends.get(pathBackendPrefix).handleUpstream(ctx, e);
+//		}
+
+
 	
 	/**
 	 * Return URIs for all known entities.
 	 */
-	private Iterable<URI> getEntities() {
-		return entityBackends.keySet();
+	private Iterable<URI> getEntities(){
+		return entities.keySet();
 	}
 	
 	/**
@@ -320,24 +368,20 @@ public class EntityManager extends SimpleChannelHandler {
 			uri = nextEntityURI();
 		}
 		uri = toThing(uri);
-		entityBackends.put(uri, backend);
+		entities.put(uri, backend);
 		log.debug("New entity created: " + uri);
 		
 		return uri;
 	}
 	
 	public Backend getBackend(String elementSE) {
-		Backend b = entityBackends.get(elementSE);
-		if(b == null && elementSE.length() >= backendPrefixLength) {
-			URI uri = URI.create(uriBase).resolve(elementSE).normalize();
+		Backend b = entities.get(elementSE);
+		if(b == null) {
+			URI uri = URI.create(SSP_DNS_NAME).resolve(elementSE).normalize();
 			String path = uri.getRawPath();
 			
-			if(path.length() < backendPrefixLength){
-                return null;
-            }
-
-			String pathPart = path.substring(0, backendPrefixLength);
-			b = pathBackends.get(pathPart);
+			String pathPart = path.substring(0, path.indexOf("/"));
+			b = backends.get(pathPart);
 		}
 		return b;
 	}

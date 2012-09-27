@@ -32,6 +32,7 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.shared.Lock;
+import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 
 import java.io.StringReader;
 import java.util.HashMap;
@@ -208,8 +209,7 @@ public class ServiceLevelSemanticEntity extends SemanticEntity {
                     "	 ssn:observedProperty <%s> ; \n" +
                     "	 dul:hasValue %s \n" +
                     "  ] . \n"
-                    ,
-                    cache.getBackend().getEntityManager().getURIBase(),
+                    , EntityManager.SSP_DNS_NAME,
                     uri,
                     property, literal ? "\"" + value + "\"" : "<" + value + ">"
 				);

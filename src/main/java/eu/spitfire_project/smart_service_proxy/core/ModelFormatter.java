@@ -27,22 +27,26 @@ package eu.spitfire_project.smart_service_proxy.core;
 import com.hp.hpl.jena.rdf.model.Model;
 import org.apache.log4j.Logger;
 import org.jboss.netty.buffer.ChannelBuffers;
-import org.jboss.netty.channel.*;
+import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.DownstreamMessageEvent;
+import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import java.io.ByteArrayOutputStream;
+import java.net.URI;
 import java.nio.charset.Charset;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 
 /**
- * The @link{ModelFormatter} recognizes the requested mimetype from the incoming @link{HTTPRequest}. The payload of the corresponding
- * @link{Response} will be converted to the requested mimetype. If the requested mimetype is not available, the @link{ModelFormatter} sends
- * a standard @link{HttpResponse} with status code 415 (Unsupported media type).  
+ * The {@link ModelFormatter} recognizes the requested mimetype from the incoming {@link HttpRequest}. The payload of the corresponding
+ * {@link HttpResponse} will be converted to the requested mimetype. If the requested mimetype is not available, the {@link ModelFormatter} sends
+ * a standard {@link HttpResponse} with status code 415 (Unsupported media type).
  * 
  * @author Oliver Kleine
  * @author Henning Hasemann * 
@@ -64,9 +68,9 @@ public class ModelFormatter extends SimpleChannelHandler {
 		Object m = me.getMessage();
 
 		if(m instanceof HttpRequest) {
-            log.debug("[ModelFormatter] Received httpRequest for " + ((HttpRequest) m).getUri());
-
-			httpRequest = (HttpRequest) m;
+            httpRequest = (HttpRequest) m;
+            URI targetURI = URI.create("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri());
+            log.debug("[ModelFormatter] Received httpRequest for " + (targetURI));
 
             String acceptHeader = httpRequest.getHeader("Accept");
             log.debug("Accept: " + acceptHeader);

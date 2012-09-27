@@ -27,10 +27,10 @@ public class UberdustCoapServerBackend extends CoapBackend {
     Configuration config;
 
     public UberdustCoapServerBackend(String pathPrefix, Configuration config) throws Exception {
-        super(pathPrefix, "", 0, config.getBoolean("coap.enableVirtualHttpServer", false));
-        this.pathPrefix = pathPrefix;
+        super(pathPrefix, config.getBoolean("coap.enableVirtualHttpServer", false));
+        this.prefix = pathPrefix;
         this.config = config;
-        log.debug("Prefix Uberdust: " + getPrefix());
+        log.debug("Prefix Uberdust: " + getIPv6Prefix());
         new Thread(new FakeRegistrationMessageSender(config)).start();
     }
 
@@ -40,12 +40,12 @@ public class UberdustCoapServerBackend extends CoapBackend {
         int sspPort;
 
         try {
-            sspHostname = config.getString("serverDnsName", InetAddress.getLocalHost().getHostAddress());
+            sspHostname = config.getString("SSP_DNS_NAME", InetAddress.getLocalHost().getHostAddress());
             } catch (UnknownHostException e) {
             log.error(e);
         }
 
-        sspPort = config.getInt("httpServerPort");
+        sspPort = config.getInt("SSP_HTTP_SERVER_PORT");
         return new URI("http://" + sspHostname + ":" + sspPort + "/" + uberdustServerDns + path + "#");
     }
 
@@ -60,9 +60,8 @@ public class UberdustCoapServerBackend extends CoapBackend {
      * Returns the DNS name of the Uberdust server the backend is responsible for
      * @return the DNS name of the Uberdust server the backend is responsible for
      */
-    @Override
-    public String getPrefix(){
-        return pathPrefix;
+    public String getIPv6Prefix(){
+        return prefix;
     }
 
     public class FakeRegistrationMessageSender implements Runnable{
@@ -91,7 +90,7 @@ public class UberdustCoapServerBackend extends CoapBackend {
                 InetSocketAddress uberdustServerSocketAddress =
                         new InetSocketAddress(InetAddress.getByName(uberdustServerDnsName), uberdustServerPort);
 
-                String baseURI = config.getString("serverDnsName", "localhost");
+                String baseURI = config.getString("SSP_DNS_NAME", "localhost");
                 CoapRequest fakeRequest = new CoapRequest(MsgType.NON, Code.POST,
                         new URI("coap://" + baseURI + ":5683/here_i_am"));
 

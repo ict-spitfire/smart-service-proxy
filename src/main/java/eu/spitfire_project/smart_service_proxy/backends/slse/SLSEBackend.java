@@ -79,7 +79,7 @@ public class SLSEBackend extends Backend {
 		assert(em != null);
 		super.bind(em);
 		assert(getEntityManager() != null);
-		addProxy(getEntityManager().getURIBase());
+		addProxy(EntityManager.SSP_DNS_NAME);
 	}
 	
 	public void addProxy(String uri) {
@@ -89,7 +89,7 @@ public class SLSEBackend extends Backend {
 	@Override
 	public Collection<UIElement> getUIElements() {
 		Vector<UIElement> elements = new Vector<UIElement>();
-		elements.add(new UIElement("Create SE", URI.create(pathPrefix + "/create-entity")));
+		elements.add(new UIElement("Create SE", URI.create(prefix + "/create-entity")));
 		return elements;
 	}
 
@@ -100,7 +100,7 @@ public class SLSEBackend extends Backend {
 		}
 
 		HttpRequest request = (HttpRequest) e.getMessage();
-		URI uri = entityManager.normalizeURI(getEntityManager().getURIBase() + request.getUri());
+		URI uri = entityManager.normalizeURI(EntityManager.SSP_DNS_NAME + request.getUri());
 		String path = uri.getPath();
         
         System.out.println("# received request: " + uri);
@@ -116,7 +116,7 @@ public class SLSEBackend extends Backend {
 		 * - if POST "$base/sources/", call setSources($postdata)
 		 */
 
-		if(uri.equals(entityManager.normalizeURI(pathPrefix + "/create-entity"))) {
+		if(uri.equals(entityManager.normalizeURI(prefix + "/create-entity"))) {
 			if(request.getMethod() == HttpMethod.GET) {
                 //copy into
                 HttpResponse response = new DefaultHttpResponse(request.getProtocolVersion(), HttpResponseStatus.OK);

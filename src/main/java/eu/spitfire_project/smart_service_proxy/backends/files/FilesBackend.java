@@ -94,7 +94,7 @@ public class FilesBackend extends Backend {
             for(File file : files){
                 if(!file.getName().endsWith(".swp")){
                     try{
-                        URI resourceURI = new URI(entityManager.getURIBase() + pathPrefix + file.getName());
+                        URI resourceURI = new URI(EntityManager.SSP_DNS_NAME + prefix + file.getName());
                           
                         resources.put(resourceURI, file);
 

@@ -93,7 +93,7 @@ public class GeneratorBackend extends Backend {
             for(int foinode=0; foinode<nodesPerFoi && node<nodes; foinode++, node++) {
                 sensorValues[node] = 0.0;
                 foiNr[node] = foi;
-                entityManager.entityCreated(URI.create(getPathPrefix() + node), this);
+                entityManager.entityCreated(URI.create(getPrefix() + node), this);
             }
         }
 		log("end_create_fake_entities");
@@ -146,7 +146,7 @@ public class GeneratorBackend extends Backend {
                 "	 dul:hasValue \"%f\" \n" +
                 "  ] . \n"
                 ,
-                getEntityManager().getURIBase(),
+                EntityManager.SSP_DNS_NAME,
                 uri,
                 foiNr[i],
                 sensorValues[i]

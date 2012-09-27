@@ -69,7 +69,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
     public boolean addCoapBackend(CoapBackend coapBackend){
         boolean added = coapBackends.add(coapBackend);
         if(added){
-            log.debug("[CoapNodeRegistrationServer] Registered new backend for prefix: " + coapBackend.getPathPrefix());
+            log.debug("[CoapNodeRegistrationServer] Registered new backend for prefix: " + coapBackend.getPrefix());
         }
         return added;
     }
@@ -119,7 +119,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
     //Handles the registration process for new nodes in a new thread
     private class NodeRegistration extends CoapClientApplication implements Runnable{
 
-        private InetAddress remoteAddress;
+        private Inet6Address remoteAddress;
 
         private Object monitor = new Object();
 
@@ -127,7 +127,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
         
         public NodeRegistration(InetAddress remoteAddress){
             super();
-            this.remoteAddress = remoteAddress;
+            this.remoteAddress = (Inet6Address) remoteAddress;
         }
 
         @Override
@@ -140,7 +140,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 //Prefix is an IP address
 
                 log.debug("remoteAddress.getHostAddress(): " + remoteAddress.getHostAddress());
-                log.debug("backend.getPrefix(): " + backend.getPrefix());
+                log.debug("backend.getIPv6Prefix(): " + backend.getPrefix());
                 if(remoteAddress.getHostAddress().startsWith(backend.getPrefix())){
                     coapBackend = backend;
                     log.debug("Backend found for address " + remoteAddress.getHostAddress());
@@ -149,7 +149,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 //Prefix is a DNS name
                 else{
                     log.debug("Look up backend for DNS name " + remoteAddress.getHostName());
-                    log.debug("backend.getPrefix(): " + backend.getPrefix());
+                    log.debug("backend.getIPv6Prefix(): " + backend.getPrefix());
                     if((remoteAddress.getHostName()).equals(backend.getPrefix())){
                         coapBackend = backend;
                         log.debug("Backend found for DNS name " + remoteAddress.getHostName());
@@ -165,17 +165,11 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
             }
             
             //Only register new nodes (avoid duplicates)
-            Set<InetAddress> addressList = coapBackend.getSensorNodes();
+            Set<Inet6Address> addressList = coapBackend.getSensorNodes();
 
             if(addressList.contains(remoteAddress)){
                 log.debug("[CoapNodeRegistration] Remote address already known.");
                 return;
-            }
-
-            //Add new sensornode to the list of known nodes
-            coapBackend.getSensorNodes().add(remoteAddress);
-            if(log.isDebugEnabled()){
-                log.debug("[CoapNodeRegistration] New sensor node: " + remoteAddress.getHostAddress());
             }
 
             try {
