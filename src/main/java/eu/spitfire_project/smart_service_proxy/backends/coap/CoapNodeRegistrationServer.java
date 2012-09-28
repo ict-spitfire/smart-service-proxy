@@ -168,8 +168,8 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
             Set<Inet6Address> addressList = coapBackend.getSensorNodes();
 
             if(addressList.contains(remoteAddress)){
-                log.debug("[CoapNodeRegistration] Remote address already known.");
-                return;
+                log.debug("New here_i_am message from " + remoteAddress + ".");
+                coapBackend.deleteServices(remoteAddress);
             }
 
             try {

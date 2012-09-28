@@ -28,17 +28,24 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.Logger;
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelHandler;
+import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
+import org.jboss.netty.channel.*;
+import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.net.Inet6Address;
 import java.net.URI;
 import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
+import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 
 //import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
 
@@ -228,6 +235,40 @@ public class EntityManager extends SimpleChannelHandler {
         }
 
         else if(targetUriPath.equals("/favicon.ico")){
+            log.debug("hier!");
+            HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
+
+            try{
+                File file = new File("favicon.ico");
+                FileInputStream inputStream = new FileInputStream(file);
+
+                ChannelBuffer buffer = ChannelBuffers.dynamicBuffer();
+                int nextByte = inputStream.read();
+                while(nextByte > 0){
+                    buffer.writeByte(nextByte);
+                    nextByte = inputStream.read();
+                }
+
+                log.debug("Hier2");
+                response.setContent(buffer);
+                response.setHeader(CONTENT_TYPE, "image/x-icon");
+                response.setHeader(CONTENT_LENGTH, buffer.readableBytes());
+
+                ChannelFuture future = Channels.write(ctx.getChannel(), response);
+                future.addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        log.debug("FAVICON sent.");
+                    }
+                });
+                return;
+            }
+            catch(Exception ex){
+                log.error("FAVICON Error: ", ex);
+            }
+            log.error("Should not be reached.");
+
+
         }
 
         else{
@@ -252,8 +293,6 @@ public class EntityManager extends SimpleChannelHandler {
             Channels.write(ctx.getChannel(), Answer.create(buf.toString()));
             return;
         }
-
-        log.debug("Error. This should never be reached!");
 
 //        else if(path.startsWith(SERVER_PATH_TO_SLSE_UI)) {
 //            String f = LOCAL_PATH_TO_SLSE_UI + path.substring(SERVER_PATH_TO_SLSE_UI.length());

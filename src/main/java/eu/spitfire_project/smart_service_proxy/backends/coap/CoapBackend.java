@@ -29,7 +29,6 @@ import de.uniluebeck.itm.spitfire.nCoap.communication.callback.ResponseCallback;
 import de.uniluebeck.itm.spitfire.nCoap.communication.core.CoapClientDatagramChannelFactory;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
@@ -140,14 +139,15 @@ public class CoapBackend extends Backend{
                                 log.debug("Conversion CoapResponse to HttpResponse finished.");
                             }
                         }
-                        catch (InvalidOptionException e) {
-                            log.error("Error.", e);
-                            response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
-                            ((DefaultHttpResponse) response).setContent(coapResponse.getPayload());
-                        }
+//                        catch (InvalidOptionException e) {
+//                            log.error("Error.", e);
+//                            response = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+//                                                               HttpResponseStatus.INTERNAL_SERVER_ERROR);
+//                            ((DefaultHttpResponse) response).setContent(coapResponse.getPayload());
+//                        }
                         catch(Exception e){
                             log.error("Error.", e);
-                            response = new DefaultHttpResponse(HttpVersion.HTTP_1_1,
+                            response = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
                                     HttpResponseStatus.INTERNAL_SERVER_ERROR);
                             ((HttpResponse) response)
                                     .setContent(ChannelBuffers.wrappedBuffer(coapResponse.getPayload()));
@@ -196,6 +196,11 @@ public class CoapBackend extends Backend{
      */
     public Set<Inet6Address> getSensorNodes(){
         return services.keySet();
+    }
+
+    public void deleteServices(Inet6Address serverAddress){
+        log.debug("Delete services for " + serverAddress + ".");
+        services.removeAll(serverAddress);
     }
 
     public void processWellKnownCoreResource(CoapResponse coapResponse, Inet6Address remoteAddress){
