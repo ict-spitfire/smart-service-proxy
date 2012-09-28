@@ -3,8 +3,9 @@
 #-------------
 #Core settings
 #-------------
-#baseURIHost = www.coap2.wisebed.itm.uni-luebeck.de
-#listenPort = 8080
+SSP_DNS_NAME = localhost
+SSP_HTTP_SERVER_PORT = 8080
+
 #ram = 2097152
 
 
@@ -37,7 +38,7 @@ enableBackend = simple
 #CoAP backend
 #------------
 #enableBackend = coap1
-#coap1.ipv6Prefix = 2001:123:abc:c003
+#coap1.ipv6Prefix = 2001:db08:0:c0a1::
 
 #enableBackend = coap2
 #coap2.ipv6Prefix = 2001:123:abc:c006
@@ -50,11 +51,17 @@ enableBackend = simple
 #------------
 #enableBackend = uberdustcoapserver
 #uberdustcoapserver.dnsName = uberdust.cti.gr
+#uberdustcoapserver.dnsName = [2001:db07:0:c0a1:0:0:0:66]
 #uberdustcoapserver.port = 5683
 
+#------------
+#Virtual IPv4 HTTP services for CoAP devices
+#------------
+ENABLE_VIRTUAL_HTTP_SERVER_OVER_IPv4 = true
+IPv4_SERVER_DNS_WILDCARD_POSTFIX = spitfire.cti.gr
 
 #------------
-#Virtual HTTP services for CoAP devices
+#Virtual IPv6 HTTP services for CoAP devices
 #------------
 #coap.enableVirtualHttpServer = true
 #tunInterfaceName = tun0
