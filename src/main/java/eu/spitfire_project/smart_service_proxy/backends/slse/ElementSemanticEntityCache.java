@@ -31,13 +31,18 @@ import com.hp.hpl.jena.query.QueryExecutionFactory;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.tdb.TDBFactory;
-import org.apache.commons.io.IOUtils;
+import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Henning Hasemann
@@ -313,7 +318,7 @@ public class ElementSemanticEntityCache {
 
 			String elementSE;
 			while((elementSE = reader.readLine()) != null) {
-				if(backend.getEntityManager().getBackend(elementSE) != backend) {
+				if(EntityManager.getInstance().getBackend(elementSE) != backend) {
 					newKnown.add(elementSE);
 				}
 			}

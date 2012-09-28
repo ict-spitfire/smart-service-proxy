@@ -39,7 +39,6 @@ import eu.spitfire_project.smart_service_proxy.backends.slse.SLSEBackend;
 import eu.spitfire_project.smart_service_proxy.backends.uberdust.UberdustBackend;
 import eu.spitfire_project.smart_service_proxy.backends.wiselib_test.WiselibTestBackend;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
-import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.HttpEntityManagerPipelineFactory;
 import eu.spitfire_project.smart_service_proxy.core.ShdtSerializer;
 import org.apache.commons.configuration.Configuration;
@@ -337,14 +336,14 @@ public class Main {
                 throw new Exception("Config file error: Backend '" + enabledBackend + "' not found.");
             }
 
-            backend.bind(EntityManager.getInstance());
+            backend.bind();
 
             log.debug("Enabled new " + backend.getClass().getSimpleName() + " with prefix " +
                     backend.getPrefix());
         }
 
-        CoapNodeRegistrationServer.getInstance()
-                                  .fakeRegistration(InetAddress.getByName("[2001:db08:0:c0a1:215:8d00:11:a88]"));
+//        CoapNodeRegistrationServer.getInstance()
+//                                  .fakeRegistration(InetAddress.getByName("[2001:db08:0:c0a1:215:8d00:11:a88]"));
 
 //        CoapNodeRegistrationServer.getInstance()
 //                .fakeRegistration(InetAddress.getByName("[2001:db08:0:c0a1:215:8d00:14:8e82]"));

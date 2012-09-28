@@ -49,8 +49,8 @@ public class UberdustBackend extends Backend {
 	}
 
 	@Override
-	public void bind(EntityManager em) {
-		super.bind(em);
+	public void bind() {
+		super.bind();
 		for(Map.Entry<String, Vector<String>> entry: uberdustTestbeds.entrySet()) {
 			for(String testbed: entry.getValue()) {
 				exploreUberdustTestbed(entry.getKey(), testbed);
@@ -77,7 +77,7 @@ public class UberdustBackend extends Backend {
 
 			String urn;
 			while((urn = reader.readLine()) != null) {
-				entityManager.entityCreated(URI.create(
+				EntityManager.getInstance().entityCreated(URI.create(
 						makeEntityURI(
 								URI.create(server).getHost() + ":" + URI.create(server).getPort(),
 								testbed, urn

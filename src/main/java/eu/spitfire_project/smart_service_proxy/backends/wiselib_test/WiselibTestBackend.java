@@ -106,8 +106,8 @@ public class WiselibTestBackend extends Backend implements WiselibListener {
 	}
 
 	@Override
-	public void bind(EntityManager em) {
-		super.bind(em);
+	public void bind() {
+		super.bind();
 		
 	} // bind()
 
@@ -121,7 +121,7 @@ public class WiselibTestBackend extends Backend implements WiselibListener {
 
         Model m = ModelFactory.createDefaultModel();
 
-		URI uri = entityManager.normalizeURI(new URI(request.getUri()));
+		URI uri = EntityManager.getInstance().normalizeURI(new URI(request.getUri()));
 
 
 

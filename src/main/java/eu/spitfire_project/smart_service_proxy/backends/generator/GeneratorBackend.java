@@ -93,7 +93,7 @@ public class GeneratorBackend extends Backend {
             for(int foinode=0; foinode<nodesPerFoi && node<nodes; foinode++, node++) {
                 sensorValues[node] = 0.0;
                 foiNr[node] = foi;
-                entityManager.entityCreated(URI.create(getPrefix() + node), this);
+                EntityManager.getInstance().entityCreated(URI.create(getPrefix() + node), this);
             }
         }
 		log("end_create_fake_entities");
@@ -156,8 +156,8 @@ public class GeneratorBackend extends Backend {
     }
 
     @Override
-    public void bind(EntityManager em) {
-        super.bind(em);
+    public void bind() {
+        super.bind();
         createEntities();
 
         Timer t = new HashedWheelTimer();
@@ -172,7 +172,7 @@ public class GeneratorBackend extends Backend {
         }
         HttpRequest request = (HttpRequest) e.getMessage();
         String uri = request.getUri();
-        uri = entityManager.toThing(uri).toString();
+        uri = EntityManager.getInstance().toThing(uri).toString();
         Model m = getModel(uri);
         ChannelFuture future = Channels.write(ctx.getChannel(), new SelfDescription(m, URI.create(uri)));
         if(!HttpHeaders.isKeepAlive(request)){

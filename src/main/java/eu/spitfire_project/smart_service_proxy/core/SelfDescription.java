@@ -127,7 +127,6 @@ public class SelfDescription {
                 }
 			}
 
-            log.debug("TEST123");
             StringWriter writer = new StringWriter();
 //------------TEST!
             try{

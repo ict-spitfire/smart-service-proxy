@@ -75,8 +75,8 @@ public class FilesBackend extends Backend {
     }
     
     @Override
-	public void bind(EntityManager em) {
-		super.bind(em);
+	public void bind() {
+		super.bind();
         registerFileResources();
     }
 
@@ -124,7 +124,7 @@ public class FilesBackend extends Backend {
         Object response;
                    
         //Look up file
-        URI resourceURI = entityManager.normalizeURI(new URI(request.getUri()));
+        URI resourceURI = EntityManager.getInstance().normalizeURI(new URI(request.getUri()));
         File file = resources.get(resourceURI);
 
         if(file != null && file.isFile()){

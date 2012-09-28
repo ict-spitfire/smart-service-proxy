@@ -69,8 +69,9 @@ public class SimpleBackend extends Backend {
         super();
     }
 
-    public void bind(EntityManager em){
-        super.bind(em);
+    @Override
+    public void bind(){
+        super.bind();
         registerResources();
     }
     
@@ -88,7 +89,7 @@ public class SimpleBackend extends Backend {
                                     + prefix + "JohnSmith");
 
 
-            entityManager.entityCreated(resourceTargetUri, this);
+            EntityManager.getInstance().entityCreated(resourceTargetUri, this);
 
             if(log.isDebugEnabled()){
                 log.debug("[SimpleBackend] Successfully added new resource at " + resourceTargetUri);

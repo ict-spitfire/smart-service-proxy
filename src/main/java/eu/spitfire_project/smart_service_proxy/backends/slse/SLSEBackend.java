@@ -75,10 +75,9 @@ public class SLSEBackend extends Backend {
 	}
 	
 	@Override
-	public void bind(EntityManager em) {
-		assert(em != null);
-		super.bind(em);
-		assert(getEntityManager() != null);
+	public void bind() {
+		super.bind();
+		assert(EntityManager.getInstance() != null);
 		addProxy(EntityManager.SSP_DNS_NAME);
 	}
 	
@@ -100,7 +99,7 @@ public class SLSEBackend extends Backend {
 		}
 
 		HttpRequest request = (HttpRequest) e.getMessage();
-		URI uri = entityManager.normalizeURI(EntityManager.SSP_DNS_NAME + request.getUri());
+		URI uri = EntityManager.getInstance().normalizeURI(EntityManager.SSP_DNS_NAME + request.getUri());
 		String path = uri.getPath();
         
         System.out.println("# received request: " + uri);
@@ -116,7 +115,7 @@ public class SLSEBackend extends Backend {
 		 * - if POST "$base/sources/", call setSources($postdata)
 		 */
 
-		if(uri.equals(entityManager.normalizeURI(prefix + "/create-entity"))) {
+		if(uri.equals(EntityManager.getInstance().normalizeURI(prefix + "/create-entity"))) {
 			if(request.getMethod() == HttpMethod.GET) {
                 //copy into
                 HttpResponse response = new DefaultHttpResponse(request.getProtocolVersion(), HttpResponseStatus.OK);
@@ -162,7 +161,7 @@ public class SLSEBackend extends Backend {
     	    }
         }
         else {
-            uri = entityManager.toThing(uri);
+            uri = EntityManager.getInstance().toThing(uri);
 		  Model r = ModelFactory.createDefaultModel();
 
             if(waitForPolling) {
@@ -205,10 +204,6 @@ public class SLSEBackend extends Backend {
 	public void writeRequested(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
 		// TODO
 		super.writeRequested(ctx, e);
-	}
-
-	public EntityManager getEntityManager() {
-		return entityManager;
 	}
 
 	public void pollProxiesForever() {

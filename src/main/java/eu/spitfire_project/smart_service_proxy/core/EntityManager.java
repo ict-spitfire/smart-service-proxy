@@ -44,7 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The EntityManager is the topmost upstream handler of an HTTPEntityMangerPipeline.
- * It contains a list of {@link Backend}s to manage all available entities behind them.
+ * It contains a list of {@link Backend}s to manage all available services behind them.
  * 
  * @author Henning Hasemann
  * @author Oliver Kleine
@@ -82,6 +82,9 @@ public class EntityManager extends SimpleChannelHandler {
 
 	//Contains the URIs of services (e.g. on sensor nodes) and the proper backend
 	private ConcurrentHashMap<URI, Backend> entities = new ConcurrentHashMap<URI, Backend>();
+
+    private ConcurrentHashMap<URI, Backend> virtualEntities = new ConcurrentHashMap<URI, Backend>();
+
 	//Contains the individual paths to the backends (for Userinterface access)
 	private ConcurrentHashMap<String, Backend> backends = new ConcurrentHashMap<String, Backend>();
 
@@ -206,10 +209,18 @@ public class EntityManager extends SimpleChannelHandler {
             return;
         }
 
+        if(virtualEntities.containsKey(targetUri)){
+            Backend backend = virtualEntities.get(targetUri);
+            ctx.getPipeline().addLast("Backend to handle request", backend);
+            log.debug("Forward request to " + backend);
+            ctx.sendUpstream(e);
+            return;
+        }
+
         if (targetUriPath.equals(PATH_TO_SERVER_LIST)) {
             // Handle request for resource at path ".well-known/core"
             StringBuilder buf = new StringBuilder();
-            for(URI entity: getEntities()) {
+            for(URI entity: getServices()) {
                 buf.append(toThing(entity).toString() + "\n");
             }
             Channels.write(ctx.getChannel(), Answer.create(buf.toString()).setMime("text/plain"));
@@ -237,22 +248,6 @@ public class EntityManager extends SimpleChannelHandler {
             }
             buf.append("</ul>\n");
 
-//            //Retreive resources from all registered Backends
-//            for(Backend backend : backends.values()){
-//                Set<URI> resourceURIs = backend.getResources();
-//                if(!resourceURIs.isEmpty()){
-//                    buf.append("<h3> " + backend.getClass().getSimpleName() + "</h3>\n");
-//                    buf.append("<ul>\n");
-//
-//                    for(URI resourceURI : resourceURIs){
-//                        buf.append("<li><a href=\"" + resourceURI.toString() + "\">" +
-//                                resourceURI.toString() + "</a></li>\n");
-//                    }
-//
-//                    buf.append("</ul>\n");
-//                }
-//            }
-
             buf.append("</body></html>\n");
             Channels.write(ctx.getChannel(), Answer.create(buf.toString()));
             return;
@@ -265,96 +260,12 @@ public class EntityManager extends SimpleChannelHandler {
 //            Channels.write(ctx.getChannel(), Answer.create(new File(f)).setMime("text/n3"));
 //        }
 
-//        else{
-//            boolean backendFound = false;
-//            log.debug("Lookup backend for " + targetUri);
-//
-//            for(Backend backend : backends.values()){
-//
-//                if(backend instanceof CoapBackend){
-//                    CoapBackend coapBackend = (CoapBackend) backend;
-//                    if(targetUriHost.startsWith(coapBackend.getPrefix())){
-//                        ctx.getPipeline().addLast("Backend to handle request", coapBackend);
-//                        backendFound = true;
-//                        break;
-//                    }
-//                }
-//                else{
-//                    if(targetUriPath.startsWith(backend.getPrefix())){
-//                        ctx.getPipeline().addLast("Backend to handle request", backend);
-//                        backendFound = true;
-//                        break;
-//                    }
-//                }
-//
-//                if(backendFound){
-//                    log.debug("Forward request to " + backend);
-//                    ctx.sendUpstream(e);
-//                    return;
-//                }
-//                else{
-//                    log.debug("Backend " + backend + " is not responsible.");
-//                }
-//            }
-//        }
     }
-//
-//
-//        }
-//        else if(targetUriPath.length() >= backendPrefixLength) {
-//
-//            String prefix = targetUriPath.substring(0, targetUriPath.indexOf("/", 1) + 1);
-//
-//            //Create /64-Prefix for IPv6
-//            if(prefix.startsWith("/%5B")){
-//                prefix = prefix.substring(4, prefix.length() - 1);
-//                String[] components = prefix.split(":");
-//                prefix = "/%5B";
-//                for(int i = 0; i < 4; i++){
-//                    prefix += (components[i] + ":");
-//                }
-//                //Remove the last ":"
-//                prefix = prefix.substring(0, prefix.length() - 1);
-//            }
-//
-//            //Remove the "/" at the beginning and the end
-//            if(prefix.startsWith("/")){
-//                prefix = prefix.substring(1, prefix.length());
-//            }
-//            if(prefix.endsWith("/")){
-//                prefix = prefix.substring(0, prefix.length()-1);
-//            }
-//
-//            log.debug("Lookup backend for prefix " + prefix);
-//
-//            //Find backend for prefix
-//            if(backends.containsKey(prefix)){
-//                // Get resource from appropriate backend and send response
-//                Backend be = backends.get(prefix);  //entities.get(toThing(uri));
-//                try{
-//                    ctx.getPipeline().remove("Backend to handle request");
-//                }catch(NoSuchElementException ex){
-//                    //No such backend in the pipeline and thus nothing to remove. That's fine.
-//                }
-//                ctx.getPipeline().addLast("Backend to handle request", be);
-//                ctx.sendUpstream(e);
-//
-//		    }
-//            else {
-//                log.debug("No backend found to handle path " + targetUriPath + " , prefix=" + prefix);
-//            }
-//		}
-//		// Handle request for UserInterface access
-//		else if((pathBackendPrefix != null) && backends.containsKey(pathBackendPrefix)) {
-//			backends.get(pathBackendPrefix).handleUpstream(ctx, e);
-//		}
 
-
-	
 	/**
-	 * Return URIs for all known entities.
+	 * Return URIs for all known services.
 	 */
-	private Iterable<URI> getEntities(){
+	private Iterable<URI> getServices(){
 		return entities.keySet();
 	}
 	
@@ -373,6 +284,13 @@ public class EntityManager extends SimpleChannelHandler {
 		
 		return uri;
 	}
+
+    public URI virtualEntityCreated(URI uri, Backend backend) {
+        uri = toThing(uri);
+        virtualEntities.put(uri, backend);
+        log.debug("New virtual entity created: " + uri);
+        return uri;
+    }
 	
 	public Backend getBackend(String elementSE) {
 		Backend b = entities.get(elementSE);

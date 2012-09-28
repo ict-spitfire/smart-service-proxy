@@ -76,10 +76,8 @@ public class CoapBackend extends Backend{
     }
 
     @Override
-    public void bind(EntityManager entityManager){
-        this.entityManager = entityManager;
-        entityManager.registerBackend(this, prefix);
-
+    public void bind(){
+        EntityManager.getInstance().registerBackend(this, prefix);
     }
     
     @Override
@@ -204,8 +202,8 @@ public class CoapBackend extends Backend{
 
         ChannelBuffer payloadBuffer = coapResponse.getPayload();
 
-        log.debug("[CoAPBackend] Process ./well-known/core resource " +
-                    "(size: " + payloadBuffer.readableBytes() +").");
+        log.debug("Process ./well-known/core resource " +
+                    "(size: " + payloadBuffer.readableBytes() +") from " + remoteAddress.getHostAddress());
 
         //register each link as new entity
         String payload = new String(payloadBuffer.array());
@@ -222,9 +220,8 @@ public class CoapBackend extends Backend{
                 services.put(remoteAddress, path);
 
                 URI[] httpURIs = createHttpURIs(remoteAddress, path);
-                for(URI httpURI : httpURIs){
-                    entityManager.entityCreated(httpURI, this);
-                }
+                EntityManager.getInstance().entityCreated(httpURIs[0], this);
+                EntityManager.getInstance().virtualEntityCreated(httpURIs[1], this);
                 
                 //Virtual HTTP Server for Sensor nodes
                 if(enableVirtualHttp){
@@ -272,16 +269,25 @@ public class CoapBackend extends Backend{
             remoteIP = remoteIP.substring(0, remoteIP.indexOf("%"));
         }
 
+        log.debug("Remote IP original: " + remoteIP);
+        //remove leading zeros per block
+        remoteIP = remoteIP.replaceAll(":0000", ":0");
+        remoteIP = remoteIP.replaceAll(":000", ":0");
+        remoteIP = remoteIP.replaceAll(":00", ":0");
+        remoteIP = remoteIP.replaceAll("(:0)([ABCDEFabcdef123456789])", ":$2");
+        log.debug("Remote IP shortened 1: " + remoteIP);
+
+        //return shortened IP
+        remoteIP = remoteIP.replaceAll("((?:(?:^|:)0\\b){2,}):?(?!\\S*\\b\\1:0\\b)(\\S*)", "::$2");
+        log.debug("Remote IP shortened 2: " + remoteIP);
+
         result[0] = new URI("http://" + remoteIP.replace(":", "-")
                             + "." + EntityManager.DNS_WILDCARD_POSTFIX
                             + ":" + EntityManager.SSP_HTTP_SERVER_PORT
                             + path);
 
-        log.debug("HTTP URI 1: " + result[0]);
-
         result[1] = new URI("http://[" + remoteIP + "]" + path);
-
-        log.debug("HTTP URI 2: " + result[1]);
+;
         return result;
     }
 
