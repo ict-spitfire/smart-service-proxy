@@ -309,6 +309,8 @@ public class ElementSemanticEntityCache {
 		try {
 			URL url = new URL(proxy + "/.well-known/servers");
 			connection = url.openConnection();
+			connection.addRequestProperty("Cache-Control", "no-cache,max-age=0");
+			connection.addRequestProperty("Pragma", "no-cache");
 			connection.setReadTimeout(pollTimeoutProxy);
 			connection.setRequestProperty("Accept", "application/rdf+xml");
 			connection.connect();

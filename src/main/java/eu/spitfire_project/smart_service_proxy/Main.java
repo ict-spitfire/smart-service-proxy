@@ -254,7 +254,7 @@ public class Main {
                                                config.getDouble("generator.pFeature", 0.01));
             }
 
-            //SLSEBackend
+            //SLSEBackendsrc/main/java/eu/spitfire_project/smart_service_proxy/backends/slse
             else if(enabledBackend.equals("slse")) {
                 
                 backend = new SLSEBackend(config.getBoolean("slse.waitForPolling", false),

@@ -41,6 +41,7 @@ import java.io.FileInputStream;
 import java.net.Inet6Address;
 import java.net.URI;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -76,8 +77,8 @@ public class EntityManager extends SimpleChannelHandler {
 
     //Services offered by EntityManager
     private final String PATH_TO_SERVER_LIST = "/.well-known/servers";
-//    private final String SERVER_PATH_TO_SLSE_UI = "/static/";
-//    private final String LOCAL_PATH_TO_SLSE_UI = "data/slse/ui";
+    private final String SERVER_PATH_TO_SLSE_UI = "/static/";
+    private final String LOCAL_PATH_TO_SLSE_UI = "data/slse/ui/create_entity_form.html";
 
     //Parameters for Backend and Entity creation
     private int nextBackendId = 0;
@@ -169,7 +170,9 @@ public class EntityManager extends SimpleChannelHandler {
      * @param uri The URI to be normalized and converted to represent a thing
      */
 	public URI toThing(String uri) {
-        return URI.create(normalizeURI(uri).toString() + "#");
+		// note: currently we go for the variant without '#' at the end as
+		// that seems to make RDF/XML serializations impossible sometimes
+        return URI.create(normalizeURI(uri).toString() /*+ "#"*/);
     }
 
     /**
@@ -182,7 +185,9 @@ public class EntityManager extends SimpleChannelHandler {
      * @param uri The URI to be normalized and converted to represent a thing
      */
 	public URI toThing(URI uri) {
-        return URI.create(normalizeURI(uri).toString() + "#");
+		// note: currently we go for the variant without '#' at the end as
+		// that seems to make RDF/XML serializations impossible sometimes
+		return URI.create(normalizeURI(uri).toString() /* + "#"*/);
     }
 	
 	/**
@@ -210,21 +215,25 @@ public class EntityManager extends SimpleChannelHandler {
 
         if(entities.containsKey(targetUri)){
             Backend backend = entities.get(targetUri);
+			try { ctx.getPipeline().remove("Backend to handle request");
+			} catch(NoSuchElementException ex) { }
             ctx.getPipeline().addLast("Backend to handle request", backend);
             log.debug("Forward request to " + backend);
             ctx.sendUpstream(e);
             return;
         }
 
-        if(virtualEntities.containsKey(targetUri)){
+        else if(virtualEntities.containsKey(targetUri)){
             Backend backend = virtualEntities.get(targetUri);
-            ctx.getPipeline().addLast("Backend to handle request", backend);
+			try { ctx.getPipeline().remove("Backend to handle request");
+			} catch(NoSuchElementException ex) { }
+			ctx.getPipeline().addLast("Backend to handle request", backend);
             log.debug("Forward request to " + backend);
             ctx.sendUpstream(e);
             return;
         }
 
-        if (targetUriPath.equals(PATH_TO_SERVER_LIST)) {
+        else if (targetUriPath.equals(PATH_TO_SERVER_LIST)) {
             // Handle request for resource at path ".well-known/core"
             StringBuilder buf = new StringBuilder();
             for(URI entity: getServices()) {
@@ -271,7 +280,19 @@ public class EntityManager extends SimpleChannelHandler {
 
         }
 
-        else{
+		/*else if(targetUriPath.startsWith(SERVER_PATH_TO_SLSE_UI)) {
+			String f = LOCAL_PATH_TO_SLSE_UI + targetUriPath.substring(SERVER_PATH_TO_SLSE_UI.length());
+			Channels.write(ctx.getChannel(), Answer.create(new File(f)).setMime("text/n3"));
+		}*/
+
+		else{
+			for(String prefix: backends.keySet()) {
+				if(targetUriPath.startsWith(prefix)) {
+					backends.get(prefix).messageReceived(ctx, e);
+					return;
+				}
+			}
+
             StringBuilder buf = new StringBuilder();
             buf.append("<html><body>\n");
             buf.append("<h1>Smart Service Proxy</h1>\n");
@@ -294,10 +315,6 @@ public class EntityManager extends SimpleChannelHandler {
             return;
         }
 
-//        else if(path.startsWith(SERVER_PATH_TO_SLSE_UI)) {
-//            String f = LOCAL_PATH_TO_SLSE_UI + path.substring(SERVER_PATH_TO_SLSE_UI.length());
-//            Channels.write(ctx.getChannel(), Answer.create(new File(f)).setMime("text/n3"));
-//        }
 
     }
 

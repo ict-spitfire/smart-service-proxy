@@ -91,12 +91,12 @@ public class ServiceLevelSemanticEntity extends SemanticEntity {
 	public synchronized void addElementEntity(ElementSemanticEntity e) {
 		assert(e != null);
 		assert(e.getURI() != null);
-		//System.out.println("# addESE(" + uri + ") += " + e.getURI());
+		System.out.println("# addESE(" + uri + ") += " + e.getURI());
 		Map<String, Double> sv = e.getSensorValues();
 		for(Map.Entry<String, Double> entry: sv.entrySet()) {
 			String property = entry.getKey();
 			Double value = entry.getValue();
-		//	System.out.println("# addESE(" + uri + "): " + property + " = " + value);
+			System.out.println("# addESE(" + uri + "): " + property + " = " + value);
 
 			if(!sensorValues.containsKey(property)) { sensorValues.put(property, new HashMap<String, Double>()); }
 			double n = sensorValues.get(property).size();
@@ -153,8 +153,14 @@ public class ServiceLevelSemanticEntity extends SemanticEntity {
 		for(Map.Entry<String, Double> entry: newValues.entrySet()) {
 			String property = entry.getKey();
 			double new_value = newValues.get(property);
+			if(!sensorValues.containsKey(property)) {
+				sensorValues.put(property, new HashMap<String, Double>());
+			}
+			if(!sensorValues.get(property).containsKey(uri)) {
+				sensorValues.get(property).put(uri, 0.0);
+			}
 			double old_value = sensorValues.get(property).get(uri);
-		//	System.out.println("# updateEsE(" + uri + ") " + property + ": " + old_value + " -> " + new_value);
+			//System.out.println("# updateEsE(" + uri + ") " + property + ": " + old_value + " -> " + new_value);
 			double n = sensorValues.get(property).size();
 			sensorValues.get(property).put(uri, newValues.get(property));
 			meanValues.put(property,meanValues.get(property) - old_value / n + new_value / n);
@@ -166,7 +172,7 @@ public class ServiceLevelSemanticEntity extends SemanticEntity {
 		if(modelValid) return;
 		
 		//System.out.println("Updating SLSE model for " + uri + " with " + elementCount + " element SEs.");
-		//System.out.println("# updateModel(" + uri + ")");
+		System.out.println("# updateModel(" + uri + ")");
 		for(Map.Entry<String, Double> entry: meanValues.entrySet()) {
 			String property = entry.getKey();
 			Double value = entry.getValue();
@@ -238,10 +244,12 @@ public class ServiceLevelSemanticEntity extends SemanticEntity {
 	}
 
 	public boolean isEmpty() {
+		return false;
+/*
 		for(Map.Entry<String, Map<String, Double>> entry: sensorValues.entrySet()) {
 			if(!entry.getValue().isEmpty()) { return false; }
 		}
-		return true;
+		return true;*/
 	}
 
 	public String getDescribes() {

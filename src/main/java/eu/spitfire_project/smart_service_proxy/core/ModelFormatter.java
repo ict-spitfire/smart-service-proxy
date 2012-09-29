@@ -124,7 +124,7 @@ public class ModelFormatter extends SimpleChannelHandler {
             while(iterator.hasNext()){
                 Resource subject = iterator.nextResource();
                 String uri = subject.getURI();
-                if(uri.startsWith("coap://")){
+                if(uri != null && uri.startsWith("coap://")){
                     ResourceUtils.renameResource(subject, createHttpMirrorUri(uri));
                 }
             }
@@ -133,10 +133,10 @@ public class ModelFormatter extends SimpleChannelHandler {
 
             while(iterator2.hasNext()){
                 RDFNode object = iterator2.nextNode();
-                if(object.isResource()){
+                if(object != null  && object.isResource()){
                     Resource objectResource = object.asResource();
                     String uri = objectResource.getURI();
-                    if(uri.startsWith("coap://")){
+                    if(uri != null && uri.startsWith("coap://")){
                         ResourceUtils.renameResource(objectResource, createHttpMirrorUri(uri));
                     }
                 }

@@ -39,7 +39,7 @@ import java.util.Set;
 public class ServiceLevelSemanticEntityCache {
 	
 	private Map<String, ServiceLevelSemanticEntity> byDescribes;
-	private Map<String, ServiceLevelSemanticEntity> byURI;
+	public Map<String, ServiceLevelSemanticEntity> byURI;
 	private SLSEBackend backend;
     private boolean waitForPolling;
 
@@ -60,10 +60,12 @@ public class ServiceLevelSemanticEntityCache {
 
 	private String makeURI(String describes) {
 		return EntityManager.getInstance().toThing(
-				backend.getPrefix() +
+				"http://" + EntityManager.SSP_DNS_NAME + ":" + EntityManager.SSP_HTTP_SERVER_PORT +
+						backend.getPrefix() +
 						URI.create(describes).getHost().replace('[', '_').replace(']', '_') + "/" +
-						URI.create(describes).getPath().replace('[', '_').replace(']', '_') + "/" +
-						URI.create(describes).getFragment()
+						URI.create(describes).getPath().replace('[', '_').replace(']', '_')
+						//+ "/" +
+						//URI.create(describes).getFragment()
 		).toString();
 	}
 

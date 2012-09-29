@@ -102,7 +102,7 @@ public class ServiceLevelSemanticEntityBuilder implements ElementSemanticEntityC
 	 * Creates all not-yet existing returned SLSEs in the slse cache.
 	 */
     private Map<String, Set<String>> getAndCreateSLSEs(QueryExecution qexec) { //String uri, ConstructionRule rule) {
-        Map<String, Set<String>> r = new HashMap<String, Set<String>>();
+        Map<String, Set<String>> r = new HashMap<String, Set<String>>(); // element -> SLSEs
         /*List<Map<String, RDFNode>> queryResult =*/
         ResultSet results = qexec.execSelect(); //eseCache.queryEntity(uri, rule.query);
         
@@ -126,8 +126,6 @@ public class ServiceLevelSemanticEntityBuilder implements ElementSemanticEntityC
             }
             r.get(element).add(slse.getURI());
         }
-         //slseByElement.put(uri, r);
-
         return r;
     }
 
@@ -144,18 +142,28 @@ public class ServiceLevelSemanticEntityBuilder implements ElementSemanticEntityC
 	 */
 	@Override
 	public synchronized void onElementEntityChanged(String uri, Model old_model) {
+		System.out.println("SLSEBuilder: onEntityChanged " + uri + " waiting for lock");
         synchronized(eseCache) {
+			System.out.println("SLSEBuilder: onEntityChanged got lock");
             boolean onlySensorValueChanged = changedOnlyInSensorValue(uri, eseCache.get(uri).getModel(), old_model);
 
             Model new_model = eseCache.get(uri).getModel();
 
             for(ConstructionRule rule: constructionRules.values()) {
+				System.out.println("construction rule: " + rule.toString());
                 if(onlySensorValueChanged && !rule.dependsOnSensorValues()) {
-                    for(String slse: slseByElement.get(uri)) {
+					System.out.println("onEntityChanged " + uri + " onlySensorValue changed");
+					for(String slse: slseByElement.get(uri)) {
+						System.out.println("onEntityChanged " + uri + " onlySensorValue changed -> " + slse);
                         slseCache.get(slse).updateSensorValuesFrom(eseCache.get(uri));
                     }
                 }
                 else {
+					System.out.println("onEntityChanged " + uri + " complex update");
+					System.out.println("onEntityChanged " + uri + " current SLSEs:");
+					for(String slse: slseByElement.get(uri)) {
+						System.out.println(uri + " is in " + slse);
+					}
                     // SLSEs that include the given element semantic entity
                     Set<String> new_slses = new HashSet<String>();
                     Set<String> r = getAndCreateSLSEs(QueryExecutionFactory.create(rule.getQuery(), new_model)).get(uri);
@@ -176,15 +184,23 @@ public class ServiceLevelSemanticEntityBuilder implements ElementSemanticEntityC
 
                     for(String s: remove_from) {
                         if(slseCache.get(s) != null) {
+							System.out.println("onEntityChanged removing " + uri + " from " + s);
                             slseCache.get(s).removeElementEntity(uri);
                         }
                     }
 
                     for(String s: add_to) {
                         if(slseCache.get(s) != null) {
-                            slseCache.get(s).addElementEntity(eseCache.get(uri));
-                        }
-                    }
+							System.out.println("onEntityChanged adding " + uri + " to " + s);
+							slseCache.get(s).addElementEntity(eseCache.get(uri));
+						}
+					}
+
+					for(String slse: new_slses) {
+						if(slseCache.get(slse) != null) {
+							slseCache.get(slse).updateSensorValuesFrom(eseCache.get(uri));
+						}
+					}
 
                     slseByElement.put(uri, new_slses);
                     slseCache.collectGarbage();
@@ -266,28 +282,46 @@ public class ServiceLevelSemanticEntityBuilder implements ElementSemanticEntityC
         }
     }
 
+	/**
+	 * Updates SLSEs and slseByElement given a ESE->SLSE mapping
+	 * Only considers those element SEs present in new_associations, the
+	 * mapping of other ESEs will be left untouched.
+	 * @param new_associations ElementSE -> Set of SLSEs
+	 */
     private void updateElementSLSEAssociations(Map<String, Set<String>> new_associations) {
-        for(Map.Entry<String, Set<String>> entry: new_associations.entrySet()) {
+    	    for(Map.Entry<String, Set<String>> entry: new_associations.entrySet()) {
             String element = entry.getKey();
             Set<String> new_slses = entry.getValue();
             Set<String> current_sles = slseByElement.get(element);
             
             // SLSEs we need to remove the ESE from
             Set<String> remove_from = new HashSet<String>();
-            remove_from.addAll(current_sles);
+			if(current_sles != null) {
+            	remove_from.addAll(current_sles);
+			}
             remove_from.removeAll(new_slses);
 
             // SLSEs we need to add the ESE to
             Set<String> add_to = new HashSet<String>();
             add_to.addAll(new_slses);
-            add_to.removeAll(current_sles);
+			if(current_sles != null) {
+            	add_to.removeAll(current_sles);
+			}
 
             for(String s: remove_from) {
+				System.out.println("updateAssoc: remove " + element + " from " + s);
                 slseCache.get(s).removeElementEntity(element);
             }
 
             for(String s: add_to) {
-                slseCache.get(s).addElementEntity(eseCache.get(element));
+				ElementSemanticEntity ese = eseCache.get(element);
+				if(ese == null) {
+					System.out.println("ERROR: ESE " + element + " not found when adding to " + s);
+				}
+				else {
+					System.out.println("updateAssoc: add " + element + " to " + s);
+                	slseCache.get(s).addElementEntity(eseCache.get(element));
+				}
             }
 
             slseByElement.put(element, new_slses);
@@ -304,7 +338,9 @@ public class ServiceLevelSemanticEntityBuilder implements ElementSemanticEntityC
      */
 	public void addRule(String name, String elementsQuery, boolean dependsOnSensorValues, boolean multiNodeQuery) {
 
+		System.out.println("addRule waiting for esecache lock");
         synchronized(eseCache) {
+			System.out.println("addRule got it");
 
         // wait until eseCache is done polling
         /*
@@ -332,7 +368,8 @@ public class ServiceLevelSemanticEntityBuilder implements ElementSemanticEntityC
                 QueryExecution qexec = eseCache.queryUnion(query);
                 qexec.getContext().set(TDB.symUnionDefaultGraph, true);
                 Map<String, Set<String>> slses = getAndCreateSLSEs(qexec);
-                for(Map.Entry<String, Set<String>> entry: slses.entrySet()) {
+				updateElementSLSEAssociations(slses);
+                /*for(Map.Entry<String, Set<String>> entry: slses.entrySet()) {
                     String element = entry.getKey();
                     Set<String> new_slses = entry.getValue();
                     for(String slse: new_slses) {
@@ -340,35 +377,21 @@ public class ServiceLevelSemanticEntityBuilder implements ElementSemanticEntityC
                             slseCache.get(slse).addElementEntity(eseCache.get(element));
                         }
                     }
-                }
+                }*/
             }
             else {
-                //System.out.println("# single-node query");
-                // For all existing element entities
                 for(ElementSemanticEntity entity: entities) {
                     // execute the query on it
                     Map<String, Set<String>> slses = getAndCreateSLSEs(QueryExecutionFactory.create(rule.getQuery(), entity.getModel()));
-
-                    /*
-                    System.out.print("# ran query on " + entity.getURI() + ". resulting ESEs: ");
-                    for(String e: slses.keySet()) {
-                        System.out.print(e + " ");
-                    }
-                    System.out.println();
-                    */
-
+					updateElementSLSEAssociations(slses);
                     // construct / add to resulting slses
-                    if(slses.containsKey(entity.getURI())) {
-                        //System.out.print("# " + entity.getURI() + " is in: ");
-                       
+                    /*if(slses.containsKey(entity.getURI())) {
                         for(String uri: slses.get(entity.getURI())) {
-                            //System.out.println(uri + " ");
                             if(!slseCache.get(uri).containsElementEntity(entity.getURI())) {
                                 slseCache.get(uri).addElementEntity(entity);
                             }
                         }
-                        //System.out.println();
-                    }
+                    }*/
                 }
             }
 

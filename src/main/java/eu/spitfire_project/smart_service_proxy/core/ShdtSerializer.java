@@ -188,6 +188,7 @@ public class ShdtSerializer {
 				String p = lookup_table.get(pid);
 				String o = lookup_table.get(oid);
 				i += 2;
+				log.debug("SHDT: inserting: (" + s + ", " + p + ", " + o + ")");
 
 				boolean isLiteral = o.startsWith("\"");
 				model.add(model.createStatement(
