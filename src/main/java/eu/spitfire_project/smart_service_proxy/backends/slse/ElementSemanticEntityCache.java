@@ -227,12 +227,12 @@ public class ElementSemanticEntityCache {
 			//m.read(entity);
 			try {
 			readUrlIntoModel(new URL(entity), m);
-			} catch(IOException e) { }
+				m.close();
+				oldModels.put(entity, old);
+				changedEntities.add(get(entity));
+				entityChanged(entity, old);
+			} catch(IOException e) { if(!m.isClosed()) m.close(); }
 
-			m.close();
-			oldModels.put(entity, old);
-			changedEntities.add(get(entity));
-			entityChanged(entity, old);
 		}
 		else {
 			if(m != null && !m.isClosed()) { m.close(); }
@@ -240,12 +240,12 @@ public class ElementSemanticEntityCache {
 			//m.read(entity);
 			try {
 				readUrlIntoModel(new URL(entity), m);
-			} catch(IOException e) { }
+				m.close();
+				elementSEs.put(entity, new ElementSemanticEntity(this, entity, proxy));
+				addedEntities.add(get(entity));
+				entityAdded(entity);
+			} catch(IOException e) { if(!m.isClosed()) m.close(); }
 
-			m.close();
-			elementSEs.put(entity, new ElementSemanticEntity(this, entity, proxy));
-			addedEntities.add(get(entity));
-			entityAdded(entity);
 		}
 		}
 		catch(Exception e) {
@@ -272,20 +272,20 @@ public class ElementSemanticEntityCache {
 			//m.read(entity);
 			try {
 				readUrlIntoModel(new URL(entity), m);
-			} catch(IOException e) { }
+				synchronized(this) {
+					Model mdb = dataset.getNamedModel(entity);
+					mdb.removeAll();
+					mdb.add(m);
+					mdb.close();
+					//}
+					m.close();
+					//synchronized(this) {
+					oldModels.put(entity, old);
+					changedEntities.add(get(entity));
+					entityChanged(entity, old);
+				}
+			} catch(IOException e) { if(!m.isClosed()) m.close(); }
 
-			synchronized(this) {
-				Model mdb = dataset.getNamedModel(entity);
-				mdb.removeAll();
-				mdb.add(m);
-				mdb.close();
-			//}
-			m.close();
-			//synchronized(this) {
-				oldModels.put(entity, old);
-				changedEntities.add(get(entity));
-				entityChanged(entity, old);
-			}
 		}
 		else {
 			if(m != null) { m.close(); }
@@ -293,21 +293,19 @@ public class ElementSemanticEntityCache {
 			//m.read(entity);
 			try {
 				readUrlIntoModel(new URL(entity), m);
-			} catch(IOException e) { }
-
-
-			synchronized(this) {
-				Model mdb = dataset.getNamedModel(entity);
-				mdb.removeAll();
-				mdb.add(m);
-				mdb.close();
-			//}
-			m.close();
-			//3synchronized(this) {
-				elementSEs.put(entity, new ElementSemanticEntity(this, entity, proxy));
-				addedEntities.add(get(entity));
-				entityAdded(entity);
-			}
+				synchronized(this) {
+					Model mdb = dataset.getNamedModel(entity);
+					mdb.removeAll();
+					mdb.add(m);
+					mdb.close();
+					//}
+					m.close();
+					//3synchronized(this) {
+					elementSEs.put(entity, new ElementSemanticEntity(this, entity, proxy));
+					addedEntities.add(get(entity));
+					entityAdded(entity);
+				}
+			} catch(IOException ex) { if(!m.isClosed()) m.close(); }
 		}
 		log("end_poll_entity_parallel " + entity);
 	}
