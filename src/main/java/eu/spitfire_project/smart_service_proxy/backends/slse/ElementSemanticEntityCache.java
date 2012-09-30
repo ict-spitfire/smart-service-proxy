@@ -224,7 +224,11 @@ public class ElementSemanticEntityCache {
 		if(m != null && !m.isEmpty() && elementSEs.containsKey(entity)) {
 			Model old = ModelFactory.createDefaultModel().add(m);
 			m.removeAll();
-			m.read(entity);
+			//m.read(entity);
+			try {
+			readUrlIntoModel(new URL(entity), m);
+			} catch(IOException e) { }
+
 			m.close();
 			oldModels.put(entity, old);
 			changedEntities.add(get(entity));
@@ -233,7 +237,11 @@ public class ElementSemanticEntityCache {
 		else {
 			if(m != null && !m.isClosed()) { m.close(); }
 			m = TDBFactory.createNamedModel(entity, tdbLocation);
-			m.read(entity);
+			//m.read(entity);
+			try {
+				readUrlIntoModel(new URL(entity), m);
+			} catch(IOException e) { }
+
 			m.close();
 			elementSEs.put(entity, new ElementSemanticEntity(this, entity, proxy));
 			addedEntities.add(get(entity));
@@ -261,7 +269,11 @@ public class ElementSemanticEntityCache {
 		if(m != null && !m.isEmpty() && elementSEs.containsKey(entity)) {
 			Model old = ModelFactory.createDefaultModel().add(m);
 			m.removeAll();
-			m.read(entity);
+			//m.read(entity);
+			try {
+				readUrlIntoModel(new URL(entity), m);
+			} catch(IOException e) { }
+
 			synchronized(this) {
 				Model mdb = dataset.getNamedModel(entity);
 				mdb.removeAll();
@@ -278,7 +290,11 @@ public class ElementSemanticEntityCache {
 		else {
 			if(m != null) { m.close(); }
 			m = ModelFactory.createDefaultModel(); //TDBFactory.createNamedModel(entity, tdbLocation);
-			m.read(entity);
+			//m.read(entity);
+			try {
+				readUrlIntoModel(new URL(entity), m);
+			} catch(IOException e) { }
+
 
 			synchronized(this) {
 				Model mdb = dataset.getNamedModel(entity);
@@ -377,6 +393,15 @@ public class ElementSemanticEntityCache {
 		for(ElementSemanticEntityCacheListener l: listeners) {
 			l.onElementEntityChanged(uri, old_model);
 		}
+	}
+
+	private void readUrlIntoModel(URL url, Model m) throws IOException {
+		int timeout = 10000;
+		URLConnection connection = url.openConnection();
+		connection.setReadTimeout(timeout);
+		connection.setRequestProperty("Accept", "application/rdf+xml");
+		connection.connect();
+		m.read(connection.getInputStream(), url.toString(), "RDF/XML");
 	}
 
 	/*
