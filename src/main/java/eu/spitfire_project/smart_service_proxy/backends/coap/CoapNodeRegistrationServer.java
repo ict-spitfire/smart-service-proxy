@@ -57,6 +57,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class CoapNodeRegistrationServer extends CoapServerApplication {
     private static int numberOfAnnotationDemo = 0;
+    private static long currentTime, oldTime;
+    private static long timeThres = 5*1000; //2 seconds
 
     private static Logger log = LoggerFactory.getLogger(CoapNodeRegistrationServer.class.getName());
 
@@ -70,6 +72,10 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
     private CoapNodeRegistrationServer(){
         super();
         log.debug("[CoapNodeRegistrationServer] Constructed.");
+
+        currentTime = System.currentTimeMillis();
+        oldTime = currentTime;
+        System.out.println("Current time: "+currentTime);
     }
 
     public static CoapNodeRegistrationServer getInstance(){
@@ -121,8 +127,15 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 while (coapRequest.getPayload().readable())
                     sensorMACAddr += (char)coapRequest.getPayload().readByte();
 
-                if ("0x8e7f".equalsIgnoreCase(sensorMACAddr))
-                    executorService.schedule(new NodeAnnotation(remoteSocketAddress.getAddress()), 4, TimeUnit.SECONDS);
+                if ("0x8e7f".equalsIgnoreCase(sensorMACAddr)) {
+                    currentTime = System.currentTimeMillis();
+
+                    System.out.println("Current time - old time: "+(currentTime-oldTime));
+                    if (currentTime - oldTime >= timeThres) {
+                        executorService.schedule(new NodeAnnotation(remoteSocketAddress.getAddress()), 2, TimeUnit.SECONDS);
+                        oldTime = currentTime;
+                    }
+                }
             }
             else{
                 coapResponse = new CoapResponse(Code.METHOD_NOT_ALLOWED_405);
