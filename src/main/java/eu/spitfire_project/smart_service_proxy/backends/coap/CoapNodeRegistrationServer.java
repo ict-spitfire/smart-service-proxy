@@ -635,6 +635,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
 
         @Override
         public void run(){
+
             //Pull recorded sensor data from Uberdust,
             //note that one of the sensor in this list will be used as "new sensor" at demo
             for (int i=0; i<DataStorage.len(); i++) {
@@ -699,6 +700,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
 
 
             //Send the annotation back to the new sensor
+            //String resultAnnotation = "TestRoom01";
             String remoteIP = sensorAddr.getHostAddress();
             if(remoteIP.indexOf("%") != -1){
                 remoteIP = remoteIP.substring(0, remoteIP.indexOf("%"));
