@@ -31,6 +31,7 @@ import de.uniluebeck.itm.spitfire.nCoap.message.MessageDoesNotAllowPayloadExcept
 import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
+import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
 import org.apache.log4j.Logger;
 import org.jboss.netty.handler.codec.http.*;
@@ -82,6 +83,14 @@ public class Http2CoapConverter {
         }
 
         //TODO Set CoAP "Accept-Options" according to the HTTP "Accept-Header"
+
+        try {
+            coapRequest.setAccept(OptionRegistry.MediaType.APP_RDF_XML);
+        } catch (InvalidOptionException e) {
+            log.error(e);
+        } catch (ToManyOptionsException e) {
+            log.error(e);
+        }
 
         return coapRequest;
     }

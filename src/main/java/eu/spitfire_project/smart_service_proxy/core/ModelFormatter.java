@@ -24,25 +24,31 @@
  */
 package eu.spitfire_project.smart_service_proxy.core;
 
-import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.*;
+import com.hp.hpl.jena.util.ResourceUtils;
 import org.apache.log4j.Logger;
 import org.jboss.netty.buffer.ChannelBuffers;
-import org.jboss.netty.channel.*;
+import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.DownstreamMessageEvent;
+import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
-import java.io.ByteArrayOutputStream;
+import java.io.*;
+import java.net.URI;
+import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 
 /**
- * The @link{ModelFormatter} recognizes the requested mimetype from the incoming @link{HTTPRequest}. The payload of the corresponding
- * @link{Response} will be converted to the requested mimetype. If the requested mimetype is not available, the @link{ModelFormatter} sends
- * a standard @link{HttpResponse} with status code 415 (Unsupported media type).  
+ * The {@link ModelFormatter} recognizes the requested mimetype from the incoming {@link HttpRequest}. The payload of the corresponding
+ * {@link HttpResponse} will be converted to the requested mimetype. If the requested mimetype is not available, the {@link ModelFormatter} sends
+ * a standard {@link HttpResponse} with status code 415 (Unsupported media type).
  * 
  * @author Oliver Kleine
  * @author Henning Hasemann * 
@@ -60,14 +66,18 @@ public class ModelFormatter extends SimpleChannelHandler {
 	 * (remembers requested mime type for response)
 	 */
 	@Override
-	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-		Object m = e.getMessage();
+	public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
+		Object m = me.getMessage();
 
 		if(m instanceof HttpRequest) {
-            log.debug("[ModelFormatter] Received httpRequest for " + ((HttpRequest) m).getUri());
-			httpRequest = (HttpRequest) m;
+            httpRequest = (HttpRequest) m;
+            URI targetURI = URI.create("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri());
+            log.debug("[ModelFormatter] Received httpRequest for " + (targetURI));
+
+            String acceptHeader = httpRequest.getHeader("Accept");
+            log.debug("Accept: " + acceptHeader);
 		}
-		super.messageReceived(ctx, e);
+		ctx.sendUpstream(me);
 	}
 	
 	/**
@@ -87,7 +97,8 @@ public class ModelFormatter extends SimpleChannelHandler {
             
 			if(httpRequest != null) {
 				String acceptHeader = httpRequest.getHeader("Accept");
-						
+				log.debug("Accept Header of Request: " + acceptHeader);
+
 				if(acceptHeader != null) {
 					if(acceptHeader.indexOf("application/rdf+xml") != -1){
                         lang = "RDF/XML";
@@ -107,18 +118,145 @@ public class ModelFormatter extends SimpleChannelHandler {
                     }
 				}
 			}
+
+            ResIterator iterator = model.listSubjects();
+
+            while(iterator.hasNext()){
+                Resource subject = iterator.nextResource();
+                String uri = subject.getURI();
+                if(uri != null && uri.startsWith("coap://")){
+                    ResourceUtils.renameResource(subject, createHttpMirrorUri(uri));
+                }
+            }
+
+            NodeIterator iterator2 = model.listObjects();
+
+            while(iterator2.hasNext()){
+                RDFNode object = iterator2.nextNode();
+                if(object != null  && object.isResource()){
+                    Resource objectResource = object.asResource();
+                    String uri = objectResource.getURI();
+                    if(uri != null && uri.startsWith("coap://")){
+                        ResourceUtils.renameResource(objectResource, createHttpMirrorUri(uri));
+                    }
+                }
+            }
+
+            try{
+
+			    model.write(os, lang);
 			
-			model.write(os, lang);
-			
-			HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
-			response.setHeader(CONTENT_TYPE, mimeType + "; charset=utf-8");
-			response.setContent(ChannelBuffers.copiedBuffer(os.toString(), Charset.forName("UTF-8")));
-			response.setHeader(CONTENT_LENGTH, response.getContent().readableBytes());
-            Channels.write(ctx, me.getFuture(), response);
+                HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
+                response.setHeader(CONTENT_TYPE, mimeType + "; charset=utf-8");
+                response.setContent(ChannelBuffers.copiedBuffer(os.toString(), Charset.forName("UTF-8")));
+                response.setHeader(CONTENT_LENGTH, response.getContent().readableBytes());
+
+                //Channels.write(ctx, me.getFuture(), response);
+                DownstreamMessageEvent dme =
+                        new DownstreamMessageEvent(ctx.getChannel(), me.getFuture(), response, me.getRemoteAddress());
+                ctx.sendDownstream(dme);
+            }
+            catch(Exception e){
+                HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+                                                                HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                String message = "Error while converting payload to " + mimeType + ".";
+                response.setContent(ChannelBuffers.copiedBuffer(message.getBytes(Charset.forName("UTF-8"))));
+                response.setHeader(CONTENT_TYPE, "text/plain; charset=utf-8");
+
+                DownstreamMessageEvent dme =
+                        new DownstreamMessageEvent(ctx.getChannel(), me.getFuture(), response, me.getRemoteAddress());
+                ctx.sendDownstream(dme);
+            }
 		}
 		else {
 			ctx.sendDownstream(me);
 		}
 	}
+
+    public String shortenIpv6Address(String ipv6Address){
+
+        //remove leading zeros per block
+        ipv6Address = ipv6Address.replaceAll(":0000", ":0");
+        ipv6Address = ipv6Address.replaceAll(":000", ":0");
+        ipv6Address = ipv6Address.replaceAll(":00", ":0");
+        ipv6Address = ipv6Address.replaceAll("(:0)([ABCDEFabcdef123456789])", ":$2");
+
+        //return shortened IP
+        ipv6Address = ipv6Address.replaceAll("((?:(?:^|:)0\\b){2,}):?(?!\\S*\\b\\1:0\\b)(\\S*)", "::$2");
+
+        return ipv6Address;
+
+    }
+
+    public String createHttpMirrorUri(String coapUri){
+        String ipv6Address = coapUri.substring(coapUri.indexOf("[") + 1, coapUri.indexOf("]"));
+        System.out.println("IPv6 Address vorher: " + ipv6Address);
+
+        ipv6Address = shortenIpv6Address(ipv6Address);
+
+
+        System.out.println("IPv6 Address: " + ipv6Address);
+
+        String path = coapUri.substring(coapUri.indexOf("/", 8));
+
+        return "http://" + ipv6Address.replace(":", "-")
+                         + "." + EntityManager.DNS_WILDCARD_POSTFIX
+                         + ":" + EntityManager.SSP_HTTP_SERVER_PORT
+                         + path;
+    }
+
+    public static void main(String[] args) throws FileNotFoundException, UnknownHostException {
+        ModelFormatter instance = new ModelFormatter();
+
+        File file = new File("/home/olli/impl/smart-service-proxy/rdf.txt");
+        FileInputStream istream = new FileInputStream(file);
+
+        Model model = ModelFactory.createDefaultModel();
+        model.read(istream, null);
+
+        String iptest = "fd00:db08:0:c0a1:215:8d00:11:a88";
+        System.out.println(iptest);
+        String result = instance.shortenIpv6Address(iptest);
+        System.out.println(result);
+
+        iptest = "2001:db8:0000:0001:0011:0111:1111:1";
+        System.out.println(iptest);
+        result = instance.shortenIpv6Address(iptest);
+        System.out.println(result);
+
+        ResIterator iterator = model.listSubjects();
+
+        while(iterator.hasNext()){
+            Resource subject = iterator.nextResource();
+            String uri = subject.getURI();
+            if(uri.startsWith("coap://")){
+                ResourceUtils.renameResource(subject, instance.createHttpMirrorUri(uri));
+            }
+        }
+
+        NodeIterator iterator2 = model.listObjects();
+
+        while(iterator2.hasNext()){
+            RDFNode object = iterator2.nextNode();
+            if(object.isResource()){
+                Resource objectResource = object.asResource();
+                String uri = objectResource.getURI();
+                if(uri.startsWith("coap://")){
+                    ResourceUtils.renameResource(objectResource, instance.createHttpMirrorUri(uri));
+                }
+            }
+        }
+
+        StringWriter writer = new StringWriter();
+
+        try{
+            //model.write(writer, "RDF/XML");
+            //System.out.println("[SelfDescription] Output after Model serialization (RDF/XML):\n " + writer.toString());
+        }
+        catch(Exception e){
+            System.out.println("Could not write RDF/XML");
+            e.printStackTrace();
+        }
+    }
 }
 

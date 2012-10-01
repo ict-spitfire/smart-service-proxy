@@ -31,12 +31,12 @@ import eu.spitfire_project.smart_service_proxy.core.Answer;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.UIElement;
-import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.Inet6Address;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Collection;
@@ -75,11 +75,10 @@ public class SLSEBackend extends Backend {
 	}
 	
 	@Override
-	public void bind(EntityManager em) {
-		assert(em != null);
-		super.bind(em);
-		assert(getEntityManager() != null);
-		addProxy(getEntityManager().getURIBase());
+	public void bind() {
+		super.bind();
+		assert(EntityManager.getInstance() != null);
+		addProxy("http://" + EntityManager.SSP_DNS_NAME + ":" + EntityManager.SSP_HTTP_SERVER_PORT);
 	}
 	
 	public void addProxy(String uri) {
@@ -89,7 +88,7 @@ public class SLSEBackend extends Backend {
 	@Override
 	public Collection<UIElement> getUIElements() {
 		Vector<UIElement> elements = new Vector<UIElement>();
-		elements.add(new UIElement("Create SE", URI.create(pathPrefix + "/create-entity")));
+		elements.add(new UIElement("Create SE", EntityManager.getInstance().normalizeURI(prefix + "/create-entity")));
 		return elements;
 	}
 
@@ -99,11 +98,16 @@ public class SLSEBackend extends Backend {
 			super.messageReceived(ctx, e);
 		}
 
-		HttpRequest request = (HttpRequest) e.getMessage();
-		URI uri = entityManager.normalizeURI(getEntityManager().getURIBase() + request.getUri());
-		String path = uri.getPath();
-        
-        System.out.println("# received request: " + uri);
+		HttpRequest httpRequest = (HttpRequest) e.getMessage();
+		//URI uri = EntityManager.getInstance().normalizeURI(EntityManager.SSP_DNS_NAME + httpequest.getUri());
+		URI targetUri = EntityManager.getInstance().normalizeURI(URI.create("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri()));
+
+		String targetUriHost = Inet6Address.getByName(targetUri.getHost()).getHostAddress();
+		String targetUriPath = targetUri.getRawPath();
+
+		System.out.println("# received request: " + targetUriPath + " prefix=" + prefix +
+				" normed create uri=" + EntityManager.getInstance().normalizeURI(prefix + "/create-entity").toString() +
+				" eq=" + targetUriPath.equals(EntityManager.getInstance().normalizeURI(prefix + "/create-entity").toString()));
         
 		/*
 		 * TODO:
@@ -116,17 +120,18 @@ public class SLSEBackend extends Backend {
 		 * - if POST "$base/sources/", call setSources($postdata)
 		 */
 
-		if(uri.equals(entityManager.normalizeURI(pathPrefix + "/create-entity"))) {
-			if(request.getMethod() == HttpMethod.GET) {
+		if(targetUriPath.equals(EntityManager.getInstance().normalizeURI(prefix + "/create-entity").toString())) {
+			if(httpRequest.getMethod() == HttpMethod.GET) {
                 //copy into
-                HttpResponse response = new DefaultHttpResponse(request.getProtocolVersion(), HttpResponseStatus.OK);
-                response.setContent(ChannelBuffers.wrappedBuffer(htmlContent));
-                Channels.write(ctx.getChannel(), response);
+                HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
+                //response.setContent(ChannelBuffers.wrappedBuffer(htmlContent));
+
+				Channels.write(ctx.getChannel(), Answer.create(new File("data/slse/ui/create_entity_form.html")));
 //				Channels.write(ctx.getChannel(),
 //						Answer.create(new File("data/slse/ui/create_entity_form.html")));
 			}
-			else if(request.getMethod() == HttpMethod.POST) {
-                QueryStringDecoder qsd = new QueryStringDecoder("http://blub.blah/?" + request.getContent().toString(Charset.defaultCharset()));
+			else if(httpRequest.getMethod() == HttpMethod.POST) {
+                QueryStringDecoder qsd = new QueryStringDecoder("http://blub.blah/?" + httpRequest.getContent().toString(Charset.defaultCharset()));
 
                 String elementsQuery = "";
                 String name = "";
@@ -162,13 +167,14 @@ public class SLSEBackend extends Backend {
     	    }
         }
         else {
-            uri = entityManager.toThing(uri);
+            targetUri = EntityManager.getInstance().toThing(targetUri);
 		  Model r = ModelFactory.createDefaultModel();
 
             if(waitForPolling) {
-            //    System.out.println("# waiting for esecache: " + uri);
+               System.out.println("# SLSEBackend waiting for esecache: " + targetUri);
                 synchronized(eseCache) {
-                    while(!eseCache.isPollComplete()) {
+					System.out.println("# SLSEBackend got it");
+					while(!eseCache.isPollComplete()) {
                         try {
                             eseCache.wait(1000);
                         } catch (InterruptedException ex) {
@@ -178,20 +184,25 @@ public class SLSEBackend extends Backend {
                 }
             }
 
-          //  System.out.println("# waiting for slseCache: " + uri);
+            System.out.println("# SLSEBackend waiting for slseCache: " + targetUri);
 		  synchronized(slseCache) {
-              if(slseCache.get(uri.toString()) == null) {
-                  System.out.println("! SLSE not found in cache: " + uri.toString() + " returning empty model");
+			  System.out.println("# SLSEBackend waiting got ite: " + targetUri);
+			  if(slseCache.get(targetUri.toString()) == null) {
+                  System.out.println("! SLSE not found in cache: " + targetUri.toString() + " returning empty model");
+				  System.out.println("What we got is:");
+				  for(String s: slseCache.byURI.keySet()) {
+					  System.out.println("\"" + s + "\"");
+				  }
               }
               else {
-			    r.add(slseCache.get(uri.toString()).getModel());
+			    r.add(slseCache.get(targetUri.toString()).getModel());
               }
 		  }
             ChannelFuture future = Channels.write(ctx.getChannel(), r);
-            if(!HttpHeaders.isKeepAlive(request)){
+            //if(!HttpHeaders.isKeepAlive(httpRequest)){
                 future.addListener(ChannelFutureListener.CLOSE);
-            }
-            //System.out.println("# done: " + uri);
+            //}
+			System.out.println("# SLSEBackend done: " + targetUri);
 
      }
     }
@@ -205,10 +216,6 @@ public class SLSEBackend extends Backend {
 	public void writeRequested(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
 		// TODO
 		super.writeRequested(ctx, e);
-	}
-
-	public EntityManager getEntityManager() {
-		return entityManager;
 	}
 
 	public void pollProxiesForever() {

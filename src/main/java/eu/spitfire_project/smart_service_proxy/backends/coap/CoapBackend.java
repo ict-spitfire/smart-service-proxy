@@ -24,12 +24,11 @@
  */
 package eu.spitfire_project.smart_service_proxy.backends.coap;
 
-import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionTable;
+import com.google.common.collect.HashMultimap;
 import de.uniluebeck.itm.spitfire.nCoap.communication.callback.ResponseCallback;
 import de.uniluebeck.itm.spitfire.nCoap.communication.core.CoapClientDatagramChannelFactory;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
@@ -46,7 +45,6 @@ import java.net.*;
 import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -61,29 +59,24 @@ public class CoapBackend extends Backend{
         
     public static final int NODES_COAP_PORT = 5683;
 
-    private ConcurrentHashMap<URI, URI> resources = new ConcurrentHashMap<URI, URI>();
-    private HashSet<InetAddress> sensornodes = new HashSet<InetAddress>();
+    private HashMultimap<Inet6Address, String> services = HashMultimap.create();
+
+    private boolean enableVirtualHttp;
     
     private DatagramChannel clientChannel = CoapClientDatagramChannelFactory.getInstance().getChannel();
-    private int heartbeatInterval;
 
     /**
      * Create a new instance of the CoAPBackend-Application with a listening Datagram Socket on port 5683.
      */
-    public CoapBackend(int heartbeatInterval, String ipv6Prefix) throws Exception{
+    public CoapBackend(String prefix, boolean enableVirtualHttp) throws Exception{
         super();
-        //this.pathPrefix = "/%5B" + ipv6Prefix.substring(0, ipv6Prefix.lastIndexOf(":"));
-        this.pathPrefix = "/%5B" + ipv6Prefix;
-        this.heartbeatInterval = heartbeatInterval;
-
-        //Create CoAP server to handle incoming requests
-        //new CoapNodeRegistrationServer(this);
+        this.enableVirtualHttp = enableVirtualHttp;
+        this.prefix = prefix;
     }
 
     @Override
-    public void bind(EntityManager entityManager){
-        this.entityManager = entityManager;
-        entityManager.registerBackend(this, pathPrefix);
+    public void bind(){
+        EntityManager.getInstance().registerBackend(this, prefix);
     }
     
     @Override
@@ -96,24 +89,6 @@ public class CoapBackend extends Backend{
         
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
-//        HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
-//                HttpResponseStatus.OK);
-//
-//        int internalSourcePort = ((InetSocketAddress) (ctx.getChannel().getRemoteAddress())).getPort();
-
-//        httpResponse.setContent(ChannelBuffers.wrappedBuffer(("Alles gut! Zieladresse war: "
-//                + ConnectionTable.getInstance().getTcpRequest(internalSourcePort)).
-//                getBytes(Charset.forName("UTF-8"))));
-//
-//        ChannelFuture fut = Channels.write(ctx.getChannel(), httpResponse);
-//        fut.addListener(ChannelFutureListener.CLOSE);
-//
-//        if(true) {
-//            return;
-//        }
-
-        Object response;
-
         String path = httpRequest.getUri();
         int index = path.indexOf("?");
         if(index != -1){
@@ -121,146 +96,120 @@ public class CoapBackend extends Backend{
         }
 
         //Look up CoAP target URI
-        URI tmpMirrorURI = URI.create(entityManager.getURIBase()).resolve(path + "#").normalize();
+        try {
+            final Inet6Address targetUriHostAddress =
+                    (Inet6Address) InetAddress.getByName(httpRequest.getHeader("HOST"));
+            log.debug("Host: " + targetUriHostAddress);
 
-        if(log.isDebugEnabled()){
-            log.debug("[CoapBackend] Look up resource for mirror URI: " + tmpMirrorURI);
-        }
+            final String targetUriPath = httpRequest.getUri();
+            log.debug("Path: " + targetUriPath);
 
-        URI tmpTargetURI = resources.get(tmpMirrorURI);
+            if(services.containsEntry(targetUriHostAddress, targetUriPath)){
 
-        if(tmpTargetURI == null){
+                log.debug("Service found!");
 
+                final URI coapTargetURI = URI.create("coap://["
+                                              + targetUriHostAddress.getHostAddress()
+                                              + "]:" + NODES_COAP_PORT
+                                              + "/" + targetUriPath);
 
-            tmpMirrorURI = URI.create("http://" + httpRequest.getHeader(HttpHeaders.Names.HOST) +
-                    path + "#").normalize();
+                log.debug("CoAP target URI: " + coapTargetURI);
 
-            if(log.isDebugEnabled()){
-                log.debug("[CoapBackend] Look up resource for mirror URI: " + tmpMirrorURI);
-            }
-
-            tmpTargetURI = resources.get(tmpMirrorURI);
-        }
-        
-        final URI mirrorURI = tmpMirrorURI;
-        final URI targetURI = tmpTargetURI;
-        
-        if(targetURI != null){
-            try {
-                //Create CoAP request
-                CoapRequest coapRequest = Http2CoapConverter.convertHttpRequestToCoAPMessage(httpRequest, targetURI);
+                CoapRequest coapRequest = Http2CoapConverter.convertHttpRequestToCoAPMessage(httpRequest, coapTargetURI);
                 coapRequest.setResponseCallback(new ResponseCallback() {
                     @Override
                     public void receiveResponse(CoapResponse coapResponse) {
-                        
-                        log.debug("[CoapBackend] Received response from " + me.getRemoteAddress());
-                        
+
+                        log.debug("Received response from " + me.getRemoteAddress());
+
                         Object response;
 
                         try{
                             if(coapResponse.getPayload().readableBytes() > 0){
-                                response = new SelfDescription(coapResponse, mirrorURI);
+                                response = new SelfDescription(coapResponse,
+                                        createHttpURIs(targetUriHostAddress, targetUriPath)[1]);
                             }
                             else{
-                                log.debug("[CoapBackend] Convert CoapResponse to HttpResponse");
+                                log.debug("Convert CoapResponse to HttpResponse");
                                 response = Http2CoapConverter.convertCoapToHttpResponse(coapResponse,
                                         httpRequest.getProtocolVersion());
                                 ((DefaultHttpResponse) response)
                                         .setContent(ChannelBuffers.
                                                 wrappedBuffer("OK".getBytes(Charset.forName("UTF-8"))));
-                                log.debug("[CoapBackend] Conversion CoapResponse to HttpResponse finished.");
+                                log.debug("Conversion CoapResponse to HttpResponse finished.");
                             }
                         }
-                        catch (InvalidOptionException e) {
-                            response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
-                            ((DefaultHttpResponse) response).setContent(coapResponse.getPayload());
-                        }
+//                        catch (InvalidOptionException e) {
+//                            log.error("Error.", e);
+//                            response = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+//                                                               HttpResponseStatus.INTERNAL_SERVER_ERROR);
+//                            ((DefaultHttpResponse) response).setContent(coapResponse.getPayload());
+//                        }
                         catch(Exception e){
-                            response = new DefaultHttpResponse(HttpVersion.HTTP_1_1,
-                                    HttpResponseStatus.OK);
+                            log.error("Error.", e);
+                            response = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+                                    HttpResponseStatus.INTERNAL_SERVER_ERROR);
                             ((HttpResponse) response)
                                     .setContent(ChannelBuffers.wrappedBuffer(coapResponse.getPayload()));
                         }
 
-//                        //------TEST!!!
-//                        ChannelBuffer copy = ChannelBuffers.copiedBuffer(coapResponse.getPayload());
-//                        byte[] copyArray = new byte[copy.readableBytes()];
-//                        copy.readBytes(copyArray);
-//                        log.debug("[CoapBackend] Payload of received packet: " +
-//                                new String(copyArray, Charset.forName("UTF-8")));
-
-                        //-------TEST ENDE!!!
-
-                        //TODO Core-Link-Format to HTTP links.
-
-
-
-                        //Send response
                         ChannelFuture future = Channels.write(ctx.getChannel(), response);
                         future.addListener(ChannelFutureListener.CLOSE);
                     }
                 });
 
-                //Send CoAP request
-                InetSocketAddress remoteSocketAddress = new InetSocketAddress(targetURI.getHost(), targetURI.getPort());
+                //Send CoapRequest
+                InetSocketAddress remoteSocketAddress =
+                        new InetSocketAddress(coapTargetURI.getHost(), coapTargetURI.getPort());
+
                 ChannelFuture future = Channels.write(clientChannel, coapRequest, remoteSocketAddress);
 
                 if(log.isDebugEnabled()){
                     future.addListener(new ChannelFutureListener() {
                         @Override
                         public void operationComplete(ChannelFuture future) throws Exception {
-                            log.debug("[CoapBackend] CoAP request sent to " + targetURI);
+                            log.debug("CoAP request sent to " + coapTargetURI);
                         }
                     });
                 }
-
-                return;
             }
-            catch (MethodNotAllowedException e) {
-                //If there is no equivalent CoAP code for the HTTP request method
-                response = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
-                        HttpResponseStatus.METHOD_NOT_ALLOWED);
+            else{
+                log.debug("Service " + targetUriPath + " unknwon for host " + targetUriHostAddress + ".");
+                Object response = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+                        HttpResponseStatus.NOT_FOUND);
 
-                if(log.isDebugEnabled()){
-                    log.debug("[CoapBackend] Method (" + e.getMethod() + ") not allowed: " + mirrorURI);
-                }
+                ChannelFuture future = Channels.write(ctx.getChannel(), response);
+                future.addListener(ChannelFutureListener.CLOSE);
             }
         }
-        else{
-            response = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
-                    HttpResponseStatus.NOT_FOUND);
-
-            if(log.isDebugEnabled()){
-                log.debug("[CoapBackend] Resource not found: " + mirrorURI);
-            }
+        catch (UnknownHostException e) {
+            log.error("Error.", e);
         }
-        
-        ChannelFuture future = Channels.write(ctx.getChannel(), response);
-        future.addListener(ChannelFutureListener.CLOSE);
-
-
+        catch (MethodNotAllowedException e) {
+            log.error("Error.",e);
+        }
     }
     
     /**
      * Returns the {@link InetAddress}es of the already known sensornodes
      * @return the {@link InetAddress}es of the already known sensornodes
      */
-    public Set<InetAddress> getSensorNodes(){
-        return sensornodes;
+    public Set<Inet6Address> getSensorNodes(){
+        return services.keySet();
     }
 
-    public void processWellKnownCoreResource(CoapResponse coapResponse, InetAddress remoteAddress){
+    public void deleteServices(Inet6Address serverAddress){
+        log.debug("Delete services for " + serverAddress + ".");
+        services.removeAll(serverAddress);
+    }
+
+    public void processWellKnownCoreResource(CoapResponse coapResponse, Inet6Address remoteAddress){
 
         ChannelBuffer payloadBuffer = coapResponse.getPayload();
 
-        log.debug("[CoAPBackendApp] Process ./well-known/core resource: "
-                + new String(payloadBuffer.array()));
+        log.debug("Process ./well-known/core resource " +
+                    "(size: " + payloadBuffer.readableBytes() +") from " + remoteAddress.getHostAddress());
 
-        String remoteIP = remoteAddress.getHostAddress();
-        if(remoteIP.indexOf("%") != -1){
-            remoteIP = remoteIP.substring(0, remoteIP.indexOf("%"));
-        }
-        
         //register each link as new entity
         String payload = new String(payloadBuffer.array());
         String[] links = payload.split(",");
@@ -272,35 +221,23 @@ public class CoapBackend extends Backend{
             if (path.indexOf("/") > 0){
                 path = "/" + path;
             }
-
             try {
-                //create mirror URI
-                String encodedIP = remoteIP;
-               
-                if(IPAddressUtil.isIPv6LiteralAddress(encodedIP)){
-                    encodedIP = "%5B" + encodedIP + "%5D";
-                }
-                
-                //DNS based mirror URI
-                URI mirrorURI = new URI(entityManager.getURIBase() + "/" + encodedIP + ":" + NODES_COAP_PORT + path + "#");
+                services.put(remoteAddress, path);
 
-                //create CoAP URI
-                encodedIP = remoteIP;
-                if(IPAddressUtil.isIPv6LiteralAddress(encodedIP)){
-                    encodedIP = "[" + encodedIP + "]";
-                }
-                URI coapURI = new URI("coap://" + encodedIP + ":" + NODES_COAP_PORT + path);
-
-                resources.put(mirrorURI, coapURI);
-                //entityManager.entityCreated(mirrorURI, this);
+                URI[] httpURIs = createHttpURIs(remoteAddress, path);
+                EntityManager.getInstance().entityCreated(httpURIs[0], this);
+                EntityManager.getInstance().virtualEntityCreated(httpURIs[1], this);
                 
                 //Virtual HTTP Server for Sensor nodes
-                URI mirrorURI2 = new URI("http://[" + remoteIP + "]" + path + "#");
-                log.debug("[CoapBackend] New virtual HTTP service address: " + mirrorURI2);
-                resources.put(mirrorURI2, coapURI);
-                entityManager.entityCreated(mirrorURI2, this);
+                if(enableVirtualHttp){
+//                    URI virtualHttpServerUri = new URI("http://[" + remoteIP + "]" + path + "#");
+//                    log.debug("[CoapBackend] New virtual HTTP service address: " + virtualHttpServerUri);
+//                    resources.put(virtualHttpServerUri, coapURI);
+//                    entityManager.entityCreated(virtualHttpServerUri, this);
+                }
                 
-            } catch (URISyntaxException e) {
+            }
+            catch (URISyntaxException e) {
                 log.fatal("[CoapBackend] Error while creating URI. This should never happen.", e);
             }
         }
@@ -308,14 +245,65 @@ public class CoapBackend extends Backend{
 
     @Override
     public Set<URI> getResources(){
-        return resources.keySet();
+        HashSet<URI> result = new HashSet<URI>(services.size());
+        for(Inet6Address address : services.keySet()){
+            for(String path : services.get(address)){
+
+                result.add(URI.create("http://" + address.getHostAddress()
+                                     + EntityManager.SSP_HTTP_SERVER_PORT
+                                     + "/" + path));
+            }
+        }
+        return result;
     }
 
-    /**
-     * Returns the IPv6 prefix of the net the CoapBackend is responsible for (e.g. 2001:638:b157:1)
-     * @return the IPv6 prefix of the net the CoapBackend is responsible for (e.g. 2001:638:b157:1)
-     */
-    public String getIpv6Prefix(){
-        return pathPrefix.substring(4);
+//    /**
+//     * Returns the IPv6 prefix of the net the CoapBackend is responsible for (e.g. 2001:638:b157:1)
+//     * @return the IPv6 prefix of the net the CoapBackend is responsible for (e.g. 2001:638:b157:1)
+//     */
+//    public String getIPv6Prefix(){
+//        return prefix.substring(4);
+//    }
+
+    public URI[] createHttpURIs(Inet6Address remoteAddress, String path) throws URISyntaxException {
+
+        URI[] result = new URI[2];
+
+        String remoteIP = remoteAddress.getHostAddress();
+        if(remoteIP.indexOf("%") != -1){
+            remoteIP = remoteIP.substring(0, remoteIP.indexOf("%"));
+        }
+
+        log.debug("Remote IP original: " + remoteIP);
+        //remove leading zeros per block
+        remoteIP = remoteIP.replaceAll(":0000", ":0");
+        remoteIP = remoteIP.replaceAll(":000", ":0");
+        remoteIP = remoteIP.replaceAll(":00", ":0");
+        remoteIP = remoteIP.replaceAll("(:0)([ABCDEFabcdef123456789])", ":$2");
+        log.debug("Remote IP shortened 1: " + remoteIP);
+
+        //return shortened IP
+        remoteIP = remoteIP.replaceAll("((?:(?:^|:)0\\b){2,}):?(?!\\S*\\b\\1:0\\b)(\\S*)", "::$2");
+        log.debug("Remote IP shortened 2: " + remoteIP);
+
+        result[0] = new URI("http://" + remoteIP.replace(":", "-")
+                            + "." + EntityManager.DNS_WILDCARD_POSTFIX
+                            + ":" + EntityManager.SSP_HTTP_SERVER_PORT
+                            + path);
+
+        result[1] = new URI("http://[" + remoteIP + "]" + path);
+;
+        return result;
+    }
+
+    public URI createCoapTargetURI(String remoteIP, String path) throws URISyntaxException {
+        if(IPAddressUtil.isIPv6LiteralAddress(remoteIP)){
+            remoteIP = "[" + remoteIP + "]";
+        }
+        return new URI("coap://" + remoteIP + ":" + NODES_COAP_PORT + path);
+    }
+
+    public URI createVirtualHttpServerURI(){
+        return null;
     }
 }

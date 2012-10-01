@@ -69,6 +69,7 @@ public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory 
 
 		pipeline.addLast("answer formatter", new AnswerFormatter());
 		pipeline.addLast("model formatter", new ModelFormatter());
+        pipeline.addLast("Http mirror URI handler", HttpMirrorUriHandler.getInstance());
 		pipeline.addLast("statement cache", StatementCache.getInstance());
 		pipeline.addLast("execution handler", executionHandler);
 		pipeline.addLast("entity manager", EntityManager.getInstance());

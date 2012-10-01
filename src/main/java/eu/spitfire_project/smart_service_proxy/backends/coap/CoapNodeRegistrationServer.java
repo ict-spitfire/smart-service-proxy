@@ -35,7 +35,8 @@ import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sun.net.util.IPAddressUtil;
 import eu.spitfire_project.smart_service_proxy.utils.TString;
 import eu.spitfire_project.smart_service_proxy.utils.TList;
@@ -45,6 +46,7 @@ import java.net.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
+
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -54,8 +56,9 @@ import java.util.concurrent.TimeUnit;
  * @author Oliver Kleine
  */
 public class CoapNodeRegistrationServer extends CoapServerApplication {
+    private static int numberOfAnnotationDemo = 0;
 
-    private static Logger log = Logger.getLogger(CoapNodeRegistrationServer.class.getName());
+    private static Logger log = LoggerFactory.getLogger(CoapNodeRegistrationServer.class.getName());
 
     private ArrayList<CoapBackend> coapBackends = new ArrayList<CoapBackend>();
 
@@ -76,12 +79,14 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
     public boolean addCoapBackend(CoapBackend coapBackend){
         boolean added = coapBackends.add(coapBackend);
         if(added){
-            log.debug("[CoapNodeRegistrationServer] Registered new backend for prefix: " + coapBackend.getPathPrefix());
+            log.debug("[CoapNodeRegistrationServer] Registered new backend for prefix: " + coapBackend.getPrefix());
         }
         return added;
     }
 
-
+    public void fakeRegistration(InetAddress inetAddress){
+        executorService.schedule(new NodeRegistration(inetAddress), 0, TimeUnit.SECONDS);
+    }
 
     /**
      * This method is invoked by the Netty framework whenever a new incoming CoAP request is to be processed. It only
@@ -116,8 +121,8 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 while (coapRequest.getPayload().readable())
                     sensorMACAddr += (char)coapRequest.getPayload().readByte();
 
-                log.debug("[CoapNodeRegistrationServer] Schedule sensor annotation: SensorID = " + sensorMACAddr);
-                executorService.schedule(new NodeAnnotation(sensorMACAddr, remoteSocketAddress.getAddress()), 0, TimeUnit.SECONDS);
+                if ("0x8e7f".equalsIgnoreCase(sensorMACAddr))
+                    executorService.schedule(new NodeAnnotation(remoteSocketAddress.getAddress()), 0, TimeUnit.SECONDS);
             }
             else{
                 coapResponse = new CoapResponse(Code.METHOD_NOT_ALLOWED_405);
@@ -133,7 +138,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
     //Handles the registration process for new nodes in a new thread
     private class NodeRegistration extends CoapClientApplication implements Runnable{
 
-        private InetAddress remoteAddress;
+        private Inet6Address remoteAddress;
 
         private Object monitor = new Object();
 
@@ -141,38 +146,49 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
         
         public NodeRegistration(InetAddress remoteAddress){
             super();
-            this.remoteAddress = remoteAddress;
+            this.remoteAddress = (Inet6Address) remoteAddress;
         }
 
         @Override
         public void run(){
             
             CoapBackend coapBackend = null;
-            
+
+            //log.debug("Look up backend for address " + remoteAddress.getHostAddress());
             for(CoapBackend backend : coapBackends){
-                if(remoteAddress.getHostAddress().startsWith(backend.getIpv6Prefix())){
-                    coapBackend = backend;   
+                //Prefix is an IP address
+
+                log.debug("remoteAddress.getHostAddress(): " + remoteAddress.getHostAddress());
+                log.debug("backend.getIPv6Prefix(): " + backend.getPrefix());
+                if(remoteAddress.getHostAddress().startsWith(backend.getPrefix())){
+                    coapBackend = backend;
+                    log.debug("Backend found for address " + remoteAddress.getHostAddress());
+                    break;
+                }
+                //Prefix is a DNS name
+                else{
+                    log.debug("Look up backend for DNS name " + remoteAddress.getHostName());
+                    log.debug("backend.getIPv6Prefix(): " + backend.getPrefix());
+                    if((remoteAddress.getHostName()).equals(backend.getPrefix())){
+                        coapBackend = backend;
+                        log.debug("Backend found for DNS name " + remoteAddress.getHostName());
+                        break;
+                    }
                 }
             }
             
             if(coapBackend == null){
-                log.debug("[CoapNodeRegistrationServer] No backend found for IPv6 address: " +
+                log.debug("[CoapNodeRegistrationServer] No backend found for IP address: " +
                         remoteAddress.getHostAddress());
                 return;
             }
             
             //Only register new nodes (avoid duplicates)
-            Set<InetAddress> addressList = coapBackend.getSensorNodes();
+            Set<Inet6Address> addressList = coapBackend.getSensorNodes();
 
             if(addressList.contains(remoteAddress)){
-                log.debug("[CoapNodeRegistration] Remote address already known.");
-                return;
-            }
-
-            //Add new sensornode to the list of known nodes
-            coapBackend.getSensorNodes().add(remoteAddress);
-            if(log.isDebugEnabled()){
-                log.debug("[CoapNodeRegistration] New sensor node: " + remoteAddress.getHostAddress());
+                log.debug("New here_i_am message from " + remoteAddress + ".");
+                coapBackend.deleteServices(remoteAddress);
             }
 
             try {
@@ -206,15 +222,15 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 }
 
             } catch (InvalidMessageException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             } catch (ToManyOptionsException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             } catch (InvalidOptionException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             } catch (URISyntaxException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             } catch (InterruptedException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             }
         }
 
@@ -512,9 +528,15 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
         private int numberOfSamples;
         private TList DataStorage;
 
-        public NodeAnnotation(String sensorMACAddr, InetAddress sensorAddr){
+        public NodeAnnotation(InetAddress sensorAddr){
             super();
-            this.sensorMACAddr = sensorMACAddr;
+            numberOfAnnotationDemo++;
+            if (CoapNodeRegistrationServer.numberOfAnnotationDemo % 2 == 1)
+                sensorMACAddr = "0x132";
+            else
+                sensorMACAddr = "0x122";
+            log.debug("[CoapNodeRegistrationServer] Schedule sensor annotation: SensorID = " + sensorMACAddr);
+
             this.sensorAddr = sensorAddr;
 
             //Add sensors in 4 rooms to the list of known sensors

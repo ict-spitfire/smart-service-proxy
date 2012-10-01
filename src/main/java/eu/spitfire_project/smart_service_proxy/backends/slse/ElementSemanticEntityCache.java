@@ -31,13 +31,18 @@ import com.hp.hpl.jena.query.QueryExecutionFactory;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.tdb.TDBFactory;
-import org.apache.commons.io.IOUtils;
+import eu.spitfire_project.smart_service_proxy.core.EntityManager;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Henning Hasemann
@@ -219,20 +224,28 @@ public class ElementSemanticEntityCache {
 		if(m != null && !m.isEmpty() && elementSEs.containsKey(entity)) {
 			Model old = ModelFactory.createDefaultModel().add(m);
 			m.removeAll();
-			m.read(entity);
-			m.close();
-			oldModels.put(entity, old);
-			changedEntities.add(get(entity));
-			entityChanged(entity, old);
+			//m.read(entity);
+			try {
+			readUrlIntoModel(new URL(entity), m);
+				m.close();
+				oldModels.put(entity, old);
+				changedEntities.add(get(entity));
+				entityChanged(entity, old);
+			} catch(IOException e) { if(!m.isClosed()) m.close(); }
+
 		}
 		else {
 			if(m != null && !m.isClosed()) { m.close(); }
 			m = TDBFactory.createNamedModel(entity, tdbLocation);
-			m.read(entity);
-			m.close();
-			elementSEs.put(entity, new ElementSemanticEntity(this, entity, proxy));
-			addedEntities.add(get(entity));
-			entityAdded(entity);
+			//m.read(entity);
+			try {
+				readUrlIntoModel(new URL(entity), m);
+				m.close();
+				elementSEs.put(entity, new ElementSemanticEntity(this, entity, proxy));
+				addedEntities.add(get(entity));
+				entityAdded(entity);
+			} catch(IOException e) { if(!m.isClosed()) m.close(); }
+
 		}
 		}
 		catch(Exception e) {
@@ -256,37 +269,43 @@ public class ElementSemanticEntityCache {
 		if(m != null && !m.isEmpty() && elementSEs.containsKey(entity)) {
 			Model old = ModelFactory.createDefaultModel().add(m);
 			m.removeAll();
-			m.read(entity);
-			synchronized(this) {
-				Model mdb = dataset.getNamedModel(entity);
-				mdb.removeAll();
-				mdb.add(m);
-				mdb.close();
-			//}
-			m.close();
-			//synchronized(this) {
-				oldModels.put(entity, old);
-				changedEntities.add(get(entity));
-				entityChanged(entity, old);
-			}
+			//m.read(entity);
+			try {
+				readUrlIntoModel(new URL(entity), m);
+				synchronized(this) {
+					Model mdb = dataset.getNamedModel(entity);
+					mdb.removeAll();
+					mdb.add(m);
+					mdb.close();
+					//}
+					m.close();
+					//synchronized(this) {
+					oldModels.put(entity, old);
+					changedEntities.add(get(entity));
+					entityChanged(entity, old);
+				}
+			} catch(IOException e) { if(!m.isClosed()) m.close(); }
+
 		}
 		else {
 			if(m != null) { m.close(); }
 			m = ModelFactory.createDefaultModel(); //TDBFactory.createNamedModel(entity, tdbLocation);
-			m.read(entity);
-
-			synchronized(this) {
-				Model mdb = dataset.getNamedModel(entity);
-				mdb.removeAll();
-				mdb.add(m);
-				mdb.close();
-			//}
-			m.close();
-			//3synchronized(this) {
-				elementSEs.put(entity, new ElementSemanticEntity(this, entity, proxy));
-				addedEntities.add(get(entity));
-				entityAdded(entity);
-			}
+			//m.read(entity);
+			try {
+				readUrlIntoModel(new URL(entity), m);
+				synchronized(this) {
+					Model mdb = dataset.getNamedModel(entity);
+					mdb.removeAll();
+					mdb.add(m);
+					mdb.close();
+					//}
+					m.close();
+					//3synchronized(this) {
+					elementSEs.put(entity, new ElementSemanticEntity(this, entity, proxy));
+					addedEntities.add(get(entity));
+					entityAdded(entity);
+				}
+			} catch(IOException ex) { if(!m.isClosed()) m.close(); }
 		}
 		log("end_poll_entity_parallel " + entity);
 	}
@@ -304,6 +323,8 @@ public class ElementSemanticEntityCache {
 		try {
 			URL url = new URL(proxy + "/.well-known/servers");
 			connection = url.openConnection();
+			connection.addRequestProperty("Cache-Control", "no-cache,max-age=0");
+			connection.addRequestProperty("Pragma", "no-cache");
 			connection.setReadTimeout(pollTimeoutProxy);
 			connection.setRequestProperty("Accept", "application/rdf+xml");
 			connection.connect();
@@ -313,7 +334,7 @@ public class ElementSemanticEntityCache {
 
 			String elementSE;
 			while((elementSE = reader.readLine()) != null) {
-				if(backend.getEntityManager().getBackend(elementSE) != backend) {
+				if(EntityManager.getInstance().getBackend(elementSE) != backend) {
 					newKnown.add(elementSE);
 				}
 			}
@@ -370,6 +391,15 @@ public class ElementSemanticEntityCache {
 		for(ElementSemanticEntityCacheListener l: listeners) {
 			l.onElementEntityChanged(uri, old_model);
 		}
+	}
+
+	private void readUrlIntoModel(URL url, Model m) throws IOException {
+		int timeout = 10000;
+		URLConnection connection = url.openConnection();
+		connection.setReadTimeout(timeout);
+		connection.setRequestProperty("Accept", "application/rdf+xml");
+		connection.connect();
+		m.read(connection.getInputStream(), url.toString(), "RDF/XML");
 	}
 
 	/*

@@ -49,8 +49,8 @@ public class UberdustBackend extends Backend {
 	}
 
 	@Override
-	public void bind(EntityManager em) {
-		super.bind(em);
+	public void bind() {
+		super.bind();
 		for(Map.Entry<String, Vector<String>> entry: uberdustTestbeds.entrySet()) {
 			for(String testbed: entry.getValue()) {
 				exploreUberdustTestbed(entry.getKey(), testbed);
@@ -77,7 +77,7 @@ public class UberdustBackend extends Backend {
 
 			String urn;
 			while((urn = reader.readLine()) != null) {
-				entityManager.entityCreated(URI.create(
+				EntityManager.getInstance().entityCreated(URI.create(
 						makeEntityURI(
 								URI.create(server).getHost() + ":" + URI.create(server).getPort(),
 								testbed, urn
@@ -104,7 +104,7 @@ public class UberdustBackend extends Backend {
 	}
 	
 	String makeEntityURI(String server, String testbed, String urn) {
-		return entityManager.getURIBase() + getPathPrefix() + "/" + server + "/" + testbed + "/" + urn;
+		return EntityManager.SSP_DNS_NAME + getPrefix() + "/" + server + "/" + testbed + "/" + urn;
 	}
 	
 	String entityPathtoUberdustURI(String path) {
@@ -122,9 +122,9 @@ public class UberdustBackend extends Backend {
 		}
 		HttpRequest request = (HttpRequest) e.getMessage();
 		URI uri = URI.create(request.getUri());
-		URI entityURI = URI.create(entityManager.getURIBase()).resolve(uri);
+		URI entityURI = URI.create(EntityManager.SSP_DNS_NAME).resolve(uri);
 		String path = uri.getPath();
-		String postfix = path.substring(getPathPrefix().length());
+		String postfix = path.substring(getPrefix().length());
 		if(postfix == null) {
 			super.messageReceived(ctx, e);
 			return;

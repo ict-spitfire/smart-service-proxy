@@ -27,7 +27,6 @@ package eu.spitfire_project.smart_service_proxy.core;
 import com.hp.hpl.jena.rdf.model.Model;
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
 import java.util.Date;
@@ -69,53 +68,46 @@ public class StatementCache extends SimpleChannelHandler {
      * @throws Exception
      */
     @Override
-    public void messageReceived(ChannelHandlerContext ctx, MessageEvent me)
-            throws Exception {
+    public void messageReceived(ChannelHandlerContext ctx, MessageEvent me)throws Exception {
 
-        if (me.getMessage() instanceof HttpRequest) {
-            final HttpRequest req = (HttpRequest) me.getMessage();
+        if (!(me.getMessage() instanceof HttpRequest)) {
+            ctx.sendUpstream(me);
+            return;
+        }
 
-            String resourceURI = EntityManager.getInstance().getURIBase() + req.getUri();
+        final HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
-            if(log.isDebugEnabled()){
-                log.debug("[StatementCache] Look up resoure " + resourceURI);
+        String targetUri = "http://" + httpRequest.getHeader("HOST") + httpRequest.getUri();
+
+        log.debug("[StatementCache] Look up resoure " + targetUri);
+
+        //Try to get a statement from the cache
+        CacheElement ce = cache.get(targetUri);
+
+        if (ce != null) {
+
+            if (!ce.expiry.before(new Date())) {
+
+                log.debug("[StatementCache] Fresh statement found for " + targetUri);
+
+                //Send cached resource
+                ChannelFuture future = Channels.write(ctx.getChannel(), ce.model);
+                future.addListener(ChannelFutureListener.CLOSE);
+
+                future.addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        log.debug("[StatementCache] Cached statement for " + httpRequest.getUri() + " sent");
+                    }
+                });
+
+                return;
             }
-            
-            //Try to get a statement from the cache
-            CacheElement ce = cache.get(resourceURI);
-            
-            if (ce != null) {
-                
-                if (!ce.expiry.before(new Date())) {
-
-                    if(log.isDebugEnabled()){
-                        log.debug("[StatementCache] Fresh statement found for " + req.getUri());
-                    }
-                    
-                    //Send cached resource
-                    ChannelFuture future = Channels.write(ctx.getChannel(), ce.model);
-                    future.addListener(ChannelFutureListener.CLOSE);
-                    
-                    if(log.isDebugEnabled()){
-                        future.addListener(new ChannelFutureListener() {
-                            @Override
-                            public void operationComplete(ChannelFuture future) throws Exception {
-                                log.debug("[StatementCache] Cached statement for " + req.getUri() + " sent");
-                            }
-                        });
-                    }
-                    
-                    return;
-                }
-                else {
-                    if(log.isDebugEnabled()){
-                        log.debug("[StatementCache] Found expired statement for: " + req.getUri() +
-                                ". Trying to get a fresh one.");
-                    }    
-                }
+            else {
+                log.debug("[StatementCache] Found expired statement for: " + httpRequest.getUri() +
+                            ". Trying to get a fresh one.");
             }
         }
-        
         ctx.sendUpstream(me);
     }
 
@@ -138,9 +130,13 @@ public class StatementCache extends SimpleChannelHandler {
             log.debug("[StatementCache] Received SelfDescription of resource " + sd.getLocalURI() + " to be cached.");
             
             //Store new Element in Cache
-            cache.put(sd.getLocalURI(), new CacheElement(sd.getModel(), sd.getExpiry(), sd.getObserve()));
+            //cache.put(sd.getLocalURI(), new CacheElement(sd.getModel(), sd.getExpiry(), sd.getObserve()));
+            //Channels.write(ctx, me.getFuture(), sd.getModel());
 
-            Channels.write(ctx, me.getFuture(), sd.getModel());
+            DownstreamMessageEvent downstreamMessageEvent =
+                    new DownstreamMessageEvent(ctx.getChannel(), me.getFuture(), sd.getModel(), me.getRemoteAddress());
+
+            ctx.sendDownstream(downstreamMessageEvent);
         }
         else{
             ctx.sendDownstream(me);
