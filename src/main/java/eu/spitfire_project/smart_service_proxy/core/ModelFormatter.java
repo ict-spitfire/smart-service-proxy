@@ -157,6 +157,7 @@ public class ModelFormatter extends SimpleChannelHandler {
                 ctx.sendDownstream(dme);
             }
             catch(Exception e){
+                log.debug("Error while converting payload" + mimeType, e);
                 HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
                                                                 HttpResponseStatus.INTERNAL_SERVER_ERROR);
                 String message = "Error while converting payload to " + mimeType + ".";

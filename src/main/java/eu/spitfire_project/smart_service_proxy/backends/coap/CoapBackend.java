@@ -38,11 +38,13 @@ import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.socket.DatagramChannel;
-import org.jboss.netty.handler.codec.http.*;
+import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
+import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import sun.net.util.IPAddressUtil;
 
 import java.net.*;
-import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -125,18 +127,19 @@ public class CoapBackend extends Backend{
                         Object response;
 
                         try{
-                            if(coapResponse.getPayload().readableBytes() > 0){
+                            if(!(coapResponse.getCode().isError()) && coapResponse.getPayload().readableBytes() > 0){
                                 response = new SelfDescription(coapResponse,
                                         createHttpURIs(targetUriHostAddress, targetUriPath)[1]);
                             }
                             else{
-                                log.debug("Convert CoapResponse to HttpResponse");
+                                log.debug("CoapResponse is error message or without payload.");
                                 response = Http2CoapConverter.convertCoapToHttpResponse(coapResponse,
                                         httpRequest.getProtocolVersion());
-                                ((DefaultHttpResponse) response)
-                                        .setContent(ChannelBuffers.
-                                                wrappedBuffer("OK".getBytes(Charset.forName("UTF-8"))));
-                                log.debug("Conversion CoapResponse to HttpResponse finished.");
+//                                String content = ((HttpResponse) response).getStatus().toString();
+//                                ((DefaultHttpResponse) response)
+//                                        .setContent(ChannelBuffers.
+//                                                wrappedBuffer(content.getBytes(Charset.forName("UTF-8"))));
+                                log.debug("Http response " + ((HttpResponse) response).getStatus() + " created.");
                             }
                         }
 //                        catch (InvalidOptionException e) {

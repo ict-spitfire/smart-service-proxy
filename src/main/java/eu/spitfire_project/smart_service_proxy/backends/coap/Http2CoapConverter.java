@@ -39,6 +39,8 @@ import org.jboss.netty.handler.codec.http.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import static org.jboss.netty.handler.codec.http.HttpResponseStatus.*;
+
 public class Http2CoapConverter {
     
     private static Logger log = Logger.getLogger(Http2CoapConverter.class.getName());
@@ -95,40 +97,43 @@ public class Http2CoapConverter {
         return coapRequest;
     }
 
-    public static HttpResponse convertCoapToHttpResponse(CoapResponse coapResponse, HttpVersion httpVersion){
-        HttpResponseStatus httpResponseStatus;
-
-        //TODO map Response Codes
-        return new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK);
-    }
-    
-//    private static HttpResponse convertCoAPMessageToHttpResponse(CoAPMessage coapResponse) throws Exception {
-//        //convert status code / response code
-//        int responseCode = coapResponse.getHeader().getCode().getNumber();
-//        HttpResponseStatus httpStatus = OK;
-//        switch (responseCode) {
-//            case 65:  httpStatus = CREATED; break;
-//            case 66:  httpStatus = NO_CONTENT; break;
-//            case 67:  httpStatus = NOT_MODIFIED; break;
-//            case 68:  httpStatus = NO_CONTENT; break;
-//            case 69:  httpStatus = OK; break;
-//            case 128: httpStatus = BAD_REQUEST; break;
-//            case 129: httpStatus = BAD_REQUEST; break;
-//            case 130: httpStatus = BAD_REQUEST; break;
-//            case 131: httpStatus = FORBIDDEN; break;
-//            case 132: httpStatus = NOT_FOUND; break;
-//            case 133: httpStatus = METHOD_NOT_ALLOWED; break;
-//            case 141: httpStatus = REQUEST_ENTITY_TOO_LARGE; break;
-//            case 143: httpStatus = UNSUPPORTED_MEDIA_TYPE; break;
-//            case 160: httpStatus = INTERNAL_SERVER_ERROR; break;
-//            case 161: httpStatus = NOT_IMPLEMENTED; break;
-//            case 162: httpStatus = BAD_GATEWAY; break;
-//            case 163: httpStatus = SERVICE_UNAVAILABLE; break;
-//            case 164: httpStatus = GATEWAY_TIMEOUT; break;
-//            case 165: httpStatus = BAD_GATEWAY; break;
-//        }
-//        HttpResponse response = new DefaultHttpResponse(HTTP_1_1, httpStatus);
+//    public static HttpResponse convertCoapToHttpResponse(CoapResponse coapResponse, HttpVersion httpVersion){
+//        HttpResponseStatus httpResponseStatus;
 //
+//        int responseCode = coapResponse.getCode().number;
+//
+//
+//        //TODO map Response Codes
+//        return new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK);
+//    }
+    
+    public static HttpResponse convertCoapToHttpResponse(CoapResponse coapResponse, HttpVersion httpVersion) throws Exception {
+        //convert status code / response code
+        int responseCode = coapResponse.getHeader().getCode().number;
+        HttpResponseStatus httpStatus = HttpResponseStatus.INTERNAL_SERVER_ERROR;
+        switch (responseCode) {
+            case 65:  httpStatus = CREATED; break;
+            case 66:  httpStatus = NO_CONTENT; break;
+            case 67:  httpStatus = NOT_MODIFIED; break;
+            case 68:  httpStatus = NO_CONTENT; break;
+            case 69:  httpStatus = OK; break;
+            case 128: httpStatus = BAD_REQUEST; break;
+            case 129: httpStatus = BAD_REQUEST; break;
+            case 130: httpStatus = BAD_REQUEST; break;
+            case 131: httpStatus = FORBIDDEN; break;
+            case 132: httpStatus = NOT_FOUND; break;
+            case 133: httpStatus = METHOD_NOT_ALLOWED; break;
+            case 141: httpStatus = REQUEST_ENTITY_TOO_LARGE; break;
+            case 143: httpStatus = UNSUPPORTED_MEDIA_TYPE; break;
+            case 160: httpStatus = INTERNAL_SERVER_ERROR; break;
+            case 161: httpStatus = NOT_IMPLEMENTED; break;
+            case 162: httpStatus = BAD_GATEWAY; break;
+            case 163: httpStatus = SERVICE_UNAVAILABLE; break;
+            case 164: httpStatus = GATEWAY_TIMEOUT; break;
+            case 165: httpStatus = BAD_GATEWAY; break;
+        }
+        HttpResponse response = new DefaultHttpResponse(httpVersion, httpStatus);
+
 //        //convert options / header
 //        List<Option> options = coapResponse.getOptions().getOptionList();
 //        for (Option o : options) {
@@ -158,9 +163,9 @@ public class Http2CoapConverter {
 //                    break;
 //            }
 //        }
-//        //convert content / payload
-//        response.setContent(coapResponse.getPayload());
-//
-//        return response;
-//    }
+        //convert content / payload
+        response.setContent(coapResponse.getPayload());
+
+        return response;
+    }
 }
