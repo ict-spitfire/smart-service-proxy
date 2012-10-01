@@ -122,7 +122,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                     sensorMACAddr += (char)coapRequest.getPayload().readByte();
 
                 if ("0x8e7f".equalsIgnoreCase(sensorMACAddr))
-                    executorService.schedule(new NodeAnnotation(remoteSocketAddress.getAddress()), 0, TimeUnit.SECONDS);
+                    executorService.schedule(new NodeAnnotation(remoteSocketAddress.getAddress()), 4, TimeUnit.SECONDS);
             }
             else{
                 coapResponse = new CoapResponse(Code.METHOD_NOT_ALLOWED_405);
@@ -535,7 +535,8 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 sensorMACAddr = "0x132";
             else
                 sensorMACAddr = "0x122";
-            log.debug("[CoapNodeRegistrationServer] Schedule sensor annotation: SensorID = " + sensorMACAddr);
+            log.debug("[CoapNodeRegistrationServer] SensorID = " + sensorMACAddr +"; current number of annotation ="+
+            numberOfAnnotationDemo);
 
             this.sensorAddr = sensorAddr;
 
@@ -646,7 +647,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
             URI AnnotationServiceURI = new URI("coap://" + remoteIP + ":5683/rdf");
             CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.POST, AnnotationServiceURI);
             coapRequest.setContentType(OptionRegistry.MediaType.APP_N3);
-            String payloadStr = "\0<"+remoteIP+"/rdf>\0" +
+            String payloadStr = "\0<coap://"+remoteIP+"/rdf>\0" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>\0" +
                     "<http://spitfire-project.eu/foi/"+resultAnnotation+">\0";
             byte[] payload = payloadStr.getBytes(Charset.forName("UTF-8"));
@@ -722,6 +723,8 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
 
 
             //Send the annotation back to the new sensor
+
+
             //String resultAnnotation = "TestRoom01";
             String remoteIP = sensorAddr.getHostAddress();
             if(remoteIP.indexOf("%") != -1){
@@ -731,8 +734,9 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 remoteIP = "[" + remoteIP + "]";
             }
             try {
-                CoapRequest lightAnnotation = makeCOAPRequest(remoteIP, resultAnnotation);
-                writeCoapRequest(lightAnnotation);
+                CoapRequest annotation = makeCOAPRequest(remoteIP, resultAnnotation);
+                System.out.println("Sending POST request to sensor!");
+                writeCoapRequest(annotation);
             } catch (URISyntaxException e) {
                 e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
             } catch (ToManyOptionsException e) {
