@@ -66,9 +66,9 @@ public class Main {
         PatternLayout patternLayout = new PatternLayout(pattern);
         //Logger.getLogger("eu.spitfire_project.smart_service_proxy").addAppender(new ConsoleAppender(new SimpleLayout()));
         //
-        Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
-        Logger.getLogger("eu.spitfire_project.smart_service_proxy.core.ShdtSerializer").setLevel(Level.DEBUG);
-        Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.message").setLevel(Level.DEBUG);
+        //Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
+        //Logger.getLogger("eu.spitfire_project.smart_service_proxy.core.ShdtSerializer").setLevel(Level.DEBUG);
+        //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.message").setLevel(Level.DEBUG);
 
         Logger.getRootLogger().removeAllAppenders();
         Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
@@ -77,7 +77,11 @@ public class Main {
         //Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").setLevel(Level.DEBUG);
 
         //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.core").addAppender(new ConsoleAppender(new SimpleLayout()));
+        Logger.getRootLogger().setLevel(Level.ERROR);
         Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication").setLevel(Level.DEBUG);
+        Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
+        //Logger.getLogger("eu.spitfire_project.smart_service_proxy.core.ShdtSerializer").setLevel(Level.ERROR);
+        //Logger.getLogger("com.hp.hpl.jena").setLevel(Error);
 
         //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.encoding").setLevel(Level.DEBUG);
 
