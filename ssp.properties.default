@@ -3,7 +3,7 @@
 #-------------
 #Core settings
 #-------------
-#baseURIHost = www.coap2.wisebed.itm.uni-luebeck.de
+#baseURIHost = localhost
 #listenPort = 8080
 #ram = 2097152
 
