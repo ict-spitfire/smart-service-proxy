@@ -80,7 +80,7 @@ public class CoapBackend extends Backend{
     public void bind(){
         EntityManager.getInstance().registerBackend(this, prefix);
     }
-    
+
     @Override
     public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent me){
         

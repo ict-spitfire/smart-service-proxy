@@ -35,18 +35,17 @@ import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
+import eu.spitfire_project.smart_service_proxy.utils.TList;
+import eu.spitfire_project.smart_service_proxy.utils.TString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.net.util.IPAddressUtil;
-import eu.spitfire_project.smart_service_proxy.utils.TString;
-import eu.spitfire_project.smart_service_proxy.utils.TList;
 
-import java.io.IOException;
-import java.net.*;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.*;
 import java.nio.charset.Charset;
-
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -57,8 +56,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class CoapNodeRegistrationServer extends CoapServerApplication {
     private static int numberOfAnnotationDemo = 0;
-    private static long currentTime, oldTime;
-    private static long timeThres = 5*1000; //2 seconds
+    private static long currentTime, timeOfLastAnnotation;
+    private static long timeThreshold = 10000; //10 seconds
 
     private static Logger log = LoggerFactory.getLogger(CoapNodeRegistrationServer.class.getName());
 
@@ -71,11 +70,10 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
 
     private CoapNodeRegistrationServer(){
         super();
-        log.debug("[CoapNodeRegistrationServer] Constructed.");
+        log.debug("Constructed.");
 
         currentTime = System.currentTimeMillis();
-        oldTime = currentTime;
-        System.out.println("Current time: "+currentTime);
+        timeOfLastAnnotation = currentTime;
     }
 
     public static CoapNodeRegistrationServer getInstance(){
@@ -85,7 +83,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
     public boolean addCoapBackend(CoapBackend coapBackend){
         boolean added = coapBackends.add(coapBackend);
         if(added){
-            log.debug("[CoapNodeRegistrationServer] Registered new backend for prefix: " + coapBackend.getPrefix());
+            log.debug("Registered new backend for prefix: " + coapBackend.getPrefix());
         }
         return added;
     }
@@ -95,7 +93,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
     }
 
     /**
-     * This method is invoked by the Netty framework whenever a new incoming CoAP request is to be processed. It only
+     * This method is invoked by the nCoAP framework whenever a new incoming CoAP request is to be processed. It only
      * accepts requests with {@link Code#GET} for the resource /here_i_am. All other requests will cause failure
      * responses ({@link Code#NOT_FOUND_404} for other resources or {@link Code#METHOD_NOT_ALLOWED_405} for
      * other methods).
@@ -127,13 +125,14 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 while (coapRequest.getPayload().readable())
                     sensorMACAddr += (char)coapRequest.getPayload().readByte();
 
+                log.debug("Sensor MAC: " + sensorMACAddr);
                 if ("0x8e7f".equalsIgnoreCase(sensorMACAddr)) {
                     currentTime = System.currentTimeMillis();
 
-                    System.out.println("Current time - old time: "+(currentTime-oldTime));
-                    if (currentTime - oldTime >= timeThres) {
+                    log.debug("Current time - old time: "+(currentTime- timeOfLastAnnotation));
+                    if (currentTime - timeOfLastAnnotation >= timeThreshold) {
                         executorService.schedule(new NodeAnnotation(remoteSocketAddress.getAddress()), 2, TimeUnit.SECONDS);
-                        oldTime = currentTime;
+                        timeOfLastAnnotation = currentTime;
                     }
                 }
             }
@@ -164,7 +163,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
 
         @Override
         public void run(){
-            
+
             CoapBackend coapBackend = null;
 
             //log.debug("Look up backend for address " + remoteAddress.getHostAddress());
@@ -689,9 +688,9 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                             Long ts = Long.valueOf(st.getStrAt(0));
                             Double vl = Double.valueOf(st.getStrAt(1));
                             de.add(ts, vl);
-                            //System.out.println(String.format(Locale.GERMANY, "%d %.4f", ts, vl));
+                            //log.debug(String.format(Locale.GERMANY, "%d %.4f", ts, vl));
                         }
-                        System.out.println(" Done!");
+                        log.debug(" Done!");
                     } catch (IOException ioe) {
                         log.debug("Cannot open HTTP connection to Uberdust server!");
                     }
@@ -710,14 +709,14 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 if (!de.getMACAddr().equalsIgnoreCase(sensorMACAddr)) {
                     System.out.print("Computing fuzzy set for sensor "+de.getMACAddr()+"... ");
                     de.computeFuzzySet();
-                    System.out.println(" Done!");
+                    log.debug(" Done!");
                 } else {
                     newSensorIND = i;
                 }
             }
 
             //Search for annotation
-            System.out.println("Search for annotation... ");
+            log.debug("Search for annotation... ");
             DataEntry newSensorEntry = (DataEntry)DataStorage.get(newSensorIND);
             double maxsc = 0;
             String resultAnnotation = null;
@@ -729,10 +728,10 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                         maxsc = sc;
                         resultAnnotation = de.getSD();
                     }
-                    System.out.println("Similarity to "+de.getMACAddr()+" in "+de.getSD()+" is "+String.format(Locale.GERMANY, "%.10f", sc));
+                    log.debug("Similarity to "+de.getMACAddr()+" in "+de.getSD()+" is "+String.format(Locale.GERMANY, "%.10f", sc));
                 }
             }
-            System.out.println("Resulting annotation is "+resultAnnotation);
+            log.debug("Resulting annotation is "+resultAnnotation);
 
 
             //Send the annotation back to the new sensor
@@ -748,7 +747,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
             }
             try {
                 CoapRequest annotation = makeCOAPRequest(remoteIP, resultAnnotation);
-                System.out.println("Sending POST request to sensor!");
+                log.debug("Sending POST request to sensor!");
                 writeCoapRequest(annotation);
             } catch (URISyntaxException e) {
                 e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.

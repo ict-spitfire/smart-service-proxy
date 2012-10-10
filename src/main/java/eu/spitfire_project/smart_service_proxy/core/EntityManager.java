@@ -28,25 +28,19 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.Logger;
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
-import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
+import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponse;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import sun.net.util.IPAddressUtil;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.net.URI;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
-
-import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
-import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 
 //import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
 
@@ -207,11 +201,26 @@ public class EntityManager extends SimpleChannelHandler {
 
         log.debug("Received HTTP request for " + targetUri);
 
-        String targetUriHost = Inet6Address.getByName(targetUri.getHost()).getHostAddress();
+        String targetUriHost = InetAddress.getByName(targetUri.getHost()).getHostAddress();
+        //remove leading zeros per block
+        targetUriHost = targetUriHost.replaceAll(":0000", ":0");
+        targetUriHost = targetUriHost.replaceAll(":000", ":0");
+        targetUriHost = targetUriHost.replaceAll(":00", ":0");
+        targetUriHost = targetUriHost.replaceAll("(:0)([ABCDEFabcdef123456789])", ":$2");
+
+        //return shortened IP
+        targetUriHost = targetUriHost.replaceAll("((?:(?:^|:)0\\b){2,}):?(?!\\S*\\b\\1:0\\b)(\\S*)", "::$2");
         log.debug("Target host: " + targetUriHost);
 
 		String targetUriPath = targetUri.getRawPath();
         log.debug("Target path: " + targetUriPath);
+
+        if(IPAddressUtil.isIPv6LiteralAddress(targetUriHost)){
+            targetUriHost = "[" + targetUriHost + "]";
+        }
+
+        targetUri = toThing(URI.create("http://" + targetUriHost + httpRequest.getUri()));
+        log.debug("Shortened target URI: " + targetUri);
 
         if(entities.containsKey(targetUri)){
             Backend backend = entities.get(targetUri);
@@ -243,42 +252,45 @@ public class EntityManager extends SimpleChannelHandler {
             return;
         }
 
-        else if(targetUriPath.equals("/favicon.ico")){
-            log.debug("hier!");
-            HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
-
-            try{
-                File file = new File("favicon.ico");
-                FileInputStream inputStream = new FileInputStream(file);
-
-                ChannelBuffer buffer = ChannelBuffers.dynamicBuffer();
-                int nextByte = inputStream.read();
-                while(nextByte > 0){
-                    buffer.writeByte(nextByte);
-                    nextByte = inputStream.read();
-                }
-
-                log.debug("Hier2");
-                response.setContent(buffer);
-                response.setHeader(CONTENT_TYPE, "image/x-icon");
-                response.setHeader(CONTENT_LENGTH, buffer.readableBytes());
-
-                ChannelFuture future = Channels.write(ctx.getChannel(), response);
-                future.addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        log.debug("FAVICON sent.");
-                    }
-                });
-                return;
-            }
-            catch(Exception ex){
-                log.error("FAVICON Error: ", ex);
-            }
-            log.error("Should not be reached.");
-
-
+        else if(targetUriPath.equals("/visualizer")){
+            ctx.getPipeline().addLast("Visualizer", Visualizer.getInstance());
+            ctx.sendUpstream(e);
+            return;
         }
+
+//        else if(targetUriPath.equals("/favicon.ico")){
+//            log.debug("hier!");
+//            HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
+//
+//            try{
+//                File file = new File("favicon.ico");
+//                FileInputStream inputStream = new FileInputStream(file);
+//
+//                ChannelBuffer buffer = ChannelBuffers.dynamicBuffer();
+//                int nextByte = inputStream.read();
+//                while(nextByte > 0){
+//                    buffer.writeByte(nextByte);
+//                    nextByte = inputStream.read();
+//                }
+//
+//                log.debug("Hier2");
+//                response.setContent(buffer);
+//                response.setHeader(CONTENT_TYPE, "image/x-icon");
+//                response.setHeader(CONTENT_LENGTH, buffer.readableBytes());
+//
+//                ChannelFuture future = Channels.write(ctx.getChannel(), response);
+//                future.addListener(new ChannelFutureListener() {
+//                    @Override
+//                    public void operationComplete(ChannelFuture future) throws Exception {
+//                        log.debug("FAVICON sent.");
+//                    }
+//                });
+//                return;
+//            }
+//            catch(Exception ex){
+//                log.error("FAVICON Error: ", ex);
+//            }
+//        }
 
 		/*else if(targetUriPath.startsWith(SERVER_PATH_TO_SLSE_UI)) {
 			String f = LOCAL_PATH_TO_SLSE_UI + targetUriPath.substring(SERVER_PATH_TO_SLSE_UI.length());
@@ -321,7 +333,7 @@ public class EntityManager extends SimpleChannelHandler {
 	/**
 	 * Return URIs for all known services.
 	 */
-	private Iterable<URI> getServices(){
+	public Iterable<URI> getServices(){
 		return entities.keySet();
 	}
 	
