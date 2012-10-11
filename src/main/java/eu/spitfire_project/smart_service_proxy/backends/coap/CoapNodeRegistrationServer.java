@@ -105,7 +105,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
     @Override
     public CoapResponse receiveCoapRequest(CoapRequest coapRequest, InetSocketAddress remoteSocketAddress) {
 
-        log.debug("[CoapNodeRegistrationServer] Received request from " +
+        log.debug("Received request from " +
                 remoteSocketAddress.getAddress().getHostAddress() + ":" + remoteSocketAddress.getPort()
                 + " for resource " + coapRequest.getTargetUri());
 
@@ -116,7 +116,12 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 if(coapRequest.getMessageType() == MsgType.CON){
                     coapResponse =  new CoapResponse(MsgType.ACK, Code.CONTENT_205);
                 }
-                log.debug("[CoapNodeRegistrationServer] Schedule sending of request for .well-known/core");
+
+                if(coapRequest.getPayload().readableBytes() > 0){
+                    log.debug("Request payload: " + coapRequest.getPayload().toString(Charset.forName("UTF-8")));
+                }
+
+                log.debug("Schedule sending of request for .well-known/core");
                 executorService.schedule(new NodeRegistration(remoteSocketAddress.getAddress()), 0, TimeUnit.SECONDS);
 
                 //----------- implementation of fuzzy annotation ----------------------
