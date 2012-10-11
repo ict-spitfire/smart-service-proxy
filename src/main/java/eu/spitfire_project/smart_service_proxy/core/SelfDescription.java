@@ -87,7 +87,7 @@ public class SelfDescription {
                 throw e;
             }
 
-            int mediaTypeNumber = (int) contentTypeOption.getDecodedValue();
+            Long mediaTypeNumber = contentTypeOption.getDecodedValue();
             OptionRegistry.MediaType mediaType =
                     OptionRegistry.MediaType.getByNumber(mediaTypeNumber);
 

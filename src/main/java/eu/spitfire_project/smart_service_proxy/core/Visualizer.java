@@ -19,6 +19,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created with IntelliJ IDEA.
@@ -27,9 +30,93 @@ import java.util.*;
  * Time: 11:22
  * To change this template use File | Settings | File Templates.
  */
-public class Visualizer extends SimpleChannelUpstreamHandler implements Runnable {
+public class Visualizer extends SimpleChannelUpstreamHandler{
     private Logger log = Logger.getLogger(Visualizer.class.getName());
     private static final Visualizer instance = new Visualizer();
+
+    private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
+
+    private class AutoAnnotation extends CoapClientApplication implements Runnable{
+        @Override
+        public void run() {
+            try {
+                log.debug("RUNNING!");
+                //Crawl sensor readings
+                for (int i=0; i<sensors.len(); i++)
+                    ((SensorData)sensors.get(i)).crawl();
+
+                //Check if annotation timer of sensors expire then trigger annotation process
+                for (int i=0; i<sensors.len(); i++) {
+                    SensorData sd = (SensorData)sensors.get(i);
+                    if ("none".equalsIgnoreCase(sd.FOI)) {
+                        long thre = System.currentTimeMillis() - sd.annoTimer;
+                        //Trigger annotation here
+                        if (thre > annoTimeThreshold) {
+                            //Calculate fuzzy set of other sensors
+                            for (int j = 0; j<sensors.len(); j++) {
+                                SensorData de = (SensorData)sensors.get(j);
+                                if (!"none".equalsIgnoreCase(de.FOI)) {
+                                    System.out.print("Computing fuzzy set for sensor " + de.ipv6Addr + "... ");
+                                    de.computeFuzzySet();
+                                    log.debug(" Done!");
+                                }
+                            }
+
+                            //Search for annotation
+                            log.debug("Search for annotation... ");
+                            double maxsc = 0;
+                            for (int j = 0; j < sensors.len(); j++) {
+                                SensorData de = (SensorData)sensors.get(j);
+                                if (!"none".equalsIgnoreCase(de.FOI)) {
+                                    double sc = calculateScore(sd.getValues(), de.getFZ(), de.getDFZ());
+                                    if (maxsc < sc) {
+                                        maxsc = sc;
+                                        sd.FOI = de.FOI;
+                                    }
+                                    log.debug("Similarity to " + de.ipv6Addr + " in " + de.FOI + " is "
+                                            + String.format(Locale.GERMANY, "%.10f", sc));
+                                }
+                            }
+                            log.debug("Resulting annotation is " + sd.FOI);
+
+                            //Send POST to sensor
+                            CoapRequest annotation = makeCOAPRequest(sd.ipv6Addr, sd.FOI);
+                            log.debug("Sending POST request to sensor!");
+                            writeCoapRequest(annotation);
+                        }
+                    }
+                }
+
+                //Thread.sleep(sampleRate); //every 0.5 second
+                //synchronized (this) { while (pause) wait(); }
+//            } catch (InterruptedException e){} catch (MessageDoesNotAllowPayloadException e) {
+//                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } catch (InvalidOptionException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } catch (InvalidMessageException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } catch (ToManyOptionsException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } catch (URISyntaxException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } catch (MessageDoesNotAllowPayloadException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            }
+        }
+
+        private CoapRequest makeCOAPRequest(String remoteIP, String resultAnnotation) throws URISyntaxException, ToManyOptionsException, InvalidOptionException, InvalidMessageException, MessageDoesNotAllowPayloadException {
+            URI AnnotationServiceURI = new URI("coap://" + remoteIP + ":5683/rdf");
+            CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.POST, AnnotationServiceURI);
+            coapRequest.setContentType(OptionRegistry.MediaType.APP_N3);
+            String payloadStr = "\0<coap://"+remoteIP+"/rdf>\0" +
+                    "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>\0" +
+                    "<http://spitfire-project.eu/foi/"+resultAnnotation+">\0";
+            byte[] payload = payloadStr.getBytes(Charset.forName("UTF-8"));
+            coapRequest.setPayload(payload);
+
+            return coapRequest;
+        }
+    }
 
     private class SensorData {
         public String ipv6Addr = null;
@@ -236,6 +323,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler implements Runnable
     private boolean stop = false;
 
     private Visualizer(){
+        executorService.scheduleAtFixedRate(new AutoAnnotation(), 2000, 500, TimeUnit.MILLISECONDS);
     }
 
     public static Visualizer getInstance(){
@@ -291,10 +379,10 @@ public class Visualizer extends SimpleChannelUpstreamHandler implements Runnable
         future.addListener(ChannelFutureListener.CLOSE);
     }
 
-    public void startService() {
-        pause = false;
-        new Thread(this).start();
-    }
+//    public void startService() {
+//        pause = false;
+//        new Thread(this).start();
+//    }
 
     public void stopService() {
         stop = true;
@@ -306,95 +394,6 @@ public class Visualizer extends SimpleChannelUpstreamHandler implements Runnable
 
     public synchronized void resumeService() {
         pause = false; notify();
-    }
-
-    @Override
-    public void run() {
-        Random random = new Random();
-        long tmpTime = System.currentTimeMillis();
-        while (!stop) {
-            try {
-                //Testing purpose
-                if (System.currentTimeMillis() - tmpTime > 1000*5) {
-                    String ip = String.valueOf(random.nextInt(1000));
-                    String FOI = "abc";
-                    updateDB(ip, FOI);
-                    tmpTime = System.currentTimeMillis();
-                }
-
-                //Crawl sensor readings
-                for (int i=0; i<sensors.len(); i++)
-                    ((SensorData)sensors.get(i)).crawl();
-
-                //Check if annotation timer of sensors expire then trigger annotation process
-                for (int i=0; i<sensors.len(); i++) {
-                    SensorData sd = (SensorData)sensors.get(i);
-                    if ("none".equalsIgnoreCase(sd.FOI)) {
-                        long thre = System.currentTimeMillis() - sd.annoTimer;
-                        //Trigger annotation here
-                        if (thre > annoTimeThreshold) {
-                            //Calculate fuzzy set of other sensors
-                            for (int j = 0; j<sensors.len(); j++) {
-                                SensorData de = (SensorData)sensors.get(j);
-                                if (!"none".equalsIgnoreCase(de.FOI)) {
-                                    System.out.print("Computing fuzzy set for sensor " + de.ipv6Addr + "... ");
-                                    de.computeFuzzySet();
-                                    log.debug(" Done!");
-                                }
-                            }
-
-                            //Search for annotation
-                            log.debug("Search for annotation... ");
-                            double maxsc = 0;
-                            for (int j = 0; j < sensors.len(); j++) {
-                                SensorData de = (SensorData)sensors.get(j);
-                                if (!"none".equalsIgnoreCase(de.FOI)) {
-                                    double sc = calculateScore(sd.getValues(), de.getFZ(), de.getDFZ());
-                                    if (maxsc < sc) {
-                                        maxsc = sc;
-                                        sd.FOI = de.FOI;
-                                    }
-                                    log.debug("Similarity to " + de.ipv6Addr + " in " + de.FOI + " is "
-                                            + String.format(Locale.GERMANY, "%.10f", sc));
-                                }
-                            }
-                            log.debug("Resulting annotation is " + sd.FOI);
-
-                            //Send POST to sensor
-                            CoapRequest annotation = makeCOAPRequest(sd.ipv6Addr, sd.FOI);
-                            log.debug("Sending POST request to sensor!");
-                            //writeCoapRequest(annotation);
-                        }
-                    }
-                }
-                log.debug(" i am running!");
-                Thread.sleep(sampleRate); //every 0.5 second
-                synchronized (this) { while (pause) wait(); }
-            } catch (InterruptedException e){} catch (MessageDoesNotAllowPayloadException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            } catch (InvalidOptionException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            } catch (InvalidMessageException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            } catch (ToManyOptionsException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            } catch (URISyntaxException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            }
-        }
-    }
-
-    private CoapRequest makeCOAPRequest(String remoteIP, String resultAnnotation) throws URISyntaxException, ToManyOptionsException, InvalidOptionException, InvalidMessageException, MessageDoesNotAllowPayloadException {
-        URI AnnotationServiceURI = new URI("coap://" + remoteIP + ":5683/rdf");
-        CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.POST, AnnotationServiceURI);
-        coapRequest.setContentType(OptionRegistry.MediaType.APP_N3);
-        String payloadStr = "\0<coap://"+remoteIP+"/rdf>\0" +
-                "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>\0" +
-                "<http://spitfire-project.eu/foi/"+resultAnnotation+">\0";
-        byte[] payload = payloadStr.getBytes(Charset.forName("UTF-8"));
-        coapRequest.setPayload(payload);
-
-        return coapRequest;
     }
 
     private class FuzzyRule {
