@@ -36,11 +36,23 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
 
     private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
 
-    private class AutoAnnotation extends CoapClientApplication implements Runnable{
+    private class AutoAnnotation extends CoapClientApplication implements Runnable {
+        private long timeCounter = System.currentTimeMillis();
+        private int nnode = 0;
+
         @Override
         public void run() {
             try {
-                log.debug("RUNNING!");
+                if (System.currentTimeMillis()-timeCounter > 10*1000 && nnode < 5) {
+                    String ipv6 = String.valueOf(nnode+1);
+                    String FOI = "foi";
+                    if (nnode==4) FOI = "none";
+                    updateDB(ipv6, FOI);
+                    timeCounter = System.currentTimeMillis();
+                    log.debug("New node added: ("+ipv6+", "+FOI+")");
+                    nnode++;
+                }
+
                 //Crawl sensor readings
                 for (int i=0; i<sensors.len(); i++)
                     ((SensorData)sensors.get(i)).crawl();
@@ -48,15 +60,17 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                 //Check if annotation timer of sensors expire then trigger annotation process
                 for (int i=0; i<sensors.len(); i++) {
                     SensorData sd = (SensorData)sensors.get(i);
-                    if ("none".equalsIgnoreCase(sd.FOI)) {
+                    if ("Unknown Location".equalsIgnoreCase(sd.FOI)) {
+                        log.debug("--------------------------------------- LEVEL 1 ------------------------------------------");
                         long thre = System.currentTimeMillis() - sd.annoTimer;
                         //Trigger annotation here
                         if (thre > annoTimeThreshold) {
+                            log.debug("--------------------------------------- LEVEL 2 ------------------------------------------");
                             //Calculate fuzzy set of other sensors
                             for (int j = 0; j<sensors.len(); j++) {
                                 SensorData de = (SensorData)sensors.get(j);
-                                if (!"none".equalsIgnoreCase(de.FOI)) {
-                                    System.out.print("Computing fuzzy set for sensor " + de.ipv6Addr + "... ");
+                                if (!"Unknown Location".equalsIgnoreCase(de.FOI)) {
+                                    log.debug("Computing fuzzy set for sensor ("+de.ipv6Addr+", "+de.FOI+") ... ");
                                     de.computeFuzzySet();
                                     log.debug(" Done!");
                                 }
@@ -65,32 +79,29 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                             //Search for annotation
                             log.debug("Search for annotation... ");
                             double maxsc = 0;
+                            String anno = "";
                             for (int j = 0; j < sensors.len(); j++) {
                                 SensorData de = (SensorData)sensors.get(j);
-                                if (!"none".equalsIgnoreCase(de.FOI)) {
+                                if (!"Unknown Location".equalsIgnoreCase(de.FOI)) {
                                     double sc = calculateScore(sd.getValues(), de.getFZ(), de.getDFZ());
                                     if (maxsc < sc) {
                                         maxsc = sc;
-                                        sd.FOI = de.FOI;
+                                        anno = de.FOI;
                                     }
                                     log.debug("Similarity to " + de.ipv6Addr + " in " + de.FOI + " is "
                                             + String.format(Locale.GERMANY, "%.10f", sc));
                                 }
                             }
-                            log.debug("Resulting annotation is " + sd.FOI);
+                            sd.FOI = anno;
+                            log.debug("Resulting annotation is " + anno);
 
                             //Send POST to sensor
                             CoapRequest annotation = makeCOAPRequest(sd.ipv6Addr, sd.FOI);
                             log.debug("Sending POST request to sensor!");
-                            writeCoapRequest(annotation);
+                            //writeCoapRequest(annotation);
                         }
                     }
                 }
-
-                //Thread.sleep(sampleRate); //every 0.5 second
-                //synchronized (this) { while (pause) wait(); }
-//            } catch (InterruptedException e){} catch (MessageDoesNotAllowPayloadException e) {
-//                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
             } catch (InvalidOptionException e) {
                 e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
             } catch (InvalidMessageException e) {
@@ -104,11 +115,11 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
             }
         }
 
-        private CoapRequest makeCOAPRequest(String remoteIP, String resultAnnotation) throws URISyntaxException, ToManyOptionsException, InvalidOptionException, InvalidMessageException, MessageDoesNotAllowPayloadException {
-            URI AnnotationServiceURI = new URI("coap://" + remoteIP + ":5683/rdf");
+        private CoapRequest makeCOAPRequest(String ipv6Addr, String resultAnnotation) throws URISyntaxException, ToManyOptionsException, InvalidOptionException, InvalidMessageException, MessageDoesNotAllowPayloadException {
+            URI AnnotationServiceURI = new URI("coap://" + ipv6Addr + ":5683/rdf");
             CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.POST, AnnotationServiceURI);
             coapRequest.setContentType(OptionRegistry.MediaType.APP_N3);
-            String payloadStr = "\0<coap://"+remoteIP+"/rdf>\0" +
+            String payloadStr = "\0<coap://"+ipv6Addr+"/rdf>\0" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>\0" +
                     "<http://spitfire-project.eu/foi/"+resultAnnotation+">\0";
             byte[] payload = payloadStr.getBytes(Charset.forName("UTF-8"));
@@ -134,7 +145,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
             this.nSamples = nSamples;
             this.sampleRate = sampleRate;
 
-            if ("none".equalsIgnoreCase(FOI))
+            if ("Unknown Location".equalsIgnoreCase(FOI))
                 annoTimer = System.currentTimeMillis();
         }
 
@@ -185,15 +196,20 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         }
 
         private FuzzyRule extractRuleD(List<Double> dataList) {
-            ArrayList<Double> deriList = new ArrayList<Double>();
-            Double[] raw = dataList.toArray(new Double[dataList.size()]);
-            for (int i=0; i<raw.length-1; i++) {
-                Double tmp = Double.valueOf(raw[i+1]-raw[i]);
-                deriList.add(tmp);
-            }
-            deriList.add(deriList.get(deriList.size()-1));
+            FuzzyRule ruleD = null;
 
-            return extractRule(deriList);
+            if (dataList.size() > 2) {
+                ArrayList<Double> deriList = new ArrayList<Double>();
+                Double[] raw = dataList.toArray(new Double[dataList.size()]);
+                for (int i=0; i<raw.length-1; i++) {
+                    Double tmp = Double.valueOf(raw[i+1]-raw[i]);
+                    deriList.add(tmp);
+                }
+                deriList.add(deriList.get(deriList.size()-1));
+                ruleD = extractRule(deriList);
+            }
+
+            return ruleD;
         }
 
         private FuzzyRule extractRule(List<Double> dataList) {
@@ -204,118 +220,120 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
             double rawMin = Collections.min(dataList);
             double rawRange = rawMax - rawMin;
 
+            FuzzyRule rule = null;
+
             // Special case: all values are the same
-            if (rawRange <= Double.MIN_VALUE) {
+            /*if (rawRange <= Double.MIN_VALUE) {
                 log.debug("All values in snapshot are identical");
                 double epsilon = 0.05;
-                FuzzyRule rule = new FuzzyRule();
                 rule.setrMax(rawMax + epsilon);
                 rule.setrMin(rawMin - epsilon);
                 rule.add(raw[0] - epsilon, 1);
                 rule.add(raw[0] + epsilon, 1);
-                return rule;
-            }
+            } else {*/
+            if (rawRange > Double.MIN_VALUE) {
+                rule = new FuzzyRule();
+                double ra = 0.5*rawRange;
+                double alpha = 4/ra/ra;
+                double ndc[] = new double[raw.length];
 
-            double ra = 0.5*rawRange;
-            double alpha = 4/ra/ra;
-            double ndc[] = new double[raw.length];
-
-            //Calculate neighborhood density curve of data
-            for (int i=0; i<raw.length; i++) {
-                ndc[i] = 0;
-                //double xi = 2*normRaw[i]-normRaw[i-1];
-                double xi = raw[i];
-                for (int j=0; j<raw.length; j++) {
-                    //double xj = 2*normRaw[j]-normRaw[j-1];
-                    double xj = raw[j];
-                    double d = Math.abs(xi-xj);
-                    ndc[i] += Math.exp(-alpha*d*d);
-                }
-            }
-
-            // Max-Min normalize neighborhood density
-            double ndcMax = Double.MIN_VALUE;
-            double ndcMin = Double.MAX_VALUE;
-            for (int i=0; i<ndc.length; i++) {
-                if (ndcMax < ndc[i]) ndcMax = ndc[i];
-                if (ndcMin > ndc[i]) ndcMin = ndc[i];
-            }
-            double ndcRange = ndcMax - ndcMin;
-            for (int i=0; i<ndc.length; i++) {
-                ndc[i] = (ndc[i] - ndcMin) / ndcRange;
-            }
-
-            //Discretize the neighborhood density curve
-            int dSize = 100;
-            double delta = rawRange / dSize;
-
-            double dndcX[] = new double[dSize];
-            double dndcXN[] = new double[dSize];
-            double dndcY[] = new double[dSize];
-            int dndcC[] = new int[dSize];
-            for (int i=0; i<dSize; i++) {
-                dndcX[i] = rawMin + delta/2 + i*delta;
-                dndcXN[i] = (1/(double)dSize)/2 + (double)i/(double)dSize;
-                dndcY[i] = 0;
-                dndcC[i] = 0;
-            }
-            for (int i=0; i<ndc.length; i++) {
-                int dcount = (int)((raw[i] - rawMin) / delta);
-                if (dcount >= dSize) dcount = dSize-1;
-                dndcY[dcount] += ndc[i];
-                dndcC[dcount]++;
-            }
-            for (int i=0; i<dndcX.length; i++) {
-                if (dndcC[i] > 0) {
-                    dndcY[i] /= dndcC[i];
-                }
-            }
-
-            /*------ Linearize the discrete neighborhood density curve ------ */
-            TList vx = new TList();
-            TList vy = new TList();
-            TList dy = new TList();
-
-            //Eliminate no-data points
-            int i1 = 0;
-            while (dndcC[i1] <= 0) i1++;
-            vx.enList(Double.valueOf(dndcX[i1]));
-            vy.enList(Double.valueOf(dndcY[i1]));
-            dy.enList(Double.valueOf(0));
-            for (int i2=i1+1; i2<dndcX.length; i2++) if (dndcC[i2] > 0) {
-                vx.enList(Double.valueOf(dndcX[i2]));
-                vy.enList(Double.valueOf(dndcY[i2]));
-                double d = (dndcY[i2] - dndcY[i1]) / (dndcXN[i2] - dndcXN[i1]);
-                dy.enList(Double.valueOf(d));
-                i1 = i2;
-            }
-
-            //Linearize the has-data points
-            FuzzyRule rule = new FuzzyRule();
-            rule.setrMax(rawMax);
-            rule.setrMin(rawMin);
-            rule.add((Double)vx.get(0), (Double)vy.get(0));
-            if (dy.len() > 1) {
-                double thSlope = 1; // PI/4
-                double slope1 = ((Double)dy.get(1)).doubleValue();
-                for (int i=2; i<dy.len(); i++) {
-                    double slope2 = ((Double)dy.get(i)).doubleValue();
-                    double dSlope = Math.abs(slope2-slope1);
-                    if (dSlope >= thSlope) {
-                        rule.add((Double)vx.get(i-1), (Double)vy.get(i-1));
-                        slope1 = slope2;
+                //Calculate neighborhood density curve of data
+                for (int i=0; i<raw.length; i++) {
+                    ndc[i] = 0;
+                    //double xi = 2*normRaw[i]-normRaw[i-1];
+                    double xi = raw[i];
+                    for (int j=0; j<raw.length; j++) {
+                        //double xj = 2*normRaw[j]-normRaw[j-1];
+                        double xj = raw[j];
+                        double d = Math.abs(xi-xj);
+                        ndc[i] += Math.exp(-alpha*d*d);
                     }
                 }
-                rule.add((Double)vx.get(vx.len()-1), (Double)vy.get(vy.len()-1));
+
+                // Max-Min normalize neighborhood density
+                double ndcMax = Double.MIN_VALUE;
+                double ndcMin = Double.MAX_VALUE;
+                for (int i=0; i<ndc.length; i++) {
+                    if (ndcMax < ndc[i]) ndcMax = ndc[i];
+                    if (ndcMin > ndc[i]) ndcMin = ndc[i];
+                }
+                double ndcRange = ndcMax - ndcMin;
+                for (int i=0; i<ndc.length; i++) {
+                    ndc[i] = (ndc[i] - ndcMin) / ndcRange;
+                }
+
+                //Discretize the neighborhood density curve
+                int dSize = 100;
+                double delta = rawRange / dSize;
+
+                double dndcX[] = new double[dSize];
+                double dndcXN[] = new double[dSize];
+                double dndcY[] = new double[dSize];
+                int dndcC[] = new int[dSize];
+                for (int i=0; i<dSize; i++) {
+                    dndcX[i] = rawMin + delta/2 + i*delta;
+                    dndcXN[i] = (1/(double)dSize)/2 + (double)i/(double)dSize;
+                    dndcY[i] = 0;
+                    dndcC[i] = 0;
+                }
+                for (int i=0; i<ndc.length; i++) {
+                    int dcount = (int)((raw[i] - rawMin) / delta);
+                    if (dcount >= dSize) dcount = dSize-1;
+                    dndcY[dcount] += ndc[i];
+                    dndcC[dcount]++;
+                }
+                for (int i=0; i<dndcX.length; i++) {
+                    if (dndcC[i] > 0) {
+                        dndcY[i] /= dndcC[i];
+                    }
+                }
+
+                /*------ Linearize the discrete neighborhood density curve ------ */
+                TList vx = new TList();
+                TList vy = new TList();
+                TList dy = new TList();
+
+                //Eliminate no-data points
+                int i1 = 0;
+                while (dndcC[i1] <= 0) i1++;
+                vx.enList(Double.valueOf(dndcX[i1]));
+                vy.enList(Double.valueOf(dndcY[i1]));
+                dy.enList(Double.valueOf(0));
+                for (int i2=i1+1; i2<dndcX.length; i2++) if (dndcC[i2] > 0) {
+                    vx.enList(Double.valueOf(dndcX[i2]));
+                    vy.enList(Double.valueOf(dndcY[i2]));
+                    double d = (dndcY[i2] - dndcY[i1]) / (dndcXN[i2] - dndcXN[i1]);
+                    dy.enList(Double.valueOf(d));
+                    i1 = i2;
+                }
+
+                //Linearize the has-data points
+                rule.setrMax(rawMax);
+                rule.setrMin(rawMin);
+                rule.add((Double)vx.get(0), (Double)vy.get(0));
+                if (dy.len() > 1) {
+                    double thSlope = 1; // PI/4
+                    double slope1 = ((Double)dy.get(1)).doubleValue();
+                    for (int i=2; i<dy.len(); i++) {
+                        double slope2 = ((Double)dy.get(i)).doubleValue();
+                        double dSlope = Math.abs(slope2-slope1);
+                        if (dSlope >= thSlope) {
+                            rule.add((Double)vx.get(i-1), (Double)vy.get(i-1));
+                            slope1 = slope2;
+                        }
+                    }
+                    rule.add((Double)vx.get(vx.len()-1), (Double)vy.get(vy.len()-1));
+                }
             }
 
+            log.debug("Returning a rule");
             return rule;
         }
     }
 
     private int nSamples = 288;
-    private int sampleRate = 500;
-    private long annoTimeThreshold = nSamples*sampleRate; //24 simulated hours
+    private int sampleRate = 1000;
+    private long annoTimeThreshold = 5000;//nSamples*sampleRate; //24 simulated hours
     private TList sensors = new TList();
 
     private long startTime, simTime;
@@ -323,7 +341,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
     private boolean stop = false;
 
     private Visualizer(){
-        executorService.scheduleAtFixedRate(new AutoAnnotation(), 2000, 500, TimeUnit.MILLISECONDS);
+        executorService.scheduleAtFixedRate(new AutoAnnotation(), 2000, sampleRate, TimeUnit.MILLISECONDS);
     }
 
     public static Visualizer getInstance(){
@@ -345,10 +363,13 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
 
     public void updateDB(String ipv6Addr, String newFOI) {
         SensorData sd = searchSensor(ipv6Addr);
+        String foi = newFOI;
+        if ("none".equalsIgnoreCase(newFOI))
+            foi = "Unknown Location";
         if (sd != null)
-            sd.FOI = newFOI;
+            sd.FOI = foi;
         else
-            sensors.enList(new SensorData(ipv6Addr, newFOI, nSamples, sampleRate));
+            sensors.enList(new SensorData(ipv6Addr, foi, nSamples, sampleRate));
     }
 
     @Override
@@ -489,90 +510,93 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
     }
 
     private double calculateScore(List<Double> dataList, FuzzyRule rule, FuzzyRule ruleD) {
-        if (rule.size() < 2) {
-            throw new RuntimeException("Rule size too small");
-        }
-        if (ruleD.size() < 2) {
-            throw new RuntimeException("Rule derivative size too small");
-        }
-
-        double rawMax = Collections.max(dataList);
-        double rawMin = Collections.min(dataList);
-
-        ArrayList<Double> xList = rule.getxList();
-        ArrayList<Double> yList = rule.getyList();
-        ArrayList<Double> xListD = ruleD.getxList();
-        ArrayList<Double> yListD = ruleD.getyList();
-        double ruleRMax = rule.getrMax();
-        double ruleRMin = rule.getrMin();
-
-        double us = dataList.size()-1;
-        double drange = Math.abs(rawMin-ruleRMin) + Math.abs(rawMax-ruleRMax);
-
         double sc = 0;
-        for (int i = 0; i < dataList.size()-1; i++) {
-            double dataValue = dataList.get(i);
-            double tmp = dataList.get(i+1);
-            double deriValue = tmp - dataValue;
-            double scv = 0;
-            double scd = 0;
-
-            //Calculate score for value fuzzy set
-            int p1 = Collections.binarySearch(xList, dataValue);
-            int p2 = 0;
-            if (p1 >= 0 ) {
-                // found
-                scv = yList.get(p1);
-            } else {
-                // not found
-                p1 = -p1 - 1;
-                if (p1 == 0) {
-                    // smaller than min
-                } else if (p1 == rule.size()) {
-                    // bigger than max
-//					p1 = p1 - 2;
-                } else {
-                    // data value between rule range
-                    p1--;
-                    p2 = p1 + 1;
-                    double x1 = xList.get(p1);
-                    double x2 = xList.get(p2);
-                    double y1 = yList.get(p1);
-                    double y2 = yList.get(p2);
-                    scv = (x1*y2-y1*x2)/(x1-x2) + (y2-y1)/(x2-x1)*dataValue;
-                }
+        if (rule != null && ruleD != null) {
+            if (rule.size() < 2) {
+                throw new RuntimeException("Rule size too small");
+            }
+            if (ruleD.size() < 2) {
+                throw new RuntimeException("Rule derivative size too small");
             }
 
-            //Calculate score for derivative fuzzy set
-            p1 = Collections.binarySearch(xListD, deriValue);
-            p2 = 0;
-            if (p1 >= 0 ) {
-                // found
-                scd = yListD.get(p1);
-            } else {
-                // not found
-                p1 = -p1 - 1;
-                if (p1 == 0) {
-                    // smaller than min
-                } else if (p1 == ruleD.size()) {
-                    // bigger than max
-//					p1 = p1 - 2;
-                } else {
-                    // data value between rule range
-                    p1--;
-                    p2 = p1 + 1;
-                    double x1 = xListD.get(p1);
-                    double x2 = xListD.get(p2);
-                    double y1 = yListD.get(p1);
-                    double y2 = yListD.get(p2);
-                    scd = (x1*y2-y1*x2)/(x1-x2) + (y2-y1)/(x2-x1)*deriValue;
-                }
-            }
+            double rawMax = Collections.max(dataList);
+            double rawMin = Collections.min(dataList);
 
-            //Fuzzy rule's "and"-operator
-            sc += scv*scd;
+            ArrayList<Double> xList = rule.getxList();
+            ArrayList<Double> yList = rule.getyList();
+            ArrayList<Double> xListD = ruleD.getxList();
+            ArrayList<Double> yListD = ruleD.getyList();
+            double ruleRMax = rule.getrMax();
+            double ruleRMin = rule.getrMin();
+
+            double us = dataList.size()-1;
+            double drange = Math.abs(rawMin-ruleRMin) + Math.abs(rawMax-ruleRMax);
+
+            for (int i = 0; i < dataList.size()-1; i++) {
+                double dataValue = dataList.get(i);
+                double tmp = dataList.get(i+1);
+                double deriValue = tmp - dataValue;
+                double scv = 0;
+                double scd = 0;
+
+                //Calculate score for value fuzzy set
+                int p1 = Collections.binarySearch(xList, dataValue);
+                int p2 = 0;
+                if (p1 >= 0 ) {
+                    // found
+                    scv = yList.get(p1);
+                } else {
+                    // not found
+                    p1 = -p1 - 1;
+                    if (p1 == 0) {
+                        // smaller than min
+                    } else if (p1 == rule.size()) {
+                        // bigger than max
+    //					p1 = p1 - 2;
+                    } else {
+                        // data value between rule range
+                        p1--;
+                        p2 = p1 + 1;
+                        double x1 = xList.get(p1);
+                        double x2 = xList.get(p2);
+                        double y1 = yList.get(p1);
+                        double y2 = yList.get(p2);
+                        scv = (x1*y2-y1*x2)/(x1-x2) + (y2-y1)/(x2-x1)*dataValue;
+                    }
+                }
+
+                //Calculate score for derivative fuzzy set
+                p1 = Collections.binarySearch(xListD, deriValue);
+                p2 = 0;
+                if (p1 >= 0 ) {
+                    // found
+                    scd = yListD.get(p1);
+                } else {
+                    // not found
+                    p1 = -p1 - 1;
+                    if (p1 == 0) {
+                        // smaller than min
+                    } else if (p1 == ruleD.size()) {
+                        // bigger than max
+    //					p1 = p1 - 2;
+                    } else {
+                        // data value between rule range
+                        p1--;
+                        p2 = p1 + 1;
+                        double x1 = xListD.get(p1);
+                        double x2 = xListD.get(p2);
+                        double y1 = yListD.get(p1);
+                        double y2 = yListD.get(p2);
+                        scd = (x1*y2-y1*x2)/(x1-x2) + (y2-y1)/(x2-x1)*deriValue;
+                    }
+                }
+
+                //Fuzzy rule's "and"-operator
+                sc += scv*scd;
+            }
+            sc /= drange*us*us;
         }
-        sc /= drange*us*us;
+
         return sc;
     }
 }
