@@ -41,6 +41,7 @@ import eu.spitfire_project.smart_service_proxy.backends.wiselib_test.WiselibTest
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.HttpEntityManagerPipelineFactory;
 import eu.spitfire_project.smart_service_proxy.core.ShdtSerializer;
+import eu.spitfire_project.smart_service_proxy.core.Visualizer;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.ConsoleAppender;
@@ -150,6 +151,8 @@ public class Main {
 
         //Create enabled backends
         createBackends(config);
+
+        Visualizer.getInstance();
     }
     
     private static void startConnectionMapper(Configuration config) throws Exception{
