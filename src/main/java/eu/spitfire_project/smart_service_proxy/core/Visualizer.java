@@ -36,9 +36,33 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
 
     private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
 
+    private int numberOfImagesPerDay = 96;
+    private int realTimeTick = 15; //15 minutes
+    private int updateRate = 1000; //1 second
+    private long annoTimeThreshold = 5000;//numberOfImagesPerDay*realTimeTick;
+    private int currentTemperature, maxTemp = 40;
+    private TList sensors = new TList();
+
+    private long startTime, simTime;
+    private int imgIndex;
+
+    private Visualizer(){
+        executorService.scheduleAtFixedRate(new AutoAnnotation(), 2000, updateRate, TimeUnit.MILLISECONDS);
+    }
+
+    public static Visualizer getInstance(){
+        return instance;
+    }
+
     private class AutoAnnotation extends CoapClientApplication implements Runnable {
         private long timeCounter = System.currentTimeMillis();
         private int nnode = 0;
+
+        public AutoAnnotation() {
+            simTime = 0;
+            imgIndex = 0;
+            currentTemperature = 20;
+        }
 
         @Override
         public void run() {
@@ -102,6 +126,16 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                         }
                     }
                 }
+
+                //Update current temperature from triple store here
+
+                //Increase simulation time
+                simTime += realTimeTick;
+
+                //Update the index of rendered image
+                imgIndex++;
+                if (imgIndex >= numberOfImagesPerDay)
+                    imgIndex = 0;
             } catch (InvalidOptionException e) {
                 e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
             } catch (InvalidMessageException e) {
@@ -331,23 +365,6 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         }
     }
 
-    private int nSamples = 288;
-    private int sampleRate = 1000;
-    private long annoTimeThreshold = 5000;//nSamples*sampleRate; //24 simulated hours
-    private TList sensors = new TList();
-
-    private long startTime, simTime;
-    private boolean pause = true;
-    private boolean stop = false;
-
-    private Visualizer(){
-        executorService.scheduleAtFixedRate(new AutoAnnotation(), 2000, sampleRate, TimeUnit.MILLISECONDS);
-    }
-
-    public static Visualizer getInstance(){
-        return instance;
-    }
-
     private SensorData searchSensor(String ipv6Addr) {
         SensorData rs = null;
         int ind = 0;
@@ -369,12 +386,11 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         if (sd != null)
             sd.FOI = foi;
         else
-            sensors.enList(new SensorData(ipv6Addr, foi, nSamples, sampleRate));
+            sensors.enList(new SensorData(ipv6Addr, foi, numberOfImagesPerDay, realTimeTick));
     }
 
     @Override
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent me){
-        log.debug("Message received!");
         if(!(me.getMessage() instanceof HttpRequest)){
             ctx.sendUpstream(me);
             return;
@@ -385,7 +401,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
 
         //Send a Response
         HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        String payload = "";
+        String payload = String.valueOf(simTime)+"|"+String.valueOf(imgIndex)+"|"+String.valueOf(currentTemperature)+"\n";
         for (int i=0; i<sensors.len(); i++) {
             SensorData sd = (SensorData)sensors.get(i);
             String timeStamp = String.valueOf(sd.getLatestTS());
@@ -395,26 +411,10 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         }
         if (payload != "")
             payload = payload.substring(0, payload.length()-1);
+        //log.debug(payload);
         response.setContent(ChannelBuffers.copiedBuffer(payload.getBytes(Charset.forName("UTF-8"))));
         ChannelFuture future = Channels.write(ctx.getChannel(), response);
         future.addListener(ChannelFutureListener.CLOSE);
-    }
-
-//    public void startService() {
-//        pause = false;
-//        new Thread(this).start();
-//    }
-
-    public void stopService() {
-        stop = true;
-    }
-
-    public synchronized void pauseService() {
-        pause = true;
-    }
-
-    public synchronized void resumeService() {
-        pause = false; notify();
     }
 
     private class FuzzyRule {
