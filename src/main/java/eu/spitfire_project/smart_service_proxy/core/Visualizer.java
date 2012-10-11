@@ -310,8 +310,18 @@ public class Visualizer extends SimpleChannelUpstreamHandler implements Runnable
 
     @Override
     public void run() {
+        Random random = new Random();
+        long tmpTime = System.currentTimeMillis();
         while (!stop) {
             try {
+                //Testing purpose
+                if (System.currentTimeMillis() - tmpTime > 1000*5) {
+                    String ip = String.valueOf(random.nextInt(1000));
+                    String FOI = "abc";
+                    updateDB(ip, FOI);
+                    tmpTime = System.currentTimeMillis();
+                }
+
                 //Crawl sensor readings
                 for (int i=0; i<sensors.len(); i++)
                     ((SensorData)sensors.get(i)).crawl();
@@ -353,11 +363,11 @@ public class Visualizer extends SimpleChannelUpstreamHandler implements Runnable
                             //Send POST to sensor
                             CoapRequest annotation = makeCOAPRequest(sd.ipv6Addr, sd.FOI);
                             log.debug("Sending POST request to sensor!");
-                            writeCoapRequest(annotation);
+                            //writeCoapRequest(annotation);
                         }
                     }
                 }
-
+                log.debug(" i am running!");
                 Thread.sleep(sampleRate); //every 0.5 second
                 synchronized (this) { while (pause) wait(); }
             } catch (InterruptedException e){} catch (MessageDoesNotAllowPayloadException e) {
