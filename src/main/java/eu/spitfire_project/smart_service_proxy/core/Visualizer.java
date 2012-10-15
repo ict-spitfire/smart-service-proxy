@@ -1,5 +1,6 @@
 package eu.spitfire_project.smart_service_proxy.core;
 
+import de.uniluebeck.itm.spitfire.nCoap.application.CoapClientApplication;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
 import de.uniluebeck.itm.spitfire.nCoap.message.InvalidMessageException;
 import de.uniluebeck.itm.spitfire.nCoap.message.MessageDoesNotAllowPayloadException;
@@ -8,7 +9,6 @@ import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
-import de.uniluebeck.itm.spitfire.nCoap.application.CoapClientApplication;
 import eu.spitfire_project.smart_service_proxy.utils.TList;
 import org.apache.log4j.Logger;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -41,7 +41,6 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         @Override
         public void run() {
             try {
-                log.debug("RUNNING!");
                 //Crawl sensor readings
                 for (int i=0; i<sensors.len(); i++)
                     ((SensorData)sensors.get(i)).crawl();
