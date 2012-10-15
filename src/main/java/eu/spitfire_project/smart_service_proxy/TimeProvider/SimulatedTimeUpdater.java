@@ -6,6 +6,10 @@ import org.openrdf.model.Resource;
 import org.openrdf.model.URI;
 import org.openrdf.model.Value;
 import org.openrdf.model.ValueFactory;
+import org.openrdf.query.BindingSet;
+import org.openrdf.query.QueryLanguage;
+import org.openrdf.query.TupleQuery;
+import org.openrdf.query.TupleQueryResult;
 import org.openrdf.repository.Repository;
 import org.openrdf.repository.RepositoryConnection;
 import org.openrdf.repository.RepositoryException;
@@ -61,8 +65,46 @@ public class SimulatedTimeUpdater implements Runnable
         {
             updateStatement(time);
         }
+        retrieveTemperature();
 
         SimulatedTimeParameters.elapseRound++;
+    }
+
+    private void retrieveTemperature()
+    {
+        String query = "SELECT ?temp WHERE { " +
+                "<" + SimulatedTimeParameters.subject + "> <" + SimulatedTimeParameters.predicate + "> ?time ." +
+                "?forecast	<http://spitfire-project.eu/ontology/ns/value> ?temp . " +
+                "?forecast <http://spitfire-project.eu/ontology/ns/sn/time_start> ?start . " +
+                "?forecast <http://spitfire-project.eu/ontology/ns/sn/time_end> ?end . " +
+                "FILTER (?start <= ?time && ?end >= ?time)" +
+                "}";
+
+        try
+        {
+            RepositoryConnection conn = repo.getConnection();
+            try
+            {
+                TupleQuery tupleQuery = conn.prepareTupleQuery(
+                        QueryLanguage.SPARQL, query);
+                TupleQueryResult tqr = tupleQuery.evaluate();
+                if(tqr.hasNext())
+                {
+                    BindingSet bs = tqr.next();
+                    SimulatedTimeParameters.actualTemperature = Double.parseDouble(bs.getValue("temp").stringValue());
+                    System.out.println("Current temp: " + String.valueOf(SimulatedTimeParameters.actualTemperature));
+                }
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+            } finally
+            {
+                conn.close();
+            }
+        } catch (OpenRDFException e)
+        {
+            e.printStackTrace();
+        }
     }
 
     private void insertStatement(String timeObj)
@@ -77,7 +119,6 @@ public class SimulatedTimeUpdater implements Runnable
             try
             {
                 conn.add(s, p, o, res);
-                //log.info("Added triple: " + s + " - " + p +  " - " + o);
                 conn.commit();
             } catch (Exception e)
             {

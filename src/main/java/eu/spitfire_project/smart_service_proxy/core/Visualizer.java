@@ -9,14 +9,19 @@ import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
 import de.uniluebeck.itm.spitfire.nCoap.application.CoapClientApplication;
+import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeParameters;
+import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeUpdater;
 import eu.spitfire_project.smart_service_proxy.utils.TList;
+import eu.spitfire_project.smart_service_proxy.utils.TString;
 import org.apache.log4j.Logger;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.*;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.Executors;
@@ -25,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Created with IntelliJ IDEA.
- * Written: Cuong Truong
+ * Written by: Cuong Truong
  * Date: 10.10.12
  * Time: 11:22
  * To change this template use File | Settings | File Templates.
@@ -67,15 +72,18 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         @Override
         public void run() {
             try {
-                if (System.currentTimeMillis()-timeCounter > 10*1000 && nnode < 5) {
+                /*if (System.currentTimeMillis()-timeCounter > 5*1000 && nnode < 5) {
                     String ipv6 = String.valueOf(nnode+1);
                     String FOI = "foi";
                     if (nnode==4) FOI = "none";
-                    updateDB(ipv6, FOI);
+                    else
+                        if (nnode==3 || nnode==2) FOI = "Kitchen";
+                        else FOI = "Living Room";
+                    updateDB(ipv6, "nothing", FOI);
                     timeCounter = System.currentTimeMillis();
                     log.debug("New node added: ("+ipv6+", "+FOI+")");
                     nnode++;
-                }
+                }*/
 
                 //Crawl sensor readings
                 for (int i=0; i<sensors.len(); i++)
@@ -166,6 +174,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
     private class SensorData {
         public String ipv6Addr = null;
         public String FOI = null;
+        public String httpRequest = null;
         private ArrayList<Long> timeStamps = new ArrayList<Long>(); //Time-stamp of a samples
         private ArrayList<Double> values = new ArrayList<Double>(); //Value of the samples
         public int nSamples, sampleRate;
@@ -173,8 +182,9 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         private Random random = new Random();
         private FuzzyRule fz, dfz;
 
-        public SensorData(String ipv6Addr, String FOI, int nSamples, int sampleRate) {
+        public SensorData(String ipv6Addr, String httpRequest, String FOI, int nSamples, int sampleRate) {
             this.ipv6Addr = ipv6Addr;
+            this.httpRequest = httpRequest;
             this.FOI = FOI;
             this.nSamples = nSamples;
             this.sampleRate = sampleRate;
@@ -194,8 +204,28 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
 
         public void crawl() {
             long time = System.currentTimeMillis();
-            double value = random.nextDouble();
-            updateReadings(time, value);
+            //double value = random.nextDouble();
+            URL crawRequest = null;
+            try {
+                crawRequest = new URL(httpRequest);
+                URLConnection connection = crawRequest.openConnection();
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String line = in.readLine();
+                while ((line = in.readLine()) != null) {
+                    if (line.indexOf("value")>0) {
+                        TString s1 = new TString(line, '>');
+                        TString s2 = new TString(s1.getStrAt(1),'<');
+                        log.debug("");
+                    }
+                 }
+                double value = 0;
+                updateReadings(time, value);
+            } catch (MalformedURLException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } catch (IOException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            }
+
         }
 
         public ArrayList<Double> getValues() {
@@ -378,7 +408,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         return rs;
     }
 
-    public void updateDB(String ipv6Addr, String newFOI) {
+    public void updateDB(String ipv6Addr, String httpRequest, String newFOI) {
         SensorData sd = searchSensor(ipv6Addr);
         String foi = newFOI;
         if ("none".equalsIgnoreCase(newFOI))
@@ -386,7 +416,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         if (sd != null)
             sd.FOI = foi;
         else
-            sensors.enList(new SensorData(ipv6Addr, foi, numberOfImagesPerDay, realTimeTick));
+            sensors.enList(new SensorData(ipv6Addr, httpRequest, foi, numberOfImagesPerDay, realTimeTick));
     }
 
     @Override
@@ -401,7 +431,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
 
         //Send a Response
         HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        String payload = String.valueOf(simTime)+"|"+String.valueOf(imgIndex)+"|"+String.valueOf(currentTemperature)+"\n";
+        String payload = String.valueOf(simTime)+"|"+String.valueOf(imgIndex)+"|"+String.valueOf(SimulatedTimeParameters.actualTemperature)+"\n";
         for (int i=0; i<sensors.len(); i++) {
             SensorData sd = (SensorData)sensors.get(i);
             String timeStamp = String.valueOf(sd.getLatestTS());
