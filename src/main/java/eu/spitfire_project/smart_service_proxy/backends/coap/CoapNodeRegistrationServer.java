@@ -134,12 +134,20 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 if(IPAddressUtil.isIPv6LiteralAddress(ipv6Addr)){
                     ipv6Addr = "[" + ipv6Addr + "]";
                 }
+                String httpRequest = null;
+                try {
+                    httpRequest = CoapBackend.createHttpURIs((Inet6Address) remoteSocketAddress.getAddress(), "/light/_minimal")[0].getHost();
+                } catch (URISyntaxException e) {
+                    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                }
+                httpRequest = "http://"+httpRequest+":8080/light/_minimal";
+                log.debug("http: "+httpRequest);
 
                 String FOI = "";
                 while (coapRequest.getPayload().readable())
                     FOI += (char)coapRequest.getPayload().readByte();
 
-                Visualizer.getInstance().updateDB(ipv6Addr, FOI);
+                Visualizer.getInstance().updateDB(ipv6Addr, httpRequest, FOI);
             }
             else{
                 coapResponse = new CoapResponse(Code.METHOD_NOT_ALLOWED_405);
@@ -211,6 +219,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
             try {
                 //Send request to the .well-known/core resource of the new sensornode
                 String remoteIP = remoteAddress.getHostAddress();
+
                 //Remove eventual scope ID
                 if(remoteIP.indexOf("%") != -1){
                     remoteIP = remoteIP.substring(0, remoteIP.indexOf("%"));

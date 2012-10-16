@@ -268,7 +268,7 @@ public class CoapBackend extends Backend{
 //        return prefix.substring(4);
 //    }
 
-    public URI[] createHttpURIs(Inet6Address remoteAddress, String path) throws URISyntaxException {
+    public static URI[] createHttpURIs(Inet6Address remoteAddress, String path) throws URISyntaxException {
 
         URI[] result = new URI[2];
 

@@ -89,7 +89,7 @@ public class SelfDescription {
 
             Long mediaTypeNumber = contentTypeOption.getDecodedValue();
             OptionRegistry.MediaType mediaType =
-                    OptionRegistry.MediaType.getByNumber(mediaTypeNumber);
+                    OptionRegistry.MediaType.getByNumber(mediaTypeNumber.intValue());
 
             if(mediaType == null){
                 log.info("[SelfDescription] CoapResponse contains an unknown content type (number = " +

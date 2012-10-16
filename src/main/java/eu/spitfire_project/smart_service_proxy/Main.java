@@ -29,6 +29,7 @@ import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionMapper;
+import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeScheduler;
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapNodeRegistrationServer;
 import eu.spitfire_project.smart_service_proxy.backends.coap.uberdust.UberdustCoapServerBackend;
@@ -153,6 +154,7 @@ public class Main {
         createBackends(config);
 
         Visualizer.getInstance();
+        //new SimulatedTimeScheduler().run();
     }
     
     private static void startConnectionMapper(Configuration config) throws Exception{
