@@ -45,6 +45,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import sun.net.util.IPAddressUtil;
 
 import java.net.*;
+import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -155,6 +156,17 @@ public class CoapBackend extends Backend{
                             ((HttpResponse) response)
                                     .setContent(ChannelBuffers.wrappedBuffer(coapResponse.getPayload()));
                         }
+
+                        ChannelFuture future = Channels.write(ctx.getChannel(), response);
+                        future.addListener(ChannelFutureListener.CLOSE);
+                    }
+
+                    @Override
+                    public void receiveInternalError(String errorMessage){
+                        HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+                                HttpResponseStatus.GATEWAY_TIMEOUT);
+                        byte[] payload = errorMessage.getBytes(Charset.forName("UTF-8"));
+                        response.setContent(ChannelBuffers.wrappedBuffer(payload));
 
                         ChannelFuture future = Channels.write(ctx.getChannel(), response);
                         future.addListener(ChannelFutureListener.CLOSE);
