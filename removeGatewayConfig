@@ -1,0 +1,9 @@
+#configure virtual IP interface
+openvpn --rmtun --dev tun0
+#ip link set tun0 up
+#ip addr add fd00::31/124 dev tun0
+
+#configure packet filtering
+ip6tables -D FORWARD -i eth0 -j DROP
+ip6tables -D FORWARD -i eth1 -j DROP
+
