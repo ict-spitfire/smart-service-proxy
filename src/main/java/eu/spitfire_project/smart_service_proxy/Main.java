@@ -154,7 +154,7 @@ public class Main {
         createBackends(config);
 
         Visualizer.getInstance();
-        new SimulatedTimeScheduler().run();
+        //new SimulatedTimeScheduler().run();
     }
     
     private static void startConnectionMapper(Configuration config) throws Exception{

@@ -74,18 +74,18 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         public void run() {
             try {
 
-                /*if (System.currentTimeMillis()-timeCounter > 5*1000 && nnode < 5) {
+                if (System.currentTimeMillis()-timeCounter > 5*1000 && nnode < 1) {
                     String ipv6 = String.valueOf(nnode+1);
                     String FOI = "foi";
                     if (nnode==4) FOI = "none";
                     else
                         if (nnode==3 || nnode==2) FOI = "Kitchen";
-                        else FOI = "Living Room";
-                    updateDB(ipv6, "nothing", FOI);
+                        else FOI = "LivingRoom";
+                    updateDB("ju8e7f", "8e7f", "http", FOI);
                     timeCounter = System.currentTimeMillis();
                     log.debug("New node added: ("+ipv6+", "+FOI+")");
                     nnode++;
-                }*/
+                }
 
                 //Crawl sensor readings
                 for (int i=0; i<sensors.len(); i++)
@@ -237,7 +237,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         public void crawl() {
             //double value = random.nextDouble();
             URL crawRequest = null;
-            try {
+            /*try {
                 crawRequest = new URL(httpRequest);
                 URLConnection connection = crawRequest.openConnection();
                 BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -252,12 +252,13 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                         value = Double.valueOf(s2.getStrAt(0)).doubleValue();
                     }
                  }
-                updateReadings(simTime, value);
-            } catch (MalformedURLException e) {
+                 */
+                updateReadings(simTime, random.nextDouble());
+            /*} catch (MalformedURLException e) {
                 e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
             } catch (IOException e) {
                 e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            }
+            } */
 
         }
 
