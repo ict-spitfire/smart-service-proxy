@@ -45,7 +45,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
     private int numberOfImagesPerDay = 96;
     private int realTimeTick = 15; //15 minutes
     private int updateRate = 1000; //1 second
-    private long annoTimeThreshold = 5000;//numberOfImagesPerDay*realTimeTick;
+    private long annoTimeThreshold = 20000;//numberOfImagesPerDay*realTimeTick;
     private int currentTemperature, maxTemp = 40;
     private TList sensors = new TList();
 
@@ -165,7 +165,10 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
             coapRequest.setContentType(OptionRegistry.MediaType.APP_N3);
             String payloadStr = "\0<coap://"+ipv6Addr+"/rdf>\0" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>\0" +
-                    "<http://spitfire-project.eu/foi/"+resultAnnotation+">\0";
+                    "<http://spitfire-project.eu/foi/"+resultAnnotation+">\0" +
+                    "<http://spitfire-project.eu/foi/"+resultAnnotation+">\0" +
+                    "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\0" +
+                    "<http://spitfire-project.eu/foi/Room>\0";
             byte[] payload = payloadStr.getBytes(Charset.forName("UTF-8"));
             coapRequest.setPayload(payload);
 
@@ -173,23 +176,50 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         }
     }
 
+    @Override
+    public void messageReceived(ChannelHandlerContext ctx, MessageEvent me){
+        if(!(me.getMessage() instanceof HttpRequest)){
+            ctx.sendUpstream(me);
+            return;
+        }
+
+        //Process the HTTP request
+        HttpRequest request = (HttpRequest) me.getMessage();
+
+        //Send a Response
+        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+        String payload = String.valueOf(simTime)+"|"+String.valueOf(imgIndex)+"|"+String.valueOf(SimulatedTimeParameters.actualTemperature)+"\n";
+        for (int i=0; i<sensors.len(); i++) {
+            SensorData sd = (SensorData)sensors.get(i);
+            String timeStamp = String.valueOf(sd.getLatestTS());
+            String value = String.format("%.4f", sd.getLatestVL());
+            String entry = sd.ipv6Addr+"|"+sd.macAddr+"|"+sd.FOI+"|"+timeStamp+"|"+value;
+            payload += entry + "\n";
+        }
+        if (payload != "")
+            payload = payload.substring(0, payload.length()-1);
+        //log.debug(payload);
+        response.setContent(ChannelBuffers.copiedBuffer(payload.getBytes(Charset.forName("UTF-8"))));
+        ChannelFuture future = Channels.write(ctx.getChannel(), response);
+        future.addListener(ChannelFutureListener.CLOSE);
+    }
+
     private class SensorData {
         public String ipv6Addr = null;
+        public String macAddr = null;
         public String FOI = null;
         public String httpRequest = null;
         private ArrayList<Long> timeStamps = new ArrayList<Long>(); //Time-stamp of a samples
         private ArrayList<Double> values = new ArrayList<Double>(); //Value of the samples
-        public int nSamples, sampleRate;
         public long annoTimer;
         private Random random = new Random();
         private FuzzyRule fz, dfz;
 
-        public SensorData(String ipv6Addr, String httpRequest, String FOI, int nSamples, int sampleRate) {
+        public SensorData(String ipv6Addr, String macAddr, String httpRequest, String FOI) {
             this.ipv6Addr = ipv6Addr;
+            this.macAddr = macAddr;
             this.httpRequest = httpRequest;
             this.FOI = FOI;
-            this.nSamples = nSamples;
-            this.sampleRate = sampleRate;
 
             if ("Unknown Location".equalsIgnoreCase(FOI))
                 annoTimer = System.currentTimeMillis();
@@ -197,15 +227,14 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
 
         private void updateReadings(long ts, double vl) {
             timeStamps.add(ts);
-            if (timeStamps.size() >= nSamples)
+            if (timeStamps.size() >= numberOfImagesPerDay)
                 timeStamps.remove(0);
             values.add(vl);
-            if (values.size() >= nSamples)
+            if (values.size() >= numberOfImagesPerDay)
                 values.remove(0);
         }
 
         public void crawl() {
-            long time = System.currentTimeMillis();
             //double value = random.nextDouble();
             URL crawRequest = null;
             try {
@@ -213,15 +242,17 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                 URLConnection connection = crawRequest.openConnection();
                 BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                 String line = in.readLine();
+                double value = 0;
                 while ((line = in.readLine()) != null) {
                     if (line.indexOf("value")>0) {
+                        //log.debug("The value line is: "+line);
                         TString s1 = new TString(line, '>');
                         TString s2 = new TString(s1.getStrAt(1),'<');
-                        log.debug("");
+                        //log.debug("new value crawled is: "+s2.getStrAt(0));
+                        value = Double.valueOf(s2.getStrAt(0)).doubleValue();
                     }
                  }
-                double value = 0;
-                updateReadings(time, value);
+                updateReadings(simTime, value);
             } catch (MalformedURLException e) {
                 e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
             } catch (IOException e) {
@@ -410,7 +441,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         return rs;
     }
 
-    public void updateDB(String ipv6Addr, String httpRequest, String newFOI) {
+    public void updateDB(String ipv6Addr, String macAddr, String httpRequest, String newFOI) {
         SensorData sd = searchSensor(ipv6Addr);
         String foi = newFOI;
         if ("none".equalsIgnoreCase(newFOI))
@@ -418,35 +449,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         if (sd != null)
             sd.FOI = foi;
         else
-            sensors.enList(new SensorData(ipv6Addr, httpRequest, foi, numberOfImagesPerDay, realTimeTick));
-    }
-
-    @Override
-    public void messageReceived(ChannelHandlerContext ctx, MessageEvent me){
-        if(!(me.getMessage() instanceof HttpRequest)){
-            ctx.sendUpstream(me);
-            return;
-        }
-
-        //Process the HTTP request
-        HttpRequest request = (HttpRequest) me.getMessage();
-
-        //Send a Response
-        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        String payload = String.valueOf(simTime)+"|"+String.valueOf(imgIndex)+"|"+String.valueOf(SimulatedTimeParameters.actualTemperature)+"\n";
-        for (int i=0; i<sensors.len(); i++) {
-            SensorData sd = (SensorData)sensors.get(i);
-            String timeStamp = String.valueOf(sd.getLatestTS());
-            String value = String.format("%.4f", sd.getLatestVL());
-            String entry = sd.ipv6Addr+"|"+sd.FOI+"|"+timeStamp+"|"+value;
-            payload += entry + "\n";
-        }
-        if (payload != "")
-            payload = payload.substring(0, payload.length()-1);
-        //log.debug(payload);
-        response.setContent(ChannelBuffers.copiedBuffer(payload.getBytes(Charset.forName("UTF-8"))));
-        ChannelFuture future = Channels.write(ctx.getChannel(), response);
-        future.addListener(ChannelFutureListener.CLOSE);
+            sensors.enList(new SensorData(ipv6Addr, macAddr, httpRequest, foi));
     }
 
     private class FuzzyRule {

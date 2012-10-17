@@ -17,25 +17,25 @@ public class SimulatedTimeParameters
     public static SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 
     //Start date
-    public static DateTime startDate = new DateTime(2012,10,12,10,0);
+    public static DateTime startDate = new DateTime(2012,10,24,0,0);
 
     //Time of the day (in total minutes) when to start the simulation
     public static int start = 0;
 
     //Update rate for the triple in seconds
-    public static int updateRate = 6;
+    public static int updateRate = 1;
 
     //Simulation rounds
     public static int elapseRound = 0;
 
     //Elapsed time for one update in minutes
-    public static int elapseMinutes = 60;
+    public static int elapseMinutes = 15;
 
     //Number of minutes before starting from 0 again
     public static int overflowMod = 1440;
 
     //Address of sesame server
-    public static String repoAdr = "http://localhost:8080/openrdf-sesame";
+    public static String repoAdr = "http://localhost:80/openrdf-sesame";
     //Id of the repository
     public static String repositoryID = "sensors";
 
