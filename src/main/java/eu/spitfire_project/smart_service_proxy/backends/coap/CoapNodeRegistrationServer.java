@@ -133,6 +133,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 }
                 TString mac = new TString(ipv6Addr,':');
                 String macAddr = mac.getStrAtEnd();
+
                 log.debug("MACAddr is "+macAddr);
                 if(IPAddressUtil.isIPv6LiteralAddress(ipv6Addr)){
                     ipv6Addr = "[" + ipv6Addr + "]";
@@ -146,16 +147,17 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 httpRequest = "http://"+httpRequest+":8080/light/_minimal";
                 log.debug("http request is: "+httpRequest);
 
-                String FOI = "";
-                while (coapRequest.getPayload().readable())
+                //String FOI = "";
+
+                /*while (coapRequest.getPayload().readable())
                     FOI += (char)coapRequest.getPayload().readByte();
-                //log.debug("FOI full: "+FOI);
+                log.debug("FOI full: "+FOI);
                 TString tfoi = new TString(FOI,'/');
                 String foi = tfoi.getStrAtEnd();
-                FOI = foi.substring(0, foi.length()-1);
+                FOI = foi.substring(0, foi.length()-1);*/
                 //log.debug("FOI extracted: "+FOI);
 
-                Visualizer.getInstance().updateDB(ipv6Addr, macAddr, httpRequest, FOI);
+                Visualizer.getInstance().updateDB(ipv6Addr, macAddr, httpRequest);
             }
             else{
                 coapResponse = new CoapResponse(Code.METHOD_NOT_ALLOWED_405);

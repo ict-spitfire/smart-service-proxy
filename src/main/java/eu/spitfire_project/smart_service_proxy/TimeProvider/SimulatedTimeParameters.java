@@ -23,7 +23,7 @@ public class SimulatedTimeParameters
     public static int start = 0;
 
     //Update rate for the triple in seconds
-    public static int updateRate = 1;
+    public static int updateRate = 2;
 
     //Simulation rounds
     public static int elapseRound = 0;
