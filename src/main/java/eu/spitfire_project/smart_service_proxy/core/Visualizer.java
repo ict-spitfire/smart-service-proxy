@@ -52,6 +52,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
 
     private long startTime, simTime;
     private int imgIndex;
+    private boolean pauseVisualization = true;
 
     private Visualizer(){
         executorService.scheduleAtFixedRate(new AutoAnnotation(), 2000, updateRate, TimeUnit.MILLISECONDS);
@@ -66,14 +67,14 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         private int nnode = 0;
 
         public AutoAnnotation() {
-            simTime = 0;
-            imgIndex = 0;
+            simTime = 360;
+            imgIndex = 24;
             currentTemperature = 20;
         }
 
         @Override
         public void run() {
-            try {
+            if (!pauseVisualization) try {
                 /*
                 if (System.currentTimeMillis()-timeCounter > 5*1000 && nnode < 1) {
                     String ipv6 = String.valueOf(nnode+1);
@@ -108,7 +109,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                                 SensorData de = (SensorData)sensors.get(j);
                                 if (!"Unknown-Location".equalsIgnoreCase(de.FOI)) {
                                     log.debug("Computing fuzzy set for sensor ("+de.ipv6Addr+", "+de.FOI+") ... ");
-                                    de.computeFuzzySet(sd.getValues().size());
+                                    de.computeFuzzySet(de.getValues().size());
                                     log.debug(" Done!");
                                 }
                             }
@@ -188,6 +189,12 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
 
         //Process the HTTP request
         HttpRequest request = (HttpRequest) me.getMessage();
+        String content = new String(request.getContent().array(), Charset.forName("UTF-8"));
+        if ("resumeVisualization".equalsIgnoreCase(content))
+            pauseVisualization = false;
+        else
+            if ("pauseVisualization".equalsIgnoreCase(content))
+                pauseVisualization = true;
 
         //Send a Response
         HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
@@ -257,12 +264,12 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                         value = Double.valueOf(s2.getStrAt(0)).doubleValue();
                     }
                  }
-                System.out.println("success to crawl for "+macAddr+"| time:"+simTime+", value:"+String.format("%.2f", value));
+                System.out.println("success to crawl for " + macAddr + "| time:" + simTime + ", value:" + String.format("%.2f", value));
                 updateReadings(simTime, value);
             } catch (MalformedURLException e) {
                 log.debug("failed to crawl for "+macAddr);
             } catch (IOException e) {
-                log.debug("failed to crawl for "+macAddr);
+                log.debug("failed to crawl for " + macAddr);
             }
 
         }
