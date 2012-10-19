@@ -1,6 +1,7 @@
 package eu.spitfire_project.smart_service_proxy.TimeProvider;
 
 import org.joda.time.DateTime;
+import org.joda.time.LocalTime;
 
 import java.text.SimpleDateFormat;
 
@@ -17,7 +18,12 @@ public class SimulatedTimeParameters
     public static SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 
     //Start date
+    //public static DateTime startDate = new DateTime(2012,10,24,6,0);
     public static DateTime startDate = new DateTime(2012,10,24,0,0);
+
+    public static LocalTime skipTime = new LocalTime(20,15);
+    public static int skipHours = 9;
+    public static int skipMinutes = 45;
 
     //Time of the day (in total minutes) when to start the simulation
     public static int start = 0;

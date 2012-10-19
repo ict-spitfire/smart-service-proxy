@@ -11,6 +11,7 @@ import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
 import de.uniluebeck.itm.spitfire.nCoap.application.CoapClientApplication;
 import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeParameters;
+import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeScheduler;
 import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeUpdater;
 import eu.spitfire_project.smart_service_proxy.utils.TList;
 import eu.spitfire_project.smart_service_proxy.utils.TString;
@@ -46,7 +47,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
     private int numberOfImagesPerDay = 96;
     private int realTimeTick = 15; //15 minutes
     private int updateRate = 2000; //1 second
-    private long annoTimeThreshold = 12*updateRate*4;//number hours to trigger annotation
+    private long annoTimeThreshold = 8*updateRate*4;//number hours to trigger annotation
     private int currentTemperature, maxTemp = 40;
     private TList sensors = new TList();
 
@@ -54,12 +55,62 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
     private int imgIndex;
     private boolean pauseVisualization = true;
 
+    private SimulatedTimeUpdater stu;
+
     private Visualizer(){
+        stu = new SimulatedTimeUpdater();
         executorService.scheduleAtFixedRate(new AutoAnnotation(), 2000, updateRate, TimeUnit.MILLISECONDS);
     }
 
     public static Visualizer getInstance(){
         return instance;
+    }
+
+    private class httpCrawl implements Runnable {
+        private String macAddr;
+        private String httpRequest;
+        private SensorData sd;
+
+        public httpCrawl(SensorData sd, String macAddr, String httpRequest) {
+            this.sd = sd;
+            this.macAddr = macAddr;
+            this.httpRequest = httpRequest;
+        }
+
+        @Override
+        public void run() {
+            URL crawRequest = null;
+            try {
+                System.out.print("crawl for " + macAddr + " at time " + simTime + "...");
+                crawRequest = new URL(httpRequest);
+                URLConnection connection = crawRequest.openConnection();
+
+                //System.out.print("connection opened (timeout: " + connection.getConnectTimeout() + "), ");
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String line = in.readLine();
+                //System.out.print("content: " + line + ", ");
+                double value = 0;
+                while ((line = in.readLine()) != null) {
+                    System.out.print("content: " + line + ", ");
+                    if (line.indexOf("value")>0) {
+                        //log.debug("The value line is: "+line);
+                        TString s1 = new TString(line, '>');
+                        TString s2 = new TString(s1.getStrAt(1),'<');
+                        //log.debug("new value crawled is: "+s2.getStrAt(0));
+                        value = Double.valueOf(s2.getStrAt(0)).doubleValue();
+                    }
+                }
+                in.close();
+
+
+                sd.updateReadings(simTime, value);
+                System.out.println(" Done for " + macAddr + " with value:" + String.format("%.2f", value));
+            } catch (MalformedURLException e) {
+                log.debug("failed to crawl for "+macAddr);
+            } catch (IOException e) {
+                log.debug("failed to crawl for " + macAddr);
+            }
+        }
     }
 
     private class AutoAnnotation extends CoapClientApplication implements Runnable {
@@ -74,7 +125,11 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
 
         @Override
         public void run() {
+            System.out.println("Start new scheduled task!");
             if (!pauseVisualization) { try {
+                stu.doit(simTime);
+
+                //if (pauseVisualization) { try {
                 /*
                 if (System.currentTimeMillis()-timeCounter > 5*1000 && nnode < 1) {
                     String ipv6 = String.valueOf(nnode+1);
@@ -98,7 +153,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                 //Check if annotation timer of sensors expire then trigger annotation process
                 for (int i=0; i<sensors.len(); i++) {
                     SensorData sd = (SensorData)sensors.get(i);
-                    if ("Unknown-Location".equalsIgnoreCase(sd.FOI)) {
+                    if ("Unannotated".equalsIgnoreCase(sd.FOI)) {
                         log.debug("--------------------------------------- LEVEL 1 ------------------------------------------");
                         long thre = System.currentTimeMillis() - sd.annoTimer;
                         //Trigger annotation here
@@ -107,7 +162,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                             //Calculate fuzzy set of other sensors
                             for (int j = 0; j<sensors.len(); j++) {
                                 SensorData de = (SensorData)sensors.get(j);
-                                if (!"Unknown-Location".equalsIgnoreCase(de.FOI)) {
+                                if (!"Unannotated".equalsIgnoreCase(de.FOI)) {
                                     log.debug("Computing fuzzy set for sensor ("+de.ipv6Addr+", "+de.FOI+") ... ");
                                     de.computeFuzzySet(de.getValues().size());
                                     log.debug(" Done!");
@@ -120,7 +175,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                             String anno = "";
                             for (int j = 0; j < sensors.len(); j++) {
                                 SensorData de = (SensorData)sensors.get(j);
-                                if (!"Unknown-Location".equalsIgnoreCase(de.FOI)) {
+                                if (!"Unannotated".equalsIgnoreCase(de.FOI)) {
                                     double sc = calculateScore(sd.getValues(), de.getFZ(), de.getDFZ());
                                     if (maxsc < sc) {
                                         maxsc = sc;
@@ -134,8 +189,12 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                             log.debug("Resulting annotation is " + anno);
 
                             //Send POST to sensor
-                            CoapRequest annotation = makeCOAPRequest(sd.ipv6Addr, sd.FOI);
-                            log.debug("Sending POST request to sensor!");
+                            String foi = "";
+                            if (sd.FOI.equalsIgnoreCase("Living-Room")) foi = "livingroom";
+                            else
+                            if (sd.FOI.equalsIgnoreCase("Kitchen")) foi = "kitchen";
+                            CoapRequest annotation = makeCOAPRequest(sd.ipv6Addr, foi);
+                            System.out.println("Sending POST request to sensor!");
                             writeCoapRequest(annotation);
                         }
                     }
@@ -144,6 +203,12 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                 //Update current temperature from triple store here
 
                 //Increase simulation time
+                int simTimeM = (int)simTime % 60;
+                int simTimeH = (int)((double)(simTime)/(double)60) % 24;
+                if (simTimeH==20 && simTimeM==0) {
+                    simTime += 10*4*realTimeTick; //9 hours
+                    imgIndex = 6*4-1;
+                }
                 simTime += realTimeTick;
 
                 //Update the index of rendered image
@@ -161,6 +226,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
             } catch (MessageDoesNotAllowPayloadException e) {
                 System.out.println("Wrong in MessageDoesNotAllowPayloadException");
             } }
+            System.out.println("Scheduled task finished.");
         }
 
         private CoapRequest makeCOAPRequest(String ipv6Addr, String resultAnnotation) throws URISyntaxException, ToManyOptionsException, InvalidOptionException, InvalidMessageException, MessageDoesNotAllowPayloadException {
@@ -188,7 +254,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         }
 
         //Process the HTTP request
-        HttpRequest request = (HttpRequest) me.getMessage();
+        /*HttpRequest request = (HttpRequest) me.getMessage();
         String content = new String(request.getContent().array(), Charset.forName("UTF-8"));
         System.out.println("Message recieved: "+content);
         if ("resumeVisualization".equalsIgnoreCase(content)) {
@@ -198,11 +264,14 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
             if ("pauseVisualization".equalsIgnoreCase(content)) {
                 pauseVisualization = true;
                 System.out.println("Pausing visualization");
-            }
+            }*/
 
         //Workaround until find a way to send string from client
-        if (pauseVisualization)
+        if (pauseVisualization) {
             pauseVisualization = false;
+            //new SimulatedTimeScheduler().run();
+            stu.doit(simTime);
+        }
 
         //Send a Response
         if (!pauseVisualization) {
@@ -243,7 +312,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
             this.httpRequest = httpRequest;
             this.FOI = FOI;
 
-            if ("Unknown-Location".equalsIgnoreCase(FOI))
+            if ("Unannotated".equalsIgnoreCase(FOI))
                 annoTimer = System.currentTimeMillis();
         }
 
@@ -257,15 +326,19 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         }
 
         public void crawl() {
-            //double value = random.nextDouble();
-            URL crawRequest = null;
+            /*URL crawRequest = null;
             try {
+                System.out.print("crawl for " + macAddr + " at time " + simTime + "...");
                 crawRequest = new URL(httpRequest);
                 URLConnection connection = crawRequest.openConnection();
+
+                System.out.print("connection opened (timeout: " + connection.getConnectTimeout() + "), ");
                 BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                 String line = in.readLine();
+                System.out.print("content: " + line + ", ");
                 double value = 0;
                 while ((line = in.readLine()) != null) {
+                    System.out.print("content: " + line + ", ");
                     if (line.indexOf("value")>0) {
                         //log.debug("The value line is: "+line);
                         TString s1 = new TString(line, '>');
@@ -273,15 +346,19 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                         //log.debug("new value crawled is: "+s2.getStrAt(0));
                         value = Double.valueOf(s2.getStrAt(0)).doubleValue();
                     }
-                 }
-                System.out.println("success to crawl for " + macAddr + "| time:" + simTime + ", value:" + String.format("%.2f", value));
+                    System.out.print("doing stuff, ");
+                }
+                in.close();
+
+
                 updateReadings(simTime, value);
+                System.out.println(" Done for " + macAddr + " with value:" + String.format("%.2f", value));
             } catch (MalformedURLException e) {
                 log.debug("failed to crawl for "+macAddr);
             } catch (IOException e) {
                 log.debug("failed to crawl for " + macAddr);
-            }
-
+            }*/
+            new httpCrawl(this, macAddr, httpRequest).run();
         }
 
         public ArrayList<Double> getValues() {
@@ -475,8 +552,10 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
     public void updateDB(String ipv6Addr, String macAddr, String httpRequest) {
         //Feature of interest
         String FOI = "";
-        if ("8e84".equalsIgnoreCase(macAddr)) FOI = "Unknown-Location";
-        else
+        if ("8e84".equalsIgnoreCase(macAddr)) {
+            FOI = "Unannotated";
+            System.out.println("new node added");
+        } else
             if ("2304".equalsIgnoreCase(macAddr) || "a88".equalsIgnoreCase(macAddr)) FOI = "Kitchen";
             else
                 if ("8e7f".equalsIgnoreCase(macAddr) || "8ed8".equalsIgnoreCase(macAddr)) FOI = "Living-Room";

@@ -16,6 +16,6 @@ public class SimulatedTimeScheduler implements Runnable
     public void run()
     {
        SimulatedTimeUpdater stu = new SimulatedTimeUpdater();
-       scheduler.scheduleAtFixedRate(stu,0,SimulatedTimeParameters.updateRate, TimeUnit.SECONDS);
+       //scheduler.scheduleAtFixedRate(stu,0,SimulatedTimeParameters.updateRate, TimeUnit.SECONDS);
     }
 }

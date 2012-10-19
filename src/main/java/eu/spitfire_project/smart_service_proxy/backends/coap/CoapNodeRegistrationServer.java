@@ -127,6 +127,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 executorService.schedule(new NodeRegistration(remoteSocketAddress.getAddress()), 0, TimeUnit.SECONDS);
 
                 //----------- fuzzy annotation and visualizer----------------------
+                //System.out.println("Received HERE_I_AM");
                 String ipv6Addr = remoteSocketAddress.getAddress().getHostAddress();
                 if(ipv6Addr.indexOf("%") != -1){
                     ipv6Addr = ipv6Addr.substring(0, ipv6Addr.indexOf("%"));
@@ -134,7 +135,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 TString mac = new TString(ipv6Addr,':');
                 String macAddr = mac.getStrAtEnd();
 
-                log.debug("MACAddr is "+macAddr);
+                System.out.println("MACAddr is "+macAddr);
                 if(IPAddressUtil.isIPv6LiteralAddress(ipv6Addr)){
                     ipv6Addr = "[" + ipv6Addr + "]";
                 }
@@ -145,7 +146,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                     e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
                 }
                 httpRequest = "http://"+httpRequest+":8080/light/_minimal";
-                log.debug("http request is: "+httpRequest);
+                System.out.println("http request is: "+httpRequest);
 
                 //String FOI = "";
 

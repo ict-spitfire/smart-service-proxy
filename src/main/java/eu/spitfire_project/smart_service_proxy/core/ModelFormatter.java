@@ -191,12 +191,12 @@ public class ModelFormatter extends SimpleChannelHandler {
 
     public String createHttpMirrorUri(String coapUri){
         String ipv6Address = coapUri.substring(coapUri.indexOf("[") + 1, coapUri.indexOf("]"));
-        System.out.println("IPv6 Address vorher: " + ipv6Address);
+        log.debug("IPv6 Address vorher: " + ipv6Address);
 
         ipv6Address = shortenIpv6Address(ipv6Address);
 
 
-        System.out.println("IPv6 Address: " + ipv6Address);
+        log.debug("IPv6 Address: " + ipv6Address);
 
         String path = coapUri.substring(coapUri.indexOf("/", 8));
 
