@@ -74,7 +74,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
 
         @Override
         public void run() {
-            if (!pauseVisualization) try {
+            if (!pauseVisualization) { try {
                 /*
                 if (System.currentTimeMillis()-timeCounter > 5*1000 && nnode < 1) {
                     String ipv6 = String.valueOf(nnode+1);
@@ -160,7 +160,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                 System.out.println("Wrong in URISyntaxException");
             } catch (MessageDoesNotAllowPayloadException e) {
                 System.out.println("Wrong in MessageDoesNotAllowPayloadException");
-            }
+            } }
         }
 
         private CoapRequest makeCOAPRequest(String ipv6Addr, String resultAnnotation) throws URISyntaxException, ToManyOptionsException, InvalidOptionException, InvalidMessageException, MessageDoesNotAllowPayloadException {
@@ -190,28 +190,38 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         //Process the HTTP request
         HttpRequest request = (HttpRequest) me.getMessage();
         String content = new String(request.getContent().array(), Charset.forName("UTF-8"));
-        if ("resumeVisualization".equalsIgnoreCase(content))
+        System.out.println("Message recieved: "+content);
+        if ("resumeVisualization".equalsIgnoreCase(content)) {
             pauseVisualization = false;
-        else
-            if ("pauseVisualization".equalsIgnoreCase(content))
+            System.out.println("Resuming visualization");
+        } else
+            if ("pauseVisualization".equalsIgnoreCase(content)) {
                 pauseVisualization = true;
+                System.out.println("Pausing visualization");
+            }
+
+        //Workaround until find a way to send string from client
+        if (pauseVisualization)
+            pauseVisualization = false;
 
         //Send a Response
-        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        String payload = String.valueOf(simTime)+"|"+String.valueOf(imgIndex)+"|"+String.valueOf(SimulatedTimeParameters.actualTemperature)+"\n";
-        for (int i=0; i<sensors.len(); i++) {
-            SensorData sd = (SensorData)sensors.get(i);
-            String timeStamp = String.valueOf(sd.getLatestTS());
-            String value = String.format("%.4f", sd.getLatestVL());
-            String entry = sd.senID+"|"+sd.ipv6Addr+"|"+sd.macAddr+"|"+sd.FOI+"|"+timeStamp+"|"+value;
-            payload += entry + "\n";
+        if (!pauseVisualization) {
+            HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+            String payload = String.valueOf(simTime)+"|"+String.valueOf(imgIndex)+"|"+String.valueOf(SimulatedTimeParameters.actualTemperature)+"\n";
+            for (int i=0; i<sensors.len(); i++) {
+                SensorData sd = (SensorData)sensors.get(i);
+                String timeStamp = String.valueOf(sd.getLatestTS());
+                String value = String.format("%.4f", sd.getLatestVL());
+                String entry = sd.senID+"|"+sd.ipv6Addr+"|"+sd.macAddr+"|"+sd.FOI+"|"+timeStamp+"|"+value;
+                payload += entry + "\n";
+            }
+            if (payload != "")
+                payload = payload.substring(0, payload.length()-1);
+            //log.debug(payload);
+            response.setContent(ChannelBuffers.copiedBuffer(payload.getBytes(Charset.forName("UTF-8"))));
+            ChannelFuture future = Channels.write(ctx.getChannel(), response);
+            future.addListener(ChannelFutureListener.CLOSE);
         }
-        if (payload != "")
-            payload = payload.substring(0, payload.length()-1);
-        //log.debug(payload);
-        response.setContent(ChannelBuffers.copiedBuffer(payload.getBytes(Charset.forName("UTF-8"))));
-        ChannelFuture future = Channels.write(ctx.getChannel(), response);
-        future.addListener(ChannelFutureListener.CLOSE);
     }
 
     private class SensorData {
