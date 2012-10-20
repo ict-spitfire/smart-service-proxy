@@ -147,7 +147,7 @@ public class CoapBackend extends Backend{
 //                            log.error("Error.", e);
 //                            response = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
 //                                                               HttpResponseStatus.INTERNAL_SERVER_ERROR);
-//                            ((DefaultHttpResponse) response).setContent(coapResponse.getPayload());
+//                            ((DefaultHttpResponse) response).setContent(coapResponse.getResponsePayload());
 //                        }
                         catch(Exception e){
                             log.error("Error.", e);

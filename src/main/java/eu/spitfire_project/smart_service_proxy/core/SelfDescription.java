@@ -103,7 +103,7 @@ public class SelfDescription {
 
 			try {
 
-			//ChannelBuffer buf = coapResponse.getPayload();
+			//ChannelBuffer buf = coapResponse.getResponsePayload();
 			String lang = null;
             if(mediaType == OptionRegistry.MediaType.APP_N3){
 			    lang = "N3";
