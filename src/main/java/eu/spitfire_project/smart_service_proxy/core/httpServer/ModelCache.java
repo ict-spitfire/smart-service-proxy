@@ -22,13 +22,15 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire_project.smart_service_proxy.core;
+package eu.spitfire_project.smart_service_proxy.core.httpServer;
 
 import com.hp.hpl.jena.rdf.model.Model;
+import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
+import java.net.URI;
 import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -42,18 +44,18 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  */
 
-public class StatementCache extends SimpleChannelHandler {
+public class ModelCache extends SimpleChannelHandler {
 
-    private static Logger log = Logger.getLogger(StatementCache.class.getName());
+    private static Logger log = Logger.getLogger(ModelCache.class.getName());
     
-    private ConcurrentHashMap<String, CacheElement> cache = new ConcurrentHashMap<String, CacheElement>();
+    private ConcurrentHashMap<URI, CacheElement> cache = new ConcurrentHashMap<URI, CacheElement>();
 
-    private static StatementCache instance = new StatementCache();
+    private static ModelCache instance = new ModelCache();
 
-    private StatementCache(){
+    private ModelCache(){
     }
 
-    public static StatementCache getInstance(){
+    public static ModelCache getInstance(){
         return instance;
     }
 
@@ -76,10 +78,10 @@ public class StatementCache extends SimpleChannelHandler {
         }
 
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
+        final URI targetUri = URI.create("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri());
 
-        String targetUri = "http://" + httpRequest.getHeader("HOST") + httpRequest.getUri();
+        log.debug("Look up resoure " + targetUri);
 
-        log.debug("[StatementCache] Look up resoure " + targetUri);
 
         //Try to get a statement from the cache
         CacheElement ce = cache.get(targetUri);
@@ -88,7 +90,7 @@ public class StatementCache extends SimpleChannelHandler {
 
             if (!ce.expiry.before(new Date())) {
 
-                log.debug("[StatementCache] Fresh statement found for " + targetUri);
+                log.debug("Fresh model found for " + targetUri);
 
                 //Send cached resource
                 ChannelFuture future = Channels.write(ctx.getChannel(), ce.model);
@@ -97,14 +99,14 @@ public class StatementCache extends SimpleChannelHandler {
                 future.addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
-                        log.debug("[StatementCache] Cached statement for " + httpRequest.getUri() + " sent");
+                        log.debug("Cached model for " + targetUri + " sent.");
                     }
                 });
 
                 return;
             }
             else {
-                log.debug("[StatementCache] Found expired statement for: " + httpRequest.getUri() +
+                log.debug("Found expired statement for " + targetUri +
                             ". Trying to get a fresh one.");
             }
         }
@@ -113,11 +115,11 @@ public class StatementCache extends SimpleChannelHandler {
 
     /**
      * This method is invoked for downstream {@link MessageEvent}s. If the {@link MessageEvent} contains an instance of
-     * {@link SelfDescription] as the message the contained {@link Model} instance will be cached. This instance of
+     * {@link eu.spitfire_project.smart_service_proxy.core.SelfDescription] as the message the contained {@link Model} instance will be cached. This instance of
      * {@link Model} will be sent further downstream afterwards.
      * 
      * @param ctx The {@link ChannelHandlerContext} to relate this handler with its current {@link Channel}
-     * @param me The {@link MessageEvent} containing the {@link SelfDescription}
+     * @param me The {@link MessageEvent} containing the {@link eu.spitfire_project.smart_service_proxy.core.SelfDescription }
      * @throws Exception
      */
     @Override
@@ -127,7 +129,7 @@ public class StatementCache extends SimpleChannelHandler {
         if (me.getMessage() instanceof SelfDescription) {
             SelfDescription sd = (SelfDescription) me.getMessage();
 
-            log.debug("[StatementCache] Received SelfDescription of resource " + sd.getLocalURI() + " to be cached.");
+            log.debug("Received SelfDescription of resource " + sd.getLocalURI() + " to be cached.");
             
             //Store new Element in Cache
             //cache.put(sd.getLocalURI(), new CacheElement(sd.getModel(), sd.getExpiry(), sd.getObserve()));

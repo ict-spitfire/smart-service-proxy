@@ -22,7 +22,7 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire_project.smart_service_proxy.core;
+package eu.spitfire_project.smart_service_proxy.core.httpServer;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
@@ -60,18 +60,18 @@ public class HttpMirrorUriHandler extends SimpleChannelUpstreamHandler {
 
     private final String DNS_WILDCARD_POSTFIX = config.getString("IPv4_SERVER_DNS_WILDCARD_POSTFIX");
 
-    private static HttpMirrorUriHandler instance = new HttpMirrorUriHandler();
-
-    private HttpMirrorUriHandler(){
-
-    }
-    /**
-     * Returns the new HttpMirrorUriHandler instance
-     *
-     */
-    public static HttpMirrorUriHandler getInstance(){
-        return instance;
-    }
+//    private static HttpMirrorUriHandler instance = new HttpMirrorUriHandler();
+//
+//    private HttpMirrorUriHandler(){
+//
+//    }
+//    /**
+//     * Returns the new HttpMirrorUriHandler instance
+//     *
+//     */
+//    public static HttpMirrorUriHandler getInstance(){
+//        return instance;
+//    }
 
     /**
      * Changes the requests host part to the IPv6 address of the target resource. This is to enable IPv4 clients to
@@ -88,13 +88,11 @@ public class HttpMirrorUriHandler extends SimpleChannelUpstreamHandler {
 
             HttpRequest request = (HttpRequest) me.getMessage();
             String host = request.getHeader(HOST);
-            log.debug("Received request for host: " + host);
+            log.debug("Incoming HTTP request for host: " + host);
 
             //Eventually convert URIs host part to IPv6 address of the target host
             if (host.contains(DNS_WILDCARD_POSTFIX)) {
                 host = host.substring(0, host.indexOf(DNS_WILDCARD_POSTFIX) - 1);
-                log.debug("Encoded host IPv6 address: " + host);
-
                 host = host.replace("-", ":");
                 log.debug("New target host: " + host);
 
@@ -103,7 +101,7 @@ public class HttpMirrorUriHandler extends SimpleChannelUpstreamHandler {
                                       "[" + InetAddress.getByName("[" + host + "]").getHostAddress() + "]");
                 }
                 catch (UnknownHostException e) {
-                    log.debug("Not a IPv6 address: " + host);
+                    log.debug("Not an IPv6 address: " + host);
                 }
             }
         }

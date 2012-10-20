@@ -2,7 +2,7 @@ package eu.spitfire_project.smart_service_proxy.backends.uberdust;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
-import eu.spitfire_project.smart_service_proxy.core.EntityManager;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpHeaders;

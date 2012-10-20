@@ -39,7 +39,7 @@ import java.net.URI;
 import java.util.Date;
 
 /**
- * This is a helper class to be used by the StatementCache to relate URIs and Models and their expiry dates to each other
+ * This is a helper class to be used by the ModelCache to relate URIs and Models and their expiry dates to each other
  * 
  * @author Oliver Kleine
  */

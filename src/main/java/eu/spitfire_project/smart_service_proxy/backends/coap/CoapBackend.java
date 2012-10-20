@@ -30,7 +30,7 @@ import de.uniluebeck.itm.spitfire.nCoap.communication.core.CoapClientDatagramCha
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
-import eu.spitfire_project.smart_service_proxy.core.EntityManager;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
 import eu.spitfire_project.smart_service_proxy.utils.HttpResponseFactory;
 import org.apache.log4j.Logger;

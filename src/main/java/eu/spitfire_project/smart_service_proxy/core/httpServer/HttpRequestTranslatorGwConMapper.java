@@ -1,4 +1,4 @@
-package eu.spitfire_project.smart_service_proxy.core;
+package eu.spitfire_project.smart_service_proxy.core.httpServer;
 
 
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionMapper;
@@ -7,7 +7,6 @@ import org.apache.log4j.Logger;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
-import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
 import java.net.InetAddress;

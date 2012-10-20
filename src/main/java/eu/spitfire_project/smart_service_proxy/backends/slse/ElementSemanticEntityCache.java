@@ -31,7 +31,7 @@ import com.hp.hpl.jena.query.QueryExecutionFactory;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.tdb.TDBFactory;
-import eu.spitfire_project.smart_service_proxy.core.EntityManager;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 
 import java.io.BufferedReader;
 import java.io.IOException;

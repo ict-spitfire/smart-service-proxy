@@ -22,7 +22,7 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire_project.smart_service_proxy.core;
+package eu.spitfire_project.smart_service_proxy.core.httpServer;
 
 import com.hp.hpl.jena.rdf.model.*;
 import com.hp.hpl.jena.util.ResourceUtils;
@@ -71,12 +71,12 @@ public class ModelFormatter extends SimpleChannelHandler {
 
 		if(m instanceof HttpRequest) {
             httpRequest = (HttpRequest) m;
-            URI targetURI = URI.create("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri());
-            log.debug("[ModelFormatter] Received httpRequest for " + (targetURI));
 
-            String acceptHeader = httpRequest.getHeader("Accept");
-            log.debug("Accept: " + acceptHeader);
+            log.debug("Incoming HttpRequest for "
+                    + URI.create("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri())
+                    + " accepts " + httpRequest.getHeader("Accept"));
 		}
+
 		ctx.sendUpstream(me);
 	}
 	
@@ -90,7 +90,7 @@ public class ModelFormatter extends SimpleChannelHandler {
         
 		if(me.getMessage() instanceof Model) {
 			Model model = (Model) me.getMessage();
-			ByteArrayOutputStream os = new ByteArrayOutputStream();
+			ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
 			String lang = DEFAULT_MODEL_LANGUAGE;
             String mimeType = DEFAULT_RESPONSE_MIME_TYPE;
@@ -119,8 +119,8 @@ public class ModelFormatter extends SimpleChannelHandler {
 				}
 			}
 
+            //Rename CoAP URIs of subjects contained in the payload to HTTP URIs
             ResIterator iterator = model.listSubjects();
-
             while(iterator.hasNext()){
                 Resource subject = iterator.nextResource();
                 String uri = subject.getURI();
@@ -129,8 +129,8 @@ public class ModelFormatter extends SimpleChannelHandler {
                 }
             }
 
+            //Rename CoAP URIs of objects contained in the payload to HTTP URIs
             NodeIterator iterator2 = model.listObjects();
-
             while(iterator2.hasNext()){
                 RDFNode object = iterator2.nextNode();
                 if(object != null  && object.isResource()){
@@ -143,15 +143,16 @@ public class ModelFormatter extends SimpleChannelHandler {
             }
 
             try{
+                //Serialize model and write on OutputStream
+                model.write(byteArrayOutputStream, lang);
 
-			    model.write(os, lang);
-			
-                HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
+                //Create Payload and
+                HttpResponse response =
+                        new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
                 response.setHeader(CONTENT_TYPE, mimeType + "; charset=utf-8");
-                response.setContent(ChannelBuffers.copiedBuffer(os.toString(), Charset.forName("UTF-8")));
+                response.setContent(ChannelBuffers.wrappedBuffer(byteArrayOutputStream.toByteArray()));
                 response.setHeader(CONTENT_LENGTH, response.getContent().readableBytes());
 
-                //Channels.write(ctx, me.getFuture(), response);
                 DownstreamMessageEvent dme =
                         new DownstreamMessageEvent(ctx.getChannel(), me.getFuture(), response, me.getRemoteAddress());
                 ctx.sendDownstream(dme);

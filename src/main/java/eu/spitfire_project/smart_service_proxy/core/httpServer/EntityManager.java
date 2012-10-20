@@ -22,21 +22,26 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire_project.smart_service_proxy.core;
+package eu.spitfire_project.smart_service_proxy.core.httpServer;
 
+import eu.spitfire_project.smart_service_proxy.core.Backend;
+import eu.spitfire_project.smart_service_proxy.core.UIElement;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.Logger;
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelHandler;
+import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
+import org.jboss.netty.channel.*;
+import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import sun.net.util.IPAddressUtil;
 
 import java.net.InetAddress;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Vector;
@@ -46,7 +51,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The EntityManager is the topmost upstream handler of an HTTPEntityMangerPipeline.
- * It contains a list of {@link Backend}s to manage all available services behind them.
+ * It contains a list of {@link eu.spitfire_project.smart_service_proxy.core.Backend}s to manage all available services behind them.
  * 
  * @author Henning Hasemann
  * @author Oliver Kleine
@@ -224,72 +229,47 @@ public class EntityManager extends SimpleChannelHandler {
 
         if(entities.containsKey(targetUri)){
             Backend backend = entities.get(targetUri);
-			try { ctx.getPipeline().remove("Backend to handle request");
-			} catch(NoSuchElementException ex) { }
+			try {
+                ctx.getPipeline().remove("Backend to handle request");
+			}
+            catch(NoSuchElementException ex) {
+                //Fine. There was no handler to be removed.
+            }
             ctx.getPipeline().addLast("Backend to handle request", backend);
             log.debug("Forward request to " + backend);
-            ctx.sendUpstream(e);
-            return;
         }
 
         else if(virtualEntities.containsKey(targetUri)){
             Backend backend = virtualEntities.get(targetUri);
-			try { ctx.getPipeline().remove("Backend to handle request");
-			} catch(NoSuchElementException ex) { }
+			try {
+                ctx.getPipeline().remove("Backend to handle request");
+			}
+            catch(NoSuchElementException ex) {
+                //Fine. There was no handler to be removed.
+            }
 			ctx.getPipeline().addLast("Backend to handle request", backend);
             log.debug("Forward request to " + backend);
-            ctx.sendUpstream(e);
-            return;
         }
 
-        else if (targetUriPath.equals(PATH_TO_SERVER_LIST)) {
-            // Handle request for resource at path ".well-known/core"
-            StringBuilder buf = new StringBuilder();
-            for(URI entity: getServices()) {
-                buf.append(toThing(entity).toString() + "\n");
-            }
-            Channels.write(ctx.getChannel(), Answer.create(buf.toString()).setMime("text/plain"));
-            return;
-        }
-
-        else if(targetUriPath.equals("/visualizer")){
-            ctx.getPipeline().addLast("Visualizer", Visualizer.getInstance());
-            ctx.sendUpstream(e);
-            return;
-        }
-
-//        else if(targetUriPath.equals("/favicon.ico")){
-//            log.debug("hier!");
-//            HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
-//
-//            try{
-//                File file = new File("favicon.ico");
-//                FileInputStream inputStream = new FileInputStream(file);
-//
-//                ChannelBuffer buffer = ChannelBuffers.dynamicBuffer();
-//                int nextByte = inputStream.read();
-//                while(nextByte > 0){
-//                    buffer.writeByte(nextByte);
-//                    nextByte = inputStream.read();
-//                }
-//
-//                log.debug("Hier2");
-//                response.setContent(buffer);
-//                response.setHeader(CONTENT_TYPE, "image/x-icon");
-//                response.setHeader(CONTENT_LENGTH, buffer.readableBytes());
-//
-//                ChannelFuture future = Channels.write(ctx.getChannel(), response);
-//                future.addListener(new ChannelFutureListener() {
-//                    @Override
-//                    public void operationComplete(ChannelFuture future) throws Exception {
-//                        log.debug("FAVICON sent.");
-//                    }
-//                });
-//                return;
+//        else if (targetUriPath.equals(PATH_TO_SERVER_LIST)) {
+//            // Handle request for resource at path ".well-known/core"
+//            StringBuilder buf = new StringBuilder();
+//            for(URI entity: getServices()) {
+//                buf.append(toThing(entity).toString() + "\n");
 //            }
-//            catch(Exception ex){
-//                log.error("FAVICON Error: ", ex);
+//            Channels.write(ctx.getChannel(), Answer.create(buf.toString()).setMime("text/plain"));
+//            return;
+//        }
+
+//        else if("/visualizer".equals(targetUriPath)){
+//            try {
+//                ctx.getPipeline().remove("Backend to handle request");
 //            }
+//            catch(NoSuchElementException ex) {
+//                //Fine. There was no handler to be removed.
+//            }
+//            ctx.getPipeline().addLast("VisualizerService", VisualizerService.getInstance());
+//            log.debug("Forward request to visualizer.");
 //        }
 
 		/*else if(targetUriPath.startsWith(SERVER_PATH_TO_SLSE_UI)) {
@@ -297,37 +277,38 @@ public class EntityManager extends SimpleChannelHandler {
 			Channels.write(ctx.getChannel(), Answer.create(new File(f)).setMime("text/n3"));
 		}*/
 
-		else{
-			for(String prefix: backends.keySet()) {
-				if(targetUriPath.startsWith(prefix)) {
-					backends.get(prefix).messageReceived(ctx, e);
-					return;
-				}
-			}
+		else if("/".equals(targetUriPath)){
+            HttpResponse httpResponse =
+                    new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
 
-            StringBuilder buf = new StringBuilder();
-            buf.append("<html><body>\n");
-            buf.append("<h1>Smart Service Proxy</h1>\n");
-            buf.append("<h2>Operations</h2>\n");
-            buf.append("<ul>\n");
-            for(UIElement elem: uiElements) {
-                buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", elem.getURI(), elem.getTitle()));
-            }
-            buf.append("</ul>\n");
-
-            buf.append("<h2>Entities</h2>\n");
-            buf.append("<ul>\n");
-            for(Map.Entry<URI, Backend> entry: entities.entrySet()) {
-                buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", entry.getKey(), entry.getKey()));
-            }
-            buf.append("</ul>\n");
-
-            buf.append("</body></html>\n");
-            Channels.write(ctx.getChannel(), Answer.create(buf.toString()));
-            return;
+            httpResponse.setContent(getHtmlListOfServices());
+            ChannelFuture future = Channels.write(ctx.getChannel(), httpResponse);
+            future.addListener(ChannelFutureListener.CLOSE);
         }
+    }
 
+    private ChannelBuffer getHtmlListOfServices(){
+        StringBuilder buf = new StringBuilder();
+        buf.append("<html><body>\n");
+        buf.append("<h1>Smart Service Proxy</h1>\n");
+        buf.append("<h2>Operations</h2>\n");
+        buf.append("<ul>\n");
+        for(UIElement elem: uiElements) {
+            buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", elem.getURI(), elem.getTitle()));
+        }
+        buf.append("</ul>\n");
 
+        buf.append("<h2>Entities</h2>\n");
+        buf.append("<ul>\n");
+        for(Map.Entry<URI, Backend> entry: entities.entrySet()) {
+            buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", entry.getKey(), entry.getKey()));
+        }
+        buf.append("</ul>\n");
+
+        buf.append("</body></html>\n");
+
+        return ChannelBuffers.wrappedBuffer(buf.toString()
+                                               .getBytes(Charset.forName("UTF-8")));
     }
 
 	/**

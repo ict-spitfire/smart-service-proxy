@@ -27,7 +27,7 @@ package eu.spitfire_project.smart_service_proxy.backends.wiselib_test;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
-import eu.spitfire_project.smart_service_proxy.core.EntityManager;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
 import eu.spitfire_project.smart_service_proxy.core.wiselib_interface.MockCommunicator;
 import eu.spitfire_project.smart_service_proxy.core.wiselib_interface.SimpleQuery;

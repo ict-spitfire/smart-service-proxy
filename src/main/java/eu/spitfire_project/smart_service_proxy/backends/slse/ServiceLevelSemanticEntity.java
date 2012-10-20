@@ -32,7 +32,7 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.shared.Lock;
-import eu.spitfire_project.smart_service_proxy.core.EntityManager;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 
 import java.io.StringReader;
 import java.util.HashMap;

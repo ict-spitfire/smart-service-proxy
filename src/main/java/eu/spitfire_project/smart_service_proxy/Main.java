@@ -29,9 +29,7 @@ import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionMapper;
-import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeScheduler;
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
-import eu.spitfire_project.smart_service_proxy.backends.coap.CoapNodeRegistrationServer;
 import eu.spitfire_project.smart_service_proxy.backends.coap.uberdust.UberdustCoapServerBackend;
 import eu.spitfire_project.smart_service_proxy.backends.files.FilesBackend;
 import eu.spitfire_project.smart_service_proxy.backends.generator.GeneratorBackend;
@@ -40,9 +38,11 @@ import eu.spitfire_project.smart_service_proxy.backends.slse.SLSEBackend;
 import eu.spitfire_project.smart_service_proxy.backends.uberdust.UberdustBackend;
 import eu.spitfire_project.smart_service_proxy.backends.wiselib_test.WiselibTestBackend;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
-import eu.spitfire_project.smart_service_proxy.core.HttpEntityManagerPipelineFactory;
 import eu.spitfire_project.smart_service_proxy.core.ShdtSerializer;
-import eu.spitfire_project.smart_service_proxy.core.Visualizer;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.HttpEntityManagerPipelineFactory;
+import eu.spitfire_project.smart_service_proxy.noderegistration.AutoAnnotation;
+import eu.spitfire_project.smart_service_proxy.noderegistration.CoapNodeRegistrationServer;
+import eu.spitfire_project.smart_service_proxy.visualization.VisualizerClient;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.ConsoleAppender;
@@ -51,8 +51,6 @@ import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
-import org.jboss.netty.handler.execution.ExecutionHandler;
-import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -71,19 +69,9 @@ public class Main {
         Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
 
         Logger.getRootLogger().setLevel(Level.ERROR);
-        Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.ERROR);
+        Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
         Logger.getLogger("eu.spitfire_project.smart_service_proxy.core.ShdtSerializer").setLevel(Level.ERROR);
         Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication").setLevel(Level.ERROR);
-        //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.message").setLevel(Level.DEBUG);
-
-
-        //Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").addAppender(new ConsoleAppender(new SimpleLayout()));
-        //Logger.getLogger("de.uniluebeck.itm.spitfire.gatewayconnectionmapper").setLevel(Level.DEBUG);
-
-        //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.core").addAppender(new ConsoleAppender(new SimpleLayout()));
-
-        //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication.encoding").setLevel(Level.DEBUG);
-
     }
 
 	private static void testShdt() {
@@ -124,11 +112,7 @@ public class Main {
                         Executors.newCachedThreadPool(),
                         Executors.newCachedThreadPool()));
 
-        ExecutionHandler executionHandler = new ExecutionHandler(
-                new OrderedMemoryAwareThreadPoolExecutor(
-                        config.getInt("threads", 30),
-                        config.getLong("ram", 1024 * 1024),
-                        config.getLong("ram", 1024 * 1024)));
+
 
         boolean enableVirtualHttpServerForCoap = config.getBoolean("coap.enableVirtualHttpServer", false);
         log.debug("Enable virtual HTTP server for CoAP devices: " + enableVirtualHttpServerForCoap);
@@ -138,7 +122,7 @@ public class Main {
         }
 
         HttpEntityManagerPipelineFactory empf =
-                new HttpEntityManagerPipelineFactory(executionHandler, enableVirtualHttpServerForCoap);
+                new HttpEntityManagerPipelineFactory(enableVirtualHttpServerForCoap);
         bootstrap.setPipelineFactory(empf);
         int listenPort = config.getInt("SSP_HTTP_SERVER_PORT", 8080);
         bootstrap.bind(new InetSocketAddress(listenPort));
@@ -153,7 +137,9 @@ public class Main {
         //Create enabled backends
         createBackends(config);
 
-        Visualizer.getInstance();
+        //Set AutoAnnotation to use images from visualizer
+        AutoAnnotation.getInstance().setVisualizerClient(VisualizerClient.getInstance());
+        AutoAnnotation.getInstance().start();
         //new SimulatedTimeScheduler().run();
     }
     

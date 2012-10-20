@@ -22,33 +22,27 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire_project.smart_service_proxy.backends.coap;
+package eu.spitfire_project.smart_service_proxy.noderegistration;
 
 import de.uniluebeck.itm.spitfire.nCoap.application.CoapClientApplication;
 import de.uniluebeck.itm.spitfire.nCoap.application.CoapServerApplication;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
 import de.uniluebeck.itm.spitfire.nCoap.message.InvalidMessageException;
-import de.uniluebeck.itm.spitfire.nCoap.message.MessageDoesNotAllowPayloadException;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
-import eu.spitfire_project.smart_service_proxy.core.Visualizer;
-import eu.spitfire_project.smart_service_proxy.utils.TList;
+import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
 import eu.spitfire_project.smart_service_proxy.utils.TString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.awt.X11.Visual;
 import sun.net.util.IPAddressUtil;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.*;
 import java.nio.charset.Charset;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -57,15 +51,12 @@ import java.util.concurrent.TimeUnit;
  * @author Oliver Kleine
  */
 public class CoapNodeRegistrationServer extends CoapServerApplication {
-    private static int numberOfAnnotationDemo = 0;
-    private static long currentTime, timeOfLastAnnotation;
-    private static long timeThreshold = 10000; //10 seconds
 
     private static Logger log = LoggerFactory.getLogger(CoapNodeRegistrationServer.class.getName());
 
     private ArrayList<CoapBackend> coapBackends = new ArrayList<CoapBackend>();
 
-    private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
+    public ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
 
     private static CoapNodeRegistrationServer instance = new CoapNodeRegistrationServer();
 
@@ -74,8 +65,6 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
         super();
         log.debug("Constructed.");
 
-        currentTime = System.currentTimeMillis();
-        timeOfLastAnnotation = currentTime;
     }
 
     public static CoapNodeRegistrationServer getInstance(){
@@ -119,15 +108,17 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                     coapResponse =  new CoapResponse(MsgType.ACK, Code.CONTENT_205);
                 }
 
+                //Node registration
+                log.debug("Schedule sending of request for .well-known/core");
+                executorService.schedule(new NodeRegistration(remoteSocketAddress.getAddress()),
+                                                              0, TimeUnit.SECONDS);
+
+                //Automatic annotation required
                 if(coapRequest.getPayload().readableBytes() > 0){
                     log.debug("Request payload: " + coapRequest.getPayload().toString(Charset.forName("UTF-8")));
                 }
 
-                log.debug("Schedule sending of request for .well-known/core");
-                executorService.schedule(new NodeRegistration(remoteSocketAddress.getAddress()), 0, TimeUnit.SECONDS);
-
                 //----------- fuzzy annotation and visualizer----------------------
-                //System.out.println("Received HERE_I_AM");
                 String ipv6Addr = remoteSocketAddress.getAddress().getHostAddress();
                 if(ipv6Addr.indexOf("%") != -1){
                     ipv6Addr = ipv6Addr.substring(0, ipv6Addr.indexOf("%"));
@@ -135,18 +126,25 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 TString mac = new TString(ipv6Addr,':');
                 String macAddr = mac.getStrAtEnd();
 
-                System.out.println("MACAddr is "+macAddr);
+                log.debug("MACAddr is " + macAddr);
+
                 if(IPAddressUtil.isIPv6LiteralAddress(ipv6Addr)){
                     ipv6Addr = "[" + ipv6Addr + "]";
                 }
-                String httpRequest = null;
+
+                //URI of the minimal service (containg light value) of the new sensor
+                String httpTargetURI = null;
                 try {
-                    httpRequest = CoapBackend.createHttpURIs((Inet6Address) remoteSocketAddress.getAddress(), "/light/_minimal")[0].getHost();
-                } catch (URISyntaxException e) {
-                    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                    httpTargetURI = CoapBackend.createHttpURIs((Inet6Address) remoteSocketAddress.getAddress(),
+                                                             "/light/_minimal")[0]
+                                                .getHost();
                 }
-                httpRequest = "http://"+httpRequest+":8080/light/_minimal";
-                System.out.println("http request is: "+httpRequest);
+                catch (URISyntaxException e) {
+                    log.error("Exception", e);
+                }
+
+                //httpTargetURI = "http://" + httpTargetURI+":8080/light/_minimal";
+                log.debug("HTTP URI for minimal service: " + httpTargetURI);
 
                 //String FOI = "";
 
@@ -158,7 +156,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 FOI = foi.substring(0, foi.length()-1);*/
                 //log.debug("FOI extracted: "+FOI);
 
-                Visualizer.getInstance().updateDB(ipv6Addr, macAddr, httpRequest);
+                AutoAnnotation.getInstance().updateDB(ipv6Addr, macAddr, httpTargetURI);
             }
             else{
                 coapResponse = new CoapResponse(Code.METHOD_NOT_ALLOWED_405);

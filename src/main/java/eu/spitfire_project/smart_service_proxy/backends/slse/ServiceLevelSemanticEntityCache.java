@@ -25,7 +25,7 @@
 
 package eu.spitfire_project.smart_service_proxy.backends.slse;
 
-import eu.spitfire_project.smart_service_proxy.core.EntityManager;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 
 import java.net.URI;
 import java.util.HashMap;
