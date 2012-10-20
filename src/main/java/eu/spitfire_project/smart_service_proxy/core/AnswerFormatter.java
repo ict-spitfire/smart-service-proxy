@@ -73,7 +73,8 @@ public class AnswerFormatter extends SimpleChannelHandler {
 			ctx.sendDownstream(new DownstreamMessageEvent(e.getChannel(), e.getFuture(), response, e.getRemoteAddress()));
 		}
 		else {
-			super.writeRequested(ctx, e);
+            ctx.sendDownstream(e);
+			//super.writeRequested(ctx, e);
 		}
 	}
 }

@@ -71,9 +71,9 @@ public class Main {
         Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
 
         Logger.getRootLogger().setLevel(Level.ERROR);
-        Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.DEBUG);
+        Logger.getLogger("eu.spitfire_project.smart_service_proxy").setLevel(Level.ERROR);
         Logger.getLogger("eu.spitfire_project.smart_service_proxy.core.ShdtSerializer").setLevel(Level.ERROR);
-        Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication").setLevel(Level.DEBUG);
+        Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.communication").setLevel(Level.ERROR);
         //Logger.getLogger("de.uniluebeck.itm.spitfire.nCoap.message").setLevel(Level.DEBUG);
 
 
@@ -154,7 +154,7 @@ public class Main {
         createBackends(config);
 
         Visualizer.getInstance();
-        new SimulatedTimeScheduler().run();
+        //new SimulatedTimeScheduler().run();
     }
     
     private static void startConnectionMapper(Configuration config) throws Exception{

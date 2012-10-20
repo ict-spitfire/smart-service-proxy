@@ -11,6 +11,7 @@ import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
 import de.uniluebeck.itm.spitfire.nCoap.application.CoapClientApplication;
 import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeParameters;
+import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeScheduler;
 import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeUpdater;
 import eu.spitfire_project.smart_service_proxy.utils.TList;
 import eu.spitfire_project.smart_service_proxy.utils.TString;
@@ -39,20 +40,25 @@ import java.util.concurrent.TimeUnit;
 public class Visualizer extends SimpleChannelUpstreamHandler{
     private Logger log = Logger.getLogger(Visualizer.class.getName());
     private static final Visualizer instance = new Visualizer();
+    private static int ID = 0; //Sensor ID
 
     private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
 
     private int numberOfImagesPerDay = 96;
     private int realTimeTick = 15; //15 minutes
-    private int updateRate = 1000; //1 second
-    private long annoTimeThreshold = 20000;//numberOfImagesPerDay*realTimeTick;
+    private int updateRate = 2000; //1 second
+    private long annoTimeThreshold = 8*updateRate*4;//number hours to trigger annotation
     private int currentTemperature, maxTemp = 40;
     private TList sensors = new TList();
 
     private long startTime, simTime;
     private int imgIndex;
+    private boolean pauseVisualization = true;
+
+    private SimulatedTimeUpdater stu;
 
     private Visualizer(){
+        stu = new SimulatedTimeUpdater();
         executorService.scheduleAtFixedRate(new AutoAnnotation(), 2000, updateRate, TimeUnit.MILLISECONDS);
     }
 
@@ -60,41 +66,94 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         return instance;
     }
 
+    private class httpCrawl implements Runnable {
+        private String macAddr;
+        private String httpRequest;
+        private SensorData sd;
+
+        public httpCrawl(SensorData sd, String macAddr, String httpRequest) {
+            this.sd = sd;
+            this.macAddr = macAddr;
+            this.httpRequest = httpRequest;
+        }
+
+        @Override
+        public void run() {
+            URL crawRequest = null;
+            try {
+                System.out.print("crawl for " + macAddr + " at time " + simTime + "...");
+                crawRequest = new URL(httpRequest);
+                URLConnection connection = crawRequest.openConnection();
+
+                //System.out.print("connection opened (timeout: " + connection.getConnectTimeout() + "), ");
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String line = in.readLine();
+                //System.out.print("content: " + line + ", ");
+                double value = 0;
+                while ((line = in.readLine()) != null) {
+                    System.out.print("content: " + line + ", ");
+                    if (line.indexOf("value")>0) {
+                        //log.debug("The value line is: "+line);
+                        TString s1 = new TString(line, '>');
+                        TString s2 = new TString(s1.getStrAt(1),'<');
+                        //log.debug("new value crawled is: "+s2.getStrAt(0));
+                        value = Double.valueOf(s2.getStrAt(0)).doubleValue();
+                    }
+                }
+                in.close();
+
+
+                sd.updateReadings(simTime, value);
+                System.out.println(" Done for " + macAddr + " with value:" + String.format("%.2f", value));
+            } catch (MalformedURLException e) {
+                log.debug("failed to crawl for "+macAddr);
+            } catch (IOException e) {
+                log.debug("failed to crawl for " + macAddr);
+            }
+        }
+    }
+
     private class AutoAnnotation extends CoapClientApplication implements Runnable {
         private long timeCounter = System.currentTimeMillis();
         private int nnode = 0;
 
         public AutoAnnotation() {
-            simTime = 0;
-            imgIndex = 0;
+            simTime = 360;
+            imgIndex = 24;
             currentTemperature = 20;
         }
 
         @Override
         public void run() {
-            try {
+            System.out.println("Start new scheduled task!");
+            if (!pauseVisualization) { try {
+                stu.doit(simTime);
 
-                /*if (System.currentTimeMillis()-timeCounter > 5*1000 && nnode < 5) {
+                //if (pauseVisualization) { try {
+                /*
+                if (System.currentTimeMillis()-timeCounter > 5*1000 && nnode < 1) {
                     String ipv6 = String.valueOf(nnode+1);
                     String FOI = "foi";
                     if (nnode==4) FOI = "none";
                     else
                         if (nnode==3 || nnode==2) FOI = "Kitchen";
-                        else FOI = "Living Room";
-                    updateDB(ipv6, "nothing", FOI);
+                        else FOI = "LivingRoom";
+                    updateDB("ju8e7f", "8e7f", "http", FOI);
                     timeCounter = System.currentTimeMillis();
                     log.debug("New node added: ("+ipv6+", "+FOI+")");
                     nnode++;
-                }*/
-
+                }
+                */
                 //Crawl sensor readings
-                for (int i=0; i<sensors.len(); i++)
+                for (int i=0; i<sensors.len(); i++) {
+                    log.debug("crawling for sensor "+((SensorData)sensors.get(i)).macAddr);
                     ((SensorData)sensors.get(i)).crawl();
+                }
 
                 //Check if annotation timer of sensors expire then trigger annotation process
                 for (int i=0; i<sensors.len(); i++) {
                     SensorData sd = (SensorData)sensors.get(i);
-                    if ("Unknown Location".equalsIgnoreCase(sd.FOI)) {
+                    if ("Unannotated".equalsIgnoreCase(sd.FOI)) {
                         log.debug("--------------------------------------- LEVEL 1 ------------------------------------------");
                         long thre = System.currentTimeMillis() - sd.annoTimer;
                         //Trigger annotation here
@@ -103,9 +162,9 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                             //Calculate fuzzy set of other sensors
                             for (int j = 0; j<sensors.len(); j++) {
                                 SensorData de = (SensorData)sensors.get(j);
-                                if (!"Unknown Location".equalsIgnoreCase(de.FOI)) {
+                                if (!"Unannotated".equalsIgnoreCase(de.FOI)) {
                                     log.debug("Computing fuzzy set for sensor ("+de.ipv6Addr+", "+de.FOI+") ... ");
-                                    de.computeFuzzySet();
+                                    de.computeFuzzySet(de.getValues().size());
                                     log.debug(" Done!");
                                 }
                             }
@@ -116,7 +175,7 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                             String anno = "";
                             for (int j = 0; j < sensors.len(); j++) {
                                 SensorData de = (SensorData)sensors.get(j);
-                                if (!"Unknown Location".equalsIgnoreCase(de.FOI)) {
+                                if (!"Unannotated".equalsIgnoreCase(de.FOI)) {
                                     double sc = calculateScore(sd.getValues(), de.getFZ(), de.getDFZ());
                                     if (maxsc < sc) {
                                         maxsc = sc;
@@ -130,9 +189,13 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                             log.debug("Resulting annotation is " + anno);
 
                             //Send POST to sensor
-                            CoapRequest annotation = makeCOAPRequest(sd.ipv6Addr, sd.FOI);
-                            log.debug("Sending POST request to sensor!");
-                            //writeCoapRequest(annotation);
+                            String foi = "";
+                            if (sd.FOI.equalsIgnoreCase("Living-Room")) foi = "livingroom";
+                            else
+                            if (sd.FOI.equalsIgnoreCase("Kitchen")) foi = "kitchen";
+                            CoapRequest annotation = makeCOAPRequest(sd.ipv6Addr, foi);
+                            System.out.println("Sending POST request to sensor!");
+                            writeCoapRequest(annotation);
                         }
                     }
                 }
@@ -140,6 +203,12 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                 //Update current temperature from triple store here
 
                 //Increase simulation time
+                int simTimeM = (int)simTime % 60;
+                int simTimeH = (int)((double)(simTime)/(double)60) % 24;
+                if (simTimeH==20 && simTimeM==0) {
+                    simTime += 10*4*realTimeTick; //9 hours
+                    imgIndex = 6*4-1;
+                }
                 simTime += realTimeTick;
 
                 //Update the index of rendered image
@@ -147,16 +216,17 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                 if (imgIndex >= numberOfImagesPerDay)
                     imgIndex = 0;
             } catch (InvalidOptionException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                System.out.println("Wrong in InvalidOptionException");
             } catch (InvalidMessageException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                System.out.println("Wrong in InvalidMessageException");
             } catch (ToManyOptionsException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                System.out.println("Wrong in ToManyOptionsException");
             } catch (URISyntaxException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                System.out.println("Wrong in URISyntaxException");
             } catch (MessageDoesNotAllowPayloadException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            }
+                System.out.println("Wrong in MessageDoesNotAllowPayloadException");
+            } }
+            System.out.println("Scheduled task finished.");
         }
 
         private CoapRequest makeCOAPRequest(String ipv6Addr, String resultAnnotation) throws URISyntaxException, ToManyOptionsException, InvalidOptionException, InvalidMessageException, MessageDoesNotAllowPayloadException {
@@ -184,24 +254,43 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         }
 
         //Process the HTTP request
-        HttpRequest request = (HttpRequest) me.getMessage();
+        /*HttpRequest request = (HttpRequest) me.getMessage();
+        String content = new String(request.getContent().array(), Charset.forName("UTF-8"));
+        System.out.println("Message recieved: "+content);
+        if ("resumeVisualization".equalsIgnoreCase(content)) {
+            pauseVisualization = false;
+            System.out.println("Resuming visualization");
+        } else
+            if ("pauseVisualization".equalsIgnoreCase(content)) {
+                pauseVisualization = true;
+                System.out.println("Pausing visualization");
+            }*/
+
+        //Workaround until find a way to send string from client
+        if (pauseVisualization) {
+            pauseVisualization = false;
+            //new SimulatedTimeScheduler().run();
+            stu.doit(simTime);
+        }
 
         //Send a Response
-        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        String payload = String.valueOf(simTime)+"|"+String.valueOf(imgIndex)+"|"+String.valueOf(SimulatedTimeParameters.actualTemperature)+"\n";
-        for (int i=0; i<sensors.len(); i++) {
-            SensorData sd = (SensorData)sensors.get(i);
-            String timeStamp = String.valueOf(sd.getLatestTS());
-            String value = String.format("%.4f", sd.getLatestVL());
-            String entry = sd.ipv6Addr+"|"+sd.macAddr+"|"+sd.FOI+"|"+timeStamp+"|"+value;
-            payload += entry + "\n";
+        if (!pauseVisualization) {
+            HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+            String payload = String.valueOf(simTime)+"|"+String.valueOf(imgIndex)+"|"+String.valueOf(SimulatedTimeParameters.actualTemperature)+"\n";
+            for (int i=0; i<sensors.len(); i++) {
+                SensorData sd = (SensorData)sensors.get(i);
+                String timeStamp = String.valueOf(sd.getLatestTS());
+                String value = String.format("%.4f", sd.getLatestVL());
+                String entry = sd.senID+"|"+sd.ipv6Addr+"|"+sd.macAddr+"|"+sd.FOI+"|"+timeStamp+"|"+value;
+                payload += entry + "\n";
+            }
+            if (payload != "")
+                payload = payload.substring(0, payload.length()-1);
+            //log.debug(payload);
+            response.setContent(ChannelBuffers.copiedBuffer(payload.getBytes(Charset.forName("UTF-8"))));
+            ChannelFuture future = Channels.write(ctx.getChannel(), response);
+            future.addListener(ChannelFutureListener.CLOSE);
         }
-        if (payload != "")
-            payload = payload.substring(0, payload.length()-1);
-        //log.debug(payload);
-        response.setContent(ChannelBuffers.copiedBuffer(payload.getBytes(Charset.forName("UTF-8"))));
-        ChannelFuture future = Channels.write(ctx.getChannel(), response);
-        future.addListener(ChannelFutureListener.CLOSE);
     }
 
     private class SensorData {
@@ -214,14 +303,16 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         public long annoTimer;
         private Random random = new Random();
         private FuzzyRule fz, dfz;
+        private int senID;
 
         public SensorData(String ipv6Addr, String macAddr, String httpRequest, String FOI) {
+            senID = ID; ID++;
             this.ipv6Addr = ipv6Addr;
             this.macAddr = macAddr;
             this.httpRequest = httpRequest;
             this.FOI = FOI;
 
-            if ("Unknown Location".equalsIgnoreCase(FOI))
+            if ("Unannotated".equalsIgnoreCase(FOI))
                 annoTimer = System.currentTimeMillis();
         }
 
@@ -235,15 +326,19 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         }
 
         public void crawl() {
-            //double value = random.nextDouble();
-            URL crawRequest = null;
+            /*URL crawRequest = null;
             try {
+                System.out.print("crawl for " + macAddr + " at time " + simTime + "...");
                 crawRequest = new URL(httpRequest);
                 URLConnection connection = crawRequest.openConnection();
+
+                System.out.print("connection opened (timeout: " + connection.getConnectTimeout() + "), ");
                 BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                 String line = in.readLine();
+                System.out.print("content: " + line + ", ");
                 double value = 0;
                 while ((line = in.readLine()) != null) {
+                    System.out.print("content: " + line + ", ");
                     if (line.indexOf("value")>0) {
                         //log.debug("The value line is: "+line);
                         TString s1 = new TString(line, '>');
@@ -251,14 +346,19 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                         //log.debug("new value crawled is: "+s2.getStrAt(0));
                         value = Double.valueOf(s2.getStrAt(0)).doubleValue();
                     }
-                 }
-                updateReadings(simTime, value);
-            } catch (MalformedURLException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            } catch (IOException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            }
+                    System.out.print("doing stuff, ");
+                }
+                in.close();
 
+
+                updateReadings(simTime, value);
+                System.out.println(" Done for " + macAddr + " with value:" + String.format("%.2f", value));
+            } catch (MalformedURLException e) {
+                log.debug("failed to crawl for "+macAddr);
+            } catch (IOException e) {
+                log.debug("failed to crawl for " + macAddr);
+            }*/
+            new httpCrawl(this, macAddr, httpRequest).run();
         }
 
         public ArrayList<Double> getValues() {
@@ -279,9 +379,9 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
             return rs;
         }
 
-        public void computeFuzzySet() {
-            fz = extractRule(values);
-            dfz = extractRuleD(values);
+        public void computeFuzzySet(int nDataPoint) {
+            fz = extractRule(values, nDataPoint);
+            dfz = extractRuleD(values, nDataPoint);
         }
 
         public FuzzyRule getFZ() {
@@ -292,7 +392,11 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
             return dfz;
         }
 
-        private FuzzyRule extractRuleD(List<Double> dataList) {
+        private FuzzyRule extractRuleD(List<Double> datList, int nDataPoint) {
+            List<Double> dataList = new ArrayList<Double>();
+            for (int i=0; i<nDataPoint; i++)
+                dataList.add(datList.get(i));
+
             FuzzyRule ruleD = null;
 
             if (dataList.size() > 2) {
@@ -303,13 +407,17 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
                     deriList.add(tmp);
                 }
                 deriList.add(deriList.get(deriList.size()-1));
-                ruleD = extractRule(deriList);
+                ruleD = extractRule(deriList, nDataPoint);
             }
 
             return ruleD;
         }
 
-        private FuzzyRule extractRule(List<Double> dataList) {
+        private FuzzyRule extractRule(List<Double> datList, int nDataPoint) {
+            List<Double> dataList = new ArrayList<Double>();
+            for (int i=0; i<nDataPoint; i++)
+                dataList.add(datList.get(i));
+
             Double[] raw = dataList.toArray(new Double[dataList.size()]);
 
             // Identify the value range
@@ -428,12 +536,12 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         }
     }
 
-    private SensorData searchSensor(String ipv6Addr) {
+    private SensorData searchSensor(String macAddr) {
         SensorData rs = null;
         int ind = 0;
         for (; ind<sensors.len(); ind++) {
             SensorData sd = (SensorData)sensors.get(ind);
-            if (sd.ipv6Addr.equalsIgnoreCase(ipv6Addr)) {
+            if (sd.macAddr.equalsIgnoreCase(macAddr)) {
                 rs = sd;
                 break;
             }
@@ -441,15 +549,25 @@ public class Visualizer extends SimpleChannelUpstreamHandler{
         return rs;
     }
 
-    public void updateDB(String ipv6Addr, String macAddr, String httpRequest, String newFOI) {
-        SensorData sd = searchSensor(ipv6Addr);
-        String foi = newFOI;
-        if ("none".equalsIgnoreCase(newFOI))
-            foi = "Unknown Location";
-        if (sd != null)
-            sd.FOI = foi;
+    public void updateDB(String ipv6Addr, String macAddr, String httpRequest) {
+        //Feature of interest
+        String FOI = "";
+        if ("8e84".equalsIgnoreCase(macAddr)) {
+            FOI = "Unannotated";
+            System.out.println("new node added");
+        } else
+            if ("2304".equalsIgnoreCase(macAddr) || "a88".equalsIgnoreCase(macAddr)) FOI = "Kitchen";
+            else
+                if ("8e7f".equalsIgnoreCase(macAddr) || "8ed8".equalsIgnoreCase(macAddr)) FOI = "Living-Room";
+
+        SensorData sd = searchSensor(macAddr);
+        if (sd == null)
+            sensors.enList(new SensorData(ipv6Addr, macAddr, httpRequest, FOI));
         else
-            sensors.enList(new SensorData(ipv6Addr, macAddr, httpRequest, foi));
+            if ("8e84".equalsIgnoreCase(macAddr)) {
+                sensors.remove(sd);
+                sensors.enList(new SensorData(ipv6Addr, macAddr, httpRequest, FOI));
+            }
     }
 
     private class FuzzyRule {

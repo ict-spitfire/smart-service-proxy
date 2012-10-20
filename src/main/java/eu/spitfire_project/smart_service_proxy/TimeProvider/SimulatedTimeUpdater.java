@@ -1,7 +1,6 @@
 package eu.spitfire_project.smart_service_proxy.TimeProvider;
 
 import org.joda.time.DateTime;
-import org.openrdf.OpenRDFException;
 import org.openrdf.model.Resource;
 import org.openrdf.model.URI;
 import org.openrdf.model.Value;
@@ -22,10 +21,13 @@ import javax.xml.datatype.XMLGregorianCalendar;
  * User: Richard Mietz
  * Date: 09.10.12
  */
-public class SimulatedTimeUpdater implements Runnable
+//public class SimulatedTimeUpdater implements Runnable
+public class SimulatedTimeUpdater
 {
     private ValueFactory vf = null;
     private Repository repo = null;
+    private RepositoryConnection conn = null;
+    private boolean timeInserted = false;
 
     public SimulatedTimeUpdater()
     {
@@ -42,36 +44,66 @@ public class SimulatedTimeUpdater implements Runnable
         }
     }
 
-    @Override
-    public void run()
+    //@Override
+    //public void run()
+    public void doit(long minSinceStart)
     {
+        long begin = System.currentTimeMillis();
+        System.out.println("Start doit.");
+
         String time;
-        if(SimulatedTimeParameters.useDate)
+        /*
+        if (SimulatedTimeParameters.useDate)
         {
             DateTime simulatedTime = SimulatedTimeParameters.startDate.plusMinutes(SimulatedTimeParameters.elapseMinutes * SimulatedTimeParameters.elapseRound);
+            if(simulatedTime.toLocalTime().compareTo(SimulatedTimeParameters.skipTime)>=0)
+            {
+                simulatedTime = simulatedTime.plusHours(SimulatedTimeParameters.skipHours);
+                //simulatedTime = simulatedTime.plusMinutes(SimulatedTimeParameters.skipMinutes-15);
+                simulatedTime = simulatedTime.plusMinutes(SimulatedTimeParameters.skipMinutes);
+                SimulatedTimeParameters.elapseRound +=
+                    1 + ((SimulatedTimeParameters.skipHours * 60 + SimulatedTimeParameters.skipMinutes)
+                    / SimulatedTimeParameters.elapseMinutes);
+
+            } else {
+                SimulatedTimeParameters.elapseRound++;
+            }
             time = SimulatedTimeParameters.dateFormatter.format(simulatedTime.toDate());
-        }
-        else
+        } else
         {
             int simulatedTime = (SimulatedTimeParameters.start + SimulatedTimeParameters.elapseRound * SimulatedTimeParameters.elapseMinutes) % SimulatedTimeParameters.overflowMod;
             time = Integer.toString(simulatedTime);
-        }
-
-        if(SimulatedTimeParameters.elapseRound == 0)
+        }*/
+        DateTime simulatedTime = SimulatedTimeParameters.startDate.plusMinutes((int)minSinceStart);
+        time = SimulatedTimeParameters.dateFormatter.format(simulatedTime.toDate());
+        try
         {
-            insertStatement(time);
-        }
-        else
+            conn = repo.getConnection();
+            conn.setAutoCommit(false);
+            if (! timeInserted /* SimulatedTimeParameters.elapseRound <= 1*/)
+            {
+                timeInserted = true;
+                insertStatement(time);
+            } else
+            {
+                updateStatement(time);
+            }
+            conn.commit();
+            retrieveTemperature();
+            conn.commit();
+            conn.close();
+            long end = System.currentTimeMillis();
+            System.out.println("End doit " + (end-begin) + " millis");
+        } catch (RepositoryException e)
         {
-            updateStatement(time);
+            e.printStackTrace();
         }
-        retrieveTemperature();
-
-        SimulatedTimeParameters.elapseRound++;
+        //System.out.println(time);
     }
 
     private void retrieveTemperature()
     {
+        System.out.println("Start retreiveTemperature");
         String query = "SELECT ?temp WHERE { " +
                 "<" + SimulatedTimeParameters.subject + "> <" + SimulatedTimeParameters.predicate + "> ?time ." +
                 "?forecast	<http://spitfire-project.eu/ontology/ns/value> ?temp . " +
@@ -80,28 +112,22 @@ public class SimulatedTimeUpdater implements Runnable
                 "FILTER (?start <= ?time && ?end >= ?time)" +
                 "}";
 
+
         try
         {
-            RepositoryConnection conn = repo.getConnection();
-            try
+            System.out.println("Before prepareTupleQuery.");
+            TupleQuery tupleQuery = conn.prepareTupleQuery(
+                    QueryLanguage.SPARQL, query);
+            System.out.println("Before evaluate");
+            TupleQueryResult tqr = tupleQuery.evaluate();
+            if (tqr.hasNext())
             {
-                TupleQuery tupleQuery = conn.prepareTupleQuery(
-                        QueryLanguage.SPARQL, query);
-                TupleQueryResult tqr = tupleQuery.evaluate();
-                if(tqr.hasNext())
-                {
-                    BindingSet bs = tqr.next();
-                    SimulatedTimeParameters.actualTemperature = Double.parseDouble(bs.getValue("temp").stringValue());
-                    System.out.println("Current temp: " + String.valueOf(SimulatedTimeParameters.actualTemperature));
-                }
-            } catch (Exception e)
-            {
-                e.printStackTrace();
-            } finally
-            {
-                conn.close();
+                BindingSet bs = tqr.next();
+                SimulatedTimeParameters.actualTemperature = Double.parseDouble(bs.getValue("temp").stringValue());
+                //System.out.println("Current temp: " + String.valueOf(SimulatedTimeParameters.actualTemperature));
             }
-        } catch (OpenRDFException e)
+            System.out.println("End retreiveTemperature");
+        } catch (Exception e)
         {
             e.printStackTrace();
         }
@@ -113,21 +139,11 @@ public class SimulatedTimeUpdater implements Runnable
         URI p = createPredicate(SimulatedTimeParameters.predicate);
         URI res = createContext(SimulatedTimeParameters.context);
         Value o = createLiteral(timeObj);
+
         try
         {
-            RepositoryConnection conn = repo.getConnection();
-            try
-            {
-                conn.add(s, p, o, res);
-                conn.commit();
-            } catch (Exception e)
-            {
-                e.printStackTrace();
-            } finally
-            {
-                conn.close();
-            }
-        } catch (OpenRDFException e)
+            conn.add(s, p, o, res);
+        } catch (Exception e)
         {
             e.printStackTrace();
         }
@@ -146,7 +162,8 @@ public class SimulatedTimeUpdater implements Runnable
         Resource c = createContext(SimulatedTimeParameters.context);
         try
         {
-            repo.getConnection().remove(s, p, null, (Resource) c);
+
+            conn.remove(s, p, null, (Resource) c);
         } catch (RepositoryException e)
         {
             System.out.println("Could not delete triple.");
