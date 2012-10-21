@@ -27,7 +27,7 @@ import static org.jboss.netty.handler.codec.http.HttpMethod.POST;
  * Time: 11:22
  * To change this template use File | Settings | File Templates.
  */
-public class VisualizerClient extends HttpClient implements Callable {
+public class VisualizerClient extends HttpClient implements Callable<HttpResponse> {
 
     private static Logger log = Logger.getLogger(VisualizerClient.class.getName());
     private static final VisualizerClient INSTANCE = new VisualizerClient();
@@ -37,32 +37,22 @@ public class VisualizerClient extends HttpClient implements Callable {
     private static String VISUALIZER_PATH;
     static{
         try {
-            VISUALIZER_IP = InetAddress.getByName("141.83.106.116");
+            //VISUALIZER_IP = InetAddress.getByName("141.83.106.116");
+            VISUALIZER_IP = InetAddress.getByName("www.spitfire.wuxi.cn");
             VISUALIZER_PORT = 10000;
             VISUALIZER_PATH = "/visualizer";
         } catch (UnknownHostException e) {
             log.error("This should never happen.", e);
+            throw new RuntimeException(e);
         }
     }
 
     private static int simulatedTime = 360; //Minutes!!!
     private static int imageIndex = 24;
-    //private static final String visualizerService = "http://123.123.123.123:10000/visualizer";
 
-    private Object responseMonitor = new Object();
+    private final Object responseMonitor = new Object();
     public HttpResponse httpResponse;
 
-
-    //private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
-
-    //private int numberOfImagesPerDay = 96;
-    //private int realTimeTick = 15; //15 minutes
-
-    //private int currentTemperature, maxTemp = 40;
-
-
-    //private long startTime, simTime;
-    //private int imgIndex;
     private boolean pauseVisualization = true;
 
     private SimulatedTimeUpdater stu;
@@ -77,51 +67,69 @@ public class VisualizerClient extends HttpClient implements Callable {
     }
 
     @Override
-    public HttpResponse call() throws InterruptedException {
-        synchronized (responseMonitor){
+    public HttpResponse call() {
+        try {
+            synchronized (responseMonitor){
 
-            this.httpResponse = null;
+                this.httpResponse = null;
 
-            String visualizerService = "http://" + VISUALIZER_IP + ":" + VISUALIZER_PORT + VISUALIZER_PATH;
-            HttpRequest httpRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, POST, visualizerService);
+                writeHttpRequest(new InetSocketAddress(VISUALIZER_IP, VISUALIZER_PORT), createHttpRequest());
 
-            String payload = String.valueOf(simulatedTime) + "|" + String.valueOf(imageIndex) + "|" + "20" + "\n";
-                   // + String.valueOf(SimulatedTimeParameters.actualTemperature) + "\n";
+                log.debug("Wait for response.");
+                if(httpResponse == null){
+                    responseMonitor.wait(5000);
+                }
 
+                if (httpResponse != null && httpResponse.getStatus().equals(HttpResponseStatus.OK)) {
 
-            for (int i=0; i<AutoAnnotation.getInstance().sensors.len(); i++) {
-                SensorData sd = (SensorData) AutoAnnotation.getInstance().sensors.get(i);
-                //String timeStamp = String.valueOf(sd.getLatestTS());
-                String timeStamp = String.valueOf(simulatedTime - 15);
-                String value = String.format(Locale.US, "%.4f", sd.getLatestVL());
-                String entry = sd.senID + "|" + sd.ipv6Addr + "|" + sd.macAddr + "|" + sd.FOI + "|"
-                                + timeStamp + "|" +value;
-                payload += entry + "\n";
+                    log.debug("Response received.");
+
+                    if((simulatedTime % 1440) - 1200 == 0){
+                        simulatedTime += 600;
+                        imageIndex = 24;
+                    }
+                    else{
+                        simulatedTime += 15;
+                        imageIndex += 1;
+                    }
+                }
+
+                return httpResponse;
             }
-
-            if (payload != ""){
-                payload = payload.substring(0, payload.length()-1);
-            }
-
-            log.debug("Payload of request to visualizer service: " + payload);
-
-            ChannelBuffer payloadBuffer = ChannelBuffers.copiedBuffer(payload.getBytes(Charset.forName("UTF-8")));
-            httpRequest.setContent(payloadBuffer);
-            httpRequest.setHeader(HttpHeaders.Names.CONTENT_LENGTH, payloadBuffer.readableBytes());
-            writeHttpRequest(new InetSocketAddress(VISUALIZER_IP, VISUALIZER_PORT), httpRequest);
-
-            log.debug("Wait for response.");
-            while(httpResponse == null){
-                responseMonitor.wait();
-            }
-
-            log.debug("Response received.");
-
-            simulatedTime += 15;
-            imageIndex += 1;
-
-            return httpResponse;
+        } catch (Exception e) {
+            log.error("***************** EXCEPTION! *****************", e);
+            return null;
         }
+    }
+
+    private HttpRequest createHttpRequest() {
+        String visualizerService = "http://" + VISUALIZER_IP + ":" + VISUALIZER_PORT + VISUALIZER_PATH;
+        HttpRequest httpRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, POST, visualizerService);
+
+        String payload = String.valueOf(simulatedTime) + "|" + String.valueOf(imageIndex % 96) + "|" + "20" + "\n";
+        // + String.valueOf(SimulatedTimeParameters.actualTemperature) + "\n";
+
+
+        for (int i=0; i< AutoAnnotation.getInstance().sensors.len(); i++) {
+            SensorData sd = (SensorData) AutoAnnotation.getInstance().sensors.get(i);
+            //String timeStamp = String.valueOf(sd.getLatestTS());
+            String timeStamp = String.valueOf(simulatedTime - 15);
+            String value = String.format(Locale.US, "%.4f", sd.getLatestVL());
+            String entry = sd.senID + "|" + sd.ipv6Addr + "|" + sd.macAddr + "|" + sd.FOI + "|"
+                            + timeStamp + "|" +value;
+            payload += entry + "\n";
+        }
+
+        if (!"".equals(payload)){
+            payload = payload.substring(0, payload.length()-1);
+        }
+
+        log.debug("Payload of request to visualizer service: " + payload);
+
+        ChannelBuffer payloadBuffer = ChannelBuffers.copiedBuffer(payload.getBytes(Charset.forName("UTF-8")));
+        httpRequest.setContent(payloadBuffer);
+        httpRequest.setHeader(HttpHeaders.Names.CONTENT_LENGTH, payloadBuffer.readableBytes());
+        return httpRequest;
     }
 
     @Override

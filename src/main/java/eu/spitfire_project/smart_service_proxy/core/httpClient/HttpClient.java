@@ -16,6 +16,9 @@ import org.jboss.netty.handler.codec.http.HttpRequest;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import static com.google.common.base.Throwables.propagate;
 
 /**
 * @author <a href="http://www.jboss.org/netty/">The Netty Project</a>
@@ -34,31 +37,40 @@ public abstract class HttpClient extends SimpleChannelUpstreamHandler {
     protected HttpClient(){
         bootstrap = new ClientBootstrap(
                 new NioClientSocketChannelFactory(
-                        Executors.newCachedThreadPool(),
-                        Executors.newCachedThreadPool()));
+                        Executors.newFixedThreadPool(1),
+                        Executors.newFixedThreadPool(1)));
 
         // Set up the event pipeline factory.
         bootstrap.setPipelineFactory(new HttpClientPipelineFactory(this));
+
+        bootstrap.setOption("connectTimeoutMillis", 5000);
     }
 
     public void writeHttpRequest(InetSocketAddress targetAddress, HttpRequest httpRequest){
-        ChannelFuture future = bootstrap.connect(targetAddress);
-        log.debug("Trying to connect to " + targetAddress);
-        Channel channel = future.awaitUninterruptibly().getChannel();
-        if (!future.isSuccess()) {
-            log.error("Could not connect!", future.getCause());
-            bootstrap.releaseExternalResources();
-            return;
-        }
+        try {
 
-        ChannelFuture writeFuture = channel.write(httpRequest);
+            ChannelFuture future = bootstrap.connect(targetAddress);
+            log.debug("Trying to connect to " + targetAddress);
 
-        writeFuture.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                log.debug("Message written successfully.");
+            Channel channel = future.awaitUninterruptibly().getChannel();
+            if (!future.isSuccess()) {
+                log.error("Could not connect!", future.getCause());
+                throw new RuntimeException(future.getCause());
             }
-        });
+
+            ChannelFuture writeFuture = channel.write(httpRequest);
+
+            writeFuture.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture future) throws Exception {
+                    log.debug("Message written successfully.");
+                }
+            });
+            writeFuture.await(5, TimeUnit.SECONDS);
+
+        } catch (Exception e) {
+            throw propagate(e);
+        }
     }
 
     @Override

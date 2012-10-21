@@ -56,7 +56,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
 
     private ArrayList<CoapBackend> coapBackends = new ArrayList<CoapBackend>();
 
-    public ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
+    public ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
 
     private static CoapNodeRegistrationServer instance = new CoapNodeRegistrationServer();
 

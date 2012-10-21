@@ -14,6 +14,7 @@ import eu.spitfire_project.smart_service_proxy.visualization.VisualizerClient;
 import org.apache.log4j.Logger;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -21,7 +22,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -41,7 +44,7 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
     //ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
     public TList sensors = new TList();
 
-    public ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
+    public ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
     private int updateRate = 2000; //2 second
     private long annotationPeriod = 2 * updateRate * 4;//number hours to trigger annotation
     private long timeCounter = System.currentTimeMillis();
@@ -55,7 +58,18 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
     }
 
     public void start(){
-        executorService.scheduleAtFixedRate(AutoAnnotation.getInstance(), 2000, 2000, TimeUnit.MILLISECONDS);
+
+        run();
+
+        System.out.println("Press a button to start the simulation: ");
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            System.in.read();
+        } catch (IOException e) {
+            log.error("This should never happen.", e);
+        }
+
+        executorService.scheduleAtFixedRate(this, 100, 100, TimeUnit.MILLISECONDS);
     }
 
     public static AutoAnnotation getInstance(){
@@ -64,6 +78,18 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
 
     @Override
     public void run() {
+
+        collectDataForAutoAnnotation();
+
+        if(visualizerClient != null){
+            log.debug("Invoke visualizer client to request a new image.");
+            HttpResponse response = visualizerClient.call();
+            log.debug("Visualizer response: " + response);
+        }
+    }
+
+    private void collectDataForAutoAnnotation() {
+
         log.debug("Start data collection for auto annotation.");
         try {
             //stu.doit(simTime);
@@ -154,36 +180,12 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
 //            imgIndex++;
 //            if (imgIndex >= numberOfImagesPerDay)
 //                imgIndex = 0;
-        } catch (InvalidOptionException e) {
-            log.debug("Wrong in InvalidOptionException");
-        } catch (InvalidMessageException e) {
-            log.debug("Wrong in InvalidMessageException");
-        } catch (ToManyOptionsException e) {
-            log.debug("Wrong in ToManyOptionsException");
-        } catch (URISyntaxException e) {
-            log.debug("Wrong in URISyntaxException");
-        } catch (MessageDoesNotAllowPayloadException e) {
-            log.debug("Wrong in MessageDoesNotAllowPayloadException");
+
+        } catch (Exception e) {
+            log.warn("Exception while collecting data for auto annotation: " + e, e);
         }
 
         log.debug("End data collection for auto annotation.");
-
-        if(visualizerClient != null){
-            log.debug("Invoke visualizer client to request a new image.");
-            ScheduledFuture<HttpResponse> future =
-                            CoapNodeRegistrationServer.getInstance()
-                                                      .executorService
-                                                      .schedule(visualizerClient, 0, TimeUnit.MILLISECONDS);
-
-            HttpResponse httpResponse = null;
-            try {
-                httpResponse = future.get();
-            } catch (InterruptedException e) {
-                log.error("Exception.", e);
-            } catch (ExecutionException e) {
-                log.error("Exception.", e);
-            }
-        }
     }
 
     public void setVisualizerClient(VisualizerClient visualizerClient){

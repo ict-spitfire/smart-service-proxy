@@ -13,13 +13,6 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.*;
 
-/**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 20.10.12
- * Time: 17:39
- * To change this template use File | Settings | File Templates.
- */
 public class SensorData {
     private Logger log = Logger.getLogger(SensorData.class.getName());
     public String ipv6Addr = null;
@@ -127,7 +120,7 @@ public class SensorData {
             ArrayList<Double> deriList = new ArrayList<Double>();
             Double[] raw = dataList.toArray(new Double[dataList.size()]);
             for (int i=0; i<raw.length-1; i++) {
-                Double tmp = Double.valueOf(raw[i+1]-raw[i]);
+                Double tmp = raw[i + 1] - raw[i];
                 deriList.add(tmp);
             }
             deriList.add(deriList.get(deriList.size()-1));
@@ -226,14 +219,14 @@ public class SensorData {
             //Eliminate no-data points
             int i1 = 0;
             while (dndcC[i1] <= 0) i1++;
-            vx.enList(Double.valueOf(dndcX[i1]));
-            vy.enList(Double.valueOf(dndcY[i1]));
-            dy.enList(Double.valueOf(0));
+            vx.enList(dndcX[i1]);
+            vy.enList(dndcY[i1]);
+            dy.enList((double) 0);
             for (int i2=i1+1; i2<dndcX.length; i2++) if (dndcC[i2] > 0) {
-                vx.enList(Double.valueOf(dndcX[i2]));
-                vy.enList(Double.valueOf(dndcY[i2]));
+                vx.enList(dndcX[i2]);
+                vy.enList(dndcY[i2]);
                 double d = (dndcY[i2] - dndcY[i1]) / (dndcXN[i2] - dndcXN[i1]);
-                dy.enList(Double.valueOf(d));
+                dy.enList(d);
                 i1 = i2;
             }
 
@@ -243,9 +236,9 @@ public class SensorData {
             rule.add((Double)vx.get(0), (Double)vy.get(0));
             if (dy.len() > 1) {
                 double thSlope = 1; // PI/4
-                double slope1 = ((Double)dy.get(1)).doubleValue();
+                double slope1 = (Double) dy.get(1);
                 for (int i=2; i<dy.len(); i++) {
-                    double slope2 = ((Double)dy.get(i)).doubleValue();
+                    double slope2 = (Double) dy.get(i);
                     double dSlope = Math.abs(slope2-slope1);
                     if (dSlope >= thSlope) {
                         rule.add((Double)vx.get(i-1), (Double)vy.get(i-1));
@@ -263,14 +256,14 @@ public class SensorData {
 
 
     public void crawl() {
-        URL crawRequest = null;
 
         try {
+
             long currentTime = System.currentTimeMillis();
             //updateReadings(currentTime, random.nextInt(1000));
             log.debug("Crawl for " + macAddr + " at time " + currentTime + "...");
-            crawRequest = new URL(httpRequest);
-            URLConnection connection = crawRequest.openConnection();
+            URL crawlRequest = new URL(httpRequest);
+            URLConnection connection = crawlRequest.openConnection();
 
             //log.debug("connection opened (timeout: " + connection.getConnectTimeout() + "), ");
             BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -284,7 +277,7 @@ public class SensorData {
                     TString s1 = new TString(line, '>');
                     TString s2 = new TString(s1.getStrAt(1),'<');
                     //log.debug("new value crawled is: "+s2.getStrAt(0));
-                    value = Double.valueOf(s2.getStrAt(0)).doubleValue();
+                    value = Double.valueOf(s2.getStrAt(0));
                 }
             }
             in.close();
