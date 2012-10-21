@@ -32,7 +32,9 @@ import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
+import eu.spitfire_project.smart_service_proxy.noderegistration.AutoAnnotation;
 import eu.spitfire_project.smart_service_proxy.utils.HttpResponseFactory;
+import eu.spitfire_project.smart_service_proxy.utils.TString;
 import org.apache.log4j.Logger;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -145,7 +147,7 @@ public class CoapBackend extends Backend{
                         }
 //                        catch (InvalidOptionException e) {
 //                            log.error("Error.", e);
-//                            response = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+//                            response = new DefaultHttpResponse(httpRequestUri.getProtocolVersion(),
 //                                                               HttpResponseStatus.INTERNAL_SERVER_ERROR);
 //                            ((DefaultHttpResponse) response).setContent(coapResponse.getResponsePayload());
 //                        }
@@ -256,6 +258,45 @@ public class CoapBackend extends Backend{
                 log.fatal("[CoapBackend] Error while creating URI. This should never happen.", e);
             }
         }
+
+        //----------- fuzzy annotation and visualizer----------------------
+        String ipv6Addr = remoteAddress.getHostAddress();
+        if(ipv6Addr.indexOf("%") != -1){
+            ipv6Addr = ipv6Addr.substring(0, ipv6Addr.indexOf("%"));
+        }
+        TString mac = new TString(ipv6Addr,':');
+        String macAddr = mac.getStrAtEnd();
+
+        log.debug("MACAddr is " + macAddr);
+
+        if(IPAddressUtil.isIPv6LiteralAddress(ipv6Addr)){
+            ipv6Addr = "[" + ipv6Addr + "]";
+        }
+
+        //URI of the minimal service (containg light value) of the new sensor
+        String httpRequestUri = null;
+        try {
+            URI uri = CoapBackend.createHttpURIs((Inet6Address) remoteAddress, "/light/_minimal")[0];
+            httpRequestUri = uri.toString();
+        }
+        catch (URISyntaxException e) {
+            log.error("Exception", e);
+        }
+
+        //httpTargetURI = "http://" + httpTargetURI+":8080/light/_minimal";
+        log.debug("HTTP URI for minimal service: " + httpRequestUri);
+
+        //String FOI = "";
+
+        /*while (coapRequest.getPayload().readable())
+         FOI += (char)coapRequest.getPayload().readByte();
+     log.debug("FOI full: "+FOI);
+     TString tfoi = new TString(FOI,'/');
+     String foi = tfoi.getStrAtEnd();
+     FOI = foi.substring(0, foi.length()-1);*/
+        //log.debug("FOI extracted: "+FOI);
+
+        AutoAnnotation.getInstance().updateDB(ipv6Addr, macAddr, httpRequestUri);
     }
 
     @Override

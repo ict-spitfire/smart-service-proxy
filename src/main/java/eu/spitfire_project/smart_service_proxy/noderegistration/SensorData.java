@@ -18,7 +18,7 @@ public class SensorData {
     public String ipv6Addr = null;
     public String macAddr = null;
     public String FOI = null;
-    public String httpRequest = null;
+    public String httpRequestUri = null;
     private static int ID = 0; //Sensor ID
 
     private int MAX_NUMBER_OF_VALUES = 96;
@@ -37,12 +37,12 @@ public class SensorData {
     private Random random = new Random();
     private FuzzyRule fz, dfz;
     public int senID;
-    public SensorData(String ipv6Addr, String macAddr, String httpRequest, String FOI) {
+    public SensorData(String ipv6Addr, String macAddr, String httpRequestUri, String FOI) {
         senID = ID;
         ID++;
         this.ipv6Addr = ipv6Addr;
         this.macAddr = macAddr;
-        this.httpRequest = httpRequest;
+        this.httpRequestUri = httpRequestUri;
         this.FOI = FOI;
 
         if ("Unannotated".equalsIgnoreCase(FOI))
@@ -262,7 +262,7 @@ public class SensorData {
             long currentTime = System.currentTimeMillis();
             //updateReadings(currentTime, random.nextInt(1000));
             log.debug("Crawl for " + macAddr + " at time " + currentTime + "...");
-            URL crawlRequest = new URL(httpRequest);
+            URL crawlRequest = new URL(httpRequestUri);
             URLConnection connection = crawlRequest.openConnection();
 
             //log.debug("connection opened (timeout: " + connection.getConnectTimeout() + "), ");
@@ -294,7 +294,7 @@ public class SensorData {
         /*URL crawRequest = null;
         try {
             log.debug("crawl for " + macAddr + " at time " + simTime + "...");
-            crawRequest = new URL(httpRequest);
+            crawRequest = new URL(httpRequestUri);
             URLConnection connection = crawRequest.openConnection();
 
             log.debug("connection opened (timeout: " + connection.getConnectTimeout() + "), ");
@@ -323,7 +323,7 @@ public class SensorData {
         } catch (IOException e) {
             log.debug("failed to crawl for " + macAddr);
         }*/
-        //new HttpCrawler(this, macAddr, httpRequest).run();
+        //new HttpCrawler(this, macAddr, httpRequestUri).run();
     }
 
 }

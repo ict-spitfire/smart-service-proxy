@@ -1,5 +1,6 @@
 package eu.spitfire_project.smart_service_proxy.visualization;
 
+import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeParameters;
 import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeUpdater;
 import eu.spitfire_project.smart_service_proxy.core.httpClient.HttpClient;
 import eu.spitfire_project.smart_service_proxy.noderegistration.AutoAnnotation;
@@ -38,7 +39,7 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
     static{
         try {
             //VISUALIZER_IP = InetAddress.getByName("141.83.106.116");
-            VISUALIZER_IP = InetAddress.getByName("www.spitfire.wuxi.cn");
+            VISUALIZER_IP = InetAddress.getByName("spitfire-visualizer.wuxi.cn");
             VISUALIZER_PORT = 10000;
             VISUALIZER_PATH = "/visualizer";
         } catch (UnknownHostException e) {
@@ -47,6 +48,7 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
         }
     }
 
+    private SimulatedTimeUpdater stu= new SimulatedTimeUpdater();
     private static int simulatedTime = 360; //Minutes!!!
     private static int imageIndex = 24;
 
@@ -55,10 +57,10 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
 
     private boolean pauseVisualization = true;
 
-    private SimulatedTimeUpdater stu;
+
 
     private VisualizerClient(){
-        stu = new SimulatedTimeUpdater();
+
 
     }
 
@@ -68,7 +70,9 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
 
     @Override
     public HttpResponse call() {
+
         try {
+            stu.doit(simulatedTime);
             synchronized (responseMonitor){
 
                 this.httpResponse = null;
@@ -106,8 +110,8 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
         String visualizerService = "http://" + VISUALIZER_IP + ":" + VISUALIZER_PORT + VISUALIZER_PATH;
         HttpRequest httpRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, POST, visualizerService);
 
-        String payload = String.valueOf(simulatedTime) + "|" + String.valueOf(imageIndex % 96) + "|" + "20" + "\n";
-        // + String.valueOf(SimulatedTimeParameters.actualTemperature) + "\n";
+        String payload = String.valueOf(simulatedTime) + "|" + String.valueOf(imageIndex % 96) + "|" //+ "20" + "\n";
+            + String.valueOf(SimulatedTimeParameters.actualTemperature) + "\n";
 
 
         for (int i=0; i< AutoAnnotation.getInstance().sensors.len(); i++) {

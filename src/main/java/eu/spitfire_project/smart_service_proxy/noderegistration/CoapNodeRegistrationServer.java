@@ -118,45 +118,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                     log.debug("Request payload: " + coapRequest.getPayload().toString(Charset.forName("UTF-8")));
                 }
 
-                //----------- fuzzy annotation and visualizer----------------------
-                String ipv6Addr = remoteSocketAddress.getAddress().getHostAddress();
-                if(ipv6Addr.indexOf("%") != -1){
-                    ipv6Addr = ipv6Addr.substring(0, ipv6Addr.indexOf("%"));
-                }
-                TString mac = new TString(ipv6Addr,':');
-                String macAddr = mac.getStrAtEnd();
 
-                log.debug("MACAddr is " + macAddr);
-
-                if(IPAddressUtil.isIPv6LiteralAddress(ipv6Addr)){
-                    ipv6Addr = "[" + ipv6Addr + "]";
-                }
-
-                //URI of the minimal service (containg light value) of the new sensor
-                String httpTargetURI = null;
-                try {
-                    httpTargetURI = CoapBackend.createHttpURIs((Inet6Address) remoteSocketAddress.getAddress(),
-                                                             "/light/_minimal")[0]
-                                                .getHost();
-                }
-                catch (URISyntaxException e) {
-                    log.error("Exception", e);
-                }
-
-                //httpTargetURI = "http://" + httpTargetURI+":8080/light/_minimal";
-                log.debug("HTTP URI for minimal service: " + httpTargetURI);
-
-                //String FOI = "";
-
-                /*while (coapRequest.getPayload().readable())
-                    FOI += (char)coapRequest.getPayload().readByte();
-                log.debug("FOI full: "+FOI);
-                TString tfoi = new TString(FOI,'/');
-                String foi = tfoi.getStrAtEnd();
-                FOI = foi.substring(0, foi.length()-1);*/
-                //log.debug("FOI extracted: "+FOI);
-
-                AutoAnnotation.getInstance().updateDB(ipv6Addr, macAddr, httpTargetURI);
             }
             else{
                 coapResponse = new CoapResponse(Code.METHOD_NOT_ALLOWED_405);

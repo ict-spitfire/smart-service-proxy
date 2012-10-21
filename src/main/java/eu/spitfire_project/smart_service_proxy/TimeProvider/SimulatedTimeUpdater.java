@@ -29,6 +29,10 @@ public class SimulatedTimeUpdater
     private RepositoryConnection conn = null;
     private boolean timeInserted = false;
 
+    private Resource s;
+    private URI p;
+    private Resource c;
+
     public SimulatedTimeUpdater()
     {
         try
@@ -38,10 +42,17 @@ public class SimulatedTimeUpdater
             repo.initialize();
             repo.getConnection().setAutoCommit(false);
             vf = repo.getValueFactory();
+
+            s = createSubject(SimulatedTimeParameters.subject);
+            p = createPredicate(SimulatedTimeParameters.predicate);
+            c = createContext(SimulatedTimeParameters.context);
+
         } catch (Exception e)
         {
             e.printStackTrace();
         }
+
+
     }
 
     //@Override
@@ -135,14 +146,11 @@ public class SimulatedTimeUpdater
 
     private void insertStatement(String timeObj)
     {
-        Resource s = createSubject(SimulatedTimeParameters.subject);
-        URI p = createPredicate(SimulatedTimeParameters.predicate);
-        URI res = createContext(SimulatedTimeParameters.context);
         Value o = createLiteral(timeObj);
 
         try
         {
-            conn.add(s, p, o, res);
+            conn.add(s, p, o, c);
         } catch (Exception e)
         {
             e.printStackTrace();
@@ -157,9 +165,6 @@ public class SimulatedTimeUpdater
 
     private boolean deleteTriple()
     {
-        Resource s = createSubject(SimulatedTimeParameters.subject);
-        URI p = createPredicate(SimulatedTimeParameters.predicate);
-        Resource c = createContext(SimulatedTimeParameters.context);
         try
         {
 

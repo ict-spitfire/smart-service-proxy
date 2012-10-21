@@ -199,7 +199,7 @@ public class SLSEBackend extends Backend {
               }
 		  }
             ChannelFuture future = Channels.write(ctx.getChannel(), r);
-            //if(!HttpHeaders.isKeepAlive(httpRequest)){
+            //if(!HttpHeaders.isKeepAlive(httpRequestUri)){
                 future.addListener(ChannelFutureListener.CLOSE);
             //}
 			System.out.println("# SLSEBackend done: " + targetUri);

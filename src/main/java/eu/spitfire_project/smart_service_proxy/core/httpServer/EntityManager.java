@@ -284,7 +284,10 @@ public class EntityManager extends SimpleChannelHandler {
             httpResponse.setContent(getHtmlListOfServices());
             ChannelFuture future = Channels.write(ctx.getChannel(), httpResponse);
             future.addListener(ChannelFutureListener.CLOSE);
+            return;
         }
+
+        ctx.sendUpstream(e);
     }
 
     private ChannelBuffer getHtmlListOfServices(){

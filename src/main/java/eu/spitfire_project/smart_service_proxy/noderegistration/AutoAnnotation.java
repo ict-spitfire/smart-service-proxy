@@ -9,6 +9,7 @@ import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
+import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeUpdater;
 import eu.spitfire_project.smart_service_proxy.utils.TList;
 import eu.spitfire_project.smart_service_proxy.visualization.VisualizerClient;
 import org.apache.log4j.Logger;
@@ -46,10 +47,12 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
 
     public ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
     private int updateRate = 2000; //2 second
-    private long annotationPeriod = 2 * updateRate * 4;//number hours to trigger annotation
+    private long annotationPeriod = 9 * updateRate * 4;//number hours to trigger annotation
     private long timeCounter = System.currentTimeMillis();
     //private long annotationPeriod;
     private int nnode = 0;
+
+
 
     private AutoAnnotation() {
 //        simTime = 360;
@@ -69,7 +72,7 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
             log.error("This should never happen.", e);
         }
 
-        executorService.scheduleAtFixedRate(this, 100, 100, TimeUnit.MILLISECONDS);
+        executorService.scheduleAtFixedRate(this, 2000, 2000, TimeUnit.MILLISECONDS);
     }
 
     public static AutoAnnotation getInstance(){
@@ -92,7 +95,7 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
 
         log.debug("Start data collection for auto annotation.");
         try {
-            //stu.doit(simTime);
+
 
 //            if (System.currentTimeMillis()-timeCounter > 5*1000 && nnode < 3) {
 //                String ipv6 = "sdfsfsdfsfsdf"+String.valueOf(nnode+1);
@@ -296,7 +299,7 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
         return sc;
     }
 
-    public void updateDB(String ipv6Addr, String macAddr, String httpRequest) {
+    public void updateDB(String ipv6Addr, String macAddr, String httpRequestUri) {
         //Feature of interest
         String FOI = "";
         if ("8e84".equalsIgnoreCase(macAddr)) {
@@ -309,11 +312,11 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
 
         SensorData sd = findSensorData(macAddr);
         if (sd == null)
-            sensors.enList(new SensorData(ipv6Addr, macAddr, httpRequest, FOI));
+            sensors.enList(new SensorData(ipv6Addr, macAddr, httpRequestUri, FOI));
         else
         if ("8e84".equalsIgnoreCase(macAddr)) {
             sensors.remove(sd);
-            sensors.enList(new SensorData(ipv6Addr, macAddr, httpRequest, FOI));
+            sensors.enList(new SensorData(ipv6Addr, macAddr, httpRequestUri, FOI));
         }
     }
 
