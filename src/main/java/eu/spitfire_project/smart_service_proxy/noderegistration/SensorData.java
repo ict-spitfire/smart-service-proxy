@@ -1,6 +1,7 @@
 package eu.spitfire_project.smart_service_proxy.noderegistration;
 
 import com.google.common.collect.Iterables;
+import eu.spitfire_project.smart_service_proxy.triplestore.SpitfireHandler;
 import eu.spitfire_project.smart_service_proxy.utils.TList;
 import eu.spitfire_project.smart_service_proxy.utils.TString;
 import org.apache.log4j.Logger;
@@ -8,9 +9,7 @@ import org.apache.log4j.Logger;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLConnection;
+import java.net.*;
 import java.util.*;
 
 public class SensorData {
@@ -266,9 +265,16 @@ public class SensorData {
             URLConnection connection = crawlRequest.openConnection();
 
             //log.debug("connection opened (timeout: " + connection.getConnectTimeout() + "), ");
-            BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+
+//            StringWriter payloadWriter = new StringWriter();
+//            IOUtils.copy(connection.getInputStream(), payloadWriter, "UTF-8");
+            String payload = "";
+
+            InputStreamReader inputStreamReader = new  InputStreamReader(connection.getInputStream());
+            BufferedReader in = new BufferedReader(inputStreamReader);
+
             String line;
-            //log.debug("content: " + line + ", ");
+
             double value = 0;
             while ((line = in.readLine()) != null) {
                 log.debug("content: " + line + ", ");
@@ -279,10 +285,15 @@ public class SensorData {
                     //log.debug("new value crawled is: "+s2.getStrAt(0));
                     value = Double.valueOf(s2.getStrAt(0));
                 }
+                payload += line;
             }
             in.close();
 
             updateReadings(currentTime, value);
+
+            URI uri = new URI(httpRequestUri);
+            SpitfireHandler spitfireHandler = new SpitfireHandler(uri, payload);
+            spitfireHandler.run();
             //updateReadings(currentTime, random.nextInt(1000));
 
             log.debug(" Done for " + macAddr + " with value:" + String.format("%.2f", value));
@@ -290,6 +301,8 @@ public class SensorData {
             log.debug("failed to crawl for "+macAddr, e);
         } catch (IOException e) {
             log.debug("failed to crawl for " + macAddr, e);
+        } catch (URISyntaxException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
         /*URL crawRequest = null;
         try {
