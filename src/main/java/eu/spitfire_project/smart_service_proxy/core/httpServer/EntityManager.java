@@ -205,27 +205,29 @@ public class EntityManager extends SimpleChannelHandler {
         URI targetUri = toThing(URI.create("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri()));
 
         log.debug("Received HTTP request for " + targetUri);
-
-        String targetUriHost = InetAddress.getByName(targetUri.getHost()).getHostAddress();
-        //remove leading zeros per block
-        targetUriHost = targetUriHost.replaceAll(":0000", ":0");
-        targetUriHost = targetUriHost.replaceAll(":000", ":0");
-        targetUriHost = targetUriHost.replaceAll(":00", ":0");
-        targetUriHost = targetUriHost.replaceAll("(:0)([ABCDEFabcdef123456789])", ":$2");
-
-        //return shortened IP
-        targetUriHost = targetUriHost.replaceAll("((?:(?:^|:)0\\b){2,}):?(?!\\S*\\b\\1:0\\b)(\\S*)", "::$2");
-        log.debug("Target host: " + targetUriHost);
-
+        
 		String targetUriPath = targetUri.getRawPath();
         log.debug("Target path: " + targetUriPath);
-
-        if(IPAddressUtil.isIPv6LiteralAddress(targetUriHost)){
-            targetUriHost = "[" + targetUriHost + "]";
+        
+        if (targetUri.getHost().contains(DNS_WILDCARD_POSTFIX)){
+	        String targetUriHost = InetAddress.getByName(targetUri.getHost()).getHostAddress();
+	        //remove leading zeros per block
+	        targetUriHost = targetUriHost.replaceAll(":0000", ":0");
+	        targetUriHost = targetUriHost.replaceAll(":000", ":0");
+	        targetUriHost = targetUriHost.replaceAll(":00", ":0");
+	        targetUriHost = targetUriHost.replaceAll("(:0)([ABCDEFabcdef123456789])", ":$2");
+	
+	        //return shortened IP
+	        targetUriHost = targetUriHost.replaceAll("((?:(?:^|:)0\\b){2,}):?(?!\\S*\\b\\1:0\\b)(\\S*)", "::$2");
+	        log.debug("Target host: " + targetUriHost);
+	
+	        if(IPAddressUtil.isIPv6LiteralAddress(targetUriHost)){
+	            targetUriHost = "[" + targetUriHost + "]";
+	        }
+	        
+	        targetUri = toThing(URI.create("http://" + targetUriHost + httpRequest.getUri()));
+	        log.debug("Shortened target URI: " + targetUri);
         }
-
-        targetUri = toThing(URI.create("http://" + targetUriHost + httpRequest.getUri()));
-        log.debug("Shortened target URI: " + targetUri);
 
         if(entities.containsKey(targetUri)){
             Backend backend = entities.get(targetUri);
