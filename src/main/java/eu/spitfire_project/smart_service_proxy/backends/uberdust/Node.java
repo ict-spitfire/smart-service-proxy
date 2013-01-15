@@ -102,6 +102,8 @@ public class Node {
 			try {
 				Observation observation = getLatestObservation(cap);
 				Capability capability = CapabilityMap.getInstance().getByURN(cap);
+				if(capability == null || observation == null) { continue; }
+				
 				String turtle = String.format(turtleTemplate,
 						entityURI,
 						capability.getObservedProperty(),

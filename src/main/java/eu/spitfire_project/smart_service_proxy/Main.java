@@ -139,8 +139,8 @@ public class Main {
         createBackends(config);
 
         //Set AutoAnnotation to use images from visualizer
-        AutoAnnotation.getInstance().setVisualizerClient(VisualizerClient.getInstance());
-        AutoAnnotation.getInstance().start();
+        //AutoAnnotation.getInstance().setVisualizerClient(VisualizerClient.getInstance());
+        //AutoAnnotation.getInstance().start();
         //new SimulatedTimeScheduler().run();
     }
     

@@ -26,6 +26,7 @@ package eu.spitfire_project.smart_service_proxy.core.httpServer;
 
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.UIElement;
+import eu.spitfire_project.smart_service_proxy.core.Answer;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -39,6 +40,7 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import sun.net.util.IPAddressUtil;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.net.URI;
 import java.nio.charset.Charset;
@@ -153,7 +155,7 @@ public class EntityManager extends SimpleChannelHandler {
 		while(uri.substring(uri.length()-1).equals("#")) {
 			uri = uri.substring(0, uri.length()-1);
 		}
-		URI r = URI.create(SSP_DNS_NAME).resolve(uri).normalize();
+		URI r = URI.create("http://" + SSP_DNS_NAME).resolve(uri).normalize();
 		return r;
 	}
 
@@ -207,6 +209,8 @@ public class EntityManager extends SimpleChannelHandler {
         log.debug("Received HTTP request for " + targetUri);
 
         String targetUriHost = InetAddress.getByName(targetUri.getHost()).getHostAddress();
+		int targetUriPort = targetUri.getPort();
+		
         //remove leading zeros per block
         targetUriHost = targetUriHost.replaceAll(":0000", ":0");
         targetUriHost = targetUriHost.replaceAll(":000", ":0");
@@ -224,8 +228,16 @@ public class EntityManager extends SimpleChannelHandler {
             targetUriHost = "[" + targetUriHost + "]";
         }
 
-        targetUri = toThing(URI.create("http://" + targetUriHost + httpRequest.getUri()));
+		if(targetUriPort == -1) {
+			targetUri = toThing(URI.create("http://" + targetUriHost + httpRequest.getUri()));
+		}
+		else {
+			targetUri = toThing(URI.create("http://" + targetUriHost + ":" + targetUriPort + httpRequest.getUri()));
+		}
+		
         log.debug("Shortened target URI: " + targetUri);
+		log.debug("Server list at: " + PATH_TO_SERVER_LIST);
+		log.debug("SLSE ui at: " + SERVER_PATH_TO_SLSE_UI);
 
         if(entities.containsKey(targetUri)){
             Backend backend = entities.get(targetUri);
@@ -251,15 +263,15 @@ public class EntityManager extends SimpleChannelHandler {
             log.debug("Forward request to " + backend);
         }
 
-//        else if (targetUriPath.equals(PATH_TO_SERVER_LIST)) {
-//            // Handle request for resource at path ".well-known/core"
-//            StringBuilder buf = new StringBuilder();
-//            for(URI entity: getServices()) {
-//                buf.append(toThing(entity).toString() + "\n");
-//            }
-//            Channels.write(ctx.getChannel(), Answer.create(buf.toString()).setMime("text/plain"));
-//            return;
-//        }
+	   else if (targetUriPath.equals(PATH_TO_SERVER_LIST)) {
+		   // Handle request for resource at path ".well-known/core"
+		   StringBuilder buf = new StringBuilder();
+		   for(URI entity: getServices()) {
+			   buf.append(toThing(entity).toString() + "\n");
+		   }
+		   Channels.write(ctx.getChannel(), Answer.create(buf.toString()).setMime("text/plain"));
+		   return;
+	   }
 
 //        else if("/visualizer".equals(targetUriPath)){
 //            try {
@@ -272,10 +284,10 @@ public class EntityManager extends SimpleChannelHandler {
 //            log.debug("Forward request to visualizer.");
 //        }
 
-		/*else if(targetUriPath.startsWith(SERVER_PATH_TO_SLSE_UI)) {
+		else if(targetUriPath.startsWith(SERVER_PATH_TO_SLSE_UI)) {
 			String f = LOCAL_PATH_TO_SLSE_UI + targetUriPath.substring(SERVER_PATH_TO_SLSE_UI.length());
-			Channels.write(ctx.getChannel(), Answer.create(new File(f)).setMime("text/n3"));
-		}*/
+			Channels.write(ctx.getChannel(), Answer.create(new File(f)).setMime("text/html"));
+		}
 
 		else if("/".equals(targetUriPath)){
             HttpResponse httpResponse =
@@ -327,6 +339,7 @@ public class EntityManager extends SimpleChannelHandler {
 	 * allocated URI for the entity.
 	 */
 	public URI entityCreated(URI uri, Backend backend) {
+		System.out.println("ENTITY CREATED:" + uri.toString());
 		if(uri == null) {
 			uri = nextEntityURI();
 		}

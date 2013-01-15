@@ -59,7 +59,7 @@ public class UberdustBackend extends Backend {
 	}
 
 	void exploreUberdustTestbed(String server, String testbed) {
-		String nodeList = server + "/rest/testbed/" + testbed + "/node";
+		String nodeList = server + "/rest/testbed/" + testbed + "/node/raw";
 		
 		URLConnection connection;
 		InputStream stream = null;
@@ -77,12 +77,22 @@ public class UberdustBackend extends Backend {
 
 			String urn;
 			while((urn = reader.readLine()) != null) {
-				EntityManager.getInstance().entityCreated(URI.create(
-						makeEntityURI(
-								URI.create(server).getHost() + ":" + URI.create(server).getPort(),
-								testbed, urn
-						)
-				), this);
+				if(URI.create(server).getPort() == -1) {
+					EntityManager.getInstance().entityCreated(URI.create(
+							makeEntityURI(
+									URI.create(server).getHost(),
+									testbed, urn
+							)
+					), this);
+				}
+				else {
+					EntityManager.getInstance().entityCreated(URI.create(
+							makeEntityURI(
+									URI.create(server).getHost() + ":" + URI.create(server).getPort(),
+									testbed, urn
+							)
+					), this);
+				}
 			}
 		}
 		catch(IOException e) {
@@ -100,11 +110,11 @@ public class UberdustBackend extends Backend {
 	}
 
 	String makeUberdustURI(String server, String testbed, String urn) {
-		return "http://" + server + "/uberdust/rest/testbed/" + testbed + "/node/" + urn;
+		return "http://" + server + "/rest/testbed/" + testbed + "/node/" + urn; // + "/rdf/rdf+xml/";
 	}
 	
 	String makeEntityURI(String server, String testbed, String urn) {
-		return EntityManager.SSP_DNS_NAME + getPrefix() + "/" + server + "/" + testbed + "/" + urn;
+		return "http://" + EntityManager.SSP_DNS_NAME + ":" + EntityManager.SSP_HTTP_SERVER_PORT + getPrefix() + "/" + server + "/" + testbed + "/" + urn;
 	}
 	
 	String entityPathtoUberdustURI(String path) {
@@ -112,7 +122,9 @@ public class UberdustBackend extends Backend {
 		String server = pathParts[0];
 		String testbed = pathParts[1];
 		String urn = pathParts[2];
-		return makeUberdustURI(server, testbed, urn);
+		String r = makeUberdustURI(server, testbed, urn); // + "/rdf/rdf+xml";
+		System.out.println("uberdust uri=" + r);
+		return r;
 	}
 	
 	@Override
@@ -122,9 +134,12 @@ public class UberdustBackend extends Backend {
 		}
 		HttpRequest request = (HttpRequest) e.getMessage();
 		URI uri = URI.create(request.getUri());
-		URI entityURI = URI.create(EntityManager.SSP_DNS_NAME).resolve(uri);
+		URI entityURI = URI.create("http://" + EntityManager.SSP_DNS_NAME).resolve(uri);
 		String path = uri.getPath();
 		String postfix = path.substring(getPrefix().length());
+		
+		System.out.println("uberdestbackend received req. path=" + path + " postfix=" + postfix + ".");
+		
 		if(postfix == null) {
 			super.messageReceived(ctx, e);
 			return;

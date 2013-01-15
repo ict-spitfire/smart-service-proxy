@@ -65,6 +65,7 @@ public class Answer {
 
 	public HttpResponse toHttpResponse() {
 		HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+		System.out.println("content type: " +  mime + "; charset=utf-8");
 		response.setHeader(CONTENT_TYPE, mime + "; charset=utf-8");
 		response.setContent(ChannelBuffers.copiedBuffer(text, Charset.forName("utf-8")));
 		return response;

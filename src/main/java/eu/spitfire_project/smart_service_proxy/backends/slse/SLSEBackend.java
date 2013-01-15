@@ -88,8 +88,12 @@ public class SLSEBackend extends Backend {
 	@Override
 	public Collection<UIElement> getUIElements() {
 		Vector<UIElement> elements = new Vector<UIElement>();
-		elements.add(new UIElement("Create SE", EntityManager.getInstance().normalizeURI(prefix + "/create-entity")));
+		elements.add(new UIElement("Create SE", EntityManager.getInstance().normalizeURI(full_prefix() + "/create-entity")));
 		return elements;
+	}
+	
+	private String full_prefix() {
+		return "http://" + EntityManager.SSP_DNS_NAME + ":" + EntityManager.SSP_HTTP_SERVER_PORT + prefix;
 	}
 
 	@Override
@@ -106,8 +110,8 @@ public class SLSEBackend extends Backend {
 		String targetUriPath = targetUri.getRawPath();
 
 		System.out.println("# received request: " + targetUriPath + " prefix=" + prefix +
-				" normed create uri=" + EntityManager.getInstance().normalizeURI(prefix + "/create-entity").toString() +
-				" eq=" + targetUriPath.equals(EntityManager.getInstance().normalizeURI(prefix + "/create-entity").toString()));
+				" normed create uri=" + EntityManager.getInstance().normalizeURI(full_prefix() + "/create-entity").toString() +
+				" eq=" + targetUriPath.equals(EntityManager.getInstance().normalizeURI(full_prefix() + "/create-entity").toString()));
         
 		/*
 		 * TODO:
@@ -120,7 +124,7 @@ public class SLSEBackend extends Backend {
 		 * - if POST "$base/sources/", call setSources($postdata)
 		 */
 
-		if(targetUriPath.equals(EntityManager.getInstance().normalizeURI(prefix + "/create-entity").toString())) {
+		if(targetUriPath.equals(EntityManager.getInstance().normalizeURI(full_prefix() + "/create-entity").toString())) {
 			if(httpRequest.getMethod() == HttpMethod.GET) {
                 //copy into
                 HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);

@@ -35,6 +35,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 import org.jboss.netty.handler.execution.ExecutionHandler;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
+import eu.spitfire_project.smart_service_proxy.core.AnswerFormatter;
 
 /**
  * An {@link HttpEntityManagerPipelineFactory} is a factory to generate pipelines to handle imcoming
@@ -69,7 +70,7 @@ public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory 
             pipeline.addLast("GWConMapper", new HttpRequestTranslatorGwConMapper());
         }
 
-		//pipeline.addLast("answer formatter", new AnswerFormatter());
+		pipeline.addLast("answer formatter", new AnswerFormatter());
 		pipeline.addLast("Model Formatter", new ModelFormatter());
         pipeline.addLast("Http Mirror URI Handler", new HttpMirrorUriHandler());
         pipeline.addLast("Execution Handler", executionHandler);
