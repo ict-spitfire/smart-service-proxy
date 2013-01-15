@@ -28,7 +28,7 @@ import com.hp.hpl.jena.n3.turtle.TurtleParseException;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
-import eu.spitfire_project.smart_service_proxy.core.EntityManager;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
 import eu.spitfire_project.smart_service_proxy.utils.HttpResponseFactory;
 import org.apache.log4j.Logger;
@@ -75,8 +75,8 @@ public class FilesBackend extends Backend {
     }
     
     @Override
-	public void bind(EntityManager em) {
-		super.bind(em);
+	public void bind() {
+		super.bind();
         registerFileResources();
     }
 
@@ -94,7 +94,7 @@ public class FilesBackend extends Backend {
             for(File file : files){
                 if(!file.getName().endsWith(".swp")){
                     try{
-                        URI resourceURI = new URI(entityManager.getURIBase() + pathPrefix + file.getName());
+                        URI resourceURI = new URI(EntityManager.SSP_DNS_NAME + prefix + file.getName());
                           
                         resources.put(resourceURI, file);
 
@@ -124,7 +124,7 @@ public class FilesBackend extends Backend {
         Object response;
                    
         //Look up file
-        URI resourceURI = entityManager.normalizeURI(new URI(request.getUri()));
+        URI resourceURI = EntityManager.getInstance().normalizeURI(new URI(request.getUri()));
         File file = resources.get(resourceURI);
 
         if(file != null && file.isFile()){

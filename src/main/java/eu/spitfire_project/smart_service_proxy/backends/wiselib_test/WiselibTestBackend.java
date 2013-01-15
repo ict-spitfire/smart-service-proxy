@@ -27,7 +27,7 @@ package eu.spitfire_project.smart_service_proxy.backends.wiselib_test;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
-import eu.spitfire_project.smart_service_proxy.core.EntityManager;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
 import eu.spitfire_project.smart_service_proxy.core.wiselib_interface.MockCommunicator;
 import eu.spitfire_project.smart_service_proxy.core.wiselib_interface.SimpleQuery;
@@ -106,8 +106,8 @@ public class WiselibTestBackend extends Backend implements WiselibListener {
 	}
 
 	@Override
-	public void bind(EntityManager em) {
-		super.bind(em);
+	public void bind() {
+		super.bind();
 		
 	} // bind()
 
@@ -121,7 +121,7 @@ public class WiselibTestBackend extends Backend implements WiselibListener {
 
         Model m = ModelFactory.createDefaultModel();
 
-		URI uri = entityManager.normalizeURI(new URI(request.getUri()));
+		URI uri = EntityManager.getInstance().normalizeURI(new URI(request.getUri()));
 
 
 

@@ -17,12 +17,11 @@
 PREFIX dul: <http://www.loa-cnr.it/ontologies/DUL.owl#>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>
+PREFIX spit: <http://spitfire-project.eu/ontology/ns/>
 PREFIX : <http://spitfire.ibr.cs.tu-bs.de:8080/static/ontology.owl#>
 
 SELECT ?element ?entity WHERE {
-    ?element ssn:attachedSystem ?sensor .
-    ?sensor a ssn:Sensor .
-    ?sensor ssn:featureOfInterest ?entity .
+    ?element ssn:featureOfInterest ?entity .
 }
 			</textarea><br />
 			

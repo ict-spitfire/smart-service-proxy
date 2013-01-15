@@ -1,0 +1,24 @@
+#Kill possibly running radvd instances
+#killall radvd
+
+#setup IP interface
+#ip link set eth0 up
+#ip addr add fd00:1111::1/64 dev eth0
+#ip addr add 2001:638:70a:c006::19:19:16 dev eth0
+
+
+#set net 10 as next hop for traffic to sensor net
+#route -6 add 2001:638:70a:c004::/64 gw fe80::215:7ff:fe20:1001 dev eth0
+
+#start router advertisement deamon
+#radvd
+
+#configure virtual IP interface
+openvpn --mktun --dev tun0
+ip link set tun0 up
+ip addr add fd00::31/124 dev tun0
+
+#configure packet filtering
+ip6tables -A FORWARD -i eth0 -j DROP
+ip6tables -A FORWARD -i eth1 -j DROP
+

@@ -22,7 +22,7 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire_project.smart_service_proxy.backends.coap;
+package eu.spitfire_project.smart_service_proxy.noderegistration;
 
 import de.uniluebeck.itm.spitfire.nCoap.application.CoapClientApplication;
 import de.uniluebeck.itm.spitfire.nCoap.application.CoapServerApplication;
@@ -33,14 +33,16 @@ import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
-import org.apache.log4j.Logger;
+import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
+import eu.spitfire_project.smart_service_proxy.utils.TString;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sun.net.util.IPAddressUtil;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.*;
+import java.net.*;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -50,18 +52,19 @@ import java.util.concurrent.TimeUnit;
  */
 public class CoapNodeRegistrationServer extends CoapServerApplication {
 
-    private static Logger log = Logger.getLogger(CoapNodeRegistrationServer.class.getName());
+    private static Logger log = LoggerFactory.getLogger(CoapNodeRegistrationServer.class.getName());
 
     private ArrayList<CoapBackend> coapBackends = new ArrayList<CoapBackend>();
 
-    private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
+    public ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
 
     private static CoapNodeRegistrationServer instance = new CoapNodeRegistrationServer();
 
 
     private CoapNodeRegistrationServer(){
         super();
-        log.debug("[CoapNodeRegistrationServer] Constructed.");
+        log.debug("Constructed.");
+
     }
 
     public static CoapNodeRegistrationServer getInstance(){
@@ -71,15 +74,17 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
     public boolean addCoapBackend(CoapBackend coapBackend){
         boolean added = coapBackends.add(coapBackend);
         if(added){
-            log.debug("[CoapNodeRegistrationServer] Registered new backend for prefix: " + coapBackend.getPathPrefix());
+            log.debug("Registered new backend for prefix: " + coapBackend.getPrefix());
         }
         return added;
     }
 
-
+    public void fakeRegistration(InetAddress inetAddress){
+        executorService.schedule(new NodeRegistration(inetAddress), 0, TimeUnit.SECONDS);
+    }
 
     /**
-     * This method is invoked by the Netty framework whenever a new incoming CoAP request is to be processed. It only
+     * This method is invoked by the nCoAP framework whenever a new incoming CoAP request is to be processed. It only
      * accepts requests with {@link Code#GET} for the resource /here_i_am. All other requests will cause failure
      * responses ({@link Code#NOT_FOUND_404} for other resources or {@link Code#METHOD_NOT_ALLOWED_405} for
      * other methods).
@@ -91,8 +96,9 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
     @Override
     public CoapResponse receiveCoapRequest(CoapRequest coapRequest, InetSocketAddress remoteSocketAddress) {
 
-        log.debug("[CoapNodeRegistrationServer] Received request from " + remoteSocketAddress + " for" +
-            " resource " + coapRequest.getTargetUri());
+        log.debug("Received request from " +
+                remoteSocketAddress.getAddress().getHostAddress() + ":" + remoteSocketAddress.getPort()
+                + " for resource " + coapRequest.getTargetUri());
 
         CoapResponse coapResponse = null;
 
@@ -101,8 +107,18 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 if(coapRequest.getMessageType() == MsgType.CON){
                     coapResponse =  new CoapResponse(MsgType.ACK, Code.CONTENT_205);
                 }
-                log.debug("[CoapNodeRegistrationServer] Schedule sending of request for .well-known/core");
-                executorService.schedule(new NodeRegistration(remoteSocketAddress.getAddress()), 0, TimeUnit.SECONDS);
+
+                //Node registration
+                log.debug("Schedule sending of request for .well-known/core");
+                executorService.schedule(new NodeRegistration(remoteSocketAddress.getAddress()),
+                                                              0, TimeUnit.SECONDS);
+
+                //Automatic annotation required
+                if(coapRequest.getPayload().readableBytes() > 0){
+                    log.debug("Request payload: " + coapRequest.getPayload().toString(Charset.forName("UTF-8")));
+                }
+
+
             }
             else{
                 coapResponse = new CoapResponse(Code.METHOD_NOT_ALLOWED_405);
@@ -118,7 +134,7 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
     //Handles the registration process for new nodes in a new thread
     private class NodeRegistration extends CoapClientApplication implements Runnable{
 
-        private InetAddress remoteAddress;
+        private Inet6Address remoteAddress;
 
         private Object monitor = new Object();
 
@@ -126,43 +142,59 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
         
         public NodeRegistration(InetAddress remoteAddress){
             super();
-            this.remoteAddress = remoteAddress;
+            this.remoteAddress = (Inet6Address) remoteAddress;
         }
 
         @Override
         public void run(){
-            
+
             CoapBackend coapBackend = null;
-            
+
+            //log.debug("Look up backend for address " + remoteAddress.getHostAddress());
             for(CoapBackend backend : coapBackends){
-                if(remoteAddress.getHostAddress().startsWith(backend.getIpv6Prefix())){
-                    coapBackend = backend;   
+                //Prefix is an IP address
+
+                log.debug("remoteAddress.getHostAddress(): " + remoteAddress.getHostAddress());
+                log.debug("backend.getIPv6Prefix(): " + backend.getPrefix());
+                if(remoteAddress.getHostAddress().startsWith(backend.getPrefix())){
+                    coapBackend = backend;
+                    log.debug("Backend found for address " + remoteAddress.getHostAddress());
+                    break;
+                }
+                //Prefix is a DNS name
+                else{
+                    log.debug("Look up backend for DNS name " + remoteAddress.getHostName());
+                    log.debug("backend.getIPv6Prefix(): " + backend.getPrefix());
+                    if((remoteAddress.getHostName()).equals(backend.getPrefix())){
+                        coapBackend = backend;
+                        log.debug("Backend found for DNS name " + remoteAddress.getHostName());
+                        break;
+                    }
                 }
             }
             
             if(coapBackend == null){
-                log.debug("[CoapNodeRegistrationServer] No backend found for IPv6 address: " +
+                log.debug("[CoapNodeRegistrationServer] No backend found for IP address: " +
                         remoteAddress.getHostAddress());
                 return;
             }
             
             //Only register new nodes (avoid duplicates)
-            Set<InetAddress> addressList = coapBackend.getSensorNodes();
+            Set<Inet6Address> addressList = coapBackend.getSensorNodes();
 
             if(addressList.contains(remoteAddress)){
-                log.debug("[CoapNodeRegistration] Remote address already known.");
-                return;
-            }
-
-            //Add new sensornode to the list of known nodes
-            coapBackend.getSensorNodes().add(remoteAddress);
-            if(log.isDebugEnabled()){
-                log.debug("[CoapNodeRegistration] New sensor node: " + remoteAddress.getHostAddress());
+                log.debug("New here_i_am message from " + remoteAddress + ".");
+                coapBackend.deleteServices(remoteAddress);
             }
 
             try {
                 //Send request to the .well-known/core resource of the new sensornode
                 String remoteIP = remoteAddress.getHostAddress();
+
+                //Remove eventual scope ID
+                if(remoteIP.indexOf("%") != -1){
+                    remoteIP = remoteIP.substring(0, remoteIP.indexOf("%"));
+                }
                 if(IPAddressUtil.isIPv6LiteralAddress(remoteIP)){
                     remoteIP = "[" + remoteIP + "]";
                 }
@@ -187,21 +219,21 @@ public class CoapNodeRegistrationServer extends CoapServerApplication {
                 }
 
             } catch (InvalidMessageException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             } catch (ToManyOptionsException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             } catch (InvalidOptionException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             } catch (URISyntaxException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             } catch (InterruptedException e) {
-                log.fatal("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
+                log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
             }
         }
 
 
         @Override
-        public void receiveCoapResponse(CoapResponse coapResponse) {
+        public void receiveResponse(CoapResponse coapResponse) {
             log.debug("Received response for well-known/core");
             synchronized (monitor){
                 this.coapResponse = coapResponse;

@@ -27,7 +27,7 @@ package eu.spitfire_project.smart_service_proxy.backends.generator;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
-import eu.spitfire_project.smart_service_proxy.core.EntityManager;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
@@ -93,7 +93,7 @@ public class GeneratorBackend extends Backend {
             for(int foinode=0; foinode<nodesPerFoi && node<nodes; foinode++, node++) {
                 sensorValues[node] = 0.0;
                 foiNr[node] = foi;
-                entityManager.entityCreated(URI.create(getPathPrefix() + node), this);
+                EntityManager.getInstance().entityCreated(URI.create(getPrefix() + node), this);
             }
         }
 		log("end_create_fake_entities");
@@ -146,7 +146,7 @@ public class GeneratorBackend extends Backend {
                 "	 dul:hasValue \"%f\" \n" +
                 "  ] . \n"
                 ,
-                getEntityManager().getURIBase(),
+                EntityManager.SSP_DNS_NAME,
                 uri,
                 foiNr[i],
                 sensorValues[i]
@@ -156,8 +156,8 @@ public class GeneratorBackend extends Backend {
     }
 
     @Override
-    public void bind(EntityManager em) {
-        super.bind(em);
+    public void bind() {
+        super.bind();
         createEntities();
 
         Timer t = new HashedWheelTimer();
@@ -172,7 +172,7 @@ public class GeneratorBackend extends Backend {
         }
         HttpRequest request = (HttpRequest) e.getMessage();
         String uri = request.getUri();
-        uri = entityManager.toThing(uri).toString();
+        uri = EntityManager.getInstance().toThing(uri).toString();
         Model m = getModel(uri);
         ChannelFuture future = Channels.write(ctx.getChannel(), new SelfDescription(m, URI.create(uri)));
         if(!HttpHeaders.isKeepAlive(request)){

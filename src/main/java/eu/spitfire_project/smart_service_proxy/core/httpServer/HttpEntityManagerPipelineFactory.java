@@ -22,7 +22,7 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire_project.smart_service_proxy.core;
+package eu.spitfire_project.smart_service_proxy.core.httpServer;
 
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.ChannelPipeline;
@@ -33,6 +33,7 @@ import org.jboss.netty.handler.codec.http.HttpContentCompressor;
 import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 import org.jboss.netty.handler.execution.ExecutionHandler;
+import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
 
 /**
@@ -46,10 +47,13 @@ public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory 
 
     private static Logger log = Logger.getLogger(HttpEntityManagerPipelineFactory.class.getName());
 
-	ExecutionHandler executionHandler;
+    ExecutionHandler executionHandler = new ExecutionHandler(
+            new OrderedMemoryAwareThreadPoolExecutor(20, 0, 0));
+
+    private boolean enableVirtualHttpServerForCoap;
 	
-	public HttpEntityManagerPipelineFactory(ExecutionHandler executionHandler) {
-		this.executionHandler = executionHandler;
+	public HttpEntityManagerPipelineFactory(boolean enableVirtualHttpServerForCoap) {
+        this.enableVirtualHttpServerForCoap = enableVirtualHttpServerForCoap;
 	}
 	
 	public ChannelPipeline getPipeline() throws Exception {
@@ -60,12 +64,17 @@ public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory 
 		pipeline.addLast("aggregator", new HttpChunkAggregator(1048576));
 		pipeline.addLast("encoder", new HttpResponseEncoder());
 		pipeline.addLast("deflater", new HttpContentCompressor());
-		
-		pipeline.addLast("answer formatter", new AnswerFormatter());
-		pipeline.addLast("model formatter", new ModelFormatter());
-		pipeline.addLast("statement cache", StatementCache.getInstance());
-		pipeline.addLast("execution handler", executionHandler);
-		pipeline.addLast("entity manager", EntityManager.getInstance());
+
+        if(enableVirtualHttpServerForCoap){
+            pipeline.addLast("GWConMapper", new HttpRequestTranslatorGwConMapper());
+        }
+
+		//pipeline.addLast("answer formatter", new AnswerFormatter());
+		pipeline.addLast("Model Formatter", new ModelFormatter());
+        pipeline.addLast("Http Mirror URI Handler", new HttpMirrorUriHandler());
+        pipeline.addLast("Execution Handler", executionHandler);
+		pipeline.addLast("Model Cache", ModelCache.getInstance());
+        pipeline.addLast("Entity Manager", EntityManager.getInstance());
 
         if(log.isDebugEnabled()){
             log.debug("[Factory] New pipeline created.");

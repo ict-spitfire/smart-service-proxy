@@ -1,0 +1,47 @@
+<rdf:RDF
+    xmlns:j.0="http://dublincore.org/2010/10/11/dcelements.rdf#"
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:j.1="http://spitfire-project.eu/ontology/ns/"
+    xmlns:j.3="http://spitfire-project.eu/foi/"
+    xmlns:j.2="http://purl.oclc.org/NET/muo/muo#"
+    xmlns:j.4="http://www.loa-cnr.it/ontologies/DUL.owl#"
+    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+    xmlns:j.5="http://purl.oclc.org/NET/ssnx/ssn#" > 
+  <rdf:Description rdf:about="coap://[fd00:db08:0000:c0a1:0215:8d00:0011:0a88]/light">
+    <j.1:uom rdf:resource="http://spitfire-project.eu/uom/Lux"/>
+    <j.1:obs rdf:resource="http://spitfire-project.eu/property/Light"/>
+    <rdfs:type rdf:resource="http://purl.oclc.org/NET/ssnx/ssn#Sensor"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://spitfire-project.eu/uom/Lux">
+    <j.2:prefSymbol>lux</j.2:prefSymbol>
+    <rdfs:type rdf:resource="http://purl.oclc.org/NET/muo/muo#UnitOfMeasurement"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://spitfire-project.eu/property/Temperature">
+    <j.2:measuredIn rdf:resource="http://spitfire-project.eu/uom/Centigrade"/>
+    <rdfs:type rdf:resource="http://purl.oclc.org/NET/ssnx/ssn#Property"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://spitfire-project.eu/property/Light">
+    <j.2:measuredIn rdf:resource="http://spitfire-project.eu/uom/Lux"/>
+    <rdfs:type rdf:resource="http://purl.oclc.org/NET/ssnx/ssn#Property"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="coap://[fd00:db08:0000:c0a1:0215:8d00:0011:0a88]/rdf">
+    <j.5:featureOfInterest rdf:resource="http://spitfire-project.eu/foi/Room1"/>
+    <j.0:publisher rdf:resource="http://identi.ca/user/27521"/>
+    <j.1:ownedBy rdf:resource="http://identi.ca/user/27521"/>
+    <j.4:hasLocation rdf:resource="http://www.geonames.org/255683/patra.html"/>
+    <j.5:attachedSystem rdf:resource="coap://[fd00:db08:0000:c0a1:0215:8d00:0011:0a88]/light"/>
+    <j.5:attachedSystem rdf:resource="coap://[fd00:db08:0000:c0a1:0215:8d00:0011:0a88]/temp"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://spitfire-project.eu/uom/Centigrade">
+    <j.2:prefSymbol>C</j.2:prefSymbol>
+    <rdfs:type rdf:resource="http://purl.oclc.org/NET/muo/muo#UnitOfMeasurement"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="coap://[fd00:db08:0000:c0a1:0215:8d00:0011:0a88]/temp">
+    <j.1:uom rdf:resource="http://spitfire-project.eu/uom/Centigrade"/>
+    <j.1:obs rdf:resource="http://spitfire-project.eu/property/Temperature"/>
+    <rdfs:type rdf:resource="http://purl.oclc.org/NET/ssnx/ssn#Sensor"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://spitfire-project.eu/foi/Room1">
+    <rdf:type rdf:resource="http://spitfire-project.eu/foi/Room"/>
+  </rdf:Description>
+</rdf:RDF>

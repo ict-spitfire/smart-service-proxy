@@ -43,8 +43,10 @@ public abstract class SemanticEntity {
 	protected static Query sensorQuery = QueryFactory.create(
 			"select ?property ?value where {" +
 					//" ?sensor a <http://purl.oclc.org/NET/ssnx/ssn#Sensor> . " +
-					" ?sensor <http://www.loa-cnr.it/ontologies/DUL.owl#hasValue> ?value . " +
-					" ?sensor <http://purl.oclc.org/NET/ssnx/ssn#observedProperty> ?property . " +
+					//" ?sensor <http://www.loa-cnr.it/ontologies/DUL.owl#hasValue> ?value . " +
+					" ?sensor <http://spitfire-project.eu/ontology/ns/value> ?value . " +
+					//" ?sensor <http://purl.oclc.org/NET/ssnx/ssn#observedProperty> ?property . " +
+					" ?sensor <http://spitfire-project.eu/ontology/ns/obs> ?property . " +
 					"}"
 	);
 
@@ -76,12 +78,14 @@ public abstract class SemanticEntity {
 					// If value is a literal, compute sum and count of all
 					// values
 					if(value.isLiteral()) {
+						System.out.println("--------- PITTING SENSOR VALUE " + property + " = " + value.asLiteral().toString());
 						r.put(property, value.asLiteral().getDouble());
 					}
 
 					// If value is something else, just keep the value of the
 					// sensor node with the "minimum" URI
 					else if(value.isURIResource()) {
+						System.out.println("--------- SENSOR VALUE IS URI!!!!");
 						// TODO
 					}
 				} // while results

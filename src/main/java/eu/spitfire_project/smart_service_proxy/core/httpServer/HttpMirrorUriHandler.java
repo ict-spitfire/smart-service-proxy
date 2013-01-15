@@ -22,22 +22,19 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire_project.smart_service_proxy.core;
+package eu.spitfire_project.smart_service_proxy.core.httpServer;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.log4j.Logger;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpRequest;
-import sun.net.util.IPAddressUtil;
 
-import java.net.Inet6Address;
 import java.net.InetAddress;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.net.UnknownHostException;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.HOST;
 
@@ -48,27 +45,33 @@ import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.HOST;
  * @author Stefan Hueske
  * @author Oliver Kleine
  */
-public class HttpRequestDNSWildcardHandler extends SimpleChannelUpstreamHandler {
-    
-    private final static Set<String> wildcardDNSPostfixes = new HashSet<String>();
-    private static int HTTPPort = 80;
+public class HttpMirrorUriHandler extends SimpleChannelUpstreamHandler {
+
+    private static Logger log =  Logger.getLogger(HttpMirrorUriHandler.class.getName());
 
     private static Configuration config;
     static{
         try {
             config = new PropertiesConfiguration("ssp.properties");
         } catch (ConfigurationException e) {
-            e.printStackTrace();
+            log.error("Error while loading configuration.", e);
         }
     }
 
-    /**
-     * Returns a new HttpRequestDNSWildcardHandler instance
-     *
-     */
-    public HttpRequestDNSWildcardHandler(){
-        this.wildcardDNSPostfixes.add(config.getString("coap.dnspostfix"));
-    }
+    private final String DNS_WILDCARD_POSTFIX = config.getString("IPv4_SERVER_DNS_WILDCARD_POSTFIX");
+
+//    private static HttpMirrorUriHandler instance = new HttpMirrorUriHandler();
+//
+//    private HttpMirrorUriHandler(){
+//
+//    }
+//    /**
+//     * Returns the new HttpMirrorUriHandler instance
+//     *
+//     */
+//    public static HttpMirrorUriHandler getInstance(){
+//        return instance;
+//    }
 
     /**
      * Changes the requests host part to the IPv6 address of the target resource. This is to enable IPv4 clients to
@@ -76,43 +79,34 @@ public class HttpRequestDNSWildcardHandler extends SimpleChannelUpstreamHandler 
      * redirected to http://[2001:638::1]/path
      *
      * @param ctx The ChannelHandlerContext
-     * @param e The MessageEvent
+     * @param me The MessageEvent
      * @throws Exception
      */
     @Override
-    public void messageReceived(ChannelHandlerContext ctx, MessageEvent e)  throws Exception{
-        if (e.getMessage() instanceof HttpRequest) {
+    public void messageReceived(ChannelHandlerContext ctx, MessageEvent me)  throws Exception{
+        if (me.getMessage() instanceof HttpRequest) {
 
-            HttpRequest request = (HttpRequest) e.getMessage();
+            HttpRequest request = (HttpRequest) me.getMessage();
             String host = request.getHeader(HOST);
+            log.debug("Incoming HTTP request for host: " + host);
 
-            //Eventually convert URIs host part to IPv6 address
-            int index = host.indexOf(".");
-            if (index != -1) {
-                String postfix = host.substring(index);
-                if(postfix.indexOf(":") != -1){
-                    postfix = postfix.substring(0, postfix.indexOf(":"));
+            //Eventually convert URIs host part to IPv6 address of the target host
+            if (host.contains(DNS_WILDCARD_POSTFIX)) {
+                host = host.substring(0, host.indexOf(DNS_WILDCARD_POSTFIX) - 1);
+                host = host.replace("-", ":");
+                log.debug("New target host: " + host);
+
+                try{
+                    request.setHeader(HOST,
+                                      "[" + InetAddress.getByName("[" + host + "]").getHostAddress() + "]");
                 }
-                
-                if (wildcardDNSPostfixes.contains(postfix)) {
-                    System.out.println("[HttpRequestDNSWildcardHandler] Original HTTP Request HOST Header content: " +
-                            request.getHeader(HOST));
-
-                    System.out.println("[HttpRequestDNSWildcardHandler] Matching postfix: " + postfix);
-
-                    String sensorIP = host.substring(0, index).replace("-", ":");
-
-                    if(IPAddressUtil.isIPv6LiteralAddress(sensorIP)) {
-                        request.setHeader(HOST, "[" + sensorIP + "]:" + HTTPPort);
-                    }
-
-                    System.out.println("HttpRequestDNSWildcardHandler] New HTTP Request HOST Header content: " +
-                            request.getHeader(HOST));
+                catch (UnknownHostException e) {
+                    log.debug("Not an IPv6 address: " + host);
                 }
             }
         }
 
-        ctx.sendUpstream(e);
+        ctx.sendUpstream(me);
 
     }
 }

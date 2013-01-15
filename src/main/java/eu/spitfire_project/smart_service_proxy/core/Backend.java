@@ -24,21 +24,11 @@
  */
 package eu.spitfire_project.smart_service_proxy.core;
 
-import eu.spitfire_project.smart_service_proxy.core.observing.HttpPipelineFactory;
-import org.jboss.netty.bootstrap.ClientBootstrap;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
-import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
-import org.jboss.netty.handler.codec.http.HttpMessage;
-import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.*;
-import java.util.concurrent.Executors;
 
 
 /**
@@ -49,17 +39,16 @@ import java.util.concurrent.Executors;
  */
 public abstract class Backend extends SimpleChannelHandler {
 
-    protected EntityManager entityManager;
-	protected String pathPrefix;
+    //protected EntityManager entityManager;
+	protected String prefix;
 
     /**
-     * Binds the {@link Backend} to an {@link EntityManager} which means, that this EntityManager gets known
+     * Binds the {@link Backend} to an {@link eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager} which means, that this EntityManager gets known
      * of all resources (i.e. their URIs} provided by the Backend
-     * @param em The EntityManager instance the Backend should be bound to
      */
-	public void bind(EntityManager em) {
-		em.registerBackend(this);
-		entityManager = em;
+	public void bind() {
+		EntityManager.getInstance().registerBackend(this);
+		//entityManager = em;
 	}
 	
 	@Override
@@ -72,29 +61,25 @@ public abstract class Backend extends SimpleChannelHandler {
 		super.writeRequested(ctx, e);
 	}
     
-    public EntityManager getEntityManager() {
-        return entityManager;
-    }
-
-    public void setEntityManager(EntityManager entityManager) {
-        this.entityManager = entityManager;
-    }
+//    public EntityManager getEntityManager() {
+//        return entityManager;
+//    }
 
 	/**
-	 * Set base pathPrefix (in URI) for this backend. If pathPrefix is e.g. be-0001, the backend is reachable
+	 * Set base prefix (in URI) for this backend. If prefix is e.g. be-0001, the backend is reachable
      * at http://<IP address of SSP>/be-001)
-     * @param pathPrefix The pathPrefix prefix the Backend shall be reachable at
+     * @param prefix The prefix prefix the Backend shall be reachable at
 	 */
-	public void setPathPrefix(String pathPrefix) {
-        this.pathPrefix = pathPrefix;
+	public void setPrefix(String prefix) {
+        this.prefix = prefix;
     }
 
 	/**
-	 * Get base pathPrefix (in URI) for this backend.
-     * @return the pathPrefix part of the URI where the Backend is reachable at
+	 * Get base prefix (in URI) for this backend.
+     * @return the prefix part of the URI where the Backend is reachable at
 	 */
-	public String getPathPrefix() {
-        return pathPrefix;
+	public String getPrefix() {
+        return prefix;
     }
 	
 	/**
@@ -113,6 +98,10 @@ public abstract class Backend extends SimpleChannelHandler {
         return new HashSet<URI>();
     }
 
+    @Override
+    public String toString(){
+        return "{" + this.getClass().getName() + " for prefix: " + getPrefix() + "}";
+    }
 
 }
 

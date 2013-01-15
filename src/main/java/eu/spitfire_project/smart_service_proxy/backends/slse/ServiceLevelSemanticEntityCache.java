@@ -25,6 +25,8 @@
 
 package eu.spitfire_project.smart_service_proxy.backends.slse;
 
+import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
+
 import java.net.URI;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,7 +39,7 @@ import java.util.Set;
 public class ServiceLevelSemanticEntityCache {
 	
 	private Map<String, ServiceLevelSemanticEntity> byDescribes;
-	private Map<String, ServiceLevelSemanticEntity> byURI;
+	public Map<String, ServiceLevelSemanticEntity> byURI;
 	private SLSEBackend backend;
     private boolean waitForPolling;
 
@@ -57,11 +59,13 @@ public class ServiceLevelSemanticEntityCache {
 	}
 
 	private String makeURI(String describes) {
-		return backend.getEntityManager().toThing(
-				backend.getPathPrefix() +
-						URI.create(describes).getHost() + "/" +
-						URI.create(describes).getPath() + "/" +
-						URI.create(describes).getFragment()
+		return EntityManager.getInstance().toThing(
+				"http://" + EntityManager.SSP_DNS_NAME + ":" + EntityManager.SSP_HTTP_SERVER_PORT +
+						backend.getPrefix() +
+						URI.create(describes).getHost().replace('[', '_').replace(']', '_') + "/" +
+						URI.create(describes).getPath().replace('[', '_').replace(']', '_')
+						//+ "/" +
+						//URI.create(describes).getFragment()
 		).toString();
 	}
 
@@ -86,7 +90,7 @@ public class ServiceLevelSemanticEntityCache {
 
         byDescribes.put(slse.getDescribes(), slse);
         byURI.put(slse.getURI(), slse);
-        backend.getEntityManager().entityCreated(URI.create(slse.uri), backend);
+        EntityManager.getInstance().entityCreated(URI.create(slse.uri), backend);
         System.out.println("# SLSECache.create " + uri);
 		return slse;
 	}

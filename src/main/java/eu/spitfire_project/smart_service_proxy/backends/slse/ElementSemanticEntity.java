@@ -24,7 +24,7 @@
  */
 package eu.spitfire_project.smart_service_proxy.backends.slse;
 
-import com.hp.hpl.jena.query.Dataset;
+
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryExecution;
 import com.hp.hpl.jena.query.QueryExecutionFactory;
@@ -33,7 +33,7 @@ import com.hp.hpl.jena.rdf.model.ModelFactory;
 
 /**
  * @author Henning Hasemann
- */
+*/
 public class ElementSemanticEntity extends SemanticEntity {
 	private String proxy;
     private ElementSemanticEntityCache cache;

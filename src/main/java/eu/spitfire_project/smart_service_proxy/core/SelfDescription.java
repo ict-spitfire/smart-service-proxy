@@ -26,19 +26,20 @@ package eu.spitfire_project.smart_service_proxy.core;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
-import de.uniluebeck.itm.spitfire.nCoap.message.CoapMessage;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.UintOption;
 import org.apache.log4j.Logger;
+import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferInputStream;
 
+import java.io.StringWriter;
 import java.net.URI;
 import java.util.Date;
 
 /**
- * This is a helper class to be used by the StatementCache to relate URIs and Models and their expiry dates to each other
+ * This is a helper class to be used by the ModelCache to relate URIs and Models and their expiry dates to each other
  * 
  * @author Oliver Kleine
  */
@@ -72,7 +73,8 @@ public class SelfDescription {
             log.debug("[SelfDescription] Local URI: " + localURI);
 
 			//Set model
-			ChannelBufferInputStream istream = new ChannelBufferInputStream(coapResponse.getPayload());
+			ChannelBuffer payload = coapResponse.getPayload();
+			ChannelBufferInputStream istream = new ChannelBufferInputStream(payload);
 			model = ModelFactory.createDefaultModel();
             
             UintOption contentTypeOption;
@@ -80,14 +82,14 @@ public class SelfDescription {
                 contentTypeOption = (UintOption) coapResponse.getOption(OptionRegistry.OptionName.CONTENT_TYPE).get(0);
             }
             catch(IndexOutOfBoundsException e){
-                log.info("[SelfDescription] CoapResponse did not contain a content type option. No SelfDescription" +
+                log.fatal("[SelfDescription] CoapResponse did not contain a content type option. No SelfDescription" +
                         "object created!");
                 throw e;
             }
 
-            int mediaTypeNumber = (int) contentTypeOption.getDecodedValue();
+            Long mediaTypeNumber = contentTypeOption.getDecodedValue();
             OptionRegistry.MediaType mediaType =
-                    OptionRegistry.MediaType.getByNumber(mediaTypeNumber);
+                    OptionRegistry.MediaType.getByNumber((long) mediaTypeNumber.intValue());
 
             if(mediaType == null){
                 log.info("[SelfDescription] CoapResponse contains an unknown content type (number = " +
@@ -98,14 +100,51 @@ public class SelfDescription {
 
             //TODO add more media types
             //Try to create a Jena model from the message payload
-            String lang = null;
+
+			try {
+
+			//ChannelBuffer buf = coapResponse.getResponsePayload();
+			String lang = null;
             if(mediaType == OptionRegistry.MediaType.APP_N3){
 			    lang = "N3";
-            }
-            else if (mediaType == OptionRegistry.MediaType.APP_XML){
+				//ChannelBufferInputStream istream = new ChannelBufferInputStream(buf);
+				model.read(istream, localURI, lang);
+			}
+			else if (mediaType == OptionRegistry.MediaType.APP_XML){
                 lang = "RDF/XML";
+				//ChannelBufferInputStream istream = new ChannelBufferInputStream(buf);
+				model.read(istream, localURI, lang);
+			}
+			else if (mediaType == OptionRegistry.MediaType.APP_SHDT){
+                log.debug("SHDT payload in CoAPResponse");
+				byte[] bytebuffer = new byte[payload.readableBytes()];
+				payload.getBytes(0, bytebuffer);
+                try{
+				    (new ShdtSerializer(64)).read_buffer(model, bytebuffer);
+                }
+                catch(Exception e){
+                    log.error("SHDT error!", e);
+                }
+			}
+
+            StringWriter writer = new StringWriter();
+//------------TEST!
+            try{
+                model.write(writer, "RDF/XML");
+                log.debug("[SelfDescription] Output after Model serialization (RDF/XML):\n " + writer.toString());
             }
-            model.read(istream, localURI, lang);
+            catch(Exception e){
+                log.error("Could not write RDF/XML", e);
+            }
+
+            try{
+                model.write(writer, "N3");
+                log.debug("[SelfDescription] Output after Model serialization (N3):\n " + writer.toString());
+            }
+            catch(Exception e){
+                log.error("Could not write N3", e);
+            }
+            //-------------
 
 			//Set expiry
 			long maxAge =
@@ -114,6 +153,11 @@ public class SelfDescription {
 			expiry = new Date((new Date()).getTime() + maxAge * 1000);
             log.debug("[SelfDescription] Status of resource " + localURI + " expires on " + expiry +
                     " ( that means in " + maxAge + " seconds).");
+
+			} catch(Exception e) {
+				log.debug(e);
+				e.printStackTrace();
+			}
 
 			//Set Observe value (only if resource is observable)
 //			if(coapResponse.getOptions().getOption(10) != null){
