@@ -134,7 +134,7 @@ public class UberdustBackend extends Backend {
 		}
 		HttpRequest request = (HttpRequest) e.getMessage();
 		URI uri = URI.create(request.getUri());
-		URI entityURI = URI.create("http://" + EntityManager.SSP_DNS_NAME).resolve(uri);
+		URI entityURI = URI.create("http://" + EntityManager.SSP_DNS_NAME + ":" + EntityManager.SSP_HTTP_SERVER_PORT).resolve(uri);
 		String path = uri.getPath();
 		String postfix = path.substring(getPrefix().length());
 		

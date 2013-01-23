@@ -124,7 +124,11 @@ public class SLSEBackend extends Backend {
 		 * - if POST "$base/sources/", call setSources($postdata)
 		 */
 
-		if(targetUriPath.equals(EntityManager.getInstance().normalizeURI(full_prefix() + "/create-entity").toString())) {
+		System.out.println(
+				"tup=" + targetUriPath
+				+ " ?= " + (prefix + "create-entity"));
+		
+		if(targetUriPath.equals(prefix + "create-entity")) {
 			if(httpRequest.getMethod() == HttpMethod.GET) {
                 //copy into
                 HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);

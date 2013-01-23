@@ -169,6 +169,74 @@ public class ServiceLevelSemanticEntity extends SemanticEntity {
 	}
 
 	private synchronized void updateModel() {
+		updateModel_new();
+	}
+		
+	private synchronized void updateModel_old() {
+		if(modelValid) return;
+		
+		//System.out.println("Updating SLSE model for " + uri + " with " + elementCount + " element SEs.");
+		System.out.println("# updateModel(" + uri + ")");
+		for(Map.Entry<String, Double> entry: meanValues.entrySet()) {
+			String property = entry.getKey();
+			Double value = entry.getValue();
+			boolean literal = true;
+			String query = String.format(
+					"PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#> \n" +
+					"PREFIX spit: <http://spitfire-project.eu/ontology/ns/> \n" +
+                    "select ?sensor where { " +
+                    " <%s> ssn:attachedSystem ?sensor ." +
+                    " ?sensor ssn:observedProperty <%s> . " +
+                    "}", uri, property);
+
+			Set<Resource> toDelete = new HashSet<Resource>();
+			
+			model.enterCriticalSection(Lock.WRITE);
+			try {
+				QueryExecution qexec = QueryExecutionFactory.create(query, model);
+				ResultSet r = qexec.execSelect();
+				while(r.hasNext()) {
+					QuerySolution s = r.nextSolution();
+					toDelete.add(s.getResource("sensor"));
+				}
+	
+				for(Resource s: toDelete) {
+					model.remove(model.createResource(uri), model.createProperty(URIs.attachedSystem), s);
+					model.removeAll(s, null, null);
+				}
+                
+                for(String element: elements) {
+                    model.add(
+                       model.createStatement(model.createResource(uri), model.createProperty(URIs.hasPart), model.createResource(element))
+                    );
+                }
+	
+				String tmpl = String.format(
+                    "@prefix ssn: <http://purl.oclc.org/NET/ssnx/ssn#> .\n" +
+                    "@prefix dul: <http://www.loa-cnr.it/ontologies/DUL.owl#> .\n" +
+					"@prefix spit: <http://spitfire-project.eu/ontology/ns/> .\n" +
+                    "@prefix : <%s/static/ontology.owl#> .\n" +
+                    "<%s>\n" +
+                    "  ssn:attachedSystem [ \n" +
+                    "	 spit:obs <%s> ; \n" +
+                    "	 spit:value %s \n" +
+                    "  ] . \n"
+                    , EntityManager.SSP_DNS_NAME,
+                    uri,
+                    property, literal ? "\"" + value + "\"" : "<" + value + ">"
+				);
+	
+				model.read(new StringReader(tmpl), ".", "N3");
+			}
+			finally {
+				model.leaveCriticalSection();
+			}
+		}
+		modelValid = true;
+	}
+	
+		
+	private synchronized void updateModel_new() {
 		if(modelValid) return;
 		
 		//System.out.println("Updating SLSE model for " + uri + " with " + elementCount + " element SEs.");

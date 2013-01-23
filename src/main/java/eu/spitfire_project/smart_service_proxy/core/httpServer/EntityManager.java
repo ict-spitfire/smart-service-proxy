@@ -84,6 +84,7 @@ public class EntityManager extends SimpleChannelHandler {
     //Parameters for Backend and Entity creation
     private int nextBackendId = 0;
     private final String BACKEND_PREFIX_FORMAT = "/be-%04d/";
+	private final int BACKEND_PREFIX_LENGTH = String.format(BACKEND_PREFIX_FORMAT, 0).length();
     private int nextEntityId = 0;
     private final String ENTITY_FORMAT = "/entity-%04x/";
 
@@ -284,10 +285,10 @@ public class EntityManager extends SimpleChannelHandler {
 //            log.debug("Forward request to visualizer.");
 //        }
 
-		else if(targetUriPath.startsWith(SERVER_PATH_TO_SLSE_UI)) {
-			String f = LOCAL_PATH_TO_SLSE_UI + targetUriPath.substring(SERVER_PATH_TO_SLSE_UI.length());
-			Channels.write(ctx.getChannel(), Answer.create(new File(f)).setMime("text/html"));
-		}
+		//else if(targetUriPath.startsWith(SERVER_PATH_TO_SLSE_UI)) {
+			//String f = LOCAL_PATH_TO_SLSE_UI + targetUriPath.substring(SERVER_PATH_TO_SLSE_UI.length());
+			//Channels.write(ctx.getChannel(), Answer.create(new File(f)).setMime("text/html"));
+		//}
 
 		else if("/".equals(targetUriPath)){
             HttpResponse httpResponse =
@@ -298,6 +299,44 @@ public class EntityManager extends SimpleChannelHandler {
             future.addListener(ChannelFutureListener.CLOSE);
             return;
         }
+        else if(targetUriPath.length() >= BACKEND_PREFIX_LENGTH) {
+
+            String prefix = targetUriPath.substring(0, targetUriPath.indexOf("/", 1) + 1);
+
+            //Create /64-Prefix for IPv6
+            if(prefix.startsWith("/%5B")){
+                prefix = prefix.substring(4, prefix.length() - 1);
+                String[] components = prefix.split(":");
+                prefix = "/%5B";
+                for(int i = 0; i < 4; i++){
+                    prefix += (components[i] + ":");
+                }
+                //Remove the last ":"
+                prefix = prefix.substring(0, prefix.length() - 1);
+            }
+
+            log.debug("Try to find backend for prefix " + prefix);
+            
+            //Find backend for prefix
+            if(backends.containsKey(prefix)){
+                // Get resource from appropriate backend and send response
+                Backend be = backends.get(prefix);  //entityBackends.get(toThing(uri));
+                try{
+                    ctx.getPipeline().remove("Backend to handle request");
+                }catch(NoSuchElementException ex){
+                    //No such backend in the pipeline and thus nothing to remove. That's fine.
+                }
+                ctx.getPipeline().addLast("Backend to handle request", be);
+                ctx.sendUpstream(e);
+
+		    }
+            else {
+                log.debug("! No backend found to handle path " + targetUriPath + "  prefix=" + prefix);
+            }
+			return;
+		}
+		
+		log.debug("targetUriPath=" + targetUriPath + " bepreflen=" + BACKEND_PREFIX_LENGTH);
 
         ctx.sendUpstream(e);
     }
