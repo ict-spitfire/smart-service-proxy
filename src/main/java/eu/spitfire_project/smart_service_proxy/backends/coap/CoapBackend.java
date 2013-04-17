@@ -32,7 +32,7 @@ import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
-import eu.spitfire_project.smart_service_proxy.noderegistration.AutoAnnotation;
+import eu.spitfire_project.smart_service_proxy.backends.coap.noderegistration.annotation.AutoAnnotation;
 import eu.spitfire_project.smart_service_proxy.utils.HttpResponseFactory;
 import eu.spitfire_project.smart_service_proxy.utils.TString;
 import org.apache.log4j.Logger;
@@ -47,7 +47,6 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import sun.net.util.IPAddressUtil;
 
 import java.net.*;
-import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -60,14 +59,11 @@ import java.util.Set;
 
 public class CoapBackend extends Backend{
 
+    public static final int NODES_COAP_PORT = 5683;
     private static Logger log = Logger.getLogger(CoapBackend.class.getName());
         
-    public static final int NODES_COAP_PORT = 5683;
-
     private HashMultimap<Inet6Address, String> services = HashMultimap.create();
-
     private boolean enableVirtualHttp;
-    
     private DatagramChannel clientChannel = CoapClientDatagramChannelFactory.getInstance().getChannel();
 
     /**
@@ -125,34 +121,23 @@ public class CoapBackend extends Backend{
                     @Override
                     public void receiveResponse(CoapResponse coapResponse) {
 
-                        log.debug("Received response from " + me.getRemoteAddress());
-
                         Object response;
+                        log.debug("Received CoAP response from " + me.getRemoteAddress());
 
                         try{
-                            if(!(coapResponse.getCode().isError()) && coapResponse.getPayload().readableBytes() > 0){
+                            if(!(coapResponse.getCode().isErrorMessage()) && coapResponse.getPayload().readableBytes() > 0){
                                 response = new SelfDescription(coapResponse,
                                         createHttpURIs(targetUriHostAddress, targetUriPath)[1]);
+                                log.debug("SelfDescription object created from response payload.");
                             }
                             else{
-                                log.debug("CoapResponse is error message or without payload.");
+                                log.debug("CoAP response is error message or without payload.");
                                 response = Http2CoapConverter.convertCoapToHttpResponse(coapResponse,
                                         httpRequest.getProtocolVersion());
-//                                String content = ((HttpResponse) response).getStatus().toString();
-//                                ((DefaultHttpResponse) response)
-//                                        .setContent(ChannelBuffers.
-//                                                wrappedBuffer(content.getBytes(Charset.forName("UTF-8"))));
-                                log.debug("Http response " + ((HttpResponse) response).getStatus() + " created.");
                             }
                         }
-//                        catch (InvalidOptionException e) {
-//                            log.error("Error.", e);
-//                            response = new DefaultHttpResponse(httpRequestUri.getProtocolVersion(),
-//                                                               HttpResponseStatus.INTERNAL_SERVER_ERROR);
-//                            ((DefaultHttpResponse) response).setContent(coapResponse.getResponsePayload());
-//                        }
                         catch(Exception e){
-                            log.error("Error.", e);
+                            log.error("Exception while receiving response.", e);
                             response = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
                                     HttpResponseStatus.INTERNAL_SERVER_ERROR);
                             ((HttpResponse) response)
@@ -164,14 +149,19 @@ public class CoapBackend extends Backend{
                     }
 
                     @Override
-                    public void receiveInternalError(String errorMessage){
-                        HttpResponse response = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
-                                HttpResponseStatus.GATEWAY_TIMEOUT);
-                        byte[] payload = errorMessage.getBytes(Charset.forName("UTF-8"));
-                        response.setContent(ChannelBuffers.wrappedBuffer(payload));
+                    public void receiveEmptyACK() {
+                        //To change body of implemented methods use File | Settings | File Templates.
+                    }
 
-                        ChannelFuture future = Channels.write(ctx.getChannel(), response);
-                        future.addListener(ChannelFutureListener.CLOSE);
+                    @Override
+                    public boolean isObserver() {
+                        return false;  //To change body of implemented methods use File | Settings | File Templates.
+                    }
+
+
+                    @Override
+                    public void handleRetransmissionTimout() {
+                        //To change body of implemented methods use File | Settings | File Templates.
                     }
                 });
 

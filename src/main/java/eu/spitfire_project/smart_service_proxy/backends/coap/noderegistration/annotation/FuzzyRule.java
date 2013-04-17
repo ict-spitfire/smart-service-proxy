@@ -1,4 +1,4 @@
-package eu.spitfire_project.smart_service_proxy.noderegistration;
+package eu.spitfire_project.smart_service_proxy.backends.coap.noderegistration.annotation;
 
 import java.util.ArrayList;
 
@@ -20,7 +20,7 @@ public class FuzzyRule {
      */
     public int size() {
         if (xList.size() != yList.size()) {
-            throw new RuntimeException("X,Y length not consistent");
+            throw new RuntimeException("X,Y getLength not consistent");
         }
         return xList.size();
     }

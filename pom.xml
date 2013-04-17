@@ -3,9 +3,12 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>eu.spitfire_project</groupId>
 	<artifactId>smart_service_proxy</artifactId>
-	<packaging>jar</packaging>
+	<packaging>pom</packaging>
 	<version>1.0-SNAPSHOT</version>
-	<name>smart_service_proxy</name>
+    <modules>
+        <module>../nCoAP</module>
+    </modules>
+    <name>smart_service_proxy</name>
 	<url>http://maven.apache.org</url>
 
 	<dependencies>

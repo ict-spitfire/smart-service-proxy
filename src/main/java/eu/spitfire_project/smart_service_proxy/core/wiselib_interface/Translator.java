@@ -84,7 +84,7 @@ public class Translator extends SimpleChannelHandler {
 		message.readBytes(messageBytes);
 
 		if(messageBytes.length < 2 || (messageBytes[0] != MessageTypes.SE_MESSAGE.id)) {
-			System.out.println("Message ignored. length=" + messageBytes.length);
+			System.out.println("Message ignored. getLength=" + messageBytes.length);
 			if(messageBytes.length > 0) { System.out.println(" type=" + (int)messageBytes[0]); }
 			super.messageReceived(ctx, e);
 			return;

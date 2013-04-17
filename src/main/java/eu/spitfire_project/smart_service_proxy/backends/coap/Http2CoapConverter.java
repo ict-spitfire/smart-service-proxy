@@ -165,7 +165,7 @@ public class Http2CoapConverter {
 //        }
         //convert content / payload
         response.setContent(coapResponse.getPayload());
-
+        log.debug("Http response " + ((HttpResponse) response).getStatus() + " created.");
         return response;
     }
 }

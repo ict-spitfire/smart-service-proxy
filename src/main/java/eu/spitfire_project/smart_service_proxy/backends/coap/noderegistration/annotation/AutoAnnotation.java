@@ -1,7 +1,8 @@
-package eu.spitfire_project.smart_service_proxy.noderegistration;
+package eu.spitfire_project.smart_service_proxy.backends.coap.noderegistration.annotation;
 
 import de.uniluebeck.itm.spitfire.nCoap.application.CoapClientApplication;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
+import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
 import de.uniluebeck.itm.spitfire.nCoap.message.InvalidMessageException;
 import de.uniluebeck.itm.spitfire.nCoap.message.MessageDoesNotAllowPayloadException;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
@@ -9,7 +10,6 @@ import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
-import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeUpdater;
 import eu.spitfire_project.smart_service_proxy.utils.TList;
 import eu.spitfire_project.smart_service_proxy.visualization.VisualizerClient;
 import org.apache.log4j.Logger;
@@ -337,7 +337,19 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
     }
 
 
+    @Override
+    public void receiveResponse(CoapResponse coapResponse) {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
 
+    @Override
+    public void receiveEmptyACK() {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
 
+    @Override
+    public void handleRetransmissionTimout() {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
 }
 

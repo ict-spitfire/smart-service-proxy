@@ -40,8 +40,8 @@ import eu.spitfire_project.smart_service_proxy.backends.wiselib_test.WiselibTest
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.ShdtSerializer;
 import eu.spitfire_project.smart_service_proxy.core.httpServer.HttpEntityManagerPipelineFactory;
-import eu.spitfire_project.smart_service_proxy.noderegistration.AutoAnnotation;
-import eu.spitfire_project.smart_service_proxy.noderegistration.CoapNodeRegistrationServer;
+import eu.spitfire_project.smart_service_proxy.backends.coap.noderegistration.annotation.AutoAnnotation;
+import eu.spitfire_project.smart_service_proxy.backends.coap.noderegistration.CoapNodeRegistrationServer;
 import eu.spitfire_project.smart_service_proxy.visualization.VisualizerClient;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -138,8 +138,8 @@ public class Main {
         createBackends(config);
 
         //Set AutoAnnotation to use images from visualizer
-        AutoAnnotation.getInstance().setVisualizerClient(VisualizerClient.getInstance());
-        AutoAnnotation.getInstance().start();
+        //AutoAnnotation.getInstance().setVisualizerClient(VisualizerClient.getInstance());
+        //AutoAnnotation.getInstance().start();
         //new SimulatedTimeScheduler().run();
     }
     

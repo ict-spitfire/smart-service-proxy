@@ -1,4 +1,4 @@
-package eu.spitfire_project.smart_service_proxy.noderegistration;
+package eu.spitfire_project.smart_service_proxy.backends.coap.noderegistration.annotation;
 
 import com.google.common.collect.Iterables;
 import eu.spitfire_project.smart_service_proxy.triplestore.SpitfireHandler;

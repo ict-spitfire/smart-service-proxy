@@ -3,8 +3,8 @@ package eu.spitfire_project.smart_service_proxy.visualization;
 import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeParameters;
 import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeUpdater;
 import eu.spitfire_project.smart_service_proxy.core.httpClient.HttpClient;
-import eu.spitfire_project.smart_service_proxy.noderegistration.AutoAnnotation;
-import eu.spitfire_project.smart_service_proxy.noderegistration.SensorData;
+import eu.spitfire_project.smart_service_proxy.backends.coap.noderegistration.annotation.AutoAnnotation;
+import eu.spitfire_project.smart_service_proxy.backends.coap.noderegistration.annotation.SensorData;
 import org.apache.log4j.Logger;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -38,8 +38,8 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
     private static String VISUALIZER_PATH;
     static{
         try {
-            //VISUALIZER_IP = InetAddress.getByName("141.83.106.116");
-            VISUALIZER_IP = InetAddress.getByName("spitfire-visualizer.wuxi.cn");
+            VISUALIZER_IP = InetAddress.getByName("141.83.106.116");
+            //VISUALIZER_IP = InetAddress.getByName("spitfire-visualizer.wuxi.cn");
             VISUALIZER_PORT = 10000;
             VISUALIZER_PATH = "/visualizer";
         } catch (UnknownHostException e) {
@@ -60,8 +60,6 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
 
 
     private VisualizerClient(){
-
-
     }
 
     public static VisualizerClient getInstance(){

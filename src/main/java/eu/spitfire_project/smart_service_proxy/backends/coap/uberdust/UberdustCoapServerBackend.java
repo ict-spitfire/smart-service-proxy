@@ -7,7 +7,7 @@ import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
-import eu.spitfire_project.smart_service_proxy.noderegistration.CoapNodeRegistrationServer;
+import eu.spitfire_project.smart_service_proxy.backends.coap.noderegistration.CoapNodeRegistrationServer;
 import org.apache.commons.configuration.Configuration;
 import org.apache.log4j.Logger;
 import sun.net.util.IPAddressUtil;
@@ -98,7 +98,7 @@ public class UberdustCoapServerBackend extends CoapBackend {
                 if (registrationServer == null){
                     log.error("NULL!");
                 }
-                registrationServer.receiveCoapRequest(fakeRequest, uberdustServerSocketAddress);
+                //registrationServer.receiveCoapRequest(fakeRequest, uberdustServerSocketAddress);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             } catch (UnknownHostException e) {
