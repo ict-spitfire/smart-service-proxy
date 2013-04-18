@@ -3,19 +3,16 @@ package eu.spitfire_project.smart_service_proxy.backends.coap.noderegistration;
 import de.uniluebeck.itm.spitfire.nCoap.application.CoapClientApplication;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
-import de.uniluebeck.itm.spitfire.nCoap.message.InvalidMessageException;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
 import org.apache.log4j.Logger;
 import sun.net.util.IPAddressUtil;
 
+import javax.annotation.Nullable;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
@@ -34,7 +31,6 @@ class CoapResourceDiscoverer extends CoapClientApplication implements Callable<B
     private Inet6Address remoteAddress;
 
     private Object monitor = new Object();
-
     private CoapResponse coapResponse;
 
     public CoapResourceDiscoverer(InetAddress remoteAddress){
@@ -44,45 +40,43 @@ class CoapResourceDiscoverer extends CoapClientApplication implements Callable<B
 
     @Override
     public Boolean call(){
-        System.out.println("LOOOOS!!");
-        CoapBackend coapBackend = null;
+        coapResponse = null;
+        try{
+            log.debug("Discover resources from " + remoteAddress.getHostAddress());
+            CoapBackend coapBackend = getResponsibleCoapBackend(remoteAddress);
 
-        for(CoapBackend backend : CoapNodeRegistrationServer.getInstance().getCoapBackends()){
-            log.debug("remoteAddress.getHostAddress(): " + remoteAddress.getHostAddress());
-            log.debug("backend.getIPv6Prefix(): " + backend.getPrefix());
+            if(coapBackend == null){
+                return false;
+            }
 
-            //Prefix is an IP address
-            if(remoteAddress.getHostAddress().startsWith(backend.getPrefix())){
-                coapBackend = backend;
-                log.debug("Backend found for address " + remoteAddress.getHostAddress());
-                break;
+            //Delete possibly already registered services of the sensornode
+            Set<Inet6Address> addressList = coapBackend.getSensorNodes();
+
+            if(addressList.contains(remoteAddress)){
+                log.debug("New here_i_am message from " + remoteAddress + ", delete old resources.");
+                coapBackend.deleteServices(remoteAddress);
             }
-            //Prefix is a DNS name
-            else{
-                log.debug("Look up backend for DNS name " + remoteAddress.getHostName());
-                log.debug("backend.getIPv6Prefix(): " + backend.getPrefix());
-                if((remoteAddress.getHostName()).equals(backend.getPrefix())){
-                    coapBackend = backend;
-                    log.debug("Backend found for DNS name " + remoteAddress.getHostName());
-                    break;
-                }
-            }
+
+            //Create request for /.well-known/core resource
+            CoapRequest request = createRequestForWellKnownCore();
+
+            //Send request for /.well-known/core
+            sendRequestForWellKnownCore(request);
+
+            //Process the response
+            coapBackend.processWellKnownCoreResource(coapResponse, remoteAddress);
+
+            return true;
         }
-
-        if(coapBackend == null){
-            log.debug("No backend found for IP address: " + remoteAddress.getHostAddress());
+        catch(Exception e){
+            log.error("Error while discovering resources from " + remoteAddress.getHostAddress(), e);
             return false;
         }
+    }
 
-        //Only register new nodes (avoid duplicates)
-        Set<Inet6Address> addressList = coapBackend.getSensorNodes();
-
-        if(addressList.contains(remoteAddress)){
-            log.debug("New here_i_am message from " + remoteAddress + ".");
-            coapBackend.deleteServices(remoteAddress);
-        }
-
-        try {
+    @Nullable
+    private CoapRequest createRequestForWellKnownCore(){
+        try{
             //Send request to the .well-known/core resource of the new sensornode
             String remoteIP = remoteAddress.getHostAddress();
 
@@ -94,8 +88,17 @@ class CoapResourceDiscoverer extends CoapClientApplication implements Callable<B
                 remoteIP = "[" + remoteIP + "]";
             }
             URI targetURI = new URI("coap://" + remoteIP + ":5683/.well-known/core");
-            CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.GET, targetURI, this);
+            return new CoapRequest(MsgType.CON, Code.GET, targetURI, this);
+        }
+        catch(Exception e){
+            log.error("Could not create request for .well-known/core resource.", e);
+            return null;
+        }
+    }
 
+    private void sendRequestForWellKnownCore(CoapRequest coapRequest){
+        CoapResponse coapResponse = null;
+        try {
             synchronized (monitor){
                 //Write request for .well-knwon/core
                 writeCoapRequest(coapRequest);
@@ -108,30 +111,36 @@ class CoapResourceDiscoverer extends CoapClientApplication implements Callable<B
                 while(coapResponse == null){
                     monitor.wait();
                 }
-
-                //Process the response
-                coapBackend.processWellKnownCoreResource(coapResponse, remoteAddress);
             }
-            return true;
-
-        } catch (InvalidMessageException e) {
-            log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
-            return false;
-        } catch (ToManyOptionsException e) {
-            log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
-            return false;
-        } catch (InvalidOptionException e) {
-            log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
-            return false;
-        } catch (URISyntaxException e) {
-            log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
-            return false;
-        } catch (InterruptedException e) {
-            log.error("[" + this.getClass().getName() + "] " + e.getClass().getName(), e);
-            return false;
+        }
+        catch(Exception e){
+            log.error("Error while trying to discover new resources.", e);
         }
     }
 
+    @Nullable
+    private CoapBackend getResponsibleCoapBackend(Inet6Address remoteAddress){
+        for(CoapBackend backend : CoapNodeRegistrationServer.getInstance().getCoapBackends()){
+            log.debug("Check if backend for prefix " + backend.getPrefix() + " is responsible.");
+
+            //Prefix is an IP address
+            if(remoteAddress.getHostAddress().startsWith(backend.getPrefix())){
+                log.debug("Backend found for address " + remoteAddress.getHostAddress());
+                return backend;
+            }
+            //Prefix is a DNS name
+            else{
+                if((remoteAddress.getHostName()).equals(backend.getPrefix())){
+                    log.debug("Backend found for DNS name " + remoteAddress.getHostName());
+                    return backend;
+                }
+            }
+            log.debug("Backend for prefix " + backend.getPrefix() + " is not responsible.");
+        }
+
+        log.debug("No backend found for IP address: " + remoteAddress.getHostAddress());
+        return null;
+    }
 
     @Override
     public void receiveResponse(CoapResponse coapResponse) {

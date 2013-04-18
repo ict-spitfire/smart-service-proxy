@@ -28,6 +28,7 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
+import de.uniluebeck.itm.spitfire.nCoap.message.options.Option;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.UintOption;
 import org.apache.log4j.Logger;
@@ -37,6 +38,7 @@ import org.jboss.netty.buffer.ChannelBufferInputStream;
 import java.io.StringWriter;
 import java.net.URI;
 import java.util.Date;
+import java.util.List;
 
 /**
  * This is a helper class to be used by the ModelCache to relate URIs and Models and their expiry dates to each other
@@ -48,118 +50,128 @@ public class SelfDescription {
 	
     private static Logger log = Logger.getLogger(SelfDescription.class.getName());
     
-		private Model model;
-        private String localURI;
-		private Date expiry;
-		private long observe;
+    private Model model;
+    private String localURI;
+    private Date expiry;
+    private boolean isObservedResourceUpdate = false;
 
 
-		public SelfDescription(Model m, URI u, Date e){
-			model = m;
-			localURI = trimURI(u);
-			expiry = e;
-		}
+    public SelfDescription(Model m, URI u, Date e){
+        model = m;
+        localURI = trimURI(u);
+        expiry = e;
+    }
 
-		public SelfDescription(Model m, URI u){
-			model = m;
-			localURI = trimURI(u);
-			// 5 minutes
-			expiry = new Date((new Date()).getTime() + 5 * 60 * 1000);
-		}
+    public SelfDescription(Model m, URI u){
+        model = m;
+        localURI = trimURI(u);
+        // 5 minutes
+        expiry = new Date((new Date()).getTime() + 5 * 60 * 1000);
+    }
 
-		public SelfDescription(CoapResponse coapResponse, URI uri) throws InvalidOptionException {
-			//Set uri
-			localURI = trimURI(uri);
-            log.debug("[SelfDescription] Local URI: " + localURI);
+    public SelfDescription(CoapResponse coapResponse, URI uri) throws InvalidOptionException {
 
-			//Set model
-			ChannelBuffer payload = coapResponse.getPayload();
-			ChannelBufferInputStream istream = new ChannelBufferInputStream(payload);
-			model = ModelFactory.createDefaultModel();
-            
-            UintOption contentTypeOption;
+        //Check if its a response of an observed resource
+        List<Option> observeOptions = coapResponse.getOption(OptionRegistry.OptionName.OBSERVE_RESPONSE);
+        if(!observeOptions.isEmpty()){
+            long responseCount = (((UintOption) observeOptions.get(0)).getDecodedValue());
+            if(responseCount > 1){
+                isObservedResourceUpdate = true;
+            }
+        }
+
+        //Set uri
+        localURI = trimURI(uri);
+        log.debug("[SelfDescription] Local URI: " + localURI);
+
+        //Set model
+        ChannelBuffer payload = coapResponse.getPayload();
+        ChannelBufferInputStream istream = new ChannelBufferInputStream(payload);
+        model = ModelFactory.createDefaultModel();
+
+        UintOption contentTypeOption;
+        try{
+            contentTypeOption = (UintOption) coapResponse.getOption(OptionRegistry.OptionName.CONTENT_TYPE).get(0);
+        }
+        catch(IndexOutOfBoundsException e){
+            log.fatal("[SelfDescription] CoapResponse did not contain a content type option. No SelfDescription" +
+                    "object created!");
+            throw e;
+        }
+
+        Long mediaTypeNumber = contentTypeOption.getDecodedValue();
+        OptionRegistry.MediaType mediaType =
+                OptionRegistry.MediaType.getByNumber((long) mediaTypeNumber.intValue());
+
+        if(mediaType == null){
+            log.info("[SelfDescription] CoapResponse contains an unknown content type (number = " +
+                    mediaTypeNumber + ").");
+            throw new InvalidOptionException(OptionRegistry.OptionName.CONTENT_TYPE.number,
+                                             "Unknown content type: " + mediaTypeNumber);
+        }
+
+        //TODO add more media types
+        //Try to create a Jena model from the message payload
+
+        try {
+
+        //ChannelBuffer buf = coapResponse.getResponsePayload();
+        String lang = null;
+        if(mediaType == OptionRegistry.MediaType.APP_N3){
+            lang = "N3";
+            //ChannelBufferInputStream istream = new ChannelBufferInputStream(buf);
+            model.read(istream, localURI, lang);
+        }
+        else if (mediaType == OptionRegistry.MediaType.APP_XML){
+            lang = "RDF/XML";
+            //ChannelBufferInputStream istream = new ChannelBufferInputStream(buf);
+            model.read(istream, localURI, lang);
+        }
+        else if (mediaType == OptionRegistry.MediaType.APP_SHDT){
+            log.debug("SHDT payload in CoAPResponse");
+            byte[] bytebuffer = new byte[payload.readableBytes()];
+            payload.getBytes(0, bytebuffer);
             try{
-                contentTypeOption = (UintOption) coapResponse.getOption(OptionRegistry.OptionName.CONTENT_TYPE).get(0);
+                (new ShdtSerializer(64)).read_buffer(model, bytebuffer);
             }
-            catch(IndexOutOfBoundsException e){
-                log.fatal("[SelfDescription] CoapResponse did not contain a content type option. No SelfDescription" +
-                        "object created!");
-                throw e;
+            catch(Exception e){
+                log.error("SHDT error!", e);
             }
+        }
 
-            Long mediaTypeNumber = contentTypeOption.getDecodedValue();
-            OptionRegistry.MediaType mediaType =
-                    OptionRegistry.MediaType.getByNumber((long) mediaTypeNumber.intValue());
-
-            if(mediaType == null){
-                log.info("[SelfDescription] CoapResponse contains an unknown content type (number = " +
-                        mediaTypeNumber + ").");
-                throw new InvalidOptionException(OptionRegistry.OptionName.CONTENT_TYPE.number,
-                                                 "Unknown content type: " + mediaTypeNumber);
-            }
-
-            //TODO add more media types
-            //Try to create a Jena model from the message payload
-
-			try {
-
-			//ChannelBuffer buf = coapResponse.getResponsePayload();
-			String lang = null;
-            if(mediaType == OptionRegistry.MediaType.APP_N3){
-			    lang = "N3";
-				//ChannelBufferInputStream istream = new ChannelBufferInputStream(buf);
-				model.read(istream, localURI, lang);
-			}
-			else if (mediaType == OptionRegistry.MediaType.APP_XML){
-                lang = "RDF/XML";
-				//ChannelBufferInputStream istream = new ChannelBufferInputStream(buf);
-				model.read(istream, localURI, lang);
-			}
-			else if (mediaType == OptionRegistry.MediaType.APP_SHDT){
-                log.debug("SHDT payload in CoAPResponse");
-				byte[] bytebuffer = new byte[payload.readableBytes()];
-				payload.getBytes(0, bytebuffer);
-                try{
-				    (new ShdtSerializer(64)).read_buffer(model, bytebuffer);
-                }
-                catch(Exception e){
-                    log.error("SHDT error!", e);
-                }
-			}
-
-            StringWriter writer = new StringWriter();
+        StringWriter writer = new StringWriter();
 //------------TEST!
-            try{
-                model.write(writer, "RDF/XML");
-                log.debug("[SelfDescription] Output after Model serialization (RDF/XML):\n " + writer.toString());
-            }
-            catch(Exception e){
-                log.error("Could not write RDF/XML", e);
-            }
+        try{
+            model.write(writer, "RDF/XML");
+            log.debug("[SelfDescription] Output after Model serialization (RDF/XML):\n " + writer.toString());
+        }
+        catch(Exception e){
+            log.error("Could not write RDF/XML", e);
+        }
 
-            try{
-                model.write(writer, "N3");
-                log.debug("[SelfDescription] Output after Model serialization (N3):\n " + writer.toString());
-            }
-            catch(Exception e){
-                log.error("Could not write N3", e);
-            }
-            //-------------
+        try{
+            model.write(writer, "N3");
+            log.debug("[SelfDescription] Output after Model serialization (N3):\n " + writer.toString());
+        }
+        catch(Exception e){
+            log.error("Could not write N3", e);
+        }
+        //-------------
 
-			//Set expiry
-			long maxAge =
-                    ((UintOption) coapResponse.getOption(OptionRegistry.OptionName.MAX_AGE).get(0)).getDecodedValue();
-			//value is current time plus freshness duration
-			expiry = new Date((new Date()).getTime() + maxAge * 1000);
-            log.debug("[SelfDescription] Status of resource " + localURI + " expires on " + expiry +
-                    " ( that means in " + maxAge + " seconds).");
+        //Set expiry
+        long maxAge =
+                ((UintOption) coapResponse.getOption(OptionRegistry.OptionName.MAX_AGE).get(0)).getDecodedValue();
+        //value is current time plus freshness duration
+        expiry = new Date((new Date()).getTime() + maxAge * 1000);
+        log.debug("[SelfDescription] Status of resource " + localURI + " expires on " + expiry +
+                " ( that means in " + maxAge + " seconds).");
 
-			} catch(Exception e) {
-				log.debug(e);
-				e.printStackTrace();
-			}
+        } catch(Exception e) {
+            log.debug(e);
+            e.printStackTrace();
+        }
 
-			//Set Observe value (only if resource is observable)
+        //Set Observe value (only if resource is observable)
 //			if(coapResponse.getOptions().getOption(10) != null){
 //				observe = ((UintOption)coapResponse.getOptions().getOption(10)).getValue();
 //				System.out.println("[SelfDescription] Observe value: " + observe);
@@ -181,8 +193,8 @@ public class SelfDescription {
 			return localURI;
 		}
 		
-		public long getObserve(){
-			return observe;
+		public boolean isObservedResourceUpdate(){
+			return this.isObservedResourceUpdate;
 		}
 
 		private String trimURI(URI u){

@@ -24,11 +24,13 @@
  */
 package eu.spitfire_project.smart_service_proxy.backends.coap;
 
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.HashMultimap;
 import de.uniluebeck.itm.spitfire.nCoap.communication.callback.ResponseCallback;
 import de.uniluebeck.itm.spitfire.nCoap.communication.core.CoapClientDatagramChannelFactory;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
+import eu.spitfire_project.smart_service_proxy.Main;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
@@ -49,6 +51,8 @@ import sun.net.util.IPAddressUtil;
 import java.net.*;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 /**
@@ -66,6 +70,9 @@ public class CoapBackend extends Backend{
     private boolean enableVirtualHttp;
     private DatagramChannel clientChannel = CoapClientDatagramChannelFactory.getInstance().getChannel();
 
+    private HashBasedTable<Inet6Address, String, CoapResourceObserver> coapResourceObservers
+            = HashBasedTable.create();
+
     /**
      * Create a new instance of the CoAPBackend-Application with a listening Datagram Socket on port 5683.
      */
@@ -81,6 +88,24 @@ public class CoapBackend extends Backend{
     }
 
     @Override
+    public void writeRequested(final ChannelHandlerContext ctx, final MessageEvent me) throws Exception{
+        if(me.getMessage() instanceof ObservingFailedMessage){
+            ObservingFailedMessage message = (ObservingFailedMessage) me.getMessage();
+            log.info("Stop observing of " + message.getServiceHost().getHostAddress() + message.getServicePath());
+
+            if(coapResourceObservers.remove(message.getServiceHost(), message.getServicePath()) != null){
+                log.info("Succesfully removed from list of observed services.");
+            }
+            else{
+                log.error("Could not find service in list of observed services!");
+            }
+            return;
+        }
+
+        super.writeRequested(ctx, me) ;
+    }
+
+    @Override
     public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent me){
         
         if(!(me.getMessage() instanceof HttpRequest)) {
@@ -90,11 +115,11 @@ public class CoapBackend extends Backend{
         
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
-        String path = httpRequest.getUri();
-        int index = path.indexOf("?");
-        if(index != -1){
-            path = path.substring(0, index);
-        }
+//        String path = httpRequest.getUri();
+//        int index = path.indexOf("?");
+//        if(index != -1){
+//            path = path.substring(0, index);
+//        }
 
         //Look up CoAP target URI
         try {
@@ -171,14 +196,13 @@ public class CoapBackend extends Backend{
 
                 ChannelFuture future = Channels.write(clientChannel, coapRequest, remoteSocketAddress);
 
-                if(log.isDebugEnabled()){
-                    future.addListener(new ChannelFutureListener() {
-                        @Override
-                        public void operationComplete(ChannelFuture future) throws Exception {
-                            log.debug("CoAP request sent to " + coapTargetURI);
-                        }
-                    });
-                }
+                future.addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        log.debug("CoAP request sent to " + coapTargetURI);
+                    }
+                });
+
             }
             else{
                 log.debug("Service " + targetUriPath + " unknwon for host " + targetUriHostAddress + ".");
@@ -210,12 +234,26 @@ public class CoapBackend extends Backend{
         services.removeAll(serverAddress);
     }
 
+    @Override
+    public Set<URI> getResources(){
+        HashSet<URI> result = new HashSet<URI>(services.size());
+        for(Inet6Address address : services.keySet()){
+            for(String path : services.get(address)){
+
+                result.add(URI.create("http://" + address.getHostAddress()
+                                     + EntityManager.SSP_HTTP_SERVER_PORT
+                                     + "/" + path));
+            }
+        }
+        return result;
+    }
+
     public void processWellKnownCoreResource(CoapResponse coapResponse, Inet6Address remoteAddress){
 
         ChannelBuffer payloadBuffer = coapResponse.getPayload();
 
         log.debug("Process ./well-known/core resource " +
-                    "(size: " + payloadBuffer.readableBytes() +") from " + remoteAddress.getHostAddress());
+                "(size: " + payloadBuffer.readableBytes() +") from " + remoteAddress.getHostAddress());
 
         //register each link as new entity
         String payload = new String(payloadBuffer.array());
@@ -224,7 +262,7 @@ public class CoapBackend extends Backend{
         for (String link : links){
 
             //Ensure a "/" at the beginning of the path
-            String path = link.substring(1, link.indexOf(">"));
+            String path = link.substring(link.indexOf("<" + 1), link.indexOf(">"));
             if (path.indexOf("/") > 0){
                 path = "/" + path;
             }
@@ -234,15 +272,21 @@ public class CoapBackend extends Backend{
                 URI[] httpURIs = createHttpURIs(remoteAddress, path);
                 EntityManager.getInstance().entityCreated(httpURIs[0], this);
                 EntityManager.getInstance().virtualEntityCreated(httpURIs[1], this);
-                
-                //Virtual HTTP Server for Sensor nodes
-                if(enableVirtualHttp){
+
+                //try to start observing of resources
+                CoapResourceObserver resourceObserver = new CoapResourceObserver(Main.httpChannel, remoteAddress, path);
+                resourceObserver.writeRequestToObserveResource();
+
+                coapResourceObservers.put(remoteAddress, path, resourceObserver);
+
+//                //Virtual HTTP Server for Sensor nodes
+//                if(enableVirtualHttp){
 //                    URI virtualHttpServerUri = new URI("http://[" + remoteIP + "]" + path + "#");
 //                    log.debug("[CoapBackend] New virtual HTTP service address: " + virtualHttpServerUri);
 //                    resources.put(virtualHttpServerUri, coapURI);
 //                    entityManager.entityCreated(virtualHttpServerUri, this);
-                }
-                
+//                }
+
             }
             catch (URISyntaxException e) {
                 log.fatal("[CoapBackend] Error while creating URI. This should never happen.", e);
@@ -288,21 +332,6 @@ public class CoapBackend extends Backend{
 
         AutoAnnotation.getInstance().updateDB(ipv6Addr, macAddr, httpRequestUri);
     }
-
-    @Override
-    public Set<URI> getResources(){
-        HashSet<URI> result = new HashSet<URI>(services.size());
-        for(Inet6Address address : services.keySet()){
-            for(String path : services.get(address)){
-
-                result.add(URI.create("http://" + address.getHostAddress()
-                                     + EntityManager.SSP_HTTP_SERVER_PORT
-                                     + "/" + path));
-            }
-        }
-        return result;
-    }
-
 //    /**
 //     * Returns the IPv6 prefix of the net the CoapBackend is responsible for (e.g. 2001:638:b157:1)
 //     * @return the IPv6 prefix of the net the CoapBackend is responsible for (e.g. 2001:638:b157:1)

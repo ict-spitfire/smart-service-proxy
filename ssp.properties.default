@@ -3,7 +3,6 @@
 #-------------
 #Core settings
 #-------------
-
 SSP_DNS_NAME = ssp.spitfire.wuxi.cn
 SSP_HTTP_SERVER_PORT = 8080
 

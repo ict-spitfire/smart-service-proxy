@@ -50,6 +50,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 import org.jboss.netty.bootstrap.ServerBootstrap;
+import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
 import java.net.Inet6Address;
@@ -60,6 +61,8 @@ import java.util.concurrent.Executors;
 public class Main {
 
     private static Logger log = Logger.getLogger(Main.class.getName());
+
+    public static Channel httpChannel;
 
     static{
         String pattern = "%-23d{yyyy-MM-dd HH:mm:ss,SSS} | %-32.32t | %-30.30c{1} | %-5p | %m%n";
@@ -125,7 +128,7 @@ public class Main {
                 new HttpEntityManagerPipelineFactory(enableVirtualHttpServerForCoap);
         bootstrap.setPipelineFactory(empf);
         int listenPort = config.getInt("SSP_HTTP_SERVER_PORT", 8080);
-        bootstrap.bind(new InetSocketAddress(listenPort));
+        httpChannel = bootstrap.bind(new InetSocketAddress(listenPort));
 
         //Set URI base
         String defaultHost = InetAddress.getLocalHost().getCanonicalHostName();

@@ -132,13 +132,15 @@ public class ModelCache extends SimpleChannelHandler {
             log.debug("Received SelfDescription of resource " + sd.getLocalURI() + " to be cached.");
             
             //Store new Element in Cache
-            //cache.put(sd.getLocalURI(), new CacheElement(sd.getModel(), sd.getExpiry(), sd.getObserve()));
+            cache.put(new URI(sd.getLocalURI()), new CacheElement(sd.getModel(), sd.getExpiry()));
             //Channels.write(ctx, me.getFuture(), sd.getModel());
 
-            DownstreamMessageEvent downstreamMessageEvent =
-                    new DownstreamMessageEvent(ctx.getChannel(), me.getFuture(), sd.getModel(), me.getRemoteAddress());
+            if(!sd.isObservedResourceUpdate()){
+                DownstreamMessageEvent downstreamMessageEvent =
+                        new DownstreamMessageEvent(ctx.getChannel(), me.getFuture(), sd.getModel(), me.getRemoteAddress());
 
-            ctx.sendDownstream(downstreamMessageEvent);
+                ctx.sendDownstream(downstreamMessageEvent);
+            }
         }
         else{
             ctx.sendDownstream(me);
@@ -151,12 +153,12 @@ public class ModelCache extends SimpleChannelHandler {
     private class CacheElement {
         public Date expiry;
         public Model model;
-        public long observe;
+        //public long observe;
 
-        public CacheElement(Model m, Date e, long o) {
+        public CacheElement(Model m, Date e) {
             expiry = e;
             model = m;
-            observe = o;
+            //observe = o;
         }
     }
 }
