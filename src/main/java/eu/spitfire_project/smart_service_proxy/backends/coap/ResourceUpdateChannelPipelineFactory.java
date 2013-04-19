@@ -1,10 +1,8 @@
 package eu.spitfire_project.smart_service_proxy.backends.coap;
 
 import eu.spitfire_project.smart_service_proxy.core.httpServer.ModelCache;
-import org.jboss.netty.channel.ChannelHandler;
-import org.jboss.netty.channel.ChannelPipeline;
-import org.jboss.netty.channel.ChannelPipelineFactory;
-import org.jboss.netty.channel.Channels;
+import org.apache.log4j.Logger;
+import org.jboss.netty.channel.*;
 
 /**
  * Created with IntelliJ IDEA.
@@ -27,7 +25,15 @@ public class ResourceUpdateChannelPipelineFactory implements ChannelPipelineFact
 
         pipeline.addLast("Cache", ModelCache.getInstance());
         pipeline.addLast("CoapBackend", coapBackend);
+        pipeline.addLast("Logging Sink", new SimpleChannelDownstreamHandler(){
 
+            private Logger log = Logger.getLogger(this.getClass().getName());
+
+            @Override
+            public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
+                log.error("Unexcepctedly received message of type " + me.getMessage().getClass().getName());
+            }
+        });
         return pipeline;
     }
 }

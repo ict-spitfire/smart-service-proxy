@@ -30,6 +30,9 @@ import de.uniluebeck.itm.spitfire.nCoap.communication.callback.ResponseCallback;
 import de.uniluebeck.itm.spitfire.nCoap.communication.core.CoapClientDatagramChannelFactory;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
+import de.uniluebeck.itm.spitfire.nCoap.message.options.Option;
+import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
+import de.uniluebeck.itm.spitfire.nCoap.message.options.UintOption;
 import eu.spitfire_project.smart_service_proxy.Main;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
@@ -52,6 +55,11 @@ import java.net.*;
 import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.Set;
+
+import static de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry.OptionName.*;
+import static de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry.MediaType.*;
+import static de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry.MediaType;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -123,26 +131,20 @@ public class CoapBackend extends Backend{
 //            path = path.substring(0, index);
 //        }
 
-        //Look up CoAP target URI
         try {
+            //check whether there is an appropriate CoAP service registered
             final Inet6Address targetUriHostAddress =
                     (Inet6Address) InetAddress.getByName(httpRequest.getHeader("HOST"));
-            log.debug("Host: " + targetUriHostAddress);
-
             final String targetUriPath = httpRequest.getUri();
-            log.debug("Path: " + targetUriPath);
 
             if(services.containsEntry(targetUriHostAddress, targetUriPath)){
-
-                log.debug("Service found!");
-
+                //create CoAP target URI
                 final URI coapTargetURI = URI.create("coap://["
                                               + targetUriHostAddress.getHostAddress()
                                               + "]:" + NODES_COAP_PORT
                                               + "/" + targetUriPath);
 
-                log.debug("CoAP target URI: " + coapTargetURI);
-
+                //create CoAP request
                 CoapRequest coapRequest = Http2CoapConverter.convertHttpRequestToCoAPMessage(httpRequest, coapTargetURI);
                 coapRequest.setResponseCallback(new ResponseCallback() {
                     @Override
@@ -177,37 +179,36 @@ public class CoapBackend extends Backend{
 
                     @Override
                     public void receiveEmptyACK() {
-                        //To change body of implemented methods use File | Settings | File Templates.
+                        log.info("Empty ACK received from " + coapTargetURI);
                     }
 
                     @Override
                     public boolean isObserver() {
-                        return false;  //To change body of implemented methods use File | Settings | File Templates.
+                        return false;
                     }
 
 
                     @Override
                     public void handleRetransmissionTimout() {
-                        //To change body of implemented methods use File | Settings | File Templates.
+                        log.info("Retransmission timed out for " + coapTargetURI);
                     }
                 });
 
-                //Send CoapRequest
+                //send CoapRequest
                 InetSocketAddress remoteSocketAddress =
                         new InetSocketAddress(coapTargetURI.getHost(), coapTargetURI.getPort());
 
                 ChannelFuture future = Channels.write(clientChannel, coapRequest, remoteSocketAddress);
-
                 future.addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
-                        log.debug("CoAP request sent to " + coapTargetURI);
+                        log.info("CoAP request sent to " + coapTargetURI);
                     }
                 });
 
             }
             else{
-                log.debug("Service " + targetUriPath + " unknwon for host " + targetUriHostAddress + ".");
+                log.info("Service " + targetUriPath + " unknwon for host " + targetUriHostAddress + ".");
                 Object response = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
                         HttpResponseStatus.NOT_FOUND);
 
@@ -231,6 +232,10 @@ public class CoapBackend extends Backend{
         return services.keySet();
     }
 
+    /**
+     * Unregisters all services known for the given address (CoAP host, resp. sensornode)
+     * @param serverAddress The IPv6 address of the server to unregister all services of
+     */
     public void deleteServices(Inet6Address serverAddress){
         log.debug("Delete services for " + serverAddress + ".");
         services.removeAll(serverAddress);
@@ -250,8 +255,29 @@ public class CoapBackend extends Backend{
         return result;
     }
 
+    /**
+     * This method is called to process coapResponses containing a .well-known/core resource. It registers all listed
+     * services at the EntityManager and starts the observation of the "minimal" resources.
+      *@param coapResponse
+     * @param remoteAddress
+     */
     public void processWellKnownCoreResource(CoapResponse coapResponse, Inet6Address remoteAddress){
 
+        //Check if content is set at all
+        if(coapResponse.getOption(CONTENT_TYPE).isEmpty()){
+            log.error("The Coap response did not contain a content type option (expected: " + APP_LINK_FORMAT + ")");
+            return;
+        }
+
+        //Check if the content Type of the response is set to Core Link Format
+        Option contentTypeOption = coapResponse.getOption(CONTENT_TYPE).get(0);
+        OptionRegistry.MediaType contentType = MediaType.getByNumber(((UintOption)contentTypeOption).getDecodedValue());
+        if(contentType != APP_LINK_FORMAT){
+            log.error("The Coap response did not contain content of type " + APP_LINK_FORMAT + " but " + contentType);
+            return;
+        }
+
+        //Content type is ok, so proceed
         ChannelBuffer payloadBuffer = coapResponse.getPayload();
 
         log.debug("Process ./well-known/core resource " +
@@ -277,7 +303,7 @@ public class CoapBackend extends Backend{
                 EntityManager.getInstance().entityCreated(httpURIs[0], this);
                 EntityManager.getInstance().virtualEntityCreated(httpURIs[1], this);
 
-                //try to start observing of resources
+                //try to start observing of minimal resources
                 if(path.contains("/_minimal")){
                     log.info("Send observe request for service " + path + " at " + remoteAddress);
                     CoapResourceObserver resourceObserver = new CoapResourceObserver(this, remoteAddress, path);
@@ -299,7 +325,11 @@ public class CoapBackend extends Backend{
                 log.fatal("[CoapBackend] Error while creating URI. This should never happen.", e);
             }
         }
+        //start auto-annotation
+        autoAnnotation(remoteAddress);
+    }
 
+    public void autoAnnotation(Inet6Address remoteAddress){
         //----------- fuzzy annotation and visualizer----------------------
         String ipv6Addr = remoteAddress.getHostAddress();
         if(ipv6Addr.indexOf("%") != -1){
@@ -329,13 +359,13 @@ public class CoapBackend extends Backend{
 
         //String FOI = "";
 
-        /*while (coapRequest.getPayload().readable())
-         FOI += (char)coapRequest.getPayload().readByte();
-     log.debug("FOI full: "+FOI);
-     TString tfoi = new TString(FOI,'/');
-     String foi = tfoi.getStrAtEnd();
-     FOI = foi.substring(0, foi.length()-1);*/
-        //log.debug("FOI extracted: "+FOI);
+//        while (coapRequest.getPayload().readable())
+//            FOI += (char)coapRequest.getPayload().readByte();
+//        log.debug("FOI full: "+FOI);
+//        TString tfoi = new TString(FOI,'/');
+//        String foi = tfoi.getStrAtEnd();
+//        FOI = foi.substring(0, foi.length()-1);
+//        log.debug("FOI extracted: " + FOI);
 
         AutoAnnotation.getInstance().updateDB(ipv6Addr, macAddr, httpRequestUri);
     }

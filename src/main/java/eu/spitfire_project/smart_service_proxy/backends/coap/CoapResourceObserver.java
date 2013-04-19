@@ -3,22 +3,16 @@ package eu.spitfire_project.smart_service_proxy.backends.coap;
 import de.uniluebeck.itm.spitfire.nCoap.application.CoapClientApplication;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
 import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
-import de.uniluebeck.itm.spitfire.nCoap.message.InvalidMessageException;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
 import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
-import eu.spitfire_project.smart_service_proxy.core.httpServer.HttpEntityManagerPipelineFactory;
-import eu.spitfire_project.smart_service_proxy.core.httpServer.ModelCache;
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.local.DefaultLocalClientChannelFactory;
 
 import java.net.Inet6Address;
 import java.net.URI;
-import java.net.URISyntaxException;
 
 
 /**
@@ -35,7 +29,6 @@ public class CoapResourceObserver extends CoapClientApplication{
     private CoapBackend coapBackend;
     private Inet6Address serviceToObserveHost;
     private String serviceToObservePath;
-
 
     public CoapResourceObserver(CoapBackend coapBackend , Inet6Address observableServiceHost,
                                 String observableServicePath){
@@ -76,16 +69,16 @@ public class CoapResourceObserver extends CoapClientApplication{
                 object = new SelfDescription(coapResponse, httpMirrorURI);
             }
 
-            Channel channel =  createChannelForInternalMessages();
-
-            ChannelFuture future = channel.write(object);
+            Channel internalChannel =  createChannelForInternalMessages();
+            ChannelFuture future = internalChannel.write(object);
             future.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                    log.debug("Finished with error: " + channelFuture.getCause());
+                    if(!channelFuture.isSuccess()){
+                        log.debug("Finished with error: " + channelFuture.getCause());
+                    }
                 }
             });
-
             future.addListener(ChannelFutureListener.CLOSE);
          }
         catch (Exception e) {
@@ -105,12 +98,30 @@ public class CoapResourceObserver extends CoapClientApplication{
 
     @Override
     public void receiveEmptyACK() {
-        //To change body of implemented methods use File | Settings | File Templates.
+        log.info("Received empty ACK for request from " + serviceToObservePath + " at " + serviceToObserveHost);
     }
 
     @Override
     public void handleRetransmissionTimout() {
-        //To change body of implemented methods use File | Settings | File Templates.
+        log.info("Giving up retransmitting request to " + serviceToObservePath + " at " + serviceToObserveHost);
+        try {
+            Channel internalChannel = createChannelForInternalMessages();
+            ChannelFuture future =
+                    internalChannel.write(new ObservingFailedMessage(serviceToObserveHost, serviceToObservePath));
+            future.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                    if(!channelFuture.isSuccess()){
+                        log.debug("Finished with error: " + channelFuture.getCause());
+                    }
+                }
+            });
+            future.addListener(ChannelFutureListener.CLOSE);
+
+        } catch (Exception e) {
+            log.error("Unexpected error: ", e);
+        }
+
     }
 
 
