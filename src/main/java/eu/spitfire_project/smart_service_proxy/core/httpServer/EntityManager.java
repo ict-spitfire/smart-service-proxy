@@ -206,26 +206,28 @@ public class EntityManager extends SimpleChannelHandler {
 
         log.debug("Received HTTP request for " + targetUri);
 
-        String targetUriHost = InetAddress.getByName(targetUri.getHost()).getHostAddress();
-        //remove leading zeros per block
-        targetUriHost = targetUriHost.replaceAll(":0000", ":0");
-        targetUriHost = targetUriHost.replaceAll(":000", ":0");
-        targetUriHost = targetUriHost.replaceAll(":00", ":0");
-        targetUriHost = targetUriHost.replaceAll("(:0)([ABCDEFabcdef123456789])", ":$2");
+        if(httpRequest.getHeader("HOST").contains(DNS_WILDCARD_POSTFIX)){
+            String targetUriHost = InetAddress.getByName(targetUri.getHost()).getHostAddress();
+            //remove leading zeros per block
+            targetUriHost = targetUriHost.replaceAll(":0000", ":0");
+            targetUriHost = targetUriHost.replaceAll(":000", ":0");
+            targetUriHost = targetUriHost.replaceAll(":00", ":0");
+            targetUriHost = targetUriHost.replaceAll("(:0)([ABCDEFabcdef123456789])", ":$2");
 
-        //return shortened IP
-        targetUriHost = targetUriHost.replaceAll("((?:(?:^|:)0\\b){2,}):?(?!\\S*\\b\\1:0\\b)(\\S*)", "::$2");
-        log.debug("Target host: " + targetUriHost);
+            //return shortened IP
+            targetUriHost = targetUriHost.replaceAll("((?:(?:^|:)0\\b){2,}):?(?!\\S*\\b\\1:0\\b)(\\S*)", "::$2");
+            log.debug("Target host: " + targetUriHost);
 
-		String targetUriPath = targetUri.getRawPath();
-        log.debug("Target path: " + targetUriPath);
+            String targetUriPath = targetUri.getRawPath();
+            log.debug("Target path: " + targetUriPath);
 
-        if(IPAddressUtil.isIPv6LiteralAddress(targetUriHost)){
-            targetUriHost = "[" + targetUriHost + "]";
+            if(IPAddressUtil.isIPv6LiteralAddress(targetUriHost)){
+                targetUriHost = "[" + targetUriHost + "]";
+            }
+
+            targetUri = toThing(URI.create("http://" + targetUriHost + httpRequest.getUri()));
+            log.debug("Shortened target URI: " + targetUri);
         }
-
-        targetUri = toThing(URI.create("http://" + targetUriHost + httpRequest.getUri()));
-        log.debug("Shortened target URI: " + targetUri);
 
         if(entities.containsKey(targetUri)){
             Backend backend = entities.get(targetUri);
@@ -277,7 +279,7 @@ public class EntityManager extends SimpleChannelHandler {
 			Channels.write(ctx.getChannel(), Answer.create(new File(f)).setMime("text/n3"));
 		}*/
 
-		else if("/".equals(targetUriPath)){
+		else if("/".equals(targetUri.getRawPath())){
             HttpResponse httpResponse =
                     new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
 

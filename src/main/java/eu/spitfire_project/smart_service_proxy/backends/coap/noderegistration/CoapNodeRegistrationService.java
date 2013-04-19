@@ -42,10 +42,11 @@ class CoapNodeRegistrationService extends NotObservableWebService<Boolean> {
                 CoapResourceDiscoverer resourceDiscoverer = new CoapResourceDiscoverer(remoteAddress.getAddress());
                 ScheduledFuture<Boolean> future =
                     executorService.schedule(resourceDiscoverer, 0, TimeUnit.MILLISECONDS);
-                if(future.get(2, TimeUnit.MINUTES)){
-                    return new CoapResponse(Code.CREATED_201);
-                }
-                return new CoapResponse(Code.GATEWAY_TIMEOUT_504);
+
+                //wait 2 minutes to discover new resources
+                future.get(2, TimeUnit.MINUTES);
+                return new CoapResponse(Code.CREATED_201);
+
             }
             catch (InterruptedException e) {
                 log.error("Error while waiting for /.well-known/core resource.", e);

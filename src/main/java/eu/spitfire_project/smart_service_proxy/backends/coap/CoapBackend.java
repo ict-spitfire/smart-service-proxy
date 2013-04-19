@@ -49,6 +49,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import sun.net.util.IPAddressUtil;
 
 import java.net.*;
+import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -99,6 +100,7 @@ public class CoapBackend extends Backend{
             else{
                 log.error("Could not find service in list of observed services!");
             }
+
             return;
         }
 
@@ -256,13 +258,15 @@ public class CoapBackend extends Backend{
                 "(size: " + payloadBuffer.readableBytes() +") from " + remoteAddress.getHostAddress());
 
         //register each link as new entity
-        String payload = new String(payloadBuffer.array());
+        byte[] bytes = new byte[payloadBuffer.readableBytes()];
+        payloadBuffer.readBytes(bytes);
+        String payload = new String(bytes, Charset.forName("UTF-8"));
         String[] links = payload.split(",");
 
         for (String link : links){
-
+            log.debug("Process service " + link);
             //Ensure a "/" at the beginning of the path
-            String path = link.substring(link.indexOf("<" + 1), link.indexOf(">"));
+            String path = link.substring(link.indexOf("<") + 1, link.indexOf(">"));
             if (path.indexOf("/") > 0){
                 path = "/" + path;
             }
@@ -274,10 +278,13 @@ public class CoapBackend extends Backend{
                 EntityManager.getInstance().virtualEntityCreated(httpURIs[1], this);
 
                 //try to start observing of resources
-                CoapResourceObserver resourceObserver = new CoapResourceObserver(Main.httpChannel, remoteAddress, path);
-                resourceObserver.writeRequestToObserveResource();
+                if(path.contains("/_minimal")){
+                    log.info("Send observe request for service " + path + " at " + remoteAddress);
+                    CoapResourceObserver resourceObserver = new CoapResourceObserver(this, remoteAddress, path);
+                    resourceObserver.writeRequestToObserveResource();
 
-                coapResourceObservers.put(remoteAddress, path, resourceObserver);
+                    coapResourceObservers.put(remoteAddress, path, resourceObserver);
+                }
 
 //                //Virtual HTTP Server for Sensor nodes
 //                if(enableVirtualHttp){

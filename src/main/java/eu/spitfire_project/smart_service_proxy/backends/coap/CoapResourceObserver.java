@@ -10,8 +10,11 @@ import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.HttpEntityManagerPipelineFactory;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.ModelCache;
 import org.apache.log4j.Logger;
-import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.*;
+import org.jboss.netty.channel.local.DefaultLocalClientChannelFactory;
 
 import java.net.Inet6Address;
 import java.net.URI;
@@ -29,15 +32,15 @@ public class CoapResourceObserver extends CoapClientApplication{
 
     private static Logger log =  Logger.getLogger(CoapResourceObserver.class.getName());
 
-    private Channel channel;
+    private CoapBackend coapBackend;
     private Inet6Address serviceToObserveHost;
     private String serviceToObservePath;
-    private URI httpMirrorURI;
 
-    public CoapResourceObserver(Channel channel, Inet6Address observableServiceHost,
+
+    public CoapResourceObserver(CoapBackend coapBackend , Inet6Address observableServiceHost,
                                 String observableServicePath){
 
-        this.channel = channel;
+        this.coapBackend = coapBackend;
         this.serviceToObserveHost = observableServiceHost;
         this.serviceToObservePath = observableServicePath;
 
@@ -59,6 +62,8 @@ public class CoapResourceObserver extends CoapClientApplication{
 
     @Override
     public void receiveResponse(CoapResponse coapResponse) {
+        log.info("Received response for " + serviceToObservePath + " at " + serviceToObserveHost);
+
         Object object;
         try {
             if(coapResponse.getOption(OptionRegistry.OptionName.OBSERVE_RESPONSE).isEmpty()
@@ -70,13 +75,32 @@ public class CoapResourceObserver extends CoapClientApplication{
                 URI httpMirrorURI = (CoapBackend.createHttpURIs(serviceToObserveHost, serviceToObservePath))[1];
                 object = new SelfDescription(coapResponse, httpMirrorURI);
             }
-            channel.write(object);
+
+            Channel channel =  createChannelForInternalMessages();
+
+            ChannelFuture future = channel.write(object);
+            future.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                    log.debug("Finished with error: " + channelFuture.getCause());
+                }
+            });
+
+            future.addListener(ChannelFutureListener.CLOSE);
          }
         catch (Exception e) {
            log.error("Error in update notification of observed service.", e);
            return;
         }
 
+    }
+
+    private Channel createChannelForInternalMessages() throws Exception {
+        ChannelFactory channelFactory = new DefaultLocalClientChannelFactory();
+
+        ChannelPipelineFactory pipelineFactory = new ResourceUpdateChannelPipelineFactory(coapBackend);
+
+        return channelFactory.newChannel(pipelineFactory.getPipeline());
     }
 
     @Override

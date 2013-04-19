@@ -75,6 +75,7 @@ public class SelfDescription {
         List<Option> observeOptions = coapResponse.getOption(OptionRegistry.OptionName.OBSERVE_RESPONSE);
         if(!observeOptions.isEmpty()){
             long responseCount = (((UintOption) observeOptions.get(0)).getDecodedValue());
+            log.debug("Sequence number of update notification: " + responseCount);
             if(responseCount > 1){
                 isObservedResourceUpdate = true;
             }
@@ -139,23 +140,23 @@ public class SelfDescription {
             }
         }
 
-        StringWriter writer = new StringWriter();
+//        StringWriter writer = new StringWriter();
 //------------TEST!
-        try{
-            model.write(writer, "RDF/XML");
-            log.debug("[SelfDescription] Output after Model serialization (RDF/XML):\n " + writer.toString());
-        }
-        catch(Exception e){
-            log.error("Could not write RDF/XML", e);
-        }
-
-        try{
-            model.write(writer, "N3");
-            log.debug("[SelfDescription] Output after Model serialization (N3):\n " + writer.toString());
-        }
-        catch(Exception e){
-            log.error("Could not write N3", e);
-        }
+//        try{
+//            model.write(writer, "RDF/XML");
+//            log.debug("[SelfDescription] Output after Model serialization (RDF/XML):\n " + writer.toString());
+//        }
+//        catch(Exception e){
+//            log.error("Could not write RDF/XML", e);
+//        }
+//
+//        try{
+//            model.write(writer, "N3");
+//            log.debug("[SelfDescription] Output after Model serialization (N3):\n " + writer.toString());
+//        }
+//        catch(Exception e){
+//            log.error("Could not write N3", e);
+//        }
         //-------------
 
         //Set expiry

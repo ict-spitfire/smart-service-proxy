@@ -64,6 +64,7 @@ class CoapResourceDiscoverer extends CoapClientApplication implements Callable<B
             sendRequestForWellKnownCore(request);
 
             //Process the response
+            log.info("Start processing .well-known/core from " + remoteAddress);
             coapBackend.processWellKnownCoreResource(coapResponse, remoteAddress);
 
             return true;
@@ -97,15 +98,12 @@ class CoapResourceDiscoverer extends CoapClientApplication implements Callable<B
     }
 
     private void sendRequestForWellKnownCore(CoapRequest coapRequest){
-        CoapResponse coapResponse = null;
         try {
             synchronized (monitor){
                 //Write request for .well-knwon/core
                 writeCoapRequest(coapRequest);
-                if(log.isDebugEnabled()){
-                    log.debug("Request for /.well-known/core resource at: " + remoteAddress.getHostAddress() +
+                log.debug("Request for /.well-known/core resource at: " + remoteAddress.getHostAddress() +
                             " written.");
-                }
 
                 //Wait for the response
                 while(coapResponse == null){
@@ -146,6 +144,7 @@ class CoapResourceDiscoverer extends CoapClientApplication implements Callable<B
     public void receiveResponse(CoapResponse coapResponse) {
         log.debug("Received response for .well-known/core");
         synchronized (monitor){
+            log.debug("reveiceResponse() has monitor.");
             this.coapResponse = coapResponse;
             monitor.notify();
         }
