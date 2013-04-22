@@ -129,6 +129,7 @@ public class Main {
         bootstrap.setPipelineFactory(empf);
         int listenPort = config.getInt("SSP_HTTP_SERVER_PORT", 8080);
         httpChannel = bootstrap.bind(new InetSocketAddress(listenPort));
+        log.info("HTTP server started. Listening on port " + listenPort);
 
         //Set URI base
         String defaultHost = InetAddress.getLocalHost().getCanonicalHostName();

@@ -144,7 +144,6 @@ class CoapResourceDiscoverer extends CoapClientApplication implements Callable<B
     public void receiveResponse(CoapResponse coapResponse) {
         log.debug("Received response for .well-known/core");
         synchronized (monitor){
-            log.debug("reveiceResponse() has monitor.");
             this.coapResponse = coapResponse;
             monitor.notify();
         }

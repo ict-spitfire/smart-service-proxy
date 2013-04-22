@@ -23,8 +23,6 @@ public class ResourceUpdateChannelPipelineFactory implements ChannelPipelineFact
     public ChannelPipeline getPipeline() throws Exception {
         ChannelPipeline pipeline = Channels.pipeline();
 
-        pipeline.addLast("Cache", ModelCache.getInstance());
-        pipeline.addLast("CoapBackend", coapBackend);
         pipeline.addLast("Logging Sink", new SimpleChannelDownstreamHandler(){
 
             private Logger log = Logger.getLogger(this.getClass().getName());
@@ -34,6 +32,9 @@ public class ResourceUpdateChannelPipelineFactory implements ChannelPipelineFact
                 log.error("Unexcepctedly received message of type " + me.getMessage().getClass().getName());
             }
         });
+
+        pipeline.addLast("Cache", ModelCache.getInstance());
+        pipeline.addLast("CoapBackend", coapBackend);
         return pipeline;
     }
 }

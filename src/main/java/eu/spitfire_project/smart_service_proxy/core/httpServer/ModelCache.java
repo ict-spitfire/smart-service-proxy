@@ -128,6 +128,7 @@ public class ModelCache extends SimpleChannelHandler {
             throws Exception {
 
         if (!(me.getMessage() instanceof SelfDescription)){
+            log.debug("Received message of type: " + me.getMessage().getClass().getName());
             ctx.sendDownstream(me);
             return;
         }
@@ -142,10 +143,12 @@ public class ModelCache extends SimpleChannelHandler {
         //Channels.write(ctx, me.getFuture(), sd.getModel());
 
         if(sd.isObservedResourceUpdate()){
+            log.debug("Succesfully stored status update from observed resource " + sd.getLocalURI());
             me.getFuture().setSuccess();
             return;
         }
 
+        log.debug("Cached status for " + sd.getLocalURI() + ". Send response to " + me.getRemoteAddress());
         DownstreamMessageEvent downstreamMessageEvent =
                 new DownstreamMessageEvent(ctx.getChannel(), me.getFuture(), sd.getModel(), me.getRemoteAddress());
 
@@ -153,19 +156,19 @@ public class ModelCache extends SimpleChannelHandler {
 
     }
 
-    public void updateCache(SelfDescription sd){
-        if(!sd.isObservedResourceUpdate()){
-            log.error("This method is only for updates from observed resources!");
-            return;
-        }
-
-        log.debug("Received update of resource: " + sd.getLocalURI());
-        try {
-            cache.put(new URI(sd.getLocalURI()), new CacheElement(sd.getModel(), sd.getExpiry()));
-        } catch (URISyntaxException e) {
-            log.error("Error while updating observed resource in cache.", e);
-        }
-    }
+//    public void updateCache(SelfDescription sd){
+//        if(!sd.isObservedResourceUpdate()){
+//            log.error("This method is only for updates from observed resources!");
+//            return;
+//        }
+//
+//        log.debug("Received update of resource: " + sd.getLocalURI());
+//        try {
+//            cache.put(new URI(sd.getLocalURI()), new CacheElement(sd.getModel(), sd.getExpiry()));
+//        } catch (URISyntaxException e) {
+//            log.error("Error while updating observed resource in cache.", e);
+//        }
+//    }
     //Wrapper class to add the expiry date to the cached model.
     //TODO use observe
     private class CacheElement {
