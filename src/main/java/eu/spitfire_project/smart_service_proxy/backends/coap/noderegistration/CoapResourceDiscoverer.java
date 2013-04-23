@@ -14,7 +14,7 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
 import java.util.Set;
-import java.util.concurrent.Callable;
+import java.util.concurrent.*;
 
 /**
  * Created with IntelliJ IDEA.
@@ -24,18 +24,30 @@ import java.util.concurrent.Callable;
  * To change this template use File | Settings | File Templates.
  */
 //Handles the registration process for new nodes in a new thread
-class CoapResourceDiscoverer extends CoapClientApplication implements Callable<Boolean> {
+public class CoapResourceDiscoverer extends CoapClientApplication implements Callable<Boolean> {
 
     Logger log = Logger.getLogger(CoapResourceDiscoverer.class.getName());
-
+    private static ScheduledExecutorService executorService = Executors.newScheduledThreadPool(10);
     private Inet6Address remoteAddress;
 
     private Object monitor = new Object();
     private CoapResponse coapResponse;
+    private ScheduledFuture<Boolean> future;
+    private boolean deleteOldResources;
 
-    public CoapResourceDiscoverer(InetAddress remoteAddress){
+    public CoapResourceDiscoverer(InetAddress remoteAddress, boolean deleteOldResources){
         super();
         this.remoteAddress = (Inet6Address) remoteAddress;
+        this.deleteOldResources = deleteOldResources;
+        this.future = executorService.schedule(this, 0, TimeUnit.MILLISECONDS);
+    }
+
+    public CoapResourceDiscoverer(InetAddress remoteAddress){
+        this(remoteAddress, true);
+    }
+
+    public ScheduledFuture<Boolean> getFuture(){
+        return this.future;
     }
 
     @Override
@@ -49,12 +61,14 @@ class CoapResourceDiscoverer extends CoapClientApplication implements Callable<B
                 return false;
             }
 
-            //Delete possibly already registered services of the sensornode
-            Set<Inet6Address> addressList = coapBackend.getSensorNodes();
+            if(deleteOldResources){
+                //Delete possibly already registered services of the sensornode
+                Set<Inet6Address> addressList = coapBackend.getSensorNodes();
 
-            if(addressList.contains(remoteAddress)){
-                log.debug("New here_i_am message from " + remoteAddress + ", delete old resources.");
-                coapBackend.deleteServices(remoteAddress);
+                if(addressList.contains(remoteAddress)){
+                    log.debug("New here_i_am message from " + remoteAddress + ", delete old resources.");
+                    coapBackend.deleteServices(remoteAddress);
+                }
             }
 
             //Create request for /.well-known/core resource

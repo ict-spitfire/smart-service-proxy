@@ -23,7 +23,7 @@ class CoapNodeRegistrationService extends NotObservableWebService<Boolean> {
 
     private static Logger log = Logger.getLogger(CoapNodeRegistrationService.class.getName());
 
-    private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(10);
+
 
     CoapNodeRegistrationService(){
         super("/here_i_am", Boolean.TRUE);
@@ -40,11 +40,9 @@ class CoapNodeRegistrationService extends NotObservableWebService<Boolean> {
             try {
                 log.debug("Registration request from " + remoteAddress.getAddress());
                 CoapResourceDiscoverer resourceDiscoverer = new CoapResourceDiscoverer(remoteAddress.getAddress());
-                ScheduledFuture<Boolean> future =
-                    executorService.schedule(resourceDiscoverer, 0, TimeUnit.MILLISECONDS);
 
                 //wait 2 minutes to discover new resources
-                future.get(2, TimeUnit.MINUTES);
+                resourceDiscoverer.getFuture().get(2, TimeUnit.MINUTES);
                 return new CoapResponse(Code.CREATED_201);
 
             }

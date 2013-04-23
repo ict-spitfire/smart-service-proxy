@@ -33,6 +33,7 @@ import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.Option;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.UintOption;
+import eu.spitfire_project.smart_service_proxy.backends.coap.noderegistration.CoapResourceDiscoverer;
 import eu.spitfire_project.smart_service_proxy.backends.coap.noderegistration.annotation.AutoAnnotation;
 import eu.spitfire_project.smart_service_proxy.core.Backend;
 import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
@@ -50,12 +51,13 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import sun.net.util.IPAddressUtil;
 
-import java.io.IOException;
 import java.net.*;
 import java.nio.charset.Charset;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry.MediaType;
 import static de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry.MediaType.APP_LINK_FORMAT;
@@ -73,7 +75,7 @@ public class CoapBackend extends Backend{
     public static final int NODES_COAP_PORT = 5683;
     private static Logger log = Logger.getLogger(CoapBackend.class.getName());
         
-    private HashMultimap<Inet6Address, String> services = HashMultimap.create();
+    private HashMultimap<Inet6Address, String> registeredServices = HashMultimap.create();
     private boolean enableVirtualHttp;
     private DatagramChannel clientChannel = CoapClientDatagramChannelFactory.getInstance().getChannel();
 
@@ -92,26 +94,30 @@ public class CoapBackend extends Backend{
             @Override
             public void run() {
                 while(true){
+                    //This is a helper parameter for catching the exception
+                    Inet6Address actualNodeAddress = null;
+
                     try {
-                        Thread.sleep(30000);
+                        Thread.sleep(10000);
                         log.info("Check if registered nodes are alive...");
 
-                        for(Inet6Address inet6Address : services.keySet()){
-                            log.debug("Ping host " + inet6Address);
-                            if(!inet6Address.isReachable(2000)){
-                                log.debug("Ping to host " + inet6Address + " timed out. Host is dead!");
-                                unregisterServices(inet6Address);
-                            }
-                            else{
-                                log.debug("Ping response from host " + inet6Address + " received. Alive!");
-                            }
+                        for(Inet6Address nodeAddress : registeredServices.keySet()){
+                            actualNodeAddress = nodeAddress;
+                            CoapResourceDiscoverer discoverer = new CoapResourceDiscoverer(nodeAddress, false);
+
+                            //wait up to 2 minutes for a new list of registeredServices from host
+                            discoverer.getFuture().get(30, TimeUnit.SECONDS);
+
+                            //this is only reached if the node sent a response within 2 minutes
+                            log.debug("Node is still alive.");
                         }
-                    }
-                    catch (InterruptedException e) {
+                    } catch (InterruptedException e) {
                         log.error(e);
-                    }
-                    catch (IOException e) {
+                    } catch (ExecutionException e) {
                         log.error(e);
+                    } catch (TimeoutException e) {
+                        log.info("Node " + actualNodeAddress + " did not respond! Host is dead!");
+                        unregisterServices(actualNodeAddress);
                     }
                 }
             }
@@ -120,8 +126,11 @@ public class CoapBackend extends Backend{
 
     private synchronized void unregisterServices(Inet6Address nodeAddress){
         try{
-            Set<String> removedPaths = services.removeAll(nodeAddress);
-            log.info("" + removedPaths.size() + " services removed for " + nodeAddress);
+            for(Inet6Address address : registeredServices.keySet()){
+                log.debug("Address: " + address);
+            }
+            Set<String> removedPaths = registeredServices.removeAll(nodeAddress);
+            log.info("" + removedPaths.size() + " registeredServices removed for " + nodeAddress);
 
             for(String path : removedPaths){
                 URI[] httpURIs = createHttpURIs(nodeAddress, path);
@@ -149,10 +158,10 @@ public class CoapBackend extends Backend{
             log.info("Stop observing of " + message.getServiceHost().getHostAddress() + message.getServicePath());
 
             if(coapResourceObservers.remove(message.getServiceHost(), message.getServicePath()) != null){
-                log.info("Succesfully removed from list of observed services.");
+                log.info("Succesfully removed from list of observed registeredServices.");
             }
             else{
-                log.error("Could not find service in list of observed services!");
+                log.error("Could not find service in list of observed registeredServices!");
             }
 
             return;
@@ -183,7 +192,7 @@ public class CoapBackend extends Backend{
                     (Inet6Address) InetAddress.getByName(httpRequest.getHeader("HOST"));
             final String targetUriPath = httpRequest.getUri();
 
-            if(services.containsEntry(targetUriHostAddress, targetUriPath)){
+            if(registeredServices.containsEntry(targetUriHostAddress, targetUriPath)){
                 //create CoAP target URI
                 final URI coapTargetURI = URI.create("coap://["
                                               + targetUriHostAddress.getHostAddress()
@@ -278,23 +287,23 @@ public class CoapBackend extends Backend{
      * @return the {@link InetAddress}es of the already known sensornodes
      */
     public Set<Inet6Address> getSensorNodes(){
-        return services.keySet();
+        return registeredServices.keySet();
     }
 
     /**
-     * Unregisters all services known for the given address (CoAP host, resp. sensornode)
-     * @param serverAddress The IPv6 address of the server to unregister all services of
+     * Unregisters all registeredServices known for the given address (CoAP host, resp. sensornode)
+     * @param serverAddress The IPv6 address of the server to unregister all registeredServices of
      */
     public void deleteServices(Inet6Address serverAddress){
-        log.debug("Delete services for " + serverAddress + ".");
-        services.removeAll(serverAddress);
+        log.debug("Delete registeredServices for " + serverAddress + ".");
+        registeredServices.removeAll(serverAddress);
     }
 
     @Override
     public Set<URI> getResources(){
-        HashSet<URI> result = new HashSet<URI>(services.size());
-        for(Inet6Address address : services.keySet()){
-            for(String path : services.get(address)){
+        HashSet<URI> result = new HashSet<URI>(registeredServices.size());
+        for(Inet6Address address : registeredServices.keySet()){
+            for(String path : registeredServices.get(address)){
                 result.add(URI.create("http://" + address.getHostAddress()
                                      + EntityManager.SSP_HTTP_SERVER_PORT
                                      + "/" + path));
@@ -305,7 +314,7 @@ public class CoapBackend extends Backend{
 
     /**
      * This method is called to process coapResponses containing a .well-known/core resource. It registers all listed
-     * services at the EntityManager and starts the observation of the "minimal" resources.
+     * registeredServices at the EntityManager and starts the observation of the "minimal" resources.
       *@param coapResponse
      * @param remoteAddress
      */
@@ -345,7 +354,7 @@ public class CoapBackend extends Backend{
                 path = "/" + path;
             }
             try {
-                services.put(remoteAddress, path);
+                registeredServices.put(remoteAddress, path);
 
                 URI[] httpURIs = createHttpURIs(remoteAddress, path);
                 EntityManager.getInstance().entityCreated(httpURIs[0], this);
