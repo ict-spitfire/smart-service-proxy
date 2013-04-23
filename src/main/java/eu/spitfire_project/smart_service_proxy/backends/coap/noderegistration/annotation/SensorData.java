@@ -59,7 +59,7 @@ public class SensorData {
     }
 
     public long getLatestTS() {
-        log.debug("Number of readings: " + readings.keySet().size());
+        //log.debug("Number of readings: " + readings.keySet().size());
         if(!readings.isEmpty()){
             return Iterables.getLast(readings.keySet());
         }
@@ -78,7 +78,7 @@ public class SensorData {
     }
 
     public void computeFuzzySet(int nDataPoint) {
-        log.debug("Start computing FZ");
+        //log.debug("Start computing FZ");
         ArrayList<Double> readingValues = new ArrayList<Double>(readings.values());
         fz = extractRule(readingValues, nDataPoint);
     }
@@ -92,7 +92,7 @@ public class SensorData {
     }
 
     private FuzzyRule extractRule(List<Double> datList, int nDataPoint) {
-        log.debug("Start extractRule");
+        //log.debug("Start extractRule");
         List<Double> dataList = new ArrayList<Double>();
         for (int i=0; i<nDataPoint; i++)
             dataList.add(datList.get(i));
@@ -162,7 +162,7 @@ public class SensorData {
                     dndcY[i] /= dndcC[i];
                 }
             }
-            log.debug("Returning a rule 0");
+            //log.debug("Returning a rule 0");
             /*------ Linearize the discrete neighborhood density curve ------ */
             TList vx = new TList();
             TList vy = new TList();
@@ -201,17 +201,19 @@ public class SensorData {
             }
         }
 
-        log.debug("Returning a rule");
+        //log.debug("Returning a rule");
         return rule;
     }
 
 
 
     public void crawl() {
+
         try {
+
             long currentTime = System.currentTimeMillis();
             //updateReadings(currentTime, random.nextInt(1000));
-            log.debug("Crawl for " + macAddr + " at time " + currentTime + "...");
+            //log.debug("Crawl for " + macAddr + " at time " + currentTime + "...");
             URL crawlRequest = new URL(httpRequestUri);
             URLConnection connection = crawlRequest.openConnection();
 
@@ -228,7 +230,7 @@ public class SensorData {
 
             double value = 0;
             while ((line = in.readLine()) != null) {
-                log.debug("content: " + line + ", ");
+                //log.debug("content: " + line + ", ");
                 if (line.indexOf("value")>0) {
                     //log.debug("The value line is: "+line);
                     TString s1 = new TString(line, '>');
@@ -247,7 +249,7 @@ public class SensorData {
             spitfireHandler.run();
             //updateReadings(currentTime, random.nextInt(1000));
 
-            log.debug(" Done for " + macAddr + " with value:" + String.format("%.2f", value));
+            //log.debug(" Done crawling for " + macAddr + " with value:" + String.format("%.2f", value));
         } catch (MalformedURLException e) {
             log.debug("failed to crawl for "+macAddr, e);
         } catch (IOException e) {

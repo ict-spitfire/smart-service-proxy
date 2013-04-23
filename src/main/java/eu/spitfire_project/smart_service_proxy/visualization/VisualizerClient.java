@@ -38,7 +38,7 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
     private static String VISUALIZER_PATH;
     static{
         try {
-            VISUALIZER_IP = InetAddress.getByName("141.83.106.116");
+            VISUALIZER_IP = InetAddress.getByName("192.168.0.105");
             //VISUALIZER_IP = InetAddress.getByName("spitfire-visualizer.wuxi.cn");
             VISUALIZER_PORT = 10000;
             VISUALIZER_PATH = "/visualizer";
@@ -70,7 +70,7 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
     public HttpResponse call() {
 
         try {
-            stu.doit(simulatedTime);
+            //stu.doit(simulatedTime);
             synchronized (responseMonitor){
 
                 this.httpResponse = null;
@@ -115,6 +115,7 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
 
         for (int i=0; i< AutoAnnotation.getInstance().sensors.len(); i++) {
             SensorData sd = (SensorData) AutoAnnotation.getInstance().sensors.get(i);
+            //log.debug("Payload for sensor "+sd.macAddr);
             //String timeStamp = String.valueOf(sd.getLatestTS());
             String timeStamp = String.valueOf(simulatedTime - 15);
             String value = String.format(Locale.US, "%.4f", sd.getLatestVL());
@@ -127,7 +128,7 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
             payload = payload.substring(0, payload.length()-1);
         }
 
-        log.debug("Payload of request to visualizer service: " + payload);
+        log.debug("Payload of request to visualizer service: \n------ " + payload);
 
         ChannelBuffer payloadBuffer = ChannelBuffers.copiedBuffer(payload.getBytes(Charset.forName("UTF-8")));
         httpRequest.setContent(payloadBuffer);

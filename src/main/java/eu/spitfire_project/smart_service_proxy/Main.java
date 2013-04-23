@@ -29,6 +29,7 @@ import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionMapper;
+import eu.spitfire_project.smart_service_proxy.TimeProvider.SimulatedTimeScheduler;
 import eu.spitfire_project.smart_service_proxy.backends.coap.CoapBackend;
 import eu.spitfire_project.smart_service_proxy.backends.coap.uberdust.UberdustCoapServerBackend;
 import eu.spitfire_project.smart_service_proxy.backends.files.FilesBackend;
@@ -142,8 +143,8 @@ public class Main {
         createBackends(config);
 
         //Set AutoAnnotation to use images from visualizer
-        //AutoAnnotation.getInstance().setVisualizerClient(VisualizerClient.getInstance());
-        //AutoAnnotation.getInstance().start();
+        AutoAnnotation.getInstance().setVisualizerClient(VisualizerClient.getInstance());
+        AutoAnnotation.getInstance().start();
         //new SimulatedTimeScheduler().run();
     }
     

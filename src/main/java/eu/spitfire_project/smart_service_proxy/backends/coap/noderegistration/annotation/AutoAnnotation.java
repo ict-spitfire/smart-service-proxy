@@ -46,7 +46,12 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
     public ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
     private int updateRate = 2000; //2 second
     private long annotationPeriod = 9 * updateRate * 4;//number hours to trigger annotation
-    private String liveAnno;
+
+    //The currently annotation, it is constantly changed over time
+    private String liveAnno = "";
+
+    //The macAddress of the "new sensor"
+    private final String NewSensor = "a6c";
 
     private AutoAnnotation() {
 //        simTime = 360;
@@ -55,7 +60,7 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
     }
 
     public void start(){
-        run();
+        //run();
 
         System.out.println("Press a button to start the simulation: ");
         try {
@@ -75,68 +80,72 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
 
     @Override
     public void run() {
-        collectDataForAutoAnnotation();
+        if (sensors.len() > 0) {
+            collectDataForAutoAnnotation();
 
-        if(visualizerClient != null){
-            log.debug("Invoke visualizer client to request a new image.");
-            HttpResponse response = visualizerClient.call();
-            log.debug("Visualizer response: " + response);
+            if(visualizerClient != null){
+                log.debug("Invoke visualizer client to request a new image.");
+                HttpResponse response = visualizerClient.call();
+                log.debug("Visualizer response: " + response);
+            }
         }
     }
 
-  private void collectDataForAutoAnnotation() {
-		log.debug("Start data collection for auto annotation.");
-		try {
-	    //Crawl sensor readings
-	    for (int i=0; i<sensors.len(); i++) {
-	        log.debug("Crawling for sensor "+((SensorData)sensors.get(i)).macAddr);
-	        ((SensorData) sensors.get(i)).crawl();
-	    }
+    private void collectDataForAutoAnnotation() {
+        log.debug("Start data collection for auto annotation.");
+        try {
+            //Crawl sensor readings
+            for (int i=0; i<sensors.len(); i++) {
+                log.debug("Crawling for sensor "+((SensorData)sensors.get(i)).macAddr);
+                ((SensorData) sensors.get(i)).crawl();
+            }
 
-      //Update fuzzysets of sensors
-      for (int j = 0; j<sensors.len(); j++) {
-        SensorData sensorData = (SensorData) sensors.get(j);
-        //log.debug("Computing fuzzy set for sensor ("+sensorData.ipv6Addr+", "+sensorData.FOI+") ... ");
-        sensorData.computeFuzzySet(sensorData.getValues().size());
-        //log.debug(" Done!");
-      }
+            //Update fuzzysets of sensors
+            for (int j = 0; j<sensors.len(); j++) {
+                SensorData sensorData = (SensorData) sensors.get(j);
+                //log.debug("Computing fuzzy set for sensor ("+sensorData.ipv6Addr+", "+sensorData.FOI+") ... ");
+                sensorData.computeFuzzySet(sensorData.getValues().size());
+                //log.debug(" Done!");
+            }
 
-      //Search for annotation as sensor readings are being updated, until the unannotated sensor is annotated
-      if ("Unannotated".equalsIgnoreCase(unannoSensor.FOI)) {
-	      double maxsc = 0;
-	      for (int j = 0; j < sensors.len(); j++) {
-	          SensorData de = (SensorData)sensors.get(j);
-	          if (!"Unannotated".equalsIgnoreCase(de.FOI)) {
-	              double sc = calculateScore(unannoSensor.getFZ(), de.getFZ(), 100);
-	              if (maxsc < sc) {
-	                  maxsc = sc;
-	                  liveAnno = de.FOI;
-	              }
-	              log.debug("Similarity to " + de.ipv6Addr + " in " + de.FOI + " is "
-	                      + String.format(Locale.GERMANY, "%.10f", sc));
-	          }
-	      }
-	      log.debug("Live annotation is " + liveAnno);
-        
-	      //Check if it is the time to finalize annotation and send it to the unannotated sensor via COAP
-	      long thre = System.currentTimeMillis() - unannoSensor.annoTimer;
-	      if (thre > annotationPeriod) {
-		      //Send POST to sensor
-		      String foi = "";
-		      if ("Living-Room".equalsIgnoreCase(liveAnno)) foi = "livingroom";
-		      else if ("Kitchen".equalsIgnoreCase(liveAnno)) foi = "bedroom";
-		      unannoSensor.FOI = liveAnno;
-		      CoapRequest annotation = createCoapRequest(unannoSensor.ipv6Addr, foi);
-		      log.debug("Sending POST request to sensor!");
-		      writeCoapRequest(annotation);
-	      }
-      }
-    } catch (Exception e) {
-        log.warn("Exception while collecting data for auto annotation: " + e, e);
+            //Search for annotation as sensor readings are being updated, until the unannotated sensor is annotated
+            if (unannoSensor != null) {
+                if ("Unannotated".equalsIgnoreCase(unannoSensor.FOI)) {
+                    double maxsc = 0;
+                    for (int j = 0; j < sensors.len(); j++) {
+                        SensorData de = (SensorData)sensors.get(j);
+                        if (!"Unannotated".equalsIgnoreCase(de.FOI)) {
+                            double sc = calculateScore(unannoSensor.getFZ(), de.getFZ(), 100);
+                            if (maxsc < sc) {
+                                maxsc = sc;
+                                liveAnno = de.FOI;
+                            }
+                            log.debug("Similarity to " + de.macAddr + " in " + de.FOI + " is "
+                                    + String.format(Locale.GERMANY, "%.10f", sc));
+                        }
+                    }
+                    log.debug("Live annotation is " + liveAnno);
+
+                    //Check if it is the time to finalize annotation and send it to the unannotated sensor via COAP
+                    long thre = System.currentTimeMillis() - unannoSensor.annoTimer;
+                    if (thre > annotationPeriod) {
+                        //Send POST to sensor
+                        String foi = "";
+                        //if ("Living-Room".equalsIgnoreCase(liveAnno)) foi = "livingroom";
+                        //else if ("Kitchen".equalsIgnoreCase(liveAnno)) foi = "bedroom";
+                        unannoSensor.FOI = liveAnno;
+                        CoapRequest annotation = createCoapRequest(unannoSensor.ipv6Addr, foi);
+                        log.debug("Sending POST request to sensor!");
+                        writeCoapRequest(annotation);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Exception while collecting data for auto annotation: " + e, e);
+        }
+
+        log.debug("End data collection for auto annotation.");
     }
-
-    log.debug("End data collection for auto annotation.");
-  }
 
     public void setVisualizerClient(VisualizerClient visualizerClient){
         this.visualizerClient = visualizerClient;
@@ -155,67 +164,79 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
         return sensorData;
     }
 
-     private double calculateScore(FuzzyRule ruleC, FuzzyRule rule, int nPoint) {
+    private double calculateScore(FuzzyRule ruleC, FuzzyRule rule, int nPoint) {
         double sc = 0;
-        
+
         if (ruleC==null || rule==null) return 0;
         if (rule.size()<2 || ruleC.size()<2) return 0;
-       
+
         //If two rules do not overlap then sc = 0
         if (rule.getrMax()<ruleC.getrMin() || ruleC.getrMax()<rule.getrMin()) return 0;
 
         //Find the union range
         double xumin = ruleC.getrMin();
         if (xumin > rule.getrMin())
-          xumin = rule.getrMin();
+            xumin = rule.getrMin();
         double xumax = ruleC.getrMax();
         if (xumax < rule.getrMax())
-          xumax = rule.getrMax();
+            xumax = rule.getrMax();
 
         //Find the overlapping range
         double xomin = ruleC.getrMin();
         if (xomin < rule.getrMin())
-          xomin = rule.getrMin();
+            xomin = rule.getrMin();
         double xomax = ruleC.getrMax();
         if (xomax > rule.getrMax())
-          xomax = rule.getrMax();
-        
+            xomax = rule.getrMax();
+
         //calculate the score
         double step = (xomax-xomin)/nPoint;
         for (int i=0; i<nPoint; i++) {
-          double eval = rule.evaluate(xomin+i*step);
-          double evalC = ruleC.evaluate(xomin+i*step);
-          sc += Math.abs(eval-evalC);
+            double eval = rule.evaluate(xomin+i*step);
+            double evalC = ruleC.evaluate(xomin+i*step);
+            sc += Math.abs(eval-evalC);
         }
         sc = sc/nPoint*(xomax-xomin)/(xumax-xumin);
-        
+
         return sc;
     }
 
     public String getLiveAnno() {
-    	return liveAnno;
+        return liveAnno;
     }
-     
-    public void updateDB(String ipv6Addr, String macAddr, String httpRequestUri) {
-        //Feature of interest
-        String FOI = "";
-        if ("8e84".equalsIgnoreCase(macAddr)) {
-            FOI = "Unannotated";
-            log.debug("new node added");
-        } else
-        if ("2304".equalsIgnoreCase(macAddr) || "a88".equalsIgnoreCase(macAddr)) FOI = "Bedroom";
-        else
-        if ("8e7f".equalsIgnoreCase(macAddr) || "8ed8".equalsIgnoreCase(macAddr)) FOI = "Living-Room";
 
+    private String assignFOI(String macAddr) {
+        String foi = null;
+
+        if (NewSensor.equalsIgnoreCase(macAddr)) foi = "Unannotated";
+        else if ("2304".equalsIgnoreCase(macAddr) || "a88".equalsIgnoreCase(macAddr)) foi = "Bedroom";
+        else if ("8e7f".equalsIgnoreCase(macAddr) || "8ed8".equalsIgnoreCase(macAddr)) foi = "Living-Room";
+
+        return foi;
+    }
+
+    public void addNewEntryToDB(String ipv6Addr, String macAddr, String httpRequestUri) {
+        //Check if the sensor with macAddr is already in the DB?
         SensorData sd = findSensorData(macAddr);
-        if (sd == null)
-            sensors.enList(new SensorData(ipv6Addr, macAddr, httpRequestUri, FOI));
-        else if ("8e84".equalsIgnoreCase(macAddr)) {
-            sensors.remove(sd);
+
+        if (liveAnno == "")
             liveAnno = "Unannotated";
-            unannoSensor = new SensorData(ipv6Addr, macAddr, httpRequestUri, FOI);
-            sensors.enList(unannoSensor);
+
+        //If the new sensor is the "new sensor", i.e., macAddr = 8e84, then assign unannoSensor to it
+        if (NewSensor.equalsIgnoreCase(macAddr)) {
+            unannoSensor = new SensorData(ipv6Addr, macAddr, httpRequestUri, assignFOI(macAddr));
         }
+
+        //If sensor is already in DB, then delete it, and add it again later on
+        if (sd != null)
+            sensors.remove(sd);
+
+        //Add this sensor to DB
+        if (NewSensor.equalsIgnoreCase(macAddr))
+            sensors.enList(unannoSensor);
+        else
+            sensors.enList(new SensorData(ipv6Addr, macAddr, httpRequestUri, assignFOI(macAddr)));
+        log.debug("new node added: "+macAddr);
     }
 
     private CoapRequest createCoapRequest(String ipv6Addr, String resultAnnotation) throws URISyntaxException, ToManyOptionsException, InvalidOptionException, InvalidMessageException, MessageDoesNotAllowPayloadException {
@@ -250,4 +271,3 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
         //To change body of implemented methods use File | Settings | File Templates.
     }
 }
-

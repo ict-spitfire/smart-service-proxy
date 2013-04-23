@@ -391,7 +391,7 @@ public class CoapBackend extends Backend{
 //        FOI = foi.substring(0, foi.length()-1);
 //        log.debug("FOI extracted: " + FOI);
 
-        AutoAnnotation.getInstance().updateDB(ipv6Addr, macAddr, httpRequestUri);
+        AutoAnnotation.getInstance().addNewEntryToDB(ipv6Addr, macAddr, httpRequestUri);
     }
 //    /**
 //     * Returns the IPv6 prefix of the net the CoapBackend is responsible for (e.g. 2001:638:b157:1)
