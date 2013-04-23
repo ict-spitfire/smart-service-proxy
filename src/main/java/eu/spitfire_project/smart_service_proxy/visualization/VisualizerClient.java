@@ -108,8 +108,9 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
         String visualizerService = "http://" + VISUALIZER_IP + ":" + VISUALIZER_PORT + VISUALIZER_PATH;
         HttpRequest httpRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, POST, visualizerService);
 
+        String liveAnno = AutoAnnotation.getInstance().getLiveAnno();
         String payload = String.valueOf(simulatedTime) + "|" + String.valueOf(imageIndex % 96) + "|" //+ "20" + "\n";
-            + String.valueOf(SimulatedTimeParameters.actualTemperature) + "\n";
+            + String.valueOf(SimulatedTimeParameters.actualTemperature) + "|" +liveAnno+ "\n";
 
 
         for (int i=0; i< AutoAnnotation.getInstance().sensors.len(); i++) {

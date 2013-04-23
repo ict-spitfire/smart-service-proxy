@@ -52,12 +52,6 @@ public class SensorData {
         log.debug("Before: " + readings.keySet().size());
         readings.put(timeStamp, value);
         log.debug("After: " + readings.keySet().size());
-//        timeStamps.add(timeStamp);
-//        if (timeStamps.size() >= numberOfImagesPerDay)
-//            timeStamps.remove(0);
-//        values.add(value);
-//        if (values.size() >= numberOfImagesPerDay)
-//            values.remove(0);
     }
 
     public List<Double> getValues() {
@@ -72,10 +66,6 @@ public class SensorData {
         else{
             return 0;
         }
-//        long rs = 0;
-//        if (timeStamps.size() > 0)
-//            rs = timeStamps.get(timeStamps.size()-1);
-//        return rs;
     }
 
     public double getLatestVL() {
@@ -85,19 +75,12 @@ public class SensorData {
         else{
             return 0;
         }
-//        double rs = 0;
-//        if (values.size() > 0)
-//            rs = values.get(values.size()-1);
-//        return rs;
     }
 
     public void computeFuzzySet(int nDataPoint) {
         log.debug("Start computing FZ");
         ArrayList<Double> readingValues = new ArrayList<Double>(readings.values());
         fz = extractRule(readingValues, nDataPoint);
-        dfz = extractRuleD(readingValues, nDataPoint);
-//        fz = extractRule(values, nDataPoint);
-//        dfz = extractRuleD(values, nDataPoint);
     }
 
     public FuzzyRule getFZ() {
@@ -106,27 +89,6 @@ public class SensorData {
 
     public FuzzyRule getDFZ() {
         return dfz;
-    }
-
-    private FuzzyRule extractRuleD(List<Double> datList, int nDataPoint) {
-        List<Double> dataList = new ArrayList<Double>();
-        for (int i=0; i<nDataPoint; i++)
-            dataList.add(datList.get(i));
-
-        FuzzyRule ruleD = null;
-
-        if (dataList.size() > 2) {
-            ArrayList<Double> deriList = new ArrayList<Double>();
-            Double[] raw = dataList.toArray(new Double[dataList.size()]);
-            for (int i=0; i<raw.length-1; i++) {
-                Double tmp = raw[i + 1] - raw[i];
-                deriList.add(tmp);
-            }
-            deriList.add(deriList.get(deriList.size()-1));
-            ruleD = extractRule(deriList, nDataPoint);
-        }
-
-        return ruleD;
     }
 
     private FuzzyRule extractRule(List<Double> datList, int nDataPoint) {
@@ -144,15 +106,6 @@ public class SensorData {
 
         FuzzyRule rule = null;
 
-        // Special case: all values are the same
-        /*if (rawRange <= Double.MIN_VALUE) {
-          log.debug("All values in snapshot are identical");
-          double epsilon = 0.05;
-          rule.setrMax(rawMax + epsilon);
-          rule.setrMin(rawMin - epsilon);
-          rule.add(raw[0] - epsilon, 1);
-          rule.add(raw[0] + epsilon, 1);
-      } else {*/
         if (rawRange > Double.MIN_VALUE) {
             rule = new FuzzyRule();
             double ra = 0.5*rawRange;
