@@ -58,7 +58,7 @@ class CoapNodeRegistrationService extends NotObservableWebService<Boolean> {
             }
             catch (TimeoutException e) {
                 log.error("Error while waiting for /.well-known/core resource.", e);
-                return new CoapResponse(Code.INTERNAL_SERVER_ERROR_500);
+                return new CoapResponse(Code.GATEWAY_TIMEOUT_504);
             }
         }
     }

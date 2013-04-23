@@ -33,11 +33,10 @@ import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.Option;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
 import de.uniluebeck.itm.spitfire.nCoap.message.options.UintOption;
-import eu.spitfire_project.smart_service_proxy.Main;
-import eu.spitfire_project.smart_service_proxy.core.Backend;
-import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
-import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
 import eu.spitfire_project.smart_service_proxy.backends.coap.noderegistration.annotation.AutoAnnotation;
+import eu.spitfire_project.smart_service_proxy.core.Backend;
+import eu.spitfire_project.smart_service_proxy.core.SelfDescription;
+import eu.spitfire_project.smart_service_proxy.core.httpServer.EntityManager;
 import eu.spitfire_project.smart_service_proxy.utils.HttpResponseFactory;
 import eu.spitfire_project.smart_service_proxy.utils.TString;
 import org.apache.log4j.Logger;
@@ -53,15 +52,13 @@ import sun.net.util.IPAddressUtil;
 
 import java.net.*;
 import java.nio.charset.Charset;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
-import static de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry.OptionName.*;
-import static de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry.MediaType.*;
 import static de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry.MediaType;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import static de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry.MediaType.APP_LINK_FORMAT;
+import static de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry.OptionName.CONTENT_TYPE;
 
 
 /**
@@ -76,6 +73,7 @@ public class CoapBackend extends Backend{
     private static Logger log = Logger.getLogger(CoapBackend.class.getName());
         
     private HashMultimap<Inet6Address, String> services = HashMultimap.create();
+    private HashMap<Inet6Address, Long> latestVitalSigns = new HashMap<Inet6Address, Long>();
     private boolean enableVirtualHttp;
     private DatagramChannel clientChannel = CoapClientDatagramChannelFactory.getInstance().getChannel();
 
@@ -89,11 +87,29 @@ public class CoapBackend extends Backend{
         super();
         this.enableVirtualHttp = enableVirtualHttp;
         this.prefix = prefix;
+
+        new Thread(new Runnable(){
+            @Override
+            public void run() {
+                for(Inet6Address inet6Address : latestVitalSigns.keySet()){
+                    if(System.currentTimeMillis() - latestVitalSigns.get(inet6Address) > 120000)
+                        latestVitalSigns.remove(inet6Address);
+
+                        int removed = services.removeAll(inet6Address).size();
+                        log.info("" + removed + " services removed for " + inet6Address);
+
+                }
+            }
+        }).start();
     }
 
     @Override
     public void bind(){
         EntityManager.getInstance().registerBackend(this, prefix);
+    }
+
+    public void updateLatestVitalSign(Inet6Address remoteAddress){
+        latestVitalSigns.put(remoteAddress, System.currentTimeMillis());
     }
 
     @Override
@@ -152,6 +168,9 @@ public class CoapBackend extends Backend{
 
                         Object response;
                         log.debug("Received CoAP response from " + me.getRemoteAddress());
+
+                        //Update latest vital sign
+                        updateLatestVitalSign((Inet6Address) ((InetSocketAddress) me.getRemoteAddress()).getAddress());
 
                         try{
                             if(!(coapResponse.getCode().isErrorMessage()) && coapResponse.getPayload().readableBytes() > 0){
@@ -246,7 +265,6 @@ public class CoapBackend extends Backend{
         HashSet<URI> result = new HashSet<URI>(services.size());
         for(Inet6Address address : services.keySet()){
             for(String path : services.get(address)){
-
                 result.add(URI.create("http://" + address.getHostAddress()
                                      + EntityManager.SSP_HTTP_SERVER_PORT
                                      + "/" + path));

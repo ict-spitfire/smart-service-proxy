@@ -255,9 +255,7 @@ public class SensorData {
 
 
     public void crawl() {
-
         try {
-
             long currentTime = System.currentTimeMillis();
             //updateReadings(currentTime, random.nextInt(1000));
             log.debug("Crawl for " + macAddr + " at time " + currentTime + "...");

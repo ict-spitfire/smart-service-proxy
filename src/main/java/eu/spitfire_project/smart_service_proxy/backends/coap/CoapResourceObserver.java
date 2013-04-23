@@ -57,6 +57,9 @@ public class CoapResourceObserver extends CoapClientApplication{
     public void receiveResponse(CoapResponse coapResponse) {
         log.info("Received response for " + serviceToObservePath + " at " + serviceToObserveHost);
 
+        //Update latest vital sign
+        coapBackend.updateLatestVitalSign(serviceToObserveHost);
+
         Object object;
         try {
             if(coapResponse.getOption(OptionRegistry.OptionName.OBSERVE_RESPONSE).isEmpty()
