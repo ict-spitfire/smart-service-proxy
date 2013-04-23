@@ -39,7 +39,7 @@ import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 /**
  * An {@link HttpEntityManagerPipelineFactory} is a factory to generate pipelines to handle imcoming
  * {@link org.jboss.netty.handler.codec.http.HttpRequest}s.
- *	
+ *
  * @author Oliver Kleine
  *
  */
@@ -51,15 +51,15 @@ public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory 
             new OrderedMemoryAwareThreadPoolExecutor(20, 0, 0));
 
     private boolean enableVirtualHttpServerForCoap;
-	
+
 	public HttpEntityManagerPipelineFactory(boolean enableVirtualHttpServerForCoap) {
         this.enableVirtualHttpServerForCoap = enableVirtualHttpServerForCoap;
 	}
-	
+
 	public ChannelPipeline getPipeline() throws Exception {
-		
+
 		ChannelPipeline pipeline = Channels.pipeline();
-		
+
 		pipeline.addLast("decoder", new HttpRequestDecoder());
 		pipeline.addLast("aggregator", new HttpChunkAggregator(1048576));
 		pipeline.addLast("encoder", new HttpResponseEncoder());
@@ -70,7 +70,8 @@ public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory 
         }
 
 		//pipeline.addLast("answer formatter", new AnswerFormatter());
-		pipeline.addLast("Model Formatter", new ModelFormatter());
+        pipeline.addLast("CORS", new CORS());
+        pipeline.addLast("Model Formatter", new ModelFormatter());
         pipeline.addLast("Http Mirror URI Handler", new HttpMirrorUriHandler());
         pipeline.addLast("Execution Handler", executionHandler);
 		pipeline.addLast("Model Cache", ModelCache.getInstance());
@@ -81,5 +82,5 @@ public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory 
         }
 		return pipeline;
 	}
-	
+
 }
