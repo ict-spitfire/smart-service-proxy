@@ -92,12 +92,18 @@ public class CoapBackend extends Backend{
             @Override
             public void run() {
                 for(Inet6Address inet6Address : latestVitalSigns.keySet()){
-                    if(System.currentTimeMillis() - latestVitalSigns.get(inet6Address) > 120000)
-                        latestVitalSigns.remove(inet6Address);
+                    try {
+                        Thread.sleep(10000);
+                    } catch (InterruptedException e) {
+                        log.error(e);
+                    }
+                    while(true){
+                        if(System.currentTimeMillis() - latestVitalSigns.get(inet6Address) > 10000)
+                            latestVitalSigns.remove(inet6Address);
 
-                        int removed = services.removeAll(inet6Address).size();
-                        log.info("" + removed + " services removed for " + inet6Address);
-
+                            int removed = services.removeAll(inet6Address).size();
+                            log.info("" + removed + " services removed for " + inet6Address);
+                    }
                 }
             }
         }).start();

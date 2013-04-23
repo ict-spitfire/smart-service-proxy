@@ -39,6 +39,7 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import sun.net.util.IPAddressUtil;
 
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
 import java.nio.charset.Charset;
