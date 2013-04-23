@@ -50,6 +50,7 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import sun.net.util.IPAddressUtil;
 
+import java.io.IOException;
 import java.net.*;
 import java.nio.charset.Charset;
 import java.util.HashMap;
@@ -73,7 +74,6 @@ public class CoapBackend extends Backend{
     private static Logger log = Logger.getLogger(CoapBackend.class.getName());
         
     private HashMultimap<Inet6Address, String> services = HashMultimap.create();
-    private HashMap<Inet6Address, Long> latestVitalSigns = new HashMap<Inet6Address, Long>();
     private boolean enableVirtualHttp;
     private DatagramChannel clientChannel = CoapClientDatagramChannelFactory.getInstance().getChannel();
 
@@ -91,22 +91,46 @@ public class CoapBackend extends Backend{
         new Thread(new Runnable(){
             @Override
             public void run() {
-                for(Inet6Address inet6Address : latestVitalSigns.keySet()){
+                while(true){
                     try {
-                        Thread.sleep(10000);
-                    } catch (InterruptedException e) {
+                        Thread.sleep(30000);
+                        log.info("Check if registered nodes are alive...");
+
+                        for(Inet6Address inet6Address : services.keySet()){
+                            log.debug("Ping host " + inet6Address);
+                            if(!inet6Address.isReachable(2000)){
+                                log.debug("Ping to host " + inet6Address + " timed out. Host is dead!");
+                                unregisterServices(inet6Address);
+                            }
+                            else{
+                                log.debug("Ping response from host " + inet6Address + " received. Alive!");
+                            }
+                        }
+                    }
+                    catch (InterruptedException e) {
                         log.error(e);
                     }
-                    while(true){
-                        if(System.currentTimeMillis() - latestVitalSigns.get(inet6Address) > 10000)
-                            latestVitalSigns.remove(inet6Address);
-
-                            int removed = services.removeAll(inet6Address).size();
-                            log.info("" + removed + " services removed for " + inet6Address);
+                    catch (IOException e) {
+                        log.error(e);
                     }
                 }
             }
         }).start();
+    }
+
+    private synchronized void unregisterServices(Inet6Address nodeAddress){
+        try{
+            Set<String> removedPaths = services.removeAll(nodeAddress);
+            log.info("" + removedPaths.size() + " services removed for " + nodeAddress);
+
+            for(String path : removedPaths){
+                URI[] httpURIs = createHttpURIs(nodeAddress, path);
+                EntityManager.getInstance().entityDeleted(httpURIs[0], this);
+                EntityManager.getInstance().virtualEntityDeleted(httpURIs[1], this);
+            }
+        } catch (URISyntaxException e) {
+            log.error(e);
+        }
     }
 
     @Override
@@ -114,9 +138,9 @@ public class CoapBackend extends Backend{
         EntityManager.getInstance().registerBackend(this, prefix);
     }
 
-    public void updateLatestVitalSign(Inet6Address remoteAddress){
-        latestVitalSigns.put(remoteAddress, System.currentTimeMillis());
-    }
+//    public void updateLatestVitalSign(Inet6Address remoteAddress){
+//        latestVitalSigns.put(remoteAddress, System.currentTimeMillis());
+//    }
 
     @Override
     public void writeRequested(final ChannelHandlerContext ctx, final MessageEvent me) throws Exception{
@@ -176,7 +200,7 @@ public class CoapBackend extends Backend{
                         log.debug("Received CoAP response from " + me.getRemoteAddress());
 
                         //Update latest vital sign
-                        updateLatestVitalSign((Inet6Address) ((InetSocketAddress) me.getRemoteAddress()).getAddress());
+//                        updateLatestVitalSign((Inet6Address) ((InetSocketAddress) me.getRemoteAddress()).getAddress());
 
                         try{
                             if(!(coapResponse.getCode().isErrorMessage()) && coapResponse.getPayload().readableBytes() > 0){

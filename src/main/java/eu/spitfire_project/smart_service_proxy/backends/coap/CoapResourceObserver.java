@@ -58,7 +58,7 @@ public class CoapResourceObserver extends CoapClientApplication{
         log.info("Received response for " + serviceToObservePath + " at " + serviceToObserveHost);
 
         //Update latest vital sign
-        coapBackend.updateLatestVitalSign(serviceToObserveHost);
+        //coapBackend.updateLatestVitalSign(serviceToObserveHost);
 
         Object object;
         try {

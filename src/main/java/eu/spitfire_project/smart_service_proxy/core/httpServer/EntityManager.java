@@ -45,6 +45,7 @@ import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.TreeSet;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -306,9 +307,15 @@ public class EntityManager extends SimpleChannelHandler {
 
         buf.append("<h2>Entities</h2>\n");
         buf.append("<ul>\n");
-        for(Map.Entry<URI, Backend> entry: entities.entrySet()) {
-            buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", entry.getKey(), entry.getKey()));
+
+        TreeSet<URI> entitySet = new TreeSet<URI>(entities.keySet());
+        for(URI uri : entitySet){
+            buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
         }
+
+//        for(Map.Entry<URI, Backend> entry: entities.entrySet()){
+//            buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", entry.getKey(), entry.getKey()));
+//        }
         buf.append("</ul>\n");
 
         buf.append("</body></html>\n");
@@ -345,6 +352,34 @@ public class EntityManager extends SimpleChannelHandler {
         virtualEntities.put(uri, backend);
         log.debug("New virtual entity created: " + uri);
         return uri;
+    }
+
+    public boolean entityDeleted(URI uri, Backend backend) {
+        uri = toThing(uri);
+        boolean succesful = entities.remove(uri, backend);
+
+        if(succesful){
+            log.debug("Succesfully deleted " + uri);
+        }
+        else{
+            log.debug("Could not delete: " + uri);
+        }
+
+        return succesful;
+    }
+
+    public boolean virtualEntityDeleted(URI uri, Backend backend) {
+        uri = toThing(uri);
+        boolean succesful = virtualEntities.remove(uri, backend);
+
+        if(succesful){
+            log.debug("Succesfully deleted " + uri);
+        }
+        else{
+            log.debug("Could not delete: " + uri);
+        }
+
+        return succesful;
     }
 	
 	public Backend getBackend(String elementSE) {
