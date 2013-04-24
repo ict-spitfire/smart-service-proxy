@@ -74,3 +74,9 @@ IPv4_SERVER_DNS_WILDCARD_POSTFIX = spitfire.wuxi.cn
 #-------------
 #enableBackend = files
 #files.directory = /home/spitfire/ssp-data/files
+
+#-------------
+# Triplestore + TimeProvider
+#-------------
+
+SESAME_URL = http://localhost:8080/openrdf-sesame

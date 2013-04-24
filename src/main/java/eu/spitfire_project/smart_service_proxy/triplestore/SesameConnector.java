@@ -1,6 +1,9 @@
 package eu.spitfire_project.smart_service_proxy.triplestore;
 
 //import de.rwglab.indexer.helper.Parameters;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.openrdf.model.*;
 import org.openrdf.repository.Repository;
 import org.openrdf.repository.RepositoryConnection;
@@ -16,6 +19,18 @@ import java.util.List;
  */
 public class SesameConnector extends AbstractTripleStoreConnector
 {
+
+  private static Configuration config;
+    static{
+        try {
+            config = new PropertiesConfiguration("ssp.properties");
+        } catch (ConfigurationException e) {
+            log.error("Error while loading config.", e);
+        }
+    }
+
+    public static final String SESAME_URL = config.getString("SESAME_URL");
+
     private Repository repo = null;
     private RepositoryConnection conn = null;
     private ValueFactory vf = null;
@@ -28,8 +43,7 @@ public class SesameConnector extends AbstractTripleStoreConnector
     {
         if (repo == null)
         {
-            repo = new HTTPRepository("http://localhost:8080/openrdf-sesame",
-                    "sensors");
+            repo = new HTTPRepository(SesameConnector.SESAME_URL, "sensors");
             repo.initialize();
             conn = repo.getConnection();
             setAutoCommit(false);
