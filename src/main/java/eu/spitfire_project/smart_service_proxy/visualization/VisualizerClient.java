@@ -38,7 +38,7 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
     private static String VISUALIZER_PATH;
     static{
         try {
-            VISUALIZER_IP = InetAddress.getByName("192.168.0.105");
+            VISUALIZER_IP = InetAddress.getByName("192.168.0.101");
             //VISUALIZER_IP = InetAddress.getByName("spitfire-visualizer.wuxi.cn");
             VISUALIZER_PORT = 10000;
             VISUALIZER_PATH = "/visualizer";
@@ -70,7 +70,7 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
     public HttpResponse call() {
 
         try {
-            //stu.doit(simulatedTime);
+            stu.doit(simulatedTime);
             synchronized (responseMonitor){
 
                 this.httpResponse = null;
@@ -119,7 +119,13 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
             //String timeStamp = String.valueOf(sd.getLatestTS());
             String timeStamp = String.valueOf(simulatedTime - 15);
             String value = String.format(Locale.US, "%.4f", sd.getLatestVL());
-            String entry = sd.senID + "|" + sd.ipv6Addr + "|" + sd.macAddr + "|" + sd.FOI + "|"
+            String status = "";
+            if (sd.newlyAdded) {
+                status = "newlyadded";
+                sd.newlyAdded = false;
+            } else
+                status = "working";
+            String entry = status + "|" + sd.ipv6Addr + "|" + sd.macAddr + "|" + sd.FOI + "|"
                             + timeStamp + "|" +value;
             payload += entry + "\n";
         }

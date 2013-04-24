@@ -41,7 +41,7 @@ public class SimulatedTimeParameters
     public static int overflowMod = 1440;
 
     //Address of sesame server
-    public static String repoAdr = "http://localhost:80/openrdf-sesame";
+    public static String repoAdr = "http://localhost:8080/openrdf-sesame";
     //Id of the repository
     public static String repositoryID = "sensors";
 

@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Locale;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -50,8 +51,12 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
     //The currently annotation, it is constantly changed over time
     private String liveAnno = "";
 
-    //The macAddress of the "new sensor"
+    //The macAddress of the sensors
     private final String NewSensor = "a6c";
+    private final String LivingRoomSensor1 = "8e7f";
+    private final String LivingRoomSensor2 = "2304";
+    private final String BedroomSensor1 = "a88";
+    private final String BedroomSensor2 = "a88";
 
     private AutoAnnotation() {
 //        simTime = 360;
@@ -103,9 +108,20 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
             //Update fuzzysets of sensors
             for (int j = 0; j<sensors.len(); j++) {
                 SensorData sensorData = (SensorData) sensors.get(j);
-                //log.debug("Computing fuzzy set for sensor ("+sensorData.ipv6Addr+", "+sensorData.FOI+") ... ");
+                log.debug("Computing fuzzy set for sensor ("+sensorData.macAddr+", "+sensorData.FOI+") ... ");
                 sensorData.computeFuzzySet(sensorData.getValues().size());
-                //log.debug(" Done!");
+                ArrayList<Double> data = (ArrayList<Double>) sensorData.getValues();
+                /*for (int k=0; k<data.size(); k++)
+                    System.out.print(", "+String.format(Locale.US, "%.2f", sensorData.getValues().get(k)));
+                System.out.println();
+                if (sensorData.getFZ() != null) {
+                    for (int l=0; l<sensorData.getFZ().size(); l++) {
+                        double x = sensorData.getFZ().getxList().get(l);
+                        double y = sensorData.getFZ().getyList().get(l);
+                        System.out.print(", "+String.format(Locale.US, "(%.2f, %.2f)", x, y));
+                    }
+                    System.out.println();
+                }*/
             }
 
             //Search for annotation as sensor readings are being updated, until the unannotated sensor is annotated
@@ -166,12 +182,15 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
 
     private double calculateScore(FuzzyRule ruleC, FuzzyRule rule, int nPoint) {
         double sc = 0;
-
+        //log.debug("In here 0");
         if (ruleC==null || rule==null) return 0;
+        //log.debug("In here 1");
         if (rule.size()<2 || ruleC.size()<2) return 0;
+        //log.debug("In here 2");
 
         //If two rules do not overlap then sc = 0
-        if (rule.getrMax()<ruleC.getrMin() || ruleC.getrMax()<rule.getrMin()) return 0;
+        //if (rule.getrMax()<ruleC.getrMin() || ruleC.getrMax()<rule.getrMin()) return 0;
+
 
         //Find the union range
         double xumin = ruleC.getrMin();
@@ -189,6 +208,12 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
         if (xomax > rule.getrMax())
             xomax = rule.getrMax();
 
+        double min = ruleC.getrMax()-ruleC.getrMin();
+        double max = ruleC.getrMax()-ruleC.getrMin();
+        if (min > rule.getrMax()-rule.getrMin()) min = rule.getrMax()-rule.getrMin();
+        if (max < rule.getrMax()-rule.getrMin()) max = rule.getrMax()-rule.getrMin();
+        double delta = min/max;
+
         //calculate the score
         double step = (xomax-xomin)/nPoint;
         for (int i=0; i<nPoint; i++) {
@@ -196,7 +221,8 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
             double evalC = ruleC.evaluate(xomin+i*step);
             sc += Math.abs(eval-evalC);
         }
-        sc = sc/nPoint*(xomax-xomin)/(xumax-xumin);
+        //sc = sc/nPoint*(xomax-xomin)/(xumax-xumin);
+        sc = sc*delta/nPoint;
 
         return sc;
     }
@@ -209,8 +235,8 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
         String foi = null;
 
         if (NewSensor.equalsIgnoreCase(macAddr)) foi = "Unannotated";
-        else if ("2304".equalsIgnoreCase(macAddr) || "a88".equalsIgnoreCase(macAddr)) foi = "Bedroom";
-        else if ("8e7f".equalsIgnoreCase(macAddr) || "8ed8".equalsIgnoreCase(macAddr)) foi = "Living-Room";
+        else if (BedroomSensor1.equalsIgnoreCase(macAddr) || BedroomSensor2.equalsIgnoreCase(macAddr)) foi = "Bedroom";
+        else if (LivingRoomSensor1.equalsIgnoreCase(macAddr) || LivingRoomSensor2.equalsIgnoreCase(macAddr)) foi = "Living-Room";
 
         return foi;
     }
@@ -225,6 +251,7 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
         //If the new sensor is the "new sensor", i.e., macAddr = 8e84, then assign unannoSensor to it
         if (NewSensor.equalsIgnoreCase(macAddr)) {
             unannoSensor = new SensorData(ipv6Addr, macAddr, httpRequestUri, assignFOI(macAddr));
+            liveAnno =  "Unannotated";
         }
 
         //If sensor is already in DB, then delete it, and add it again later on
@@ -232,9 +259,10 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
             sensors.remove(sd);
 
         //Add this sensor to DB
-        if (NewSensor.equalsIgnoreCase(macAddr))
+        if (NewSensor.equalsIgnoreCase(macAddr)) {
             sensors.enList(unannoSensor);
-        else
+            liveAnno =  "Unannotated";
+        } else
             sensors.enList(new SensorData(ipv6Addr, macAddr, httpRequestUri, assignFOI(macAddr)));
         log.debug("new node added: "+macAddr);
     }

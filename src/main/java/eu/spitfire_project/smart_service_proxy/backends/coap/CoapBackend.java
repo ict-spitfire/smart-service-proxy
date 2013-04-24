@@ -82,6 +82,7 @@ public class CoapBackend extends Backend{
     private HashBasedTable<Inet6Address, String, CoapResourceObserver> coapResourceObservers
             = HashBasedTable.create();
 
+
     /**
      * Create a new instance of the CoAPBackend-Application with a listening Datagram Socket on port 5683.
      */
@@ -382,50 +383,10 @@ public class CoapBackend extends Backend{
                 log.fatal("[CoapBackend] Error while creating URI. This should never happen.", e);
             }
         }
-        //start auto-annotation
-        autoAnnotation(remoteAddress);
+
     }
 
-    public void autoAnnotation(Inet6Address remoteAddress){
-        //----------- fuzzy annotation and visualizer----------------------
-        String ipv6Addr = remoteAddress.getHostAddress();
-        if(ipv6Addr.indexOf("%") != -1){
-            ipv6Addr = ipv6Addr.substring(0, ipv6Addr.indexOf("%"));
-        }
-        TString mac = new TString(ipv6Addr,':');
-        String macAddr = mac.getStrAtEnd();
 
-        log.debug("MACAddr is " + macAddr);
-
-        if(IPAddressUtil.isIPv6LiteralAddress(ipv6Addr)){
-            ipv6Addr = "[" + ipv6Addr + "]";
-        }
-
-        //URI of the minimal service (containg light value) of the new sensor
-        String httpRequestUri = null;
-        try {
-            URI uri = CoapBackend.createHttpURIs((Inet6Address) remoteAddress, "/light/_minimal")[0];
-            httpRequestUri = uri.toString();
-        }
-        catch (URISyntaxException e) {
-            log.error("Exception", e);
-        }
-
-        //httpTargetURI = "http://" + httpTargetURI+":8080/light/_minimal";
-        log.debug("HTTP URI for minimal service: " + httpRequestUri);
-
-        //String FOI = "";
-
-//        while (coapRequest.getPayload().readable())
-//            FOI += (char)coapRequest.getPayload().readByte();
-//        log.debug("FOI full: "+FOI);
-//        TString tfoi = new TString(FOI,'/');
-//        String foi = tfoi.getStrAtEnd();
-//        FOI = foi.substring(0, foi.length()-1);
-//        log.debug("FOI extracted: " + FOI);
-
-        AutoAnnotation.getInstance().addNewEntryToDB(ipv6Addr, macAddr, httpRequestUri);
-    }
 //    /**
 //     * Returns the IPv6 prefix of the net the CoapBackend is responsible for (e.g. 2001:638:b157:1)
 //     * @return the IPv6 prefix of the net the CoapBackend is responsible for (e.g. 2001:638:b157:1)

@@ -18,6 +18,7 @@ public class SensorData {
     public String macAddr = null;
     public String FOI = null;
     public String httpRequestUri = null;
+    public boolean newlyAdded = true;
     private static int ID = 0; //Sensor ID
 
     private int MAX_NUMBER_OF_VALUES = 96;
@@ -43,6 +44,7 @@ public class SensorData {
         this.macAddr = macAddr;
         this.httpRequestUri = httpRequestUri;
         this.FOI = FOI;
+        newlyAdded = true;
 
         if ("Unannotated".equalsIgnoreCase(FOI))
             annoTimer = System.currentTimeMillis();
@@ -91,22 +93,40 @@ public class SensorData {
         return dfz;
     }
 
-    private FuzzyRule extractRule(List<Double> datList, int nDataPoint) {
+    private FuzzyRule extractRule(ArrayList<Double> dataList, int nDataPoint) {
         //log.debug("Start extractRule");
-        List<Double> dataList = new ArrayList<Double>();
-        for (int i=0; i<nDataPoint; i++)
-            dataList.add(datList.get(i));
-
         Double[] raw = dataList.toArray(new Double[dataList.size()]);
+
+        /*
+        double rawMax = Double.MIN_VALUE;
+        for (int i=0; i<raw.length; i++)
+            if (rawMax < raw[i]) rawMax = raw[i];
+        double rawMin = Double.MAX_VALUE;
+        for (int i=0; i<raw.length; i++)
+            if (rawMin > raw[i]) rawMin = raw[i];
+        */
+
 
         // Identify the value range
         double rawMax = Collections.max(dataList);
         double rawMin = Collections.min(dataList);
         double rawRange = rawMax - rawMin;
 
+        // Special case: all values are the same
+        if (rawRange <= Double.MIN_VALUE) {
+            System.out.println("All values in snapshot are identical");
+            double epsilon = 0.05;
+            FuzzyRule rule = new FuzzyRule();
+            rule.setrMax(rawMax + epsilon);
+            rule.setrMin(rawMin - epsilon);
+            rule.add(raw[0] - epsilon, 1);
+            rule.add(raw[0] + epsilon, 1);
+            return rule;
+        }
+
         FuzzyRule rule = null;
 
-        if (rawRange > Double.MIN_VALUE) {
+        //if (rawRange > 0) {
             rule = new FuzzyRule();
             double ra = 0.5*rawRange;
             double alpha = 4/ra/ra;
@@ -199,9 +219,10 @@ public class SensorData {
                 }
                 rule.add((Double)vx.get(vx.len()-1), (Double)vy.get(vy.len()-1));
             }
-        }
+        //}
 
         //log.debug("Returning a rule");
+
         return rule;
     }
 
