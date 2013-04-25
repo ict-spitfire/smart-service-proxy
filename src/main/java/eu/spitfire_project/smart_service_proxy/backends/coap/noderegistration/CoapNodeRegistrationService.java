@@ -51,8 +51,6 @@ class CoapNodeRegistrationService extends NotObservableWebService<Boolean> {
             autoAnnotation((Inet6Address)remoteAddress.getAddress());
             log.debug("Annotation counter: "+ ++AnnotationCount);
 
-
-
             try {
                 log.debug("Registration request from " + remoteAddress.getAddress());
                 CoapResourceDiscoverer resourceDiscoverer = new CoapResourceDiscoverer(remoteAddress.getAddress());

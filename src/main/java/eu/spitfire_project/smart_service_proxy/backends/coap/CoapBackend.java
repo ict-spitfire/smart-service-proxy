@@ -363,11 +363,13 @@ public class CoapBackend extends Backend{
 
                 //try to start observing of minimal resources
                 if(path.contains("/_minimal")){
-                    log.info("Send observe request for service " + path + " at " + remoteAddress);
-                    CoapResourceObserver resourceObserver = new CoapResourceObserver(this, remoteAddress, path);
-                    resourceObserver.writeRequestToObserveResource();
+                    if(!coapResourceObservers.contains(remoteAddress, path)){
+                        log.info("Send observe request for service " + path + " at " + remoteAddress);
+                        CoapResourceObserver resourceObserver = new CoapResourceObserver(this, remoteAddress, path);
+                        resourceObserver.writeRequestToObserveResource();
 
-                    coapResourceObservers.put(remoteAddress, path, resourceObserver);
+                        coapResourceObservers.put(remoteAddress, path, resourceObserver);
+                    }
                 }
 
 //                //Virtual HTTP Server for Sensor nodes
