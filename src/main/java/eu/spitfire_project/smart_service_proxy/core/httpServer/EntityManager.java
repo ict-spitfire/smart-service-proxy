@@ -341,16 +341,21 @@ public class EntityManager extends SimpleChannelHandler {
 			uri = nextEntityURI();
 		}
 		uri = toThing(uri);
-		entities.put(uri, backend);
-		log.debug("New entity created: " + uri);
-		
+
+        if(!(entities.get(uri) == backend)){
+            entities.put(uri, backend);
+            log.debug("New entity created: " + uri);
+        }
+
 		return uri;
 	}
 
     public URI virtualEntityCreated(URI uri, Backend backend) {
         uri = toThing(uri);
-        virtualEntities.put(uri, backend);
-        log.debug("New virtual entity created: " + uri);
+        if(!(virtualEntities.get(uri) == backend)){
+            virtualEntities.put(uri, backend);
+            log.debug("New virtual entity created: " + uri);
+        }
         return uri;
     }
 
