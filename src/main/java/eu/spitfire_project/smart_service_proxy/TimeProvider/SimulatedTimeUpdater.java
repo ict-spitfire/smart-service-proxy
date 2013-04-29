@@ -88,6 +88,17 @@ public class SimulatedTimeUpdater
         }*/
         DateTime simulatedTime = SimulatedTimeParameters.startDate.plusMinutes((int)minSinceStart);
         time = SimulatedTimeParameters.dateFormatter.format(simulatedTime.toDate());
+
+        DateTime simulatedTime2 = SimulatedTimeParameters.startDate.plusMinutes(6120);
+        String time2 = SimulatedTimeParameters.dateFormatter.format(simulatedTime2.toDate());
+
+
+        System.out.println("==========================================");
+        System.out.println(time2);
+        System.out.println("simulatedTime: " + simulatedTime.toString());
+        System.out.println("Generated date: " + minSinceStart + " = " + time.toString());
+        System.out.println("==========================================");
+
         try
         {
             conn = repo.getConnection();

@@ -66,14 +66,14 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
 
     public void start(){
         //run();
-
+        /*
         System.out.println("Press a button to start the simulation: ");
         try {
             //noinspection ResultOfMethodCallIgnored
             System.in.read();
         } catch (IOException e) {
             log.error("This should never happen.", e);
-        }
+        }*/
 
         unannoSensor = null;
         executorService.scheduleAtFixedRate(this, 2000, 2000, TimeUnit.MILLISECONDS);
@@ -109,7 +109,8 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
             for (int j = 0; j<sensors.len(); j++) {
                 SensorData sensorData = (SensorData) sensors.get(j);
                 log.debug("Computing fuzzy set for sensor ("+sensorData.macAddr+", "+sensorData.FOI+") ... ");
-                sensorData.computeFuzzySet(sensorData.getValues().size());
+                //sensorData.computeFuzzySet(sensorData.getValues().size());
+                sensorData.computeFuzzySet(15); //latest 15 points
                 ArrayList<Double> data = (ArrayList<Double>) sensorData.getValues();
                 /*for (int k=0; k<data.size(); k++)
                     System.out.print(", "+String.format(Locale.US, "%.2f", sensorData.getValues().get(k)));
@@ -132,6 +133,7 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
                         SensorData de = (SensorData)sensors.get(j);
                         if (!"Unannotated".equalsIgnoreCase(de.FOI)) {
                             double sc = calculateScore(unannoSensor.getFZ(), de.getFZ(), 100);
+                            de.liveSc = sc;
                             if (maxsc < sc) {
                                 maxsc = sc;
                                 liveAnno = de.FOI;
@@ -189,7 +191,7 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
         //log.debug("In here 2");
 
         //If two rules do not overlap then sc = 0
-        //if (rule.getrMax()<ruleC.getrMin() || ruleC.getrMax()<rule.getrMin()) return 0;
+        if (rule.getrMax()<ruleC.getrMin() || ruleC.getrMax()<rule.getrMin()) return 0;
 
 
         //Find the union range

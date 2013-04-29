@@ -16,6 +16,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
+import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.Callable;
 
@@ -112,6 +113,10 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
         String payload = String.valueOf(simulatedTime) + "|" + String.valueOf(imageIndex % 96) + "|" //+ "20" + "\n";
             + String.valueOf(SimulatedTimeParameters.actualTemperature) + "|" +liveAnno+ "\n";
 
+        System.out.println("==========================================");
+        System.out.println("Send date to visualizer : " + simulatedTime);
+        System.out.println("==========================================");
+
 
         for (int i=0; i< AutoAnnotation.getInstance().sensors.len(); i++) {
             SensorData sd = (SensorData) AutoAnnotation.getInstance().sensors.get(i);
@@ -119,6 +124,7 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
             //String timeStamp = String.valueOf(sd.getLatestTS());
             String timeStamp = String.valueOf(simulatedTime - 15);
             String value = String.format(Locale.US, "%.4f", sd.getLatestVL());
+            String sc = String.format(Locale.US, "%.4f", sd.liveSc);
             String status = "";
             if (sd.newlyAdded) {
                 status = "newlyadded";
@@ -126,7 +132,7 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
             } else
                 status = "working";
             String entry = status + "|" + sd.ipv6Addr + "|" + sd.macAddr + "|" + sd.FOI + "|"
-                            + timeStamp + "|" +value;
+                            + timeStamp + "|" +value + "|" + sc;
             payload += entry + "\n";
         }
 

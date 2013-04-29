@@ -20,6 +20,7 @@ public class SensorData {
     public String httpRequestUri = null;
     public boolean newlyAdded = true;
     private static int ID = 0; //Sensor ID
+    public double liveSc = 0;
 
     private int MAX_NUMBER_OF_VALUES = 96;
     private LinkedHashMap<Long, Double> readings = new LinkedHashMap<Long, Double>(MAX_NUMBER_OF_VALUES + 1, .75F, false){
@@ -93,7 +94,15 @@ public class SensorData {
         return dfz;
     }
 
-    private FuzzyRule extractRule(ArrayList<Double> dataList, int nDataPoint) {
+    private FuzzyRule extractRule(ArrayList<Double> datList, int nDataPoint) {
+        //Extract the latest nDataPoint for fuzzyset computation
+        ArrayList<Double> dataList = new ArrayList<Double>();
+        int np = nDataPoint;
+        if (np > datList.size())
+            np = datList.size();
+        for (int i=0; i<np; i++)
+            dataList.add(datList.get(datList.size()-np+i));
+
         //log.debug("Start extractRule");
         Double[] raw = dataList.toArray(new Double[dataList.size()]);
 
