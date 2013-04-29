@@ -298,6 +298,11 @@ public class CoapBackend extends Backend{
     public void deleteServices(Inet6Address serverAddress){
         log.debug("Delete registeredServices for " + serverAddress + ".");
         registeredServices.removeAll(serverAddress);
+        for(String path : coapResourceObservers.row(serverAddress).keySet()){
+            if(coapResourceObservers.remove(serverAddress, path) != null){
+                log.info("Succesfully removed " + serverAddress + path + " from list of observed registeredServices.");
+            };
+        }
     }
 
     @Override
