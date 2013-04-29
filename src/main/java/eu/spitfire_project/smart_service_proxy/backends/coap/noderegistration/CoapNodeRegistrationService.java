@@ -40,6 +40,7 @@ class CoapNodeRegistrationService extends NotObservableWebService<Boolean> {
 
     @Override
     public CoapResponse processMessage(CoapRequest request, InetSocketAddress remoteAddress) {
+        log.info("Process registration message from " + remoteAddress.getAddress());
 
         //Only POST messages are allowed
         if(request.getCode() != Code.POST){

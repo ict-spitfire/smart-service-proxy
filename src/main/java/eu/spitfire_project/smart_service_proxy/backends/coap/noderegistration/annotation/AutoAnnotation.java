@@ -147,7 +147,7 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
                     if (thre > annotationPeriod) {
                         //Send POST to sensor
                         String foi = "";
-                        //if ("Living-Room".equalsIgnoreCase(liveAnno)) foi = "livingroom";
+                        //if ("LivingRoom".equalsIgnoreCase(liveAnno)) foi = "livingroom";
                         //else if ("Kitchen".equalsIgnoreCase(liveAnno)) foi = "bedroom";
                         unannoSensor.FOI = liveAnno;
                         CoapRequest annotation = createCoapRequest(unannoSensor.ipv6Addr, foi);
@@ -221,8 +221,8 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
             double evalC = ruleC.evaluate(xomin+i*step);
             sc += Math.abs(eval-evalC);
         }
-        //sc = sc/nPoint*(xomax-xomin)/(xumax-xumin);
-        sc = sc*delta/nPoint;
+        sc = sc/nPoint*(xomax-xomin)/(xumax-xumin);
+        //sc = sc*delta/nPoint;
 
         return sc;
     }
@@ -236,7 +236,7 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
 
         if (NewSensor.equalsIgnoreCase(macAddr)) foi = "Unannotated";
         else if (BedroomSensor1.equalsIgnoreCase(macAddr) || BedroomSensor2.equalsIgnoreCase(macAddr)) foi = "Bedroom";
-        else if (LivingRoomSensor1.equalsIgnoreCase(macAddr) || LivingRoomSensor2.equalsIgnoreCase(macAddr)) foi = "Living-Room";
+        else if (LivingRoomSensor1.equalsIgnoreCase(macAddr) || LivingRoomSensor2.equalsIgnoreCase(macAddr)) foi = "LivingRoom";
 
         return foi;
     }
