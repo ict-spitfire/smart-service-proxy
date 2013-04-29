@@ -38,7 +38,7 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
     private static String VISUALIZER_PATH;
     static{
         try {
-            VISUALIZER_IP = InetAddress.getByName("192.168.0.101");
+            VISUALIZER_IP = InetAddress.getByName("localhost");
             //VISUALIZER_IP = InetAddress.getByName("spitfire-visualizer.wuxi.cn");
             VISUALIZER_PORT = 10000;
             VISUALIZER_PATH = "/visualizer";

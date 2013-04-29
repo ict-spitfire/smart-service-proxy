@@ -54,6 +54,7 @@ import sun.net.util.IPAddressUtil;
 import java.net.*;
 import java.nio.charset.Charset;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -138,6 +139,12 @@ public class CoapBackend extends Backend{
                 EntityManager.getInstance().entityDeleted(httpURIs[0], this);
                 EntityManager.getInstance().virtualEntityDeleted(httpURIs[1], this);
             }
+
+
+            Map observers = coapResourceObservers.row(nodeAddress);
+            observers.clear();
+            log.info("Removed all observers for " + nodeAddress);
+
         } catch (URISyntaxException e) {
             log.error(e);
         }

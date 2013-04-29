@@ -54,9 +54,9 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
     //The macAddress of the sensors
     private final String NewSensor = "a6c";
     private final String LivingRoomSensor1 = "8e7f";
-    private final String LivingRoomSensor2 = "2304";
+    private final String LivingRoomSensor2 = "8ed8";
     private final String BedroomSensor1 = "a88";
-    private final String BedroomSensor2 = "a88";
+    private final String BedroomSensor2 = "2304";
 
     private AutoAnnotation() {
 //        simTime = 360;
@@ -248,7 +248,7 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
         if (liveAnno == "")
             liveAnno = "Unannotated";
 
-        //If the new sensor is the "new sensor", i.e., macAddr = 8e84, then assign unannoSensor to it
+        //If the new sensor is the "new sensor", then assign unannoSensor to it
         if (NewSensor.equalsIgnoreCase(macAddr)) {
             unannoSensor = new SensorData(ipv6Addr, macAddr, httpRequestUri, assignFOI(macAddr));
             liveAnno =  "Unannotated";
