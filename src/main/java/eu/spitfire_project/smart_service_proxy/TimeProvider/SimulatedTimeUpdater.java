@@ -96,7 +96,6 @@ public class SimulatedTimeUpdater
         System.out.println("==========================================");
         System.out.println(time2);
         System.out.println("simulatedTime: " + simulatedTime.toString());
-        System.out.println("Generated date: " + minSinceStart + " = " + time.toString());
         System.out.println("==========================================");
 
         try

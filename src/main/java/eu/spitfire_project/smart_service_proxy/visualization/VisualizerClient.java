@@ -86,9 +86,10 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
                 if (httpResponse != null && httpResponse.getStatus().equals(HttpResponseStatus.OK)) {
 
                     log.debug("Response received.");
+                    System.out.println("TIME: " + simulatedTime);
 
                     if((simulatedTime % 1440) - 1200 == 0){
-                        simulatedTime += 600;
+                        simulatedTime = 360;
                         imageIndex = 24;
                     }
                     else{
