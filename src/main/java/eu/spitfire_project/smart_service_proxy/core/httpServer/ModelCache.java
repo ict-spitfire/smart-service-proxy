@@ -111,6 +111,8 @@ public class ModelCache extends SimpleChannelHandler {
                             ". Trying to get a fresh one.");
             }
         }
+        log.debug("No cached statement for " + targetUri +
+                ". Trying to get a fresh one.");
         ctx.sendUpstream(me);
     }
 

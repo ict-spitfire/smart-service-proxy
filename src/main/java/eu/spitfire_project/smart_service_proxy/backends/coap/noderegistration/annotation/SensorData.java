@@ -279,7 +279,7 @@ public class SensorData {
             spitfireHandler.run();
             //updateReadings(currentTime, random.nextInt(1000));
 
-            log.debug("\nDone crawling for (" +httpRequestUri+" | "+ macAddr + ") with value:" + String.format("%.2f", value));
+            log.debug("\nDone crawling for "+ macAddr + " with value:" + String.format("%.2f", value));
         } catch (MalformedURLException e) {
             log.debug("failed to crawl for "+macAddr, e);
         } catch (IOException e) {

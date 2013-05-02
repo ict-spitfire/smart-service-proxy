@@ -15,7 +15,6 @@ import eu.spitfire_project.smart_service_proxy.visualization.VisualizerClient;
 import org.apache.log4j.Logger;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -53,10 +52,10 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
 
     //The macAddress of the sensors
     private final String NewSensor = "a6c";
-    private final String LivingRoomSensor1 = "8e7f";
-    private final String LivingRoomSensor2 = "8ed8";
-    private final String BedroomSensor1 = "a88";
-    private final String BedroomSensor2 = "2304";
+    private final String OfficeSensor1 = "a88";
+    private final String OfficeSensor2 = "2304";
+    private final String BedroomSensor1 = "8e7f";
+    private final String BedroomSensor2 = "8ed8";
 
     private AutoAnnotation() {
 //        simTime = 360;
@@ -152,7 +151,7 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
                         //if ("LivingRoom".equalsIgnoreCase(liveAnno)) foi = "livingroom";
                         //else if ("Kitchen".equalsIgnoreCase(liveAnno)) foi = "bedroom";
                         unannoSensor.FOI = liveAnno;
-                        CoapRequest annotation = createCoapRequest(unannoSensor.ipv6Addr, foi);
+                        CoapRequest annotation = createCoapRequest(unannoSensor.ipv6Addr, unannoSensor.FOI);
                         log.debug("Sending POST request to sensor!");
                         writeCoapRequest(annotation);
                     }
@@ -237,8 +236,8 @@ public class AutoAnnotation extends CoapClientApplication implements Runnable {
         String foi = null;
 
         if (NewSensor.equalsIgnoreCase(macAddr)) foi = "Unannotated";
-        else if (BedroomSensor1.equalsIgnoreCase(macAddr) || BedroomSensor2.equalsIgnoreCase(macAddr)) foi = "Bedroom";
-        else if (LivingRoomSensor1.equalsIgnoreCase(macAddr) || LivingRoomSensor2.equalsIgnoreCase(macAddr)) foi = "LivingRoom";
+        else if (BedroomSensor1.equalsIgnoreCase(macAddr) || BedroomSensor2.equalsIgnoreCase(macAddr)) foi = "bedroom";
+        else if (OfficeSensor1.equalsIgnoreCase(macAddr) || OfficeSensor2.equalsIgnoreCase(macAddr)) foi = "office";
 
         return foi;
     }

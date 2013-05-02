@@ -11,6 +11,7 @@ import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.handler.codec.http.*;
+import org.joda.time.DateTime;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -88,14 +89,36 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
                     log.debug("Response received.");
                     System.out.println("TIME: " + simulatedTime);
 
-                    if((simulatedTime % 1440) - 1200 == 0){
+                    DateTime simulatedDate = SimulatedTimeParameters.startDate.plusMinutes(VisualizerClient.simulatedTime);
+
+                    int days = simulatedDate.getDayOfMonth() - SimulatedTimeParameters.startDate.getDayOfMonth();
+
+                    System.out.println("==========================================");
+                    System.out.println(days);
+                    System.out.println("==========================================");
+
+                    //Dennis's code
+                    if((simulatedTime % 1440) - 1200 == 0 && days == 6){
                         simulatedTime = 360;
                         imageIndex = 24;
-                    }
-                    else{
+                    } else if((simulatedTime % 1440) - 1200 == 0){
+                        simulatedTime += 600;
+                        imageIndex = 24;
+                    } else{
                         simulatedTime += 15;
                         imageIndex += 1;
                     }
+                    //End Dennis's code*/
+
+                    /*/Cuong's code
+                    if((simulatedTime % 1440) - 1200 == 0){
+                        simulatedTime += 600;
+                        imageIndex = 24;
+                    } else{
+                        simulatedTime += 15;
+                        imageIndex += 1;
+                    }
+                    //End Cuong's code*/
                 }
 
                 return httpResponse;

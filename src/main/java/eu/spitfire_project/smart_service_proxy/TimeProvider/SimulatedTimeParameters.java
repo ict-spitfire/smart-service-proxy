@@ -19,11 +19,7 @@ public class SimulatedTimeParameters
 
     //Start date
     //public static DateTime startDate = new DateTime(2012,10,24,6,0);
-    public static DateTime startDate = new DateTime(2012,10,24,0,0);
-
-    public static LocalTime skipTime = new LocalTime(20,15);
-    public static int skipHours = 9;
-    public static int skipMinutes = 45;
+    public static DateTime startDate = new DateTime(2013,05,05,0,0);
 
     //Time of the day (in total minutes) when to start the simulation
     public static int start = 0;
