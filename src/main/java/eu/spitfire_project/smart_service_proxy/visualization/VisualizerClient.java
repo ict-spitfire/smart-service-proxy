@@ -51,7 +51,7 @@ public class VisualizerClient extends HttpClient implements Callable<HttpRespons
     }
 
     private SimulatedTimeUpdater stu= new SimulatedTimeUpdater();
-    private static int simulatedTime = 360; //Minutes!!!
+    public static int simulatedTime = 360; //Minutes!!!
     private static int imageIndex = 24;
 
     private final Object responseMonitor = new Object();
