@@ -35,9 +35,20 @@ public class UIElement {
 		this.uri = uri;
 	}
 	
-	public String getTitle() { return title; }
-	public void setTitle(String t) { title = t; }
-	public URI getURI() { return uri; }
-	public void setURI(URI u) { uri = u; }
+	public String getTitle() {
+        return title;
+    }
+
+	public void setTitle(String t) {
+        title = t;
+    }
+
+	public URI getURI() {
+        return uri;
+    }
+
+	public void setURI(URI u) {
+        uri = u;
+    }
 }
 

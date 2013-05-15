@@ -91,7 +91,7 @@ class CoapNodeRegistrationService extends NotObservableWebService<Boolean> {
             ipv6Addr = "[" + ipv6Addr + "]";
         }
 
-        //URI of the minimal service (containg light value) of the new sensor
+        //URI of the minimal WebService (containg light value) of the new sensor
         String httpRequestUri = null;
         try {
             URI uri = createHttpURIs((Inet6Address) remoteAddress, "/light/_minimal")[0];
@@ -102,7 +102,7 @@ class CoapNodeRegistrationService extends NotObservableWebService<Boolean> {
         }
 
         //httpTargetURI = "http://" + httpTargetURI+":8080/light/_minimal";
-        log.debug("HTTP URI for minimal service: " + httpRequestUri);
+        log.debug("HTTP URI for minimal WebService: " + httpRequestUri);
 
         //String FOI = "";
 

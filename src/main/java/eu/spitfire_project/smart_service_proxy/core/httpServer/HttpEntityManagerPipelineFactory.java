@@ -70,7 +70,7 @@ public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory 
         }
 
 		//pipeline.addLast("answer formatter", new AnswerFormatter());
-        pipeline.addLast("CORS", new CORS());
+        pipeline.addLast("HttpCorsHandler", new HttpCorsHandler());
         pipeline.addLast("Model Formatter", new ModelFormatter());
         pipeline.addLast("Http Mirror URI Handler", new HttpMirrorUriHandler());
         pipeline.addLast("Execution Handler", executionHandler);

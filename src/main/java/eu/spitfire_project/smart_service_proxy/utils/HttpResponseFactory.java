@@ -9,7 +9,7 @@ import org.jboss.netty.handler.codec.http.HttpVersion;
 import java.nio.charset.Charset;
 
 public class HttpResponseFactory {
-    
+
     public static HttpResponse createHttpResponse(HttpVersion version, HttpResponseStatus status){
         HttpResponse response = new DefaultHttpResponse(version, status);
 
@@ -18,5 +18,5 @@ public class HttpResponseFactory {
 
         return response;
     }
-    
+
 }

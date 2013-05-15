@@ -140,7 +140,6 @@ public class ModelCache extends SimpleChannelHandler {
         //Store new Element in Cache
         cache.put(new URI(sd.getLocalURI()), new CacheElement(sd.getModel(), sd.getExpiry()));
         log.info("Fresh status of " + sd.getLocalURI() + " saved in cache.");
-        //Channels.write(ctx, me.getFuture(), sd.getModel());
 
         if(sd.isObservedResourceUpdate()){
             log.debug("Succesfully stored status update from observed resource " + sd.getLocalURI());
@@ -156,30 +155,15 @@ public class ModelCache extends SimpleChannelHandler {
 
     }
 
-//    public void updateCache(SelfDescription sd){
-//        if(!sd.isObservedResourceUpdate()){
-//            log.error("This method is only for updates from observed resources!");
-//            return;
-//        }
-//
-//        log.debug("Received update of resource: " + sd.getLocalURI());
-//        try {
-//            cache.put(new URI(sd.getLocalURI()), new CacheElement(sd.getModel(), sd.getExpiry()));
-//        } catch (URISyntaxException e) {
-//            log.error("Error while updating observed resource in cache.", e);
-//        }
-//    }
+
     //Wrapper class to add the expiry date to the cached model.
-    //TODO use observe
     private class CacheElement {
         public Date expiry;
         public Model model;
-        //public long observe;
 
         public CacheElement(Model m, Date e) {
             expiry = e;
             model = m;
-            //observe = o;
         }
     }
 }

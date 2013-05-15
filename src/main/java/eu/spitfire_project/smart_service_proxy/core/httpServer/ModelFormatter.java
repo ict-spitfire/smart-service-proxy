@@ -67,10 +67,9 @@ public class ModelFormatter extends SimpleChannelHandler {
 	 */
 	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
-		Object m = me.getMessage();
+		if(me.getMessage() instanceof HttpRequest) {
 
-		if(m instanceof HttpRequest) {
-            httpRequest = (HttpRequest) m;
+            httpRequest = (HttpRequest) me.getMessage();
 
             log.debug("Incoming HttpRequest for "
                     + URI.create("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri())
@@ -210,7 +209,7 @@ public class ModelFormatter extends SimpleChannelHandler {
     public static void main(String[] args) throws FileNotFoundException, UnknownHostException {
         ModelFormatter instance = new ModelFormatter();
 
-        File file = new File("/home/olli/impl/smart-service-proxy/rdf.txt");
+        File file = new File("/home/olli/impl/smart-WebService-proxy/rdf.txt");
         FileInputStream istream = new FileInputStream(file);
 
         Model model = ModelFactory.createDefaultModel();

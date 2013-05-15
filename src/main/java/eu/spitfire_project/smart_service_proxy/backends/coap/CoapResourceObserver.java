@@ -85,7 +85,7 @@ public class CoapResourceObserver extends CoapClientApplication{
             future.addListener(ChannelFutureListener.CLOSE);
          }
         catch (Exception e) {
-           log.error("Error in update notification of observed service.", e);
+           log.error("Error in update notification of observed WebService.", e);
            return;
         }
 

@@ -62,7 +62,7 @@ public class CoapResourceDiscoverer extends CoapClientApplication implements Cal
             }
 
             if(deleteOldResources){
-                //Delete possibly already registered services of the sensornode
+                //Delete possibly already registered webServices of the sensornode
                 Set<Inet6Address> addressList = coapBackend.getSensorNodes();
 
                 if(addressList.contains(remoteAddress)){

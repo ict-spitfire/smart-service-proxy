@@ -53,7 +53,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The EntityManager is the topmost upstream handler of an HTTPEntityMangerPipeline.
- * It contains a list of {@link eu.spitfire_project.smart_service_proxy.core.Backend}s to manage all available services behind them.
+ * It contains a list of {@link eu.spitfire_project.smart_service_proxy.core.Backend}s to manage all available webServices behind them.
  * 
  * @author Henning Hasemann
  * @author Oliver Kleine
@@ -89,7 +89,7 @@ public class EntityManager extends SimpleChannelHandler {
 
 
 
-	//Contains the URIs of services (e.g. on sensor nodes) and the proper backend
+	//Contains the URIs of webServices (e.g. on sensor nodes) and the proper backend
 	private ConcurrentHashMap<URI, Backend> entities = new ConcurrentHashMap<URI, Backend>();
 
     private ConcurrentHashMap<URI, Backend> virtualEntities = new ConcurrentHashMap<URI, Backend>();
@@ -165,8 +165,8 @@ public class EntityManager extends SimpleChannelHandler {
      * Normalizes the given URI and adds a # at the end. It removes unnecessary slashes (/) or
      * unnecessary parts of the path (e.g. /part_1/part_2/../path_3 to /path_1/part_3), removes the # and following
      * characters at the end of the path and makes relative URIs absolute. After normalizing it adds a # at the end.
-     * Example: Both, http://localhost/path/to/service#something and http://localhost/path/to/service result into
-     * http://localhost/path/to/service#
+     * Example: Both, http://localhost/path/to/WebService#something and http://localhost/path/to/WebService result into
+     * http://localhost/path/to/WebService#
      *
      * @param uri The URI to be normalized and converted to represent a thing
      */
@@ -180,8 +180,8 @@ public class EntityManager extends SimpleChannelHandler {
      * Normalizes the given URI and adds a # at the end. It removes unnecessary slashes (/) or
      * unnecessary parts of the path (e.g. /part_1/part_2/../path_3 to /path_1/part_3), removes the # and following
      * characters at the end of the path and makes relative URIs absolute. After normalizing it adds a # at the end.
-     * Example: Both, http://localhost/path/to/service#something and http://localhost/path/to/service result into
-     * http://localhost/path/to/service#
+     * Example: Both, http://localhost/path/to/WebService#something and http://localhost/path/to/WebService result into
+     * http://localhost/path/to/WebService#
      *
      * @param uri The URI to be normalized and converted to represent a thing
      */
@@ -325,7 +325,7 @@ public class EntityManager extends SimpleChannelHandler {
     }
 
 	/**
-	 * Return URIs for all known services.
+	 * Return URIs for all known webServices.
 	 */
 	public Iterable<URI> getServices(){
 		return entities.keySet();

@@ -39,7 +39,6 @@ import java.util.*;
  */
 public abstract class Backend extends SimpleChannelHandler {
 
-    //protected EntityManager entityManager;
 	protected String prefix;
 
     /**
@@ -48,24 +47,9 @@ public abstract class Backend extends SimpleChannelHandler {
      */
 	public void bind() {
 		EntityManager.getInstance().registerBackend(this);
-		//entityManager = em;
 	}
-	
-	@Override
-	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception{
-        super.messageReceived(ctx, e);
-    }
-	
-	@Override
-	public void writeRequested(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-		super.writeRequested(ctx, e);
-	}
-    
-//    public EntityManager getEntityManager() {
-//        return entityManager;
-//    }
 
-	/**
+    /**
 	 * Set base prefix (in URI) for this backend. If prefix is e.g. be-0001, the backend is reachable
      * at http://<IP address of SSP>/be-001)
      * @param prefix The prefix prefix the Backend shall be reachable at
@@ -82,18 +66,13 @@ public abstract class Backend extends SimpleChannelHandler {
         return prefix;
     }
 	
-	/**
-	 * Return entity description by URI.
-	 */
-	//public abstract void getModel(URI uri, /*final ChannelHandlerContext ctx, */final boolean keepAlive);
-	
+
 	/**
 	 * Return list of user interface elements.
 	 */
-	public Collection<UIElement> getUIElements() {
-		return new Vector<UIElement>();
-	}
-    
+	public abstract Collection<UIElement> getUIElements();
+
+
     public Set<URI> getResources(){
         return new HashSet<URI>();
     }

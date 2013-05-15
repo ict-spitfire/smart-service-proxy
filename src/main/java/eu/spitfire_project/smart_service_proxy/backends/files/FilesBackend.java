@@ -46,7 +46,7 @@ import java.util.HashMap;
 import java.util.Set;
 
 /**
- * The FilesBackend is responsible for the services backed by the files (except of *.swp) in the directory given as
+ * The FilesBackend is responsible for the webServices backed by the files (except of *.swp) in the directory given as
  * constructor parameter. That means every file gets a URI to be requested via GET request to read its content.
  * There are only GET requests supported. Other methods but GET cause a response
  * with status "method not allowed". GET requests on resources backed by malformed files (i.e. content

@@ -22,29 +22,47 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire_project.smart_service_proxy.backends.slse;
+package eu.spitfire_project.smart_service_proxy.core.httpServer;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.DownstreamMessageEvent;
+import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.channel.SimpleChannelHandler;
+import org.jboss.netty.handler.codec.http.HttpResponse;
 
-public class URIs {
-	public static String base = "";
-	static {
-		try {
-			base = "http://" + InetAddress.getLocalHost().getCanonicalHostName() + ":8080";
-		}
-		catch(UnknownHostException e) {
+/**
+ * The {@link HttpCorsHandler} adds the HttpCorsHandler (Cross-Origin Resource Sharing) headers to an HTTP response.
+ * With this, we can access the resources with the XMLHttpRequest.
+ *
+ * @see: http://www.w3.org/TR/cors/
+ * @see: https://developer.mozilla.org/en-US/docs/HTTP/Access_control_CORS
+ *
+ * @author Dennis Boldt
+ *
+ */
+public class HttpCorsHandler extends SimpleChannelHandler {
+
+	@Override
+	public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
+		ctx.sendUpstream(me);
+	}
+
+	@Override
+	public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
+		Object m = me.getMessage();
+		if(m instanceof HttpResponse) {
+			HttpResponse response = (HttpResponse) m;
+            // Add HttpCorsHandler
+            response.setHeader("Access-Control-Allow-Origin", "*");
+            response.setHeader("Access-Control-Allow-Credentials", "true");
+
+            DownstreamMessageEvent dme = new DownstreamMessageEvent(ctx.getChannel(), me.getFuture(), response, me.getRemoteAddress());
+            ctx.sendDownstream(dme);
+		} else {
+			System.out.println(m.getClass().getSimpleName());
+			ctx.sendDownstream(me);
 		}
 	}
-	
-	public static final String currentValue = base + "/static/ontology.owl#currentValue";
-	public static final String slse = base + "/static/ontology.owl#ServiceLevelSemanticEntity";
-	
-	public static final String attachedSystem = "http://purl.oclc.org/NET/ssnx/ssn#attachedSystem";
-	public static final String hasPart = "http://www.loa-cnr.it/ontologies/DUL.owl#hasPart";
-	public static final String observes = "http://purl.oclc.org/NET/ssnx/ssn#observes";
-	public static final String type = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-	public static final String sameAs = "http://www.w3.org/2002/07/owl#sameAs";
-	public static final String hasValue = "http://spitfire-project.eu/ontology/ns/value";
+
 }
 

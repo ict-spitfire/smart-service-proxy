@@ -60,18 +60,6 @@ public class HttpMirrorUriHandler extends SimpleChannelUpstreamHandler {
 
     private final String DNS_WILDCARD_POSTFIX = config.getString("IPv4_SERVER_DNS_WILDCARD_POSTFIX");
 
-//    private static HttpMirrorUriHandler instance = new HttpMirrorUriHandler();
-//
-//    private HttpMirrorUriHandler(){
-//
-//    }
-//    /**
-//     * Returns the new HttpMirrorUriHandler instance
-//     *
-//     */
-//    public static HttpMirrorUriHandler getInstance(){
-//        return instance;
-//    }
 
     /**
      * Changes the requests host part to the IPv6 address of the target resource. This is to enable IPv4 clients to
@@ -97,8 +85,7 @@ public class HttpMirrorUriHandler extends SimpleChannelUpstreamHandler {
                 log.debug("New target host: " + host);
 
                 try{
-                    request.setHeader(HOST,
-                                      "[" + InetAddress.getByName("[" + host + "]").getHostAddress() + "]");
+                    request.setHeader(HOST, "[" + InetAddress.getByName("[" + host + "]").getHostAddress() + "]");
                 }
                 catch (UnknownHostException e) {
                     log.debug("Not an IPv6 address: " + host);

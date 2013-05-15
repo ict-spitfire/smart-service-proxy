@@ -169,7 +169,7 @@ public class CoapBackend extends Backend{
                 log.info("Succesfully removed from list of observed registeredServices.");
             }
             else{
-                log.error("Could not find service in list of observed registeredServices!");
+                log.error("Could not find WebService in list of observed registeredServices!");
             }
 
             return;
@@ -195,7 +195,7 @@ public class CoapBackend extends Backend{
 //        }
 
         try {
-            //check whether there is an appropriate CoAP service registered
+            //check whether there is an appropriate CoAP WebService registered
             final Inet6Address targetUriHostAddress =
                     (Inet6Address) InetAddress.getByName(httpRequest.getHeader("HOST"));
             final String targetUriPath = httpRequest.getUri();
@@ -306,7 +306,7 @@ public class CoapBackend extends Backend{
         log.debug("Delete registeredServices for " + serverAddress + ".");
         registeredServices.removeAll(serverAddress);
         coapResourceObservers.row(serverAddress).clear();
-        log.info("Succesfully removed services from " + serverAddress + " from list of observed registeredServices.");
+        log.info("Succesfully removed webServices from " + serverAddress + " from list of observed registeredServices.");
     }
 
     @Override
@@ -357,7 +357,7 @@ public class CoapBackend extends Backend{
         String[] links = payload.split(",");
 
         for (String link : links){
-            log.debug("Process service " + link);
+            log.debug("Process WebService " + link);
             //Ensure a "/" at the beginning of the path
             String path = link.substring(link.indexOf("<") + 1, link.indexOf(">"));
             if (path.indexOf("/") > 0){
@@ -373,7 +373,7 @@ public class CoapBackend extends Backend{
                 //try to start observing of minimal resources
                 if(path.contains("/_minimal")){
                     if(!coapResourceObservers.contains(remoteAddress, path)){
-                        log.info("Send observe request for service " + path + " at " + remoteAddress);
+                        log.info("Send observe request for WebService " + path + " at " + remoteAddress);
                         CoapResourceObserver resourceObserver = new CoapResourceObserver(this, remoteAddress, path);
                         resourceObserver.writeRequestToObserveResource();
 
@@ -384,7 +384,7 @@ public class CoapBackend extends Backend{
 //                //Virtual HTTP Server for Sensor nodes
 //                if(enableVirtualHttp){
 //                    URI virtualHttpServerUri = new URI("http://[" + remoteIP + "]" + path + "#");
-//                    log.debug("[CoapBackend] New virtual HTTP service address: " + virtualHttpServerUri);
+//                    log.debug("[CoapBackend] New virtual HTTP WebService address: " + virtualHttpServerUri);
 //                    resources.put(virtualHttpServerUri, coapURI);
 //                    entityManager.entityCreated(virtualHttpServerUri, this);
 //                }

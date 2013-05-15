@@ -46,8 +46,8 @@ import java.util.HashMap;
 /**
  * A {@link SimpleBackend} instance hosts a simple standard model. This backend is basicly to ensure the functionality
  * of the underlying handler stack. If it's instanciated (by setting <code>enableBackend="simple"</code> in the
- * <code>ssp.properties</code> file) it registers its service (/JohnSmith) at the {@link EntityManager} instance which
- * causes this service to occur on the HTML page (at <code>http://<ssp-ip>:<ssp-port>/) listing the available services. 
+ * <code>ssp.properties</code> file) it registers its WebService (/JohnSmith) at the {@link EntityManager} instance which
+ * causes this WebService to occur on the HTML page (at <code>http://<ssp-ip>:<ssp-port>/) listing the available webServices.
  *
  * @author Oliver Kleine
  *
