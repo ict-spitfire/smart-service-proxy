@@ -157,7 +157,7 @@
 					</descriptorRefs>
 					<archive>
 						<manifest>
-							<mainClass>eu.spitfire_project.smart_service_proxy.Main</mainClass>
+							<mainClass>eu.spitfire.ssp.Main</mainClass>
 						</manifest>
 					</archive>
 				</configuration>
@@ -184,7 +184,7 @@
 					<archive>
 						<manifest>
 							<addClasspath>true</addClasspath>
-							<mainClass>eu.spitfire_project.smart_service_proxy.Main</mainClass>
+							<mainClass>eu.spitfire.ssp.Main</mainClass>
 						</manifest>
 					</archive>
 				</configuration>
