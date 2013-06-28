@@ -24,21 +24,21 @@
  */
 package eu.spitfire.ssp.backends.coap.translation;
 
-import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
-import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
-import de.uniluebeck.itm.spitfire.nCoap.message.InvalidMessageException;
-import de.uniluebeck.itm.spitfire.nCoap.message.MessageDoesNotAllowPayloadException;
-import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
-import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.ToManyOptionsException;
+import de.uniluebeck.itm.ncoap.message.CoapRequest;
+import de.uniluebeck.itm.ncoap.message.CoapResponse;
+import de.uniluebeck.itm.ncoap.message.InvalidMessageException;
+import de.uniluebeck.itm.ncoap.message.MessageDoesNotAllowPayloadException;
+import de.uniluebeck.itm.ncoap.message.header.Code;
+import de.uniluebeck.itm.ncoap.message.header.MsgType;
+import de.uniluebeck.itm.ncoap.message.options.InvalidOptionException;
+import de.uniluebeck.itm.ncoap.message.options.ToManyOptionsException;
 import org.apache.log4j.Logger;
 import org.jboss.netty.handler.codec.http.*;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import static de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry.MediaType.APP_RDF_XML;
+import static de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType.APP_RDF_XML;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.*;
 
 public class Http2CoapConverter {

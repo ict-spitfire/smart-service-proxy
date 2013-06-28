@@ -26,11 +26,11 @@ package eu.spitfire.ssp.core;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
-import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.InvalidOptionException;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.Option;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.UintOption;
+import de.uniluebeck.itm.ncoap.message.CoapResponse;
+import de.uniluebeck.itm.ncoap.message.options.InvalidOptionException;
+import de.uniluebeck.itm.ncoap.message.options.Option;
+import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
+import de.uniluebeck.itm.ncoap.message.options.UintOption;
 import eu.spitfire.ssp.converter.shdt.ShdtSerializer;
 import org.apache.log4j.Logger;
 import org.jboss.netty.buffer.ChannelBuffer;

@@ -24,12 +24,13 @@
  */
 package eu.spitfire.ssp.core.httpServer;
 
+import eu.spitfire.ssp.Main;
+import eu.spitfire.ssp.backends.ProprietaryGateway;
 import eu.spitfire.ssp.core.Backend;
 import eu.spitfire.ssp.core.UIElement;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.log4j.Logger;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
@@ -37,99 +38,78 @@ import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sun.net.util.IPAddressUtil;
 
 import java.net.InetAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.NoSuchElementException;
 import java.util.TreeSet;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
-//import eu.spitfire.ssp.backends.coap.CoapBackend;
 
 /**
- * The EntityManager is the topmost upstream handler of an HTTPEntityMangerPipeline.
+ * The HttpRequestDispatcher is the topmost upstream handler of an HTTPEntityMangerPipeline.
  * It contains a list of {@link eu.spitfire.ssp.core.Backend}s to manage all available webServices behind them.
  * 
- * @author Henning Hasemann
  * @author Oliver Kleine
  */
-public class EntityManager extends SimpleChannelHandler {
+public class HttpRequestDispatcher extends SimpleChannelHandler {
 
-    private static Logger log = Logger.getLogger(EntityManager.class.getName());
-
-    private static Configuration config;
-    static{
-        try {
-            config = new PropertiesConfiguration("ssp.properties");
-        } catch (ConfigurationException e) {
-            log.error("Error while loading config.", e);
-        }
-    }
-
-    public static final String SSP_DNS_NAME = config.getString("SSP_DNS_NAME", "localhost");
-    public static final int SSP_HTTP_SERVER_PORT = config.getInt("SSP_HTTP_SERVER_PORT", 8080);
-    public static final String DNS_WILDCARD_POSTFIX = config.getString("IPv4_SERVER_DNS_WILDCARD_POSTFIX", null);
+    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
 
-    //Services offered by EntityManager
+    //Services offered by HttpRequestDispatcher
     private final String PATH_TO_SERVER_LIST = "/.well-known/servers";
     private final String SERVER_PATH_TO_SLSE_UI = "/static/";
     private final String LOCAL_PATH_TO_SLSE_UI = "data/slse/ui/create_entity_form.html";
 
-    //Parameters for Backend and Entity creation
+
+    //Parameters for ProprietaryGateway and Entity creation
     private int nextBackendId = 0;
     private final String BACKEND_PREFIX_FORMAT = "/be-%04d/";
     private int nextEntityId = 0;
     private final String ENTITY_FORMAT = "/entity-%04x/";
 
-
-
 	//Contains the URIs of webServices (e.g. on sensor nodes) and the proper backend
-	private ConcurrentHashMap<URI, Backend> entities = new ConcurrentHashMap<URI, Backend>();
+	private ConcurrentHashMap<URI, ProprietaryGateway> entities = new ConcurrentHashMap<URI, ProprietaryGateway>();
 
-    private ConcurrentHashMap<URI, Backend> virtualEntities = new ConcurrentHashMap<URI, Backend>();
+//    private ConcurrentHashMap<URI, ProprietaryGateway> virtualEntities = new ConcurrentHashMap<URI, ProprietaryGateway>();
 
-	//Contains the individual paths to the backends (for Userinterface access)
-	private ConcurrentHashMap<String, Backend> backends = new ConcurrentHashMap<String, Backend>();
+//	//Contains the individual paths to the backends (for Userinterface access)
+//	private ConcurrentHashMap<String, ProprietaryGateway> backends = new ConcurrentHashMap<String, ProprietaryGateway>();
 
     private Vector<UIElement> uiElements = new Vector<UIElement>();
 
-    //Make EntityManager a Singleton
-	private static EntityManager instance = new EntityManager();
-	private EntityManager(){
-	}
+
+//	/**
+//	 */
+//	URI nextEntityURI() {
+//		nextEntityId++;
+//		return normalizeURI(String.format(ENTITY_FORMAT, nextEntityId));
+//	}
 	
-	public static EntityManager getInstance() {
-        return instance;
-    }
-	
-	/**
-	 */
-	URI nextEntityURI() {
-		nextEntityId++;
-		return normalizeURI(String.format(ENTITY_FORMAT, nextEntityId));
-	}
-	
-	/**
-	 */
-	public void registerBackend(Backend backend) {
-		nextBackendId++;
-		String prefix = String.format(BACKEND_PREFIX_FORMAT, nextBackendId);
-		backend.setPrefix(prefix);
-        registerBackend(backend, prefix);
-	}
-    
-    public void registerBackend(Backend backend, String prefix){
-        if(backends.put(prefix, backend) != backend){
-            log.debug("New Backend for path prefix " + prefix);
-        }
-        if(backend.getUIElements() != null){
-            uiElements.addAll(backend.getUIElements());
-        }
-    }
+//	/**
+//	 */
+//	public void registerBackend(ProprietaryGateway backend) {
+//		nextBackendId++;
+//		String prefix = String.format(BACKEND_PREFIX_FORMAT, nextBackendId);
+//		backend.setPrefix(prefix);
+//        registerBackend(backend, prefix);
+//	}
+
+//    public void registerBackend(ProprietaryGateway backend, String prefix){
+//        if(backends.put(prefix, backend) != backend){
+//            log.debug("New ProprietaryGateway for path prefix " + prefix);
+//        }
+//        if(backend.getUIElements() != null){
+//            uiElements.addAll(backend.getUIElements());
+//        }
+//    }
 
     /**
      * Normalizes the given URI. It removes unnecessary slashes (/) or unnecessary parts of the path
@@ -159,35 +139,35 @@ public class EntityManager extends SimpleChannelHandler {
 
 
 
-    /**
-     * Normalizes the given URI and adds a # at the end. It removes unnecessary slashes (/) or
-     * unnecessary parts of the path (e.g. /part_1/part_2/../path_3 to /path_1/part_3), removes the # and following
-     * characters at the end of the path and makes relative URIs absolute. After normalizing it adds a # at the end.
-     * Example: Both, http://localhost/path/to/WebService#something and http://localhost/path/to/WebService result into
-     * http://localhost/path/to/WebService#
-     *
-     * @param uri The URI to be normalized and converted to represent a thing
-     */
-	public URI toThing(String uri) {
-		// note: currently we go for the variant without '#' at the end as
-		// that seems to make RDF/XML serializations impossible sometimes
-        return URI.create(normalizeURI(uri).toString() /*+ "#"*/);
-    }
-
-    /**
-     * Normalizes the given URI and adds a # at the end. It removes unnecessary slashes (/) or
-     * unnecessary parts of the path (e.g. /part_1/part_2/../path_3 to /path_1/part_3), removes the # and following
-     * characters at the end of the path and makes relative URIs absolute. After normalizing it adds a # at the end.
-     * Example: Both, http://localhost/path/to/WebService#something and http://localhost/path/to/WebService result into
-     * http://localhost/path/to/WebService#
-     *
-     * @param uri The URI to be normalized and converted to represent a thing
-     */
-	public URI toThing(URI uri) {
-		// note: currently we go for the variant without '#' at the end as
-		// that seems to make RDF/XML serializations impossible sometimes
-		return URI.create(normalizeURI(uri).toString() /* + "#"*/);
-    }
+//    /**
+//     * Normalizes the given URI and adds a # at the end. It removes unnecessary slashes (/) or
+//     * unnecessary parts of the path (e.g. /part_1/part_2/../path_3 to /path_1/part_3), removes the # and following
+//     * characters at the end of the path and makes relative URIs absolute. After normalizing it adds a # at the end.
+//     * Example: Both, http://localhost/path/to/WebService#something and http://localhost/path/to/WebService result into
+//     * http://localhost/path/to/WebService#
+//     *
+//     * @param uri The URI to be normalized and converted to represent a thing
+//     */
+//	public URI toThing(String uri) {
+//		// note: currently we go for the variant without '#' at the end as
+//		// that seems to make RDF/XML serializations impossible sometimes
+//        return URI.create(normalizeURI(uri).toString() /*+ "#"*/);
+//    }
+//
+//    /**
+//     * Normalizes the given URI and adds a # at the end. It removes unnecessary slashes (/) or
+//     * unnecessary parts of the path (e.g. /part_1/part_2/../path_3 to /path_1/part_3), removes the # and following
+//     * characters at the end of the path and makes relative URIs absolute. After normalizing it adds a # at the end.
+//     * Example: Both, http://localhost/path/to/WebService#something and http://localhost/path/to/WebService result into
+//     * http://localhost/path/to/WebService#
+//     *
+//     * @param uri The URI to be normalized and converted to represent a thing
+//     */
+//	public URI toThing(URI uri) {
+//		// note: currently we go for the variant without '#' at the end as
+//		// that seems to make RDF/XML serializations impossible sometimes
+//		return URI.create(normalizeURI(uri).toString() /* + "#"*/);
+//    }
 	
 	/**
 	 * Expected Message types:
@@ -202,7 +182,7 @@ public class EntityManager extends SimpleChannelHandler {
 		}
 
         HttpRequest httpRequest = (HttpRequest) e.getMessage();
-        URI targetUri = toThing(URI.create("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri()));
+        URI targetUri = normalizeURI(new URI("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri())) ;
 
         log.debug("Received HTTP request for " + targetUri);
 
@@ -230,26 +210,26 @@ public class EntityManager extends SimpleChannelHandler {
         }
 
         if(entities.containsKey(targetUri)){
-            Backend backend = entities.get(targetUri);
+            ProprietaryGateway backend = entities.get(targetUri);
 			try {
-                ctx.getPipeline().remove("Backend to handle request");
+                ctx.getPipeline().remove("ProprietaryGateway to handle request");
 			}
             catch(NoSuchElementException ex) {
                 //Fine. There was no handler to be removed.
             }
-            ctx.getPipeline().addLast("Backend to handle request", backend);
+            ctx.getPipeline().addLast("ProprietaryGateway to handle request", backend);
             log.debug("Forward request to " + backend);
         }
 
         else if(virtualEntities.containsKey(targetUri)){
-            Backend backend = virtualEntities.get(targetUri);
+            ProprietaryGateway backend = virtualEntities.get(targetUri);
 			try {
-                ctx.getPipeline().remove("Backend to handle request");
+                ctx.getPipeline().remove("ProprietaryGateway to handle request");
 			}
             catch(NoSuchElementException ex) {
                 //Fine. There was no handler to be removed.
             }
-			ctx.getPipeline().addLast("Backend to handle request", backend);
+			ctx.getPipeline().addLast("ProprietaryGateway to handle request", backend);
             log.debug("Forward request to " + backend);
         }
 
@@ -265,7 +245,7 @@ public class EntityManager extends SimpleChannelHandler {
 
 //        else if("/visualizer".equals(targetUriPath)){
 //            try {
-//                ctx.getPipeline().remove("Backend to handle request");
+//                ctx.getPipeline().remove("ProprietaryGateway to handle request");
 //            }
 //            catch(NoSuchElementException ex) {
 //                //Fine. There was no handler to be removed.
@@ -311,7 +291,7 @@ public class EntityManager extends SimpleChannelHandler {
             buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
         }
 
-//        for(Map.Entry<URI, Backend> entry: entities.entrySet()){
+//        for(Map.Entry<URI, ProprietaryGateway> entry: entities.entrySet()){
 //            buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", entry.getKey(), entry.getKey()));
 //        }
         buf.append("</ul>\n");
@@ -328,36 +308,35 @@ public class EntityManager extends SimpleChannelHandler {
 	public Iterable<URI> getServices(){
 		return entities.keySet();
 	}
-	
+
 	/**
 	 * Will be called when an entity has been created.
 	 * uri may be null in which case the return value will be a newly
 	 * allocated URI for the entity.
 	 */
-	public URI entityCreated(URI uri, Backend backend) {
-		if(uri == null) {
-			uri = nextEntityURI();
-		}
-		uri = toThing(uri);
+	public URI registerService(ProprietaryGateway backend, String servicePath) throws URISyntaxException {
 
-        if(!(entities.get(uri) == backend)){
-            entities.put(uri, backend);
-            log.debug("New entity created: " + uri);
+        URI serviceUri = new URI("http://www." + Main.SSP_DNS_NAME + ":" + Main.SSP_HTTP_SERVER_PORT + servicePath);
+		serviceUri = normalizeURI(serviceUri);
+
+        if(!(entities.get(serviceUri) == backend)){
+            entities.put(serviceUri, backend);
+            log.debug("New service created: " + serviceUri);
         }
 
-		return uri;
+		return serviceUri;
 	}
 
-    public URI virtualEntityCreated(URI uri, Backend backend) {
-        uri = toThing(uri);
-        if(!(virtualEntities.get(uri) == backend)){
-            virtualEntities.put(uri, backend);
-            log.debug("New virtual entity created: " + uri);
-        }
-        return uri;
-    }
+//    public URI virtualEntityCreated(URI uri, ProprietaryGateway backend) {
+//        uri = toThing(uri);
+//        if(!(virtualEntities.get(uri) == backend)){
+//            virtualEntities.put(uri, backend);
+//            log.debug("New virtual entity created: " + uri);
+//        }
+//        return uri;
+//    }
 
-    public boolean entityDeleted(URI uri, Backend backend) {
+    public boolean entityDeleted(URI uri, ProprietaryGateway backend) {
         uri = toThing(uri);
         boolean succesful = entities.remove(uri, backend);
 
@@ -371,7 +350,7 @@ public class EntityManager extends SimpleChannelHandler {
         return succesful;
     }
 
-    public boolean virtualEntityDeleted(URI uri, Backend backend) {
+    public boolean virtualEntityDeleted(URI uri, ProprietaryGateway backend) {
         uri = toThing(uri);
         boolean succesful = virtualEntities.remove(uri, backend);
 
@@ -385,8 +364,8 @@ public class EntityManager extends SimpleChannelHandler {
         return succesful;
     }
 	
-	public Backend getBackend(String elementSE) {
-		Backend b = entities.get(elementSE);
+	public ProprietaryGateway getBackend(String elementSE) {
+		ProprietaryGateway b = entities.get(elementSE);
 		if(b == null) {
 			URI uri = URI.create(SSP_DNS_NAME).resolve(elementSE).normalize();
 			String path = uri.getRawPath();

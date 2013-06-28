@@ -1,12 +1,12 @@
 package eu.spitfire.ssp.backends.coap.observation;
 
-import de.uniluebeck.itm.spitfire.nCoap.application.client.CoapClientApplication;
-import de.uniluebeck.itm.spitfire.nCoap.communication.reliability.outgoing.RetransmissionTimeoutMessage;
-import de.uniluebeck.itm.spitfire.nCoap.message.CoapRequest;
-import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
-import de.uniluebeck.itm.spitfire.nCoap.message.header.Code;
-import de.uniluebeck.itm.spitfire.nCoap.message.header.MsgType;
-import de.uniluebeck.itm.spitfire.nCoap.message.options.OptionRegistry;
+import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
+import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
+import de.uniluebeck.itm.ncoap.message.CoapRequest;
+import de.uniluebeck.itm.ncoap.message.CoapResponse;
+import de.uniluebeck.itm.ncoap.message.header.Code;
+import de.uniluebeck.itm.ncoap.message.header.MsgType;
+import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
 import eu.spitfire.ssp.backends.coap.CoapBackend;
 import eu.spitfire.ssp.core.SelfDescription;
 import org.apache.log4j.Logger;
@@ -107,7 +107,7 @@ public class CoapResourceObserver extends CoapClientApplication{
     }
 
     @Override
-    public void handleRetransmissionTimeout(RetransmissionTimeoutMessage timeoutMessage) {
+    public void handleRetransmissionTimeout(InternalRetransmissionTimeoutMessage timeoutMessage) {
         log.info("Giving up retransmitting request to " + serviceToObservePath + " at " + serviceToObserveHost);
         try {
             Channel internalChannel = createChannelForInternalMessages();

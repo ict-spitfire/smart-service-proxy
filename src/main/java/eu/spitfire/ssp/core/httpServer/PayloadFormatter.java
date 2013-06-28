@@ -46,17 +46,17 @@ import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGT
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 
 /**
- * The {@link ModelFormatter} recognizes the requested mimetype from the incoming {@link HttpRequest}. The payload of the corresponding
- * {@link HttpResponse} will be converted to the requested mimetype. If the requested mimetype is not available, the {@link ModelFormatter} sends
- * a standard {@link HttpResponse} with status code 415 (Unsupported media type).
+ * The {@link PayloadFormatter} recognizes the requested mimetype from the incoming {@link HttpRequest}. The payload
+ * of the corresponding {@link HttpResponse} will be converted to the requested mimetype. If the requested mimetype
+ * is not available, the {@link PayloadFormatter} sends a {@link HttpResponse} with status code
+ * 415 (Unsupported media type).
  * 
  * @author Oliver Kleine
- * @author Henning Hasemann * 
  */
-public class ModelFormatter extends SimpleChannelHandler {
+public class PayloadFormatter extends SimpleChannelHandler {
     
 	private HttpRequest httpRequest;
-	private Logger log = Logger.getLogger(ModelFormatter.class.getName());
+	private Logger log = Logger.getLogger(PayloadFormatter.class.getName());
     public static String DEFAULT_MODEL_LANGUAGE = "RDF/XML";
     public static String DEFAULT_RESPONSE_MIME_TYPE = "application/rdf+xml";
     
@@ -201,13 +201,13 @@ public class ModelFormatter extends SimpleChannelHandler {
         String path = coapUri.substring(coapUri.indexOf("/", 8));
 
         return "http://" + ipv6Address.replace(":", "-")
-                         + "." + EntityManager.DNS_WILDCARD_POSTFIX
-                         + ":" + EntityManager.SSP_HTTP_SERVER_PORT
+                         + "." + HttpRequestDispatcher.DNS_WILDCARD_POSTFIX
+                         + ":" + HttpRequestDispatcher.SSP_HTTP_SERVER_PORT
                          + path;
     }
 
     public static void main(String[] args) throws FileNotFoundException, UnknownHostException {
-        ModelFormatter instance = new ModelFormatter();
+        PayloadFormatter instance = new PayloadFormatter();
 
         File file = new File("/home/olli/impl/smart-WebService-proxy/rdf.txt");
         FileInputStream istream = new FileInputStream(file);

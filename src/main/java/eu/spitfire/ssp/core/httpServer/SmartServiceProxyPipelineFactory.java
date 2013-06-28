@@ -39,37 +39,51 @@ import java.net.InetSocketAddress;
 
 
 /**
- * An {@link HttpEntityManagerPipelineFactory} is a factory to generate pipelines to handle imcoming
+ * An {@link SmartServiceProxyPipelineFactory} is a factory to generate pipelines to handle imcoming
  * {@link org.jboss.netty.handler.codec.http.HttpRequest}s.
  *
  * @author Oliver Kleine
  *
  */
-public class HttpEntityManagerPipelineFactory implements ChannelPipelineFactory {
+public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory {
 
-    private static Logger log = Logger.getLogger(HttpEntityManagerPipelineFactory.class.getName());
+    private static Logger log = Logger.getLogger(SmartServiceProxyPipelineFactory.class.getName());
 
-    ExecutionHandler executionHandler = new ExecutionHandler(
-            new OrderedMemoryAwareThreadPoolExecutor(20, 0, 0));
+    private HttpResponseEncoder httpResponseEncoder;
+    private HttpCorsHandler httpCorsHandler;
+    private PayloadFormatter payloadFormatter;
+    private HttpMirrorUriHandler httpMirrorUriHandler;
 
+
+    ExecutionHandler executionHandler;
+
+    public SmartServiceProxyPipelineFactory(){
+        httpResponseEncoder = new HttpResponseEncoder();
+        httpCorsHandler = new HttpCorsHandler();
+        payloadFormatter = new PayloadFormatter();
+        httpMirrorUriHandler = new HttpMirrorUriHandler();
+
+        executionHandler = new ExecutionHandler(new OrderedMemoryAwareThreadPoolExecutor(100, 0, 0));
+    }
 
 	public ChannelPipeline getPipeline() throws Exception {
 
 		ChannelPipeline pipeline = Channels.pipeline();
 
         //HTTP protocol handlers
-		pipeline.addLast("decoder", new HttpRequestDecoder());
-		pipeline.addLast("aggregator", new HttpChunkAggregator(1048576));
-		pipeline.addLast("encoder", new HttpResponseEncoder());
-		pipeline.addLast("deflater", new HttpContentCompressor());
+		pipeline.addLast("HTTP Decoder", new HttpRequestDecoder());
+		pipeline.addLast("HTTP Chunk Aggrgator", new HttpChunkAggregator(1048576));
+        pipeline.addLast("HTTP Encoder", httpResponseEncoder);
+		pipeline.addLast("HTTP Deflater", new HttpContentCompressor());
+        pipeline.addLast("Http CORS Handler", httpCorsHandler);
 
         //SSP specific handlers
-        pipeline.addLast("HttpCorsHandler", new HttpCorsHandler());
-        pipeline.addLast("Model Formatter", new ModelFormatter());
-        pipeline.addLast("Http Mirror URI Handler", new HttpMirrorUriHandler());
+        pipeline.addLast("Model Formatter", payloadFormatter);
+        pipeline.addLast("Http Mirror URI Handler", httpMirrorUriHandler);
         pipeline.addLast("Execution Handler", executionHandler);
-		pipeline.addLast("Model Cache", ModelCache.getInstance());
-        pipeline.addLast("Entity Manager", EntityManager.getInstance());
+        pipeline.addLast("Model Cache", ModelCache.getInstance());
+
+        pipeline.addLast("Entity Manager", HttpRequestDispatcher.getInstance());
 
         log.debug("New pipeline created for port: " +
                 ((InetSocketAddress)(pipeline.getChannel().getLocalAddress())).getPort());

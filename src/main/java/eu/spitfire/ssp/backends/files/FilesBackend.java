@@ -29,7 +29,7 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import eu.spitfire.ssp.core.Backend;
 import eu.spitfire.ssp.core.UIElement;
-import eu.spitfire.ssp.core.httpServer.EntityManager;
+import eu.spitfire.ssp.core.httpServer.HttpRequestDispatcher;
 import eu.spitfire.ssp.core.SelfDescription;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.apache.log4j.Logger;
@@ -87,7 +87,7 @@ public class FilesBackend extends Backend {
         return null;  //To change body of implemented methods use File | Settings | File Templates.
     }
 
-    //Register all files as new resources at the EntityManager (ignore *.swp files)
+    //Register all files as new resources at the HttpRequestDispatcher (ignore *.swp files)
     private void registerFileResources(){
         File directoryFile = new File(directory);
         File[] files = directoryFile.listFiles();
@@ -101,7 +101,7 @@ public class FilesBackend extends Backend {
             for(File file : files){
                 if(!file.getName().endsWith(".swp")){
                     try{
-                        URI resourceURI = new URI(EntityManager.SSP_DNS_NAME + prefix + file.getName());
+                        URI resourceURI = new URI(HttpRequestDispatcher.SSP_DNS_NAME + prefix + file.getName());
                           
                         resources.put(resourceURI, file);
 
@@ -131,7 +131,7 @@ public class FilesBackend extends Backend {
         Object response;
                    
         //Look up file
-        URI resourceURI = EntityManager.getInstance().normalizeURI(new URI(request.getUri()));
+        URI resourceURI = HttpRequestDispatcher.getInstance().normalizeURI(new URI(request.getUri()));
         File file = resources.get(resourceURI);
 
         if(file != null && file.isFile()){

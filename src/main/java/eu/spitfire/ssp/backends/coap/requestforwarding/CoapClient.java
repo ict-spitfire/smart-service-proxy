@@ -1,8 +1,8 @@
 package eu.spitfire.ssp.backends.coap.requestforwarding;
 
-import de.uniluebeck.itm.spitfire.nCoap.application.client.CoapClientApplication;
-import de.uniluebeck.itm.spitfire.nCoap.communication.reliability.outgoing.RetransmissionTimeoutMessage;
-import de.uniluebeck.itm.spitfire.nCoap.message.CoapResponse;
+import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
+import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
+import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import eu.spitfire.ssp.backends.coap.CoapBackend;
 import eu.spitfire.ssp.backends.coap.translation.Http2CoapConverter;
 import eu.spitfire.ssp.core.SelfDescription;
@@ -14,8 +14,6 @@ import org.jboss.netty.channel.Channels;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
-
-import java.util.concurrent.Callable;
 
 /**
  * Created with IntelliJ IDEA.
@@ -68,7 +66,7 @@ public class CoapClient extends CoapClientApplication{
     }
 
     @Override
-    public void handleRetransmissionTimeout(RetransmissionTimeoutMessage timeoutMessage) {
+    public void handleRetransmissionTimeout(InternalRetransmissionTimeoutMessage timeoutMessage) {
         //To change body of implemented methods use File | Settings | File Templates.
     }
 }

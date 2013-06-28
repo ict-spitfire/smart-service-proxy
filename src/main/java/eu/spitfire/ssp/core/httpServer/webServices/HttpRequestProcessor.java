@@ -10,18 +10,8 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
  * Time: 14:13
  * To change this template use File | Settings | File Templates.
  */
-public abstract class WebService {
+public interface HttpRequestProcessor {
 
-    private String path;
-
-    public WebService(String path){
-        this.path = path;
-    }
-
-    public String getPath(){
-        return path;
-    }
-
-    public abstract HttpResponse processHttpRequest(HttpRequest httpRequest);
+    public HttpResponse processHttpRequest(HttpRequest httpRequest);
 
 }

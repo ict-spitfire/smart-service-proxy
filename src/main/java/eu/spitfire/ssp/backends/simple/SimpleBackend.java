@@ -27,17 +27,15 @@ package eu.spitfire.ssp.backends.simple;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.vocabulary.VCARD;
+import eu.spitfire.ssp.backends.ProprietaryGateway;
 import eu.spitfire.ssp.core.Backend;
-import eu.spitfire.ssp.core.httpServer.EntityManager;
+import eu.spitfire.ssp.core.httpServer.HttpRequestDispatcher;
 import eu.spitfire.ssp.core.SelfDescription;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
-import org.jboss.netty.handler.codec.http.HttpMethod;
-import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.codec.http.*;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -46,50 +44,51 @@ import java.util.HashMap;
 /**
  * A {@link SimpleBackend} instance hosts a simple standard model. This backend is basicly to ensure the functionality
  * of the underlying handler stack. If it's instanciated (by setting <code>enableBackend="simple"</code> in the
- * <code>ssp.properties</code> file) it registers its WebService (/JohnSmith) at the {@link EntityManager} instance which
+ * <code>ssp.properties</code> file) it registers its WebService (/JohnSmith) at the {@link eu.spitfire.ssp.core.httpServer.HttpRequestDispatcher} instance which
  * causes this WebService to occur on the HTML page (at <code>http://<ssp-ip>:<ssp-port>/) listing the available webServices.
  *
  * @author Oliver Kleine
  *
  */
 
-public class SimpleBackend extends Backend {
+public class SimpleBackend extends ProprietaryGateway {
 
     private static Logger log = Logger.getLogger(SimpleBackend.class.getName());
 
     private HashMap<String, Model> resources = new HashMap<String, Model>();
 
-    /**
-     * Returns a new Backend instance and reads the actual configuration from ssp.properties
-     *
-     * @throws org.apache.commons.configuration.ConfigurationException
-     *          if an error occurs while loading ssp.properties
-     */
-    public SimpleBackend() throws ConfigurationException {
-        super();
+    public SimpleBackend(HttpRequestDispatcher httpRequestDispatcher, String servicePathPrefix) {
+        super(httpRequestDispatcher, servicePathPrefix);
     }
 
-    @Override
-    public void bind(){
-        super.bind();
-        registerResources();
+
+    private void registerService(){
+
+        String servicePath = "http://example.org/JohnSmith";
+        Model model = ModelFactory.createDefaultModel();
+        model.createResource(servicePath).addProperty(VCARD.FN, "John Smith");
+
+        resources.put(getServicePathPrefix() + "/JohnSmith", model);
+
+        getHttpRequestDispatcher().
+
     }
-    
+
     private void registerResources(){
         try {
             String personURI = "http://example.org/JohnSmith";
             Model model = ModelFactory.createDefaultModel();
             model.createResource(personURI).addProperty(VCARD.FN, "John Smith");
 
-            resources.put(prefix + "JohnSmith", model);
+            resources.put(getServicePathPrefix() + "/JohnSmith", model);
 
             URI resourceTargetUri = new URI("http://"
-                                    + EntityManager.SSP_DNS_NAME
-                                    + ":" + EntityManager.SSP_HTTP_SERVER_PORT
+                                    + HttpRequestDispatcher.SSP_DNS_NAME
+                                    + ":" + HttpRequestDispatcher.SSP_HTTP_SERVER_PORT
                                     + prefix + "JohnSmith");
 
 
-            EntityManager.getInstance().entityCreated(resourceTargetUri, this);
+            HttpRequestDispatcher.getInstance().entityCreated(resourceTargetUri, this);
 
             if(log.isDebugEnabled()){
                 log.debug("[SimpleBackend] Successfully added new resource at " + resourceTargetUri);
@@ -143,5 +142,15 @@ public class SimpleBackend extends Backend {
         //Send response
         ChannelFuture future = Channels.write(ctx.getChannel(), response);
         future.addListener(ChannelFutureListener.CLOSE);
+    }
+
+    @Override
+    public HttpResponse processHttpRequestForBackendSpecificService(HttpRequest httpRequest) {
+        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    @Override
+    public HttpResponse processHttpRequestForUserInterface(HttpRequest httpRequest) {
+        return null;  //To change body of implemented methods use File | Settings | File Templates.
     }
 }

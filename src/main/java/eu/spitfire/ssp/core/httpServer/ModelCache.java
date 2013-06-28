@@ -38,7 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Checks whether the incoming {@link HttpRequest} can be answered with cached information. This depends on the
  * existence of cached information and its age. If there is suitable information available, the request will be
  * answered by sending a corresponding Object of type @link{Model} to the downstream. Otherwise the request will
- * be send to the upstream unchanged to be processed by the {@link EntityManager}.
+ * be send to the upstream unchanged to be processed by the {@link HttpRequestDispatcher}.
  *
  * @author Oliver Kleine
  *
@@ -63,7 +63,7 @@ public class ModelCache extends SimpleChannelHandler {
      * This method is invoked for upstream {@link MessageEvent}s and handles incoming {@link HttpRequest}s.
      * It tries to find a fresh statement of the requested resource (identified using the requests target URI) in its
      * internal cache. If a fresh statement is found, it sends this statement (as an instance of {@link Model})
-     * downstream to the {@link ModelFormatter}. 
+     * downstream to the {@link PayloadFormatter}.
      * 
      * @param ctx The {@link ChannelHandlerContext} to relate this handler with its current {@link Channel}
      * @param me The {@link MessageEvent} containing the {@link HttpRequest}

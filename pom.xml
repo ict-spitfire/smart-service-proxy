@@ -48,8 +48,8 @@
         </dependency>
 
         <dependency>
-            <groupId>de.uniluebeck.itm.spitfire</groupId>
-            <artifactId>nCoap</artifactId>
+            <groupId>de.uniluebeck.itm</groupId>
+            <artifactId>ncoap</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
 
