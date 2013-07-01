@@ -22,52 +22,37 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire.ssp.gateways.coap;
+package eu.spitfire.ssp.gateways.simple;
 
-import com.google.common.util.concurrent.SettableFuture;
-import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
-import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
-import eu.spitfire.ssp.gateways.coap.noderegistration.CoapNodeRegistrationService;
-import eu.spitfire.ssp.core.httpServer.webServices.HttpRequestProcessor;
-import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import eu.spitfire.ssp.gateways.AbstractGateway;
+import org.apache.log4j.Logger;
+import org.jboss.netty.channel.local.LocalServerChannel;
 
-import java.net.InetSocketAddress;
+import java.util.concurrent.ExecutorService;
 
 /**
+ * A {@link SimpleGateway} instance hosts a simple standard model. This backend is basicly to ensure the functionality
+ * of the underlying handler stack. If it's instanciated (by setting <code>enableBackend="simple"</code> in the
+ * <code>ssp.properties</code> file) it registers its WebService (/JohnSmith) at the {@link eu.spitfire.ssp.core.httpServer.HttpRequestDispatcher} instance which
+ * causes this WebService to occur on the HTML page (at <code>http://<ssp-ip>:<ssp-port>/) listing the available webServices.
+ *
  * @author Oliver Kleine
  *
  */
 
-public class CoapBackend implements HttpRequestProcessor {
+public class SimpleGateway extends AbstractGateway {
 
-    public static final int NODES_COAP_PORT = 5683;
+    private static Logger log = Logger.getLogger(SimpleGateway.class.getName());
 
-    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
+    //private HashMap<String, Model> resources = new HashMap<String, Model>();
 
-    private CoapServerApplication coapServer;
-    private CoapClientApplication coapClient;
-
-    public CoapBackend(){
-        this.coapServer = new CoapServerApplication();
-        coapServer.registerService(new CoapNodeRegistrationService(this));
-
-        this.coapClient = new CoapClientApplication();
+    public SimpleGateway(String prefix, LocalServerChannel internalChannel, ExecutorService ioExecutorService) {
+        super(prefix, internalChannel, ioExecutorService);
+        addService();
     }
 
-    public void addService(InetSocketAddress remoteAddress, String servicePath){
-
-    }
-
-    public CoapClientApplication getCoapClient(){
-        return this.coapClient;
-    }
-
-
-    @Override
-    public void processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest) {
-        //To change body of implemented methods use File | Settings | File Templates.
+    private void addService(){
+        log.info("Add service /JohnSmith");
+        registerService("/JohnSmith", new SimpleHttpRequestProcessor());
     }
 }

@@ -88,15 +88,9 @@ public class Http2CoapConverter {
 
         //TODO Set CoAP "Accept-Options" according to the HTTP "Accept-Header"
 
-        try {
-            coapRequest.setAccept(APP_RDF_XML);
-        } catch (InvalidOptionException e) {
-            log.error(e);
-        } catch (ToManyOptionsException e) {
-            log.error(e);
-        }
+        coapRequest.setAccept(APP_RDF_XML);
 
-        return coapRequest;
+        return null;
     }
 
 //    public static HttpResponse convertCoapToHttpResponse(CoapResponse coapResponse, HttpVersion httpVersion){

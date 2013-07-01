@@ -107,7 +107,7 @@ public class SelfDescription {
         if(mediaType == null){
             log.info("[SelfDescription] CoapResponse contains an unknown content type (number = " +
                     mediaTypeNumber + ").");
-            throw new InvalidOptionException(OptionRegistry.OptionName.CONTENT_TYPE.number,
+            throw new InvalidOptionException(OptionRegistry.OptionName.CONTENT_TYPE.getNumber(),
                                              "Unknown content type: " + mediaTypeNumber);
         }
 

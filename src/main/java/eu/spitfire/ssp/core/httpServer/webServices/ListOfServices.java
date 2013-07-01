@@ -4,13 +4,18 @@ import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.core.UIElement;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
+import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Set;
 import java.util.TreeSet;
+
+import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
+import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 
 /**
  * Created with IntelliJ IDEA.
@@ -27,19 +32,13 @@ public class ListOfServices implements HttpRequestProcessor{
         this.services = services;
     }
 
-    @Override
-    public HttpResponse processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest) {
-
-    }
-
     private ChannelBuffer getHtmlListOfServices(){
         StringBuilder buf = new StringBuilder();
         buf.append("<html><body>\n");
         buf.append("<h2>Entities</h2>\n");
         buf.append("<ul>\n");
 
-        TreeSet<URI> entitySet = new TreeSet<URI>(httpRequestProcessors.keySet());
-        for(URI uri : entitySet){
+        for(URI uri : services){
             buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
         }
 
@@ -52,5 +51,15 @@ public class ListOfServices implements HttpRequestProcessor{
 
         return ChannelBuffers.wrappedBuffer(buf.toString()
                 .getBytes(Charset.forName("UTF-8")));
+    }
+
+    @Override
+    public void processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest) {
+        HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
+        httpResponse.setHeader(CONTENT_TYPE, "text/html; charset=utf-8");
+        httpResponse.setContent(getHtmlListOfServices());
+        httpResponse.setHeader(CONTENT_LENGTH, httpResponse.getContent().readableBytes());
+
+        responseFuture.set(httpResponse);
     }
 }

@@ -37,6 +37,7 @@ import org.jboss.netty.handler.execution.ExecutionHandler;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.ExecutorService;
 
 
 /**
@@ -59,7 +60,7 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 
     ExecutionHandler executionHandler;
 
-    public SmartServiceProxyPipelineFactory(){
+    public SmartServiceProxyPipelineFactory(ExecutorService ioExecutorService) throws Exception {
         httpResponseEncoder = new HttpResponseEncoder();
         httpCorsHandler = new HttpCorsHandler();
         payloadFormatter = new PayloadFormatter();
@@ -68,13 +69,13 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
         executionHandler = new ExecutionHandler(new OrderedMemoryAwareThreadPoolExecutor(100, 0, 0));
 
         modelCache = new ModelCache();
-        httpRequestDispatcher = new HttpRequestDispatcher();
+        httpRequestDispatcher = new HttpRequestDispatcher(ioExecutorService);
     }
 
     public ChannelPipeline getInternalPipeline() throws Exception{
         ChannelPipeline pipeline = Channels.pipeline();
 
-        pipeline.addLast("Model Cache", modelCache);
+        //pipeline.addLast("Model Cache", modelCache);
         pipeline.addLast("HTTP Request Dispatcher", httpRequestDispatcher);
 
         return pipeline;
@@ -88,22 +89,19 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
         //HTTP protocol handlers
 		pipeline.addLast("HTTP Decoder", new HttpRequestDecoder());
 		pipeline.addLast("HTTP Chunk Aggrgator", new HttpChunkAggregator(1048576));
-        pipeline.addLast("HTTP Encoder", httpResponseEncoder);
+        pipeline.addLast("HTTP Encoder", new HttpResponseEncoder());
 		pipeline.addLast("HTTP Deflater", new HttpContentCompressor());
-        pipeline.addLast("Http CORS Handler", httpCorsHandler);
+        pipeline.addLast("Http CORS Handler", new HttpCorsHandler());
 
         //SSP specific handlers
-        pipeline.addLast("Payload Formatter", payloadFormatter);
-        pipeline.addLast("HTTP Mirror URI Handler", httpMirrorUriHandler);
+        //pipeline.addLast("Payload Formatter", new PayloadFormatter());
+        //pipeline.addLast("HTTP Mirror URI Handler", new HttpMirrorUriHandler());
         pipeline.addLast("Execution Handler", executionHandler);
-        pipeline.addLast("Model Cache", modelCache);
+        //pipeline.addLast("Model Cache", modelCache);
 
         pipeline.addLast("HTTP Request Dispatcher", httpRequestDispatcher);
 
-        log.debug("New pipeline created for port: " +
-                ((InetSocketAddress)(pipeline.getChannel().getLocalAddress())).getPort());
-
-		return pipeline;
+        return pipeline;
 	}
 
 }

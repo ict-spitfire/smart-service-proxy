@@ -72,28 +72,29 @@ public class HttpMirrorUriHandler extends SimpleChannelUpstreamHandler {
      */
     @Override
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent me)  throws Exception{
-        if (me.getMessage() instanceof HttpRequest) {
-
-            HttpRequest request = (HttpRequest) me.getMessage();
-            String host = request.getHeader(HOST);
-            log.debug("Incoming HTTP request for host: " + host);
-
-            //Eventually convert URIs host part to IPv6 address of the target host
-            if (host.endsWith(DNS_WILDCARD_POSTFIX) ) {
-                host = host.substring(0, host.indexOf(DNS_WILDCARD_POSTFIX) - 1);
-                host = host.replace("-", ":");
-                log.debug("New target host: " + host);
-
-                try{
-                    request.setHeader(HOST, "[" + InetAddress.getByName("[" + host + "]").getHostAddress() + "]");
-                }
-                catch (UnknownHostException e) {
-                    log.debug("This should never happen! Not an IPv6 address: " + host);
-                }
-            }
-        }
-
-        ctx.sendUpstream(me);
+//        if (me.getMessage() instanceof HttpRequest) {
+//
+//            HttpRequest request = (HttpRequest) me.getMessage();
+//            String host = request.getHeader(HOST);
+//            log.debug("Incoming HTTP request for host: " + host);
+//
+//            //Eventually convert URIs host part to IPv6 address of the target host
+//            if (host.endsWith(DNS_WILDCARD_POSTFIX) ) {
+//                host = host.substring(0, host.indexOf(DNS_WILDCARD_POSTFIX) - 1);
+//                host = host.replace("-", ":");
+//                log.debug("New target host: " + host);
+//
+//                try{
+//                    request.setHeader(HOST, "[" + InetAddress.getByName("[" + host + "]").getHostAddress() + "]");
+//                }
+//                catch (UnknownHostException e) {
+//                    log.debug("This should never happen! Not an IPv6 address: " + host);
+//                }
+//            }
+//        }
+//
+//        ctx.sendUpstream(me);
+        super.messageReceived(ctx, me);
 
     }
 }

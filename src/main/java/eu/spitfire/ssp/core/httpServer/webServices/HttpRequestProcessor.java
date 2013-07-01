@@ -4,6 +4,8 @@ import com.google.common.util.concurrent.SettableFuture;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
+import java.net.URI;
+
 /**
  * Created with IntelliJ IDEA.
  * User: olli
@@ -13,6 +15,6 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
  */
 public interface HttpRequestProcessor {
 
-    public HttpResponse processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest);
+    public void processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest);
 
 }

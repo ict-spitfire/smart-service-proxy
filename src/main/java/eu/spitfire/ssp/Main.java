@@ -25,10 +25,7 @@
 package eu.spitfire.ssp;
 
 import eu.spitfire.ssp.gateways.AbstractGateway;
-import eu.spitfire.ssp.gateways.coap.CoapBackend;
-import eu.spitfire.ssp.gateways.files.FilesBackend;
-import eu.spitfire.ssp.gateways.simple.SimpleBackend;
-import eu.spitfire.ssp.core.Backend;
+import eu.spitfire.ssp.gateways.simple.SimpleGateway;
 import eu.spitfire.ssp.core.pipeline.SmartServiceProxyPipelineFactory;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -37,12 +34,12 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 import org.jboss.netty.bootstrap.ServerBootstrap;
-import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.local.DefaultLocalServerChannelFactory;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Main {
@@ -57,18 +54,20 @@ public class Main {
      * @throws Exception might be everything
      */
     public static void main(String[] args) throws Exception {
+        initializeLogging();
         Configuration config = new PropertiesConfiguration("ssp.properties");
 
-        SSP_DNS_NAME = config.getString("SSP_DNS_NAME", "localhost");
+        SSP_DNS_NAME = config.getString("SSP_DNS_NAME", null);
+        DNS_WILDCARD_POSTFIX = config.getString("DNS_WILDCARD_POSTFIX", null);
         SSP_HTTP_SERVER_PORT = config.getInt("SSP_HTTP_SERVER_PORT", 8080);
-        DNS_WILDCARD_POSTFIX = config.getString("IPv4_SERVER_DNS_WILDCARD_POSTFIX", null);
 
         //Create pipeline for server
+        ExecutorService ioExecutorService = Executors.newCachedThreadPool();
         ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
                                                                 Executors.newCachedThreadPool(),
-                                                                Executors.newCachedThreadPool()
+                                                                ioExecutorService
         ));
-        SmartServiceProxyPipelineFactory pipelineFactory = new SmartServiceProxyPipelineFactory();
+        SmartServiceProxyPipelineFactory pipelineFactory = new SmartServiceProxyPipelineFactory(ioExecutorService);
         bootstrap.setPipelineFactory(pipelineFactory);
 
         //start server
@@ -77,37 +76,32 @@ public class Main {
         log.info("HTTP server started. Listening on port " + httpServerPort);
 
         //Create local channel
+
         DefaultLocalServerChannelFactory internalChannelFactory = new DefaultLocalServerChannelFactory();
         LocalServerChannel internalChannel = internalChannelFactory.newChannel(pipelineFactory.getInternalPipeline());
 
         //Create enabled gateways
-        createBackends(config, internalChannel);
-
-
-
+        createGateways(config, internalChannel, ioExecutorService);
     }
     
     //Create the gateways enabled in ssp.properties
-    private static void createBackends(Configuration config, LocalServerChannel internalChannel) throws Exception {
-        
-        String[] enabledBackends = config.getStringArray("enableBackend");
+    private static void createGateways(Configuration config, LocalServerChannel internalChannel,
+                                       ExecutorService ioExecutorService) throws Exception {
 
-        if(log.isDebugEnabled()){
-            log.debug("[Main] Start creating enabled Backends!");
-        }
+        log.debug("[Main] Start creating enabled Gateways!");
+        String[] enabledGateways = config.getStringArray("enableGateway");
 
-
-
-        for(String enabledBackend : enabledBackends){
+        for(String enabledBackend : enabledGateways){
 
             //CoAPBackend
             if(enabledBackend.equals("coap")) {
                 //CoapBackend coapBackend = new CoapBackend(internalChannel);
             }
 
-            //SimpleBackend
+            //SimpleGateway
             else if(enabledBackend.equals("simple")){
-                AbstractGateway backend = new SimpleBackend(internalChannel);
+                log.info("Create Simple Gateway.");
+                AbstractGateway backend = new SimpleGateway("simple", internalChannel, ioExecutorService);
             }
 
             //FilesBackend
@@ -134,10 +128,7 @@ public class Main {
         Logger.getRootLogger().removeAllAppenders();
         Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
 
-        Logger.getRootLogger().setLevel(Level.ERROR);
-        Logger.getLogger("eu.spitfire_project.ssp").setLevel(Level.DEBUG);
-        Logger.getLogger("eu.spitfire.ssp.converter.shdt.ShdtSerializer").setLevel(Level.ERROR);
-        Logger.getLogger("de.uniluebeck.itm.ncoap.communication").setLevel(Level.ERROR);
+        Logger.getRootLogger().setLevel(Level.DEBUG);
     }
 }
 

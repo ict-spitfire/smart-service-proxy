@@ -26,6 +26,7 @@ package eu.spitfire.ssp.gateways;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.core.httpServer.webServices.HttpRequestProcessor;
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
@@ -35,8 +36,17 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+
+import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
+import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 
 /**
  * A {@link AbstractGateway} instance is a software component to enable a client that is capable of talking HTTP to
@@ -46,41 +56,88 @@ import java.util.concurrent.ExecutorService;
  *
  * @author Oliver Kleine
  */
-public abstract class AbstractGateway extends SimpleChannelHandler implements HttpRequestProcessor {
+public abstract class AbstractGateway implements HttpRequestProcessor {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private LocalServerChannel internalChannel;
     private ExecutorService ioExecutorService;
 
-    public AbstractGateway(LocalServerChannel internalChannel){
+    private String prefix;
+    private Map<URI, HttpRequestProcessor> services;
+
+    public AbstractGateway(String prefix, LocalServerChannel internalChannel, ExecutorService ioExecutorService,
+                           HttpRequestProcessor gui){
+        this.prefix = prefix;
         this.internalChannel = internalChannel;
+        this.ioExecutorService = ioExecutorService;
+        this.services = Collections.synchronizedMap(new HashMap<URI, HttpRequestProcessor>());
+
+        if(gui != null){
+            registerService("/", gui);
+        }
+    }
+
+    public AbstractGateway(String prefix, LocalServerChannel internalChannel, ExecutorService ioExecutorService){
+        this(prefix, internalChannel, ioExecutorService, null);
     }
 
     @Override
-    public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent me){
-        if(!(me.getMessage() instanceof HttpRequest)){
-            ctx.sendUpstream(me);
-            return;
-        }
-
-
-
-        me.getFuture().setSuccess();
-    }
-
     public void processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest){
 
 
+        URI targetUri = null;
+        try {
+            targetUri = new URI("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri());
+            log.debug("Received request for {}", targetUri);
+        } catch (URISyntaxException e) {
+            HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+                    HttpResponseStatus.INTERNAL_SERVER_ERROR);
 
-        if(httpRequest.getUri().equals("/"))
-            return processHttpRequestForUserInterface(httpRequest);
-        else
-            return processHttpRequestForBackendSpecificService(httpRequest);
+            httpResponse.setHeader(CONTENT_TYPE, "text/html; charset=utf-8");
+            httpResponse.setContent(ChannelBuffers.wrappedBuffer(("" + e.getCause()).getBytes(Charset.forName("UTF-8"))));
+            httpResponse.setHeader(CONTENT_LENGTH, httpResponse.getContent().readableBytes());
+
+        }
+
+        HttpRequestProcessor httpRequestProcessor = services.get(targetUri);
+        httpRequestProcessor.processHttpRequest(responseFuture, httpRequest);
     }
 
-    public abstract HttpResponse processHttpRequestForBackendSpecificService(HttpRequest httpRequest);
+    public void registerService(final String servicePath, final HttpRequestProcessor service){
+        log.debug("Register service {} for {}.", servicePath, service);
+        //Write registration request to Http Request Dispatcher
+        final SettableFuture<URI> registrationFuture = SettableFuture.create();
+        ChannelFuture writeFuture =
+                Channels.write(internalChannel,
+                        new InternalRegisterServiceMessage(registrationFuture, servicePath, this));
 
-    public abstract HttpResponse processHttpRequestForUserInterface(HttpRequest httpRequest);
+        registrationFuture.addListener(new Runnable() {
+            @Override
+            public void run() {
+                URI serviceUri = null;
+                try {
+                    serviceUri = registrationFuture.get();
+                } catch (InterruptedException e) {
+                    log.error("This should never happen.", e);
+                } catch (ExecutionException e) {
+                    log.error("This should never happen.", e);
+                }
+                services.put(serviceUri, service);
+                log.info("Registered new service {} for {}.", serviceUri, this.getClass().getName());
+            }
+        }, ioExecutorService);
+
+        writeFuture.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture channelFuture) {
+                log.info("Successfully written.");
+            }
+        });
+    }
+
+    public String getPrefix() {
+        return prefix;
+    }
 }
 
