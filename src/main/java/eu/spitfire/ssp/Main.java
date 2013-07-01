@@ -24,12 +24,12 @@
  */
 package eu.spitfire.ssp;
 
-import eu.spitfire.ssp.backends.ProprietaryGateway;
-import eu.spitfire.ssp.backends.coap.CoapBackend;
-import eu.spitfire.ssp.backends.files.FilesBackend;
-import eu.spitfire.ssp.backends.simple.SimpleBackend;
+import eu.spitfire.ssp.gateways.AbstractGateway;
+import eu.spitfire.ssp.gateways.coap.CoapBackend;
+import eu.spitfire.ssp.gateways.files.FilesBackend;
+import eu.spitfire.ssp.gateways.simple.SimpleBackend;
 import eu.spitfire.ssp.core.Backend;
-import eu.spitfire.ssp.core.httpServer.SmartServiceProxyPipelineFactory;
+import eu.spitfire.ssp.core.pipeline.SmartServiceProxyPipelineFactory;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.ConsoleAppender;
@@ -37,6 +37,9 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 import org.jboss.netty.bootstrap.ServerBootstrap;
+import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.local.DefaultLocalServerChannelFactory;
+import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
 import java.net.InetSocketAddress;
@@ -73,12 +76,19 @@ public class Main {
         bootstrap.bind(new InetSocketAddress(httpServerPort));
         log.info("HTTP server started. Listening on port " + httpServerPort);
 
-        //Create enabled backends
-        createBackends(config);
+        //Create local channel
+        DefaultLocalServerChannelFactory internalChannelFactory = new DefaultLocalServerChannelFactory();
+        LocalServerChannel internalChannel = internalChannelFactory.newChannel(pipelineFactory.getInternalPipeline());
+
+        //Create enabled gateways
+        createBackends(config, internalChannel);
+
+
+
     }
     
-    //Create the backends enabled in ssp.properties
-    private static void createBackends(Configuration config) throws Exception {
+    //Create the gateways enabled in ssp.properties
+    private static void createBackends(Configuration config, LocalServerChannel internalChannel) throws Exception {
         
         String[] enabledBackends = config.getStringArray("enableBackend");
 
@@ -86,32 +96,33 @@ public class Main {
             log.debug("[Main] Start creating enabled Backends!");
         }
 
+
+
         for(String enabledBackend : enabledBackends){
 
             //CoAPBackend
             if(enabledBackend.equals("coap")) {
-                CoapBackend coapBackend = new CoapBackend();
+                //CoapBackend coapBackend = new CoapBackend(internalChannel);
             }
 
             //SimpleBackend
             else if(enabledBackend.equals("simple")){
-                ProprietaryGateway backend = new SimpleBackend(this, "/simple");
-                backend.bind();
+                AbstractGateway backend = new SimpleBackend(internalChannel);
             }
 
             //FilesBackend
             else if(enabledBackend.equals("files")){
-                String directory = config.getString("files.directory");
-                if(directory == null){
-                    throw new Exception("Property 'files.directory' not set.");
-                }
-                ProprietaryGateway backend = new FilesBackend(directory);
-                backend.bind();
+//                String directory = config.getString("files.directory");
+//                if(directory == null){
+//                    throw new Exception("Property 'files.directory' not set.");
+//                }
+//                AbstractGateway backend = new FilesBackend(directory);
+//                backend.bind();
             }
 
-            //Unknown ProprietaryGateway Type
+            //Unknown AbstractGateway Type
             else {
-                throw new Exception("Config file error: ProprietaryGateway '" + enabledBackend + "' not found.");
+                throw new Exception("Config file error: AbstractGateway '" + enabledBackend + "' not found.");
             }
         }
     }

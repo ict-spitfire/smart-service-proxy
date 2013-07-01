@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.coap.noderegistration;
+package eu.spitfire.ssp.gateways.coap.noderegistration;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -7,7 +7,7 @@ import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import eu.spitfire.ssp.backends.coap.CoapBackend;
+import eu.spitfire.ssp.gateways.coap.CoapBackend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +15,6 @@ import java.net.Inet6Address;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 
 /**
  * This is the WebService for new sensor nodes to register at. It's path is <code>/here_i_am</code>. It only accepts

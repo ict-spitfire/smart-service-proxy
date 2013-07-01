@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.coap.observation;
+package eu.spitfire.ssp.gateways.coap.observation;
 
 import java.net.Inet6Address;
 

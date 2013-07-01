@@ -22,19 +22,19 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire.ssp.backends.simple;
+package eu.spitfire.ssp.gateways.simple;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.vocabulary.VCARD;
-import eu.spitfire.ssp.backends.ProprietaryGateway;
+import eu.spitfire.ssp.gateways.AbstractGateway;
 import eu.spitfire.ssp.core.Backend;
 import eu.spitfire.ssp.core.httpServer.HttpRequestDispatcher;
 import eu.spitfire.ssp.core.SelfDescription;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
-import org.apache.commons.configuration.ConfigurationException;
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.*;
+import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.handler.codec.http.*;
 
 import java.net.URI;
@@ -51,14 +51,14 @@ import java.util.HashMap;
  *
  */
 
-public class SimpleBackend extends ProprietaryGateway {
+public class SimpleBackend extends AbstractGateway {
 
     private static Logger log = Logger.getLogger(SimpleBackend.class.getName());
 
     private HashMap<String, Model> resources = new HashMap<String, Model>();
 
-    public SimpleBackend(HttpRequestDispatcher httpRequestDispatcher, String servicePathPrefix) {
-        super(httpRequestDispatcher, servicePathPrefix);
+    public SimpleBackend(LocalServerChannel internalChannel) {
+        super();
     }
 
 

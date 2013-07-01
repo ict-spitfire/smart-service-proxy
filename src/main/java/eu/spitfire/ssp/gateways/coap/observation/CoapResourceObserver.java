@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.coap.observation;
+package eu.spitfire.ssp.gateways.coap.observation;
 
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
@@ -7,7 +7,7 @@ import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
 import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
-import eu.spitfire.ssp.backends.coap.CoapBackend;
+import eu.spitfire.ssp.gateways.coap.CoapBackend;
 import eu.spitfire.ssp.core.SelfDescription;
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.*;

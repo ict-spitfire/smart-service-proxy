@@ -24,13 +24,12 @@
  */
 package eu.spitfire.ssp.core.httpServer;
 
+import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.Main;
-import eu.spitfire.ssp.backends.ProprietaryGateway;
-import eu.spitfire.ssp.core.Backend;
 import eu.spitfire.ssp.core.UIElement;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.PropertiesConfiguration;
+import eu.spitfire.ssp.core.httpServer.webServices.HttpRequestProcessor;
+import eu.spitfire.ssp.core.httpServer.webServices.ListOfServices;
+import eu.spitfire.ssp.gateways.AbstractGateway;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
@@ -46,70 +45,38 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
-import java.util.NoSuchElementException;
+import java.util.Collections;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 
 
 /**
- * The HttpRequestDispatcher is the topmost upstream handler of an HTTPEntityMangerPipeline.
- * It contains a list of {@link eu.spitfire.ssp.core.Backend}s to manage all available webServices behind them.
- * 
  * @author Oliver Kleine
  */
 public class HttpRequestDispatcher extends SimpleChannelHandler {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
+	//Matches target URIs to request processor (either local webwervice or gateway)
+	private Map<URI, HttpRequestProcessor> httpRequestProcessors;
 
-    //Services offered by HttpRequestDispatcher
-    private final String PATH_TO_SERVER_LIST = "/.well-known/servers";
-    private final String SERVER_PATH_TO_SLSE_UI = "/static/";
-    private final String LOCAL_PATH_TO_SLSE_UI = "data/slse/ui/create_entity_form.html";
+    private ExecutorService ioExecutorService;
 
+    public HttpRequestDispatcher(ExecutorService ioExecutorService) throws Exception {
+        this.ioExecutorService = ioExecutorService;
+        httpRequestProcessors = Collections.synchronizedMap(new TreeMap<URI, HttpRequestProcessor>());
 
-    //Parameters for ProprietaryGateway and Entity creation
-    private int nextBackendId = 0;
-    private final String BACKEND_PREFIX_FORMAT = "/be-%04d/";
-    private int nextEntityId = 0;
-    private final String ENTITY_FORMAT = "/entity-%04x/";
+        //register service to provide list of available services
+        URI targetUri = new URI("http://www." + Main.DNS_WILDCARD_POSTFIX + ":" + Main.SSP_HTTP_SERVER_PORT + "/");
+        registerService(targetUri, new ListOfServices(httpRequestProcessors.keySet()));
+    }
 
-	//Contains the URIs of webServices (e.g. on sensor nodes) and the proper backend
-	private ConcurrentHashMap<URI, ProprietaryGateway> entities = new ConcurrentHashMap<URI, ProprietaryGateway>();
-
-//    private ConcurrentHashMap<URI, ProprietaryGateway> virtualEntities = new ConcurrentHashMap<URI, ProprietaryGateway>();
-
-//	//Contains the individual paths to the backends (for Userinterface access)
-//	private ConcurrentHashMap<String, ProprietaryGateway> backends = new ConcurrentHashMap<String, ProprietaryGateway>();
-
-    private Vector<UIElement> uiElements = new Vector<UIElement>();
-
-
-//	/**
-//	 */
-//	URI nextEntityURI() {
-//		nextEntityId++;
-//		return normalizeURI(String.format(ENTITY_FORMAT, nextEntityId));
-//	}
-	
-//	/**
-//	 */
-//	public void registerBackend(ProprietaryGateway backend) {
-//		nextBackendId++;
-//		String prefix = String.format(BACKEND_PREFIX_FORMAT, nextBackendId);
-//		backend.setPrefix(prefix);
-//        registerBackend(backend, prefix);
-//	}
-
-//    public void registerBackend(ProprietaryGateway backend, String prefix){
-//        if(backends.put(prefix, backend) != backend){
-//            log.debug("New ProprietaryGateway for path prefix " + prefix);
-//        }
-//        if(backend.getUIElements() != null){
-//            uiElements.addAll(backend.getUIElements());
-//        }
-//    }
+    private void registerService(URI targetUri, HttpRequestProcessor httpRequestProcessor){
+        httpRequestProcessors.put(targetUri, httpRequestProcessor);
+    }
 
     /**
      * Normalizes the given URI. It removes unnecessary slashes (/) or unnecessary parts of the path
@@ -133,60 +100,31 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 		while(uri.substring(uri.length()-1).equals("#")) {
 			uri = uri.substring(0, uri.length()-1);
 		}
-		URI r = URI.create(SSP_DNS_NAME).resolve(uri).normalize();
-		return r;
+		URI result = URI.create(Main.DNS_WILDCARD_POSTFIX).resolve(uri).normalize();
+		return result;
 	}
 
 
-
-//    /**
-//     * Normalizes the given URI and adds a # at the end. It removes unnecessary slashes (/) or
-//     * unnecessary parts of the path (e.g. /part_1/part_2/../path_3 to /path_1/part_3), removes the # and following
-//     * characters at the end of the path and makes relative URIs absolute. After normalizing it adds a # at the end.
-//     * Example: Both, http://localhost/path/to/WebService#something and http://localhost/path/to/WebService result into
-//     * http://localhost/path/to/WebService#
-//     *
-//     * @param uri The URI to be normalized and converted to represent a thing
-//     */
-//	public URI toThing(String uri) {
-//		// note: currently we go for the variant without '#' at the end as
-//		// that seems to make RDF/XML serializations impossible sometimes
-//        return URI.create(normalizeURI(uri).toString() /*+ "#"*/);
-//    }
-//
-//    /**
-//     * Normalizes the given URI and adds a # at the end. It removes unnecessary slashes (/) or
-//     * unnecessary parts of the path (e.g. /part_1/part_2/../path_3 to /path_1/part_3), removes the # and following
-//     * characters at the end of the path and makes relative URIs absolute. After normalizing it adds a # at the end.
-//     * Example: Both, http://localhost/path/to/WebService#something and http://localhost/path/to/WebService result into
-//     * http://localhost/path/to/WebService#
-//     *
-//     * @param uri The URI to be normalized and converted to represent a thing
-//     */
-//	public URI toThing(URI uri) {
-//		// note: currently we go for the variant without '#' at the end as
-//		// that seems to make RDF/XML serializations impossible sometimes
-//		return URI.create(normalizeURI(uri).toString() /* + "#"*/);
-//    }
-	
 	/**
 	 * Expected Message types:
 	 * - HTTP Requests
 	 */
 	@Override
-	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
+	public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent me) throws Exception {
 
-        if(!(e.getMessage() instanceof HttpRequest)) {
-			super.messageReceived(ctx, e);
+        if(!(me.getMessage() instanceof HttpRequest)) {
+			super.messageReceived(ctx, me);
             return;
 		}
 
-        HttpRequest httpRequest = (HttpRequest) e.getMessage();
+        me.getFuture().setSuccess();
+
+        final HttpRequest httpRequest = (HttpRequest) me.getMessage();
         URI targetUri = normalizeURI(new URI("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri())) ;
 
         log.debug("Received HTTP request for " + targetUri);
 
-        if(httpRequest.getHeader("HOST").contains(DNS_WILDCARD_POSTFIX)){
+        if(httpRequest.getHeader("HOST").contains(Main.DNS_WILDCARD_POSTFIX)){
             String targetUriHost = InetAddress.getByName(targetUri.getHost()).getHostAddress();
             //remove leading zeros per block
             targetUriHost = targetUriHost.replaceAll(":0000", ":0");
@@ -205,108 +143,53 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
                 targetUriHost = "[" + targetUriHost + "]";
             }
 
-            targetUri = toThing(URI.create("http://" + targetUriHost + httpRequest.getUri()));
+            targetUri = normalizeURI(URI.create("http://" + targetUriHost + httpRequest.getUri()));
             log.debug("Shortened target URI: " + targetUri);
         }
 
-        if(entities.containsKey(targetUri)){
-            ProprietaryGateway backend = entities.get(targetUri);
-			try {
-                ctx.getPipeline().remove("ProprietaryGateway to handle request");
-			}
-            catch(NoSuchElementException ex) {
-                //Fine. There was no handler to be removed.
+        //Create a future to wait for a response asynchronously
+        final SettableFuture<HttpResponse> responseFuture = SettableFuture.create();
+        responseFuture.addListener(new Runnable(){
+            @Override
+            public void run() {
+                HttpResponse httpResponse;
+                try {
+                    httpResponse = responseFuture.get();
+                } catch (Exception e) {
+                    httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+                            HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                }
+
+                ChannelFuture future = Channels.write(ctx.getChannel(), httpResponse, me.getRemoteAddress());
+                future.addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                        log.info("Succesfully sent response to {}.", me.getRemoteAddress());
+                    }
+                });
+
             }
-            ctx.getPipeline().addLast("ProprietaryGateway to handle request", backend);
-            log.debug("Forward request to " + backend);
+        }, ioExecutorService);
+
+        if(httpRequestProcessors.containsKey(targetUri)){
+            HttpRequestProcessor httpRequestProcessor = httpRequestProcessors.get(targetUri);
+            httpRequestProcessor.processHttpRequest(responseFuture, httpRequest);
         }
+        else{
+            HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+                    HttpResponseStatus.NOT_FOUND);
 
-        else if(virtualEntities.containsKey(targetUri)){
-            ProprietaryGateway backend = virtualEntities.get(targetUri);
-			try {
-                ctx.getPipeline().remove("ProprietaryGateway to handle request");
-			}
-            catch(NoSuchElementException ex) {
-                //Fine. There was no handler to be removed.
-            }
-			ctx.getPipeline().addLast("ProprietaryGateway to handle request", backend);
-            log.debug("Forward request to " + backend);
+            responseFuture.set(httpResponse);
         }
-
-//        else if (targetUriPath.equals(PATH_TO_SERVER_LIST)) {
-//            // Handle request for resource at path ".well-known/core"
-//            StringBuilder buf = new StringBuilder();
-//            for(URI entity: getServices()) {
-//                buf.append(toThing(entity).toString() + "\n");
-//            }
-//            Channels.write(ctx.getChannel(), Answer.create(buf.toString()).setMime("text/plain"));
-//            return;
-//        }
-
-//        else if("/visualizer".equals(targetUriPath)){
-//            try {
-//                ctx.getPipeline().remove("ProprietaryGateway to handle request");
-//            }
-//            catch(NoSuchElementException ex) {
-//                //Fine. There was no handler to be removed.
-//            }
-//            ctx.getPipeline().addLast("VisualizerService", VisualizerService.getInstance());
-//            log.debug("Forward request to visualizer.");
-//        }
-
-		/*else if(targetUriPath.startsWith(SERVER_PATH_TO_SLSE_UI)) {
-			String f = LOCAL_PATH_TO_SLSE_UI + targetUriPath.substring(SERVER_PATH_TO_SLSE_UI.length());
-			Channels.write(ctx.getChannel(), Answer.create(new File(f)).setMime("text/n3"));
-		}*/
-
-		else if("/".equals(targetUri.getRawPath())){
-            HttpResponse httpResponse =
-                    new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
-
-            httpResponse.setContent(getHtmlListOfServices());
-            ChannelFuture future = Channels.write(ctx.getChannel(), httpResponse);
-            future.addListener(ChannelFutureListener.CLOSE);
-            return;
-        }
-
-        ctx.sendUpstream(e);
     }
 
-    private ChannelBuffer getHtmlListOfServices(){
-        StringBuilder buf = new StringBuilder();
-        buf.append("<html><body>\n");
-        buf.append("<h1>Smart Service Proxy</h1>\n");
-        buf.append("<h2>Operations</h2>\n");
-        buf.append("<ul>\n");
-        for(UIElement elem: uiElements) {
-            buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", elem.getURI(), elem.getTitle()));
-        }
-        buf.append("</ul>\n");
 
-        buf.append("<h2>Entities</h2>\n");
-        buf.append("<ul>\n");
-
-        TreeSet<URI> entitySet = new TreeSet<URI>(entities.keySet());
-        for(URI uri : entitySet){
-            buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
-        }
-
-//        for(Map.Entry<URI, ProprietaryGateway> entry: entities.entrySet()){
-//            buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", entry.getKey(), entry.getKey()));
-//        }
-        buf.append("</ul>\n");
-
-        buf.append("</body></html>\n");
-
-        return ChannelBuffers.wrappedBuffer(buf.toString()
-                                               .getBytes(Charset.forName("UTF-8")));
-    }
 
 	/**
 	 * Return URIs for all known webServices.
 	 */
 	public Iterable<URI> getServices(){
-		return entities.keySet();
+		return httpRequestProcessors.keySet();
 	}
 
 	/**
@@ -314,20 +197,20 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 	 * uri may be null in which case the return value will be a newly
 	 * allocated URI for the entity.
 	 */
-	public URI registerService(ProprietaryGateway backend, String servicePath) throws URISyntaxException {
+	public URI registerService(AbstractGateway backend, String servicePath) throws URISyntaxException {
 
         URI serviceUri = new URI("http://www." + Main.SSP_DNS_NAME + ":" + Main.SSP_HTTP_SERVER_PORT + servicePath);
 		serviceUri = normalizeURI(serviceUri);
 
-        if(!(entities.get(serviceUri) == backend)){
-            entities.put(serviceUri, backend);
+        if(!(httpRequestProcessors.get(serviceUri) == backend)){
+            httpRequestProcessors.put(serviceUri, backend);
             log.debug("New service created: " + serviceUri);
         }
 
 		return serviceUri;
 	}
 
-//    public URI virtualEntityCreated(URI uri, ProprietaryGateway backend) {
+//    public URI virtualEntityCreated(URI uri, AbstractGateway backend) {
 //        uri = toThing(uri);
 //        if(!(virtualEntities.get(uri) == backend)){
 //            virtualEntities.put(uri, backend);
@@ -336,9 +219,9 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 //        return uri;
 //    }
 
-    public boolean entityDeleted(URI uri, ProprietaryGateway backend) {
+    public boolean entityDeleted(URI uri, AbstractGateway backend) {
         uri = toThing(uri);
-        boolean succesful = entities.remove(uri, backend);
+        boolean succesful = httpRequestProcessors.remove(uri, backend);
 
         if(succesful){
             log.debug("Succesfully deleted " + uri);
@@ -350,7 +233,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         return succesful;
     }
 
-    public boolean virtualEntityDeleted(URI uri, ProprietaryGateway backend) {
+    public boolean virtualEntityDeleted(URI uri, AbstractGateway backend) {
         uri = toThing(uri);
         boolean succesful = virtualEntities.remove(uri, backend);
 
@@ -364,8 +247,8 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         return succesful;
     }
 	
-	public ProprietaryGateway getBackend(String elementSE) {
-		ProprietaryGateway b = entities.get(elementSE);
+	public AbstractGateway getBackend(String elementSE) {
+		AbstractGateway b = httpRequestProcessors.get(elementSE);
 		if(b == null) {
 			URI uri = URI.create(SSP_DNS_NAME).resolve(elementSE).normalize();
 			String path = uri.getRawPath();

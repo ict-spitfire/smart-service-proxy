@@ -1,10 +1,10 @@
-package eu.spitfire.ssp.backends.coap.requestforwarding;
+package eu.spitfire.ssp.gateways.coap.requestforwarding;
 
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import eu.spitfire.ssp.backends.coap.CoapBackend;
-import eu.spitfire.ssp.backends.coap.translation.Http2CoapConverter;
+import eu.spitfire.ssp.gateways.coap.CoapBackend;
+import eu.spitfire.ssp.gateways.coap.translation.Http2CoapConverter;
 import eu.spitfire.ssp.core.SelfDescription;
 import org.apache.log4j.Logger;
 import org.jboss.netty.buffer.ChannelBuffers;

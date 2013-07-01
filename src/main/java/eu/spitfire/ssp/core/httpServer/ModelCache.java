@@ -50,14 +50,6 @@ public class ModelCache extends SimpleChannelHandler {
     
     private ConcurrentHashMap<URI, CacheElement> cache = new ConcurrentHashMap<URI, CacheElement>();
 
-    private static ModelCache instance = new ModelCache();
-
-    private ModelCache(){
-    }
-
-    public static ModelCache getInstance(){
-        return instance;
-    }
 
     /**
      * This method is invoked for upstream {@link MessageEvent}s and handles incoming {@link HttpRequest}s.

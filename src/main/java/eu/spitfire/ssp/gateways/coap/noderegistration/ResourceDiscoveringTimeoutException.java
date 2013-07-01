@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.coap.noderegistration;
+package eu.spitfire.ssp.gateways.coap.noderegistration;
 
 import java.net.InetSocketAddress;
 

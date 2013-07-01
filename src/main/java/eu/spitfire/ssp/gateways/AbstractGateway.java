@@ -22,41 +22,58 @@
 * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-package eu.spitfire.ssp.backends;
+package eu.spitfire.ssp.gateways;
 
-import eu.spitfire.ssp.core.httpServer.HttpRequestDispatcher;
+import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.core.httpServer.webServices.HttpRequestProcessor;
+import org.jboss.netty.channel.*;
+import org.jboss.netty.channel.local.LocalServerChannel;
+import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 
 /**
- * A {@link ProprietaryGateway} instance is a software component to enable a client that is capable of talking HTTP to
- * communicate with an arbitrary server. The {@link ProprietaryGateway} is responsible for translating the incoming
+ * A {@link AbstractGateway} instance is a software component to enable a client that is capable of talking HTTP to
+ * communicate with an arbitrary server. The {@link AbstractGateway} is responsible for translating the incoming
  * {@link HttpRequest} to whatever (proprietary) protocol the server talks and to return a suitable {@link HttpResponse}
  * which is then sent to the client.
  *
  * @author Oliver Kleine
  */
-public abstract class ProprietaryGateway implements HttpRequestProcessor {
+public abstract class AbstractGateway extends SimpleChannelHandler implements HttpRequestProcessor {
 
-    private HttpRequestDispatcher httpRequestDispatcher;
-    private String servicePathPrefix;
+    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    public ProprietaryGateway(HttpRequestDispatcher httpRequestDispatcher, String servicePathPrefix){
-        this.servicePathPrefix = servicePathPrefix;
-        this.httpRequestDispatcher = httpRequestDispatcher;
+    private LocalServerChannel internalChannel;
+    private ExecutorService ioExecutorService;
+
+    public AbstractGateway(LocalServerChannel internalChannel){
+        this.internalChannel = internalChannel;
     }
 
-    public String getServicePathPrefix(){
-        return this.servicePathPrefix;
+    @Override
+    public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent me){
+        if(!(me.getMessage() instanceof HttpRequest)){
+            ctx.sendUpstream(me);
+            return;
+        }
+
+
+
+        me.getFuture().setSuccess();
     }
 
-    protected HttpRequestDispatcher getHttpRequestDispatcher(){
-        return this.httpRequestDispatcher;
-    }
+    public void processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest){
 
-    public HttpResponse processHttpRequest(HttpRequest httpRequest){
-        if(httpRequest.getUri().equals(servicePathPrefix))
+
+
+        if(httpRequest.getUri().equals("/"))
             return processHttpRequestForUserInterface(httpRequest);
         else
             return processHttpRequestForBackendSpecificService(httpRequest);

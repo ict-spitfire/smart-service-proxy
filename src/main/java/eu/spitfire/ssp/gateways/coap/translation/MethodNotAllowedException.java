@@ -22,52 +22,22 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire.ssp.backends.coap;
+package eu.spitfire.ssp.gateways.coap.translation;
 
-import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
-import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
-import eu.spitfire.ssp.backends.coap.noderegistration.CoapNodeRegistrationService;
-import eu.spitfire.ssp.core.httpServer.webServices.HttpRequestProcessor;
-import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.net.InetSocketAddress;
+import org.jboss.netty.handler.codec.http.HttpMethod;
 
 /**
  * @author Oliver Kleine
- *
  */
+public class MethodNotAllowedException extends Throwable {
+    
+    HttpMethod method;
 
-public class CoapBackend implements HttpRequestProcessor {
-
-    public static final int NODES_COAP_PORT = 5683;
-
-    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
-
-    private CoapServerApplication coapServer;
-    private CoapClientApplication coapClient;
-
-    public CoapBackend(){
-        this.coapServer = new CoapServerApplication();
-        coapServer.registerService(new CoapNodeRegistrationService(this));
-
-        this.coapClient = new CoapClientApplication();
+    public MethodNotAllowedException(HttpMethod method) {
+        this.method = method;
     }
 
-    public void addService(InetSocketAddress remoteAddress, String servicePath){
-
+    public HttpMethod getMethod(){
+        return method;
     }
-
-    @Override
-    public HttpResponse processHttpRequest(HttpRequest httpRequest) {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    public CoapClientApplication getCoapClient(){
-        return this.coapClient;
-    }
-
-
 }

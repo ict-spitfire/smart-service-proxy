@@ -1,5 +1,6 @@
 package eu.spitfire.ssp.core.httpServer.webServices;
 
+import com.google.common.util.concurrent.SettableFuture;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
@@ -12,6 +13,6 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
  */
 public interface HttpRequestProcessor {
 
-    public HttpResponse processHttpRequest(HttpRequest httpRequest);
+    public HttpResponse processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest);
 
 }

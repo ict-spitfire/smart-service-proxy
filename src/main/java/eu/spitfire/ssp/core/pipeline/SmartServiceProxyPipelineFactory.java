@@ -22,8 +22,9 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire.ssp.core.httpServer;
+package eu.spitfire.ssp.core.pipeline;
 
+import eu.spitfire.ssp.core.httpServer.*;
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
@@ -53,7 +54,8 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
     private HttpCorsHandler httpCorsHandler;
     private PayloadFormatter payloadFormatter;
     private HttpMirrorUriHandler httpMirrorUriHandler;
-
+    private HttpRequestDispatcher httpRequestDispatcher;
+    private ModelCache modelCache;
 
     ExecutionHandler executionHandler;
 
@@ -64,8 +66,21 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
         httpMirrorUriHandler = new HttpMirrorUriHandler();
 
         executionHandler = new ExecutionHandler(new OrderedMemoryAwareThreadPoolExecutor(100, 0, 0));
+
+        modelCache = new ModelCache();
+        httpRequestDispatcher = new HttpRequestDispatcher();
     }
 
+    public ChannelPipeline getInternalPipeline() throws Exception{
+        ChannelPipeline pipeline = Channels.pipeline();
+
+        pipeline.addLast("Model Cache", modelCache);
+        pipeline.addLast("HTTP Request Dispatcher", httpRequestDispatcher);
+
+        return pipeline;
+    }
+
+    @Override
 	public ChannelPipeline getPipeline() throws Exception {
 
 		ChannelPipeline pipeline = Channels.pipeline();
@@ -78,12 +93,12 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
         pipeline.addLast("Http CORS Handler", httpCorsHandler);
 
         //SSP specific handlers
-        pipeline.addLast("Model Formatter", payloadFormatter);
-        pipeline.addLast("Http Mirror URI Handler", httpMirrorUriHandler);
+        pipeline.addLast("Payload Formatter", payloadFormatter);
+        pipeline.addLast("HTTP Mirror URI Handler", httpMirrorUriHandler);
         pipeline.addLast("Execution Handler", executionHandler);
-        pipeline.addLast("Model Cache", ModelCache.getInstance());
+        pipeline.addLast("Model Cache", modelCache);
 
-        pipeline.addLast("Entity Manager", HttpRequestDispatcher.getInstance());
+        pipeline.addLast("HTTP Request Dispatcher", httpRequestDispatcher);
 
         log.debug("New pipeline created for port: " +
                 ((InetSocketAddress)(pipeline.getChannel().getLocalAddress())).getPort());
