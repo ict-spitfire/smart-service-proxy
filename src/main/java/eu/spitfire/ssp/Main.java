@@ -1,5 +1,5 @@
 /**
-* Copyright (c) 2012, all partners of project SPITFIRE (http://www.spitfire-project.eu)
+* Copyright (c) 2012, all partners of project SPITFIRE (core://www.spitfire-project.eu)
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -24,9 +24,10 @@
 */
 package eu.spitfire.ssp;
 
-import eu.spitfire.ssp.gateway.files.FilesGateway;
-import eu.spitfire.ssp.gateway.simple.SimpleGateway;
-import eu.spitfire.ssp.http.pipeline.SmartServiceProxyPipelineFactory;
+import eu.spitfire.ssp.gateway.AbstractGateway;
+import eu.spitfire.ssp.gateway.files.FilesGatewayFactory;
+import eu.spitfire.ssp.gateway.simple.SimpleGatewayFactory;
+import eu.spitfire.ssp.core.pipeline.SmartServiceProxyPipelineFactory;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.ConsoleAppender;
@@ -93,16 +94,16 @@ public class Main {
 
         for(String gatewayName : enabledGateways){
 
+            AbstractGateway gateway;
             //CoAPBackend
-            if(gatewayName.equals("coap")) {
-                //CoapBackend coapBackend = new CoapBackend(internalChannel);
-            }
+//            if(gatewayName.equals("coap")) {
+//                //CoapBackend coapBackend = new CoapBackend(internalChannel);
+//            }
 
-            //SimpleGateway
-            else if(gatewayName.equals("simple")){
+            //SimpleGatewayFactory
+            if(gatewayName.equals("simple")){
                 log.info("Create Simple Gateway.");
-                SimpleGateway simpleGateway =
-                        new SimpleGateway("simple", internalChannel, ioExecutorService);
+                gateway = new SimpleGatewayFactory("simple");
             }
 
             //FilesGateway
@@ -111,13 +112,19 @@ public class Main {
                 if(directory == null){
                     throw new Exception("Property 'files.directory' not set.");
                 }
-                FilesGateway filesGateway = new FilesGateway(directory);
+                gateway = new FilesGatewayFactory(directory);
             }
 
-            //Unknown AbstractGateway Type
+            //Unknown AbstractGatewayFactory Type
             else {
                 log.error("Config file error: Gateway for '" + gatewayName + "' not found!");
+                continue;
             }
+
+            gateway.setInternalChannel(internalChannel);
+            gateway.setExecutorService(ioExecutorService);
+
+            gateway.registerInitialServices();
         }
     }
 

@@ -1,5 +1,5 @@
 /**
-* Copyright (c) 2012, all partners of project SPITFIRE (http://www.spitfire-project.eu)
+* Copyright (c) 2012, all partners of project SPITFIRE (core://www.spitfire-project.eu)
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -25,7 +25,7 @@
 package eu.spitfire.ssp.gateway;
 
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.http.webservice.HttpRequestProcessor;
+import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.local.LocalServerChannel;
@@ -39,10 +39,8 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
@@ -67,31 +65,17 @@ public abstract class AbstractGateway implements HttpRequestProcessor {
     private Map<URI, HttpRequestProcessor> services;
 
     /**
-     * @param prefix the prefix of this backend
-     * @param internalChannel the {@link Channel} to send internal messages to e.g. register or update services
-     * @param executorService the thread-pool to handle gateway specific tasks, e.g. register or update services
-     * @param gui an {@link HttpRequestProcessor} instance to provide a backend specific GUI
+     *
      */
-    protected AbstractGateway(String prefix, LocalServerChannel internalChannel, ExecutorService executorService,
-                           HttpRequestProcessor gui){
+    protected AbstractGateway(String prefix){
         this.prefix = prefix;
-        this.internalChannel = internalChannel;
-        this.executorService = executorService;
-        this.services = Collections.synchronizedMap(new HashMap<URI, HttpRequestProcessor>());
 
-        if(gui != null){
+        HttpRequestProcessor gui = this.getGui();
+        if(gui != null)
             registerService("/", gui);
-        }
     }
 
-    /**
-     * @param prefix the prefix of this backend
-     * @param internalChannel the {@link Channel} to send internal messages to e.g. register or update services
-     * @param executorService the thread-pool to handle backend specific tasks, e.g. register or update services
-     */
-    protected AbstractGateway(String prefix, LocalServerChannel internalChannel, ExecutorService executorService){
-        this(prefix, internalChannel, executorService, null);
-    }
+    public abstract HttpRequestProcessor getGui();
 
     @Override
     public void processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest){
@@ -126,22 +110,24 @@ public abstract class AbstractGateway implements HttpRequestProcessor {
         final SettableFuture<URI> registrationFuture = SettableFuture.create();
         Channels.write(internalChannel, new InternalRegisterServiceMessage(registrationFuture, servicePath, this));
 
-        registrationFuture.addListener(new Runnable() {
-            @Override
-            public void run() {
-                URI serviceUri = null;
-                try {
-                    serviceUri = registrationFuture.get();
-                } catch (InterruptedException e) {
-                    log.error("This should never happen.", e);
-                } catch (ExecutionException e) {
-                    log.error("This should never happen.", e);
-                }
-                services.put(serviceUri, requestProcessor);
-                log.info("Registered new service {} for {}.", serviceUri, this.getClass().getName());
-            }
-        }, executorService);
+//        registrationFuture.addListener(new Runnable() {
+//            @Override
+//            public void run() {
+//                URI serviceUri = null;
+//                try {
+//                    serviceUri = registrationFuture.get();
+//                } catch (InterruptedException e) {
+//                    log.error("This should never happen.", e);
+//                } catch (ExecutionException e) {
+//                    log.error("This should never happen.", e);
+//                }
+//                services.put(serviceUri, requestProcessor);
+//                log.info("Registered new service {} for {}.", serviceUri, this.getClass().getName());
+//            }
+//        }, executorService);
     }
+
+    public abstract void registerInitialServices();
 
     /**
      * Returns the specific prefix of this gateway. If wildcard DNS is enabled, then the prefix is used as the very
@@ -152,6 +138,24 @@ public abstract class AbstractGateway implements HttpRequestProcessor {
      */
     public String getPrefix() {
         return prefix;
+    }
+
+    /**
+     * @param internalChannel the {@link Channel} to send internal messages to e.g. register or update services
+     */
+    public void setInternalChannel(LocalServerChannel internalChannel){
+        this.internalChannel = internalChannel;
+    }
+
+    /**
+     * @param executorService the thread-pool to handle gateway specific tasks, e.g. register or update services
+     */
+    public void setExecutorService(ExecutorService executorService){
+        this.executorService = executorService;
+    }
+
+    public Set<URI> getServices(){
+        return this.services.keySet();
     }
 }
 

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2012, all partners of project SPITFIRE (http://www.spitfire-project.eu)
+ * Copyright (c) 2012, all partners of project SPITFIRE (core://www.spitfire-project.eu)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -22,7 +22,7 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire.ssp.http.pipeline.handler;
+package eu.spitfire.ssp.core.pipeline.handler;
 
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.DownstreamMessageEvent;
@@ -34,7 +34,7 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
  * The {@link HttpCorsHandler} adds the HttpCorsHandler (Cross-Origin Resource Sharing) headers to an HTTP response.
  * With this, we can access the resources with the XMLHttpRequest.
  *
- * @see: http://www.w3.org/TR/cors/
+ * @see: core://www.w3.org/TR/cors/
  * @see: https://developer.mozilla.org/en-US/docs/HTTP/Access_control_CORS
  *
  * @author Dennis Boldt

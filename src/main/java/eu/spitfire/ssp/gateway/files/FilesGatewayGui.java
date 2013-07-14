@@ -1,9 +1,12 @@
 package eu.spitfire.ssp.gateway.files;
 
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.http.webservice.HttpRequestProcessor;
+import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
+
+import java.net.URI;
+import java.util.Set;
 
 /**
  * Created with IntelliJ IDEA.
@@ -14,7 +17,11 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
  */
 public class FilesGatewayGui implements HttpRequestProcessor {
 
+    private Set<URI> services;
 
+    public FilesGatewayGui(Set<URI> services){
+        this.services = services;
+    }
 
     @Override
     public void processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest) {

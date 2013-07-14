@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.http.webservice;
+package eu.spitfire.ssp.core.webservice;
 
 import com.google.common.util.concurrent.SettableFuture;
 import org.jboss.netty.handler.codec.http.HttpRequest;

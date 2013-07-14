@@ -11,9 +11,9 @@
 //import org.jboss.netty.channel.ChannelFuture;
 //import org.jboss.netty.channel.ChannelFutureListener;
 //import org.jboss.netty.channel.Channels;
-//import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
-//import org.jboss.netty.handler.codec.http.HttpResponse;
-//import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+//import org.jboss.netty.handler.codec.core.DefaultHttpResponse;
+//import org.jboss.netty.handler.codec.core.HttpResponse;
+//import org.jboss.netty.handler.codec.core.HttpResponseStatus;
 //
 ///**
 // * Created with IntelliJ IDEA.

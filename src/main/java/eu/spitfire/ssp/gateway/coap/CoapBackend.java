@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2012, all partners of project SPITFIRE (http://www.spitfire-project.eu)
+ * Copyright (c) 2012, all partners of project SPITFIRE (core://www.spitfire-project.eu)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -28,7 +28,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.examples.performance.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
 import eu.spitfire.ssp.gateway.coap.noderegistration.CoapNodeRegistrationService;
-import eu.spitfire.ssp.http.webservice.HttpRequestProcessor;
+import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.slf4j.Logger;

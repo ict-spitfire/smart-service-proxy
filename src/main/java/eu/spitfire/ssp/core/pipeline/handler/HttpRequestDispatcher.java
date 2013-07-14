@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2012, all partners of project SPITFIRE (http://www.spitfire-project.eu)
+ * Copyright (c) 2012, all partners of project SPITFIRE (core://www.spitfire-project.eu)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -22,12 +22,12 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire.ssp.http.pipeline.handler;
+package eu.spitfire.ssp.core.pipeline.handler;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.Main;
-import eu.spitfire.ssp.http.webservice.HttpRequestProcessor;
-import eu.spitfire.ssp.http.webservice.ListOfServices;
+import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
+import eu.spitfire.ssp.core.webservice.ListOfServices;
 import eu.spitfire.ssp.gateway.AbstractGateway;
 import eu.spitfire.ssp.gateway.InternalRegisterServiceMessage;
 import org.jboss.netty.channel.*;
@@ -101,9 +101,9 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 //		}
 //
 //        if(Main.DNS_WILDCARD_POSTFIX != null)
-//            return new URI("http://" + uri(Main.DNS_WILDCARD_POSTFIX).resolve(uri).normalize();
+//            return new URI("core://" + uri(Main.DNS_WILDCARD_POSTFIX).resolve(uri).normalize();
 //        else
-//            return URI.create("http://")
+//            return URI.create("core://")
 //		return result;
 //	}
 
@@ -152,7 +152,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 //                targetUriHost = "[" + targetUriHost + "]";
 //            }
 //
-//            targetUri = normalizeURI(URI.create("http://" + targetUriHost + httpRequest.getUri()));
+//            targetUri = normalizeURI(URI.create("core://" + targetUriHost + httpRequest.getUri()));
 //            log.debug("Shortened target URI: " + targetUri);
 //        }
 

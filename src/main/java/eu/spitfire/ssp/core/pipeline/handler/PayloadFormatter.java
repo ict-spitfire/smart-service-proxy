@@ -1,5 +1,5 @@
 /**
-* Copyright (c) 2012, all partners of project SPITFIRE (http://www.spitfire-project.eu)
+* Copyright (c) 2012, all partners of project SPITFIRE (core://www.spitfire-project.eu)
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -22,7 +22,7 @@
 * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-package eu.spitfire.ssp.http.pipeline.handler;
+package eu.spitfire.ssp.core.pipeline.handler;
 
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
@@ -60,7 +60,7 @@ public class PayloadFormatter extends SimpleChannelHandler {
 //            httpRequest = (HttpRequest) me.getMessage();
 //
 //            log.debug("Incoming HttpRequest for "
-//                    + URI.create("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri())
+//                    + URI.create("core://" + httpRequest.getHeader("HOST") + httpRequest.getUri())
 //                    + " accepts " + httpRequest.getHeader("Accept"));
 //		}
 //
@@ -71,7 +71,7 @@ public class PayloadFormatter extends SimpleChannelHandler {
 	/**
 	 * Outbound Message types:
 	 * - String
-	 *	 (http response in remembered mime type)
+	 *	 (core response in remembered mime type)
 	 */
 	@Override
 	public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
@@ -190,7 +190,7 @@ public class PayloadFormatter extends SimpleChannelHandler {
 //
 //        String path = coapUri.substring(coapUri.indexOf("/", 8));
 //
-//        return "http://" + ipv6Address.replace(":", "-")
+//        return "core://" + ipv6Address.replace(":", "-")
 //                         + "." + HttpRequestDispatcher.DNS_WILDCARD_POSTFIX
 //                         + ":" + HttpRequestDispatcher.SSP_HTTP_SERVER_PORT
 //                         + path;

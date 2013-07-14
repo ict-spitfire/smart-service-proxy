@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2012, all partners of project SPITFIRE (http://www.spitfire-project.eu)
+ * Copyright (c) 2012, all partners of project SPITFIRE (core://www.spitfire-project.eu)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -22,7 +22,7 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire.ssp.http.pipeline.handler;
+package eu.spitfire.ssp.core.pipeline.handler;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
@@ -57,8 +57,8 @@ public class HttpMirrorUriHandler extends SimpleChannelUpstreamHandler {
 
     /**
      * Changes the requests host part to the IPv6 address of the target resource. This is to enable IPv4 clients to
-     * access IPv6 resources. E.g. a request for the resource http://2001-638--1.example.org/path would be transparently
-     * redirected to http://[2001:638::1]/path
+     * access IPv6 resources. E.g. a request for the resource core://2001-638--1.example.org/path would be transparently
+     * redirected to core://[2001:638::1]/path
      *
      * @param ctx The ChannelHandlerContext
      * @param me The MessageEvent

@@ -1,5 +1,5 @@
 /**
-* Copyright (c) 2012, all partners of project SPITFIRE (http://www.spitfire-project.eu)
+* Copyright (c) 2012, all partners of project SPITFIRE (core://www.spitfire-project.eu)
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -27,12 +27,11 @@ package eu.spitfire.ssp.gateway.files;
 import com.hp.hpl.jena.n3.turtle.TurtleParseException;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
+import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import eu.spitfire.ssp.gateway.AbstractGateway;
-import eu.spitfire.ssp.http.pipeline.handler.HttpRequestDispatcher;
-import eu.spitfire.ssp.http.webservice.HttpRequestProcessor;
+import eu.spitfire.ssp.core.pipeline.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -41,12 +40,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
+
+import static java.nio.file.StandardWatchEventKinds.*;
 
 /**
 * The FilesGateway is responsible for the webServices backed by the files (except of *.swp) in the directory given as
@@ -60,9 +61,11 @@ import java.util.concurrent.ExecutorService;
 */
 public class FilesGateway extends AbstractGateway {
 
-    private static Logger log = LoggerFactory.getLogger(FilesGateway.class.getName());
+    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private String directory;
+    private WatchService watchService;
+
 
     /**
      * Constructor for a new FileBackend instance which provides all files in the specified directory
@@ -70,19 +73,27 @@ public class FilesGateway extends AbstractGateway {
      *
      * @param directory the path to the directory where the files are located
      */
-    public FilesGateway(String prefix, LocalServerChannel internalChannel, ExecutorService executorService,
-                        HttpRequestProcessor gui, String directory){
+    public FilesGateway(String prefix, String directory) throws IOException {
+        super(prefix);
 
-        super(prefix, internalChannel, executorService, gui);
+        Files.walkFileTree(directory)
+        watchService = FileSystems.getDefault().newWatchService();
+        WatchKey watchKey = Paths.get(directory).register(watchService, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
+
+        watchService.po
         this.directory = directory;
-
-
-
-        registerFileResources();
     }
 
-    //Register all files as new resources at the HttpRequestDispatcher (ignore *.swp files)
-    private void registerFileResources(){
+    @Override
+    public HttpRequestProcessor getGui() {
+        return null;
+    }
+
+    /**
+     * Register all files as new resources at the HttpRequestDispatcher (ignore *.swp files)
+     */
+    @Override
+    public void registerInitialServices(){
         File directoryFile = new File(directory);
         File[] files = directoryFile.listFiles();
 
@@ -170,9 +181,15 @@ public class FilesGateway extends AbstractGateway {
         future.addListener(ChannelFutureListener.CLOSE);
     }
 
-    @Override
-    public Set<URI> getResources(){
-        return resources.keySet();
+    private class WatchServiceRegisteringVisitor extends SimpleFileVisitor<Path>{
+
+        @Override
+        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+            dir.register(watchService,ENTRY_CREATE,ENTRY_DELETE,ENTRY_MODIFY);
+            return FileVisitResult.CONTINUE;
+        }
     }
+
+
 }
 

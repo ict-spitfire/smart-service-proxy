@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.http.webservice;
+package eu.spitfire.ssp.core.webservice;
 
 import com.google.common.util.concurrent.SettableFuture;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -40,7 +40,7 @@ public class ListOfServices implements HttpRequestProcessor{
             buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
         }
 
-//        for(Map.Entry<URI, AbstractGateway> entry: httpRequestProcessors.entrySet()){
+//        for(Map.Entry<URI, AbstractGatewayFactory> entry: httpRequestProcessors.entrySet()){
 //            buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", entry.getKey(), entry.getKey()));
 //        }
         buf.append("</ul>\n");

@@ -1,7 +1,7 @@
 //package eu.spitfire.ssp.gateways.coap.observation;
 //
 //import eu.spitfire.ssp.gateway.coap.CoapBackend;
-//import eu.spitfire.ssp.http.pipeline.handler.ModelCache;
+//import eu.spitfire.ssp.core.pipeline.handler.ModelCache;
 //import org.apache.log4j.Logger;
 //import org.jboss.netty.channel.*;
 //

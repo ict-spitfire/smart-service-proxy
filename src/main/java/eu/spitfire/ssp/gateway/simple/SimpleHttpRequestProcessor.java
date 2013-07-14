@@ -4,7 +4,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.vocabulary.VCARD;
-import eu.spitfire.ssp.http.webservice.HttpRequestProcessor;
+import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;

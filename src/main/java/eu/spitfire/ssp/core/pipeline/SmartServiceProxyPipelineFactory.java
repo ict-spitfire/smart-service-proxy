@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2012, all partners of project SPITFIRE (http://www.spitfire-project.eu)
+ * Copyright (c) 2012, all partners of project SPITFIRE (core://www.spitfire-project.eu)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -22,9 +22,9 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire.ssp.http.pipeline;
+package eu.spitfire.ssp.core.pipeline;
 
-import eu.spitfire.ssp.http.pipeline.handler.*;
+import eu.spitfire.ssp.core.pipeline.handler.*;
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
