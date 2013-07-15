@@ -22,38 +22,22 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire.ssp.gateway.simple;
+package eu.spitfire.ssp.gateway.coap.requestprocessing;
 
-import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
-import eu.spitfire.ssp.gateway.AbstractGateway;
-import org.apache.log4j.Logger;
+import org.jboss.netty.handler.codec.http.HttpMethod;
 
 /**
- * A {@link SimpleGatewayFactory} instance hosts a simple standard model. This backend is basicly to ensure the functionality
- * of the underlying handler stack. If it's instanciated (by setting <code>enableBackend="simple"</code> in the
- * <code>ssp.properties</code> file) it registers its WebService (/JohnSmith) at the {@link eu.spitfire.ssp.core.pipeline.handler.HttpRequestDispatcher} instance which
- * causes this WebService to occur on the HTML page (at <code>core://<ssp-ip>:<ssp-port>/) listing the available webServices.
- *
  * @author Oliver Kleine
- *
  */
+public class MethodNotAllowedException extends Exception {
+    
+    HttpMethod method;
 
-public class SimpleGatewayFactory extends AbstractGateway {
-
-    private static Logger log = Logger.getLogger(SimpleGatewayFactory.class.getName());
-
-    public SimpleGatewayFactory(String prefix) {
-        super(prefix);
+    public MethodNotAllowedException(HttpMethod method) {
+        this.method = method;
     }
 
-    @Override
-    public HttpRequestProcessor getGui() {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    @Override
-    public void registerInitialServices(){
-        log.info("Add service /JohnSmith");
-        registerService("/JohnSmith", new SimpleHttpRequestProcessor());
+    public HttpMethod getMethod(){
+        return method;
     }
 }

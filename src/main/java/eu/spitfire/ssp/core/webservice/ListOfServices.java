@@ -33,16 +33,13 @@ public class ListOfServices implements HttpRequestProcessor{
     private ChannelBuffer getHtmlListOfServices(){
         StringBuilder buf = new StringBuilder();
         buf.append("<html><body>\n");
-        buf.append("<h2>Entities</h2>\n");
+        buf.append("<h2>Available services</h2>\n");
         buf.append("<ul>\n");
 
         for(URI uri : services){
             buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
         }
 
-//        for(Map.Entry<URI, AbstractGatewayFactory> entry: httpRequestProcessors.entrySet()){
-//            buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", entry.getKey(), entry.getKey()));
-//        }
         buf.append("</ul>\n");
 
         buf.append("</body></html>\n");

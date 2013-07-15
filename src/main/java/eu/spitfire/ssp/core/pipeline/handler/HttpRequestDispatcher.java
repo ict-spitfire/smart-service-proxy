@@ -28,7 +28,8 @@ import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.Main;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import eu.spitfire.ssp.core.webservice.ListOfServices;
-import eu.spitfire.ssp.gateway.AbstractGateway;
+import eu.spitfire.ssp.gateway.ProxyServiceCreator;
+import eu.spitfire.ssp.gateway.InternalAbsoluteUriRequest;
 import eu.spitfire.ssp.gateway.InternalRegisterServiceMessage;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
@@ -38,7 +39,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URI;
+import java.net.*;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
@@ -53,28 +54,39 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
 	//Matches target URIs to request processor (either local webwervice or gateway)
-	private Map<URI, HttpRequestProcessor> httpRequestProcessors;
+	private Map<URI, HttpRequestProcessor> services;
 
     private ExecutorService ioExecutorService;
 
     public HttpRequestDispatcher(ExecutorService ioExecutorService) throws Exception {
         this.ioExecutorService = ioExecutorService;
-        httpRequestProcessors = Collections.synchronizedMap(new TreeMap<URI, HttpRequestProcessor>());
 
-        //register service to provide list of available services
-        URI targetUri;
-        if(Main.DNS_WILDCARD_POSTFIX != null)
-            targetUri = new URI("http://www." + Main.DNS_WILDCARD_POSTFIX + ":" + Main.SSP_HTTP_SERVER_PORT + "/");
-        else
-            targetUri = new URI("http://" + Main.SSP_DNS_NAME + ":" + Main.SSP_HTTP_SERVER_PORT + "/");
-
-        log.info("Register list of services service at {}.", targetUri);
-
-        registerService(targetUri, new ListOfServices(httpRequestProcessors.keySet()));
+        registerServiceForListOfServices();
+        registerFavicon();
     }
 
-    private void registerService(URI targetUri, HttpRequestProcessor httpRequestProcessor){
-        httpRequestProcessors.put(targetUri, httpRequestProcessor);
+    private void registerFavicon() {
+        //TODO
+    }
+
+    private void registerServiceForListOfServices() throws URISyntaxException {
+        services = Collections.synchronizedMap(new TreeMap<URI, HttpRequestProcessor>());
+
+        //register service to provide list of available services
+        String host;
+        if(Main.SSP_DNS_NAME != null)
+            host = Main.SSP_DNS_NAME;
+        else if(Main.DNS_WILDCARD_POSTFIX != null)
+            host = "www." + Main.DNS_WILDCARD_POSTFIX;
+        else
+            throw new RuntimeException("At least one of SSP_DNS_NAME and DNS_WILDCARD_POSTFIX must be set." +
+                    " SSP_DNS_NAME can be an IP address!");
+
+        if(Main.SSP_HTTP_SERVER_PORT != 80)
+            host += ":" + Main.SSP_HTTP_SERVER_PORT;
+
+        URI targetUri = new URI("http://" + host + "/");
+        registerService(targetUri, new ListOfServices(services.keySet()));
     }
 
     /**
@@ -87,25 +99,6 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 	public URI normalizeURI(URI uri) {
         return uri.normalize();
     }
-
-//    /**
-//     * Normalizes the given URI. It removes unnecessary slashes (/) or unnecessary parts of the path
-//     * (e.g. /part_1/part_2/../path_3 to /path_1/part_3), removes the # and following characters at the
-//     * end of the path and makes relative URIs absolute.
-//     *
-//     * @param uri The URI to be normalized
-//     */
-//	public URI normalizeURI(String uri) {
-//		while(uri.substring(uri.length()-1).equals("#")) {
-//			uri = uri.substring(0, uri.length()-1);
-//		}
-//
-//        if(Main.DNS_WILDCARD_POSTFIX != null)
-//            return new URI("core://" + uri(Main.DNS_WILDCARD_POSTFIX).resolve(uri).normalize();
-//        else
-//            return URI.create("core://")
-//		return result;
-//	}
 
 	/**
 	 * Expected Message types:
@@ -122,49 +115,21 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         me.getFuture().setSuccess();
 
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
-        String host = httpRequest.getHeader("HOST");
-        String port = host.substring(host.indexOf(":") + 1);
-        host = host.substring(0, host.indexOf(":"));
 
-        URI targetUri = new URI("http://" + host + ":" + port + httpRequest.getUri());
-        log.info("Received request for service {}.", targetUri);
-
-        targetUri = normalizeURI(new URI("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri())) ;
+        URI targetUri = normalizeURI(new URI("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri())) ;
 
         log.debug("Received HTTP request for " + targetUri);
 
-//        if(httpRequest.getHeader("HOST").contains(Main.DNS_WILDCARD_POSTFIX)){
-//            String targetUriHost = InetAddress.getByName(targetUri.getHost()).getHostAddress();
-//            //remove leading zeros per block
-//            targetUriHost = targetUriHost.replaceAll(":0000", ":0");
-//            targetUriHost = targetUriHost.replaceAll(":000", ":0");
-//            targetUriHost = targetUriHost.replaceAll(":00", ":0");
-//            targetUriHost = targetUriHost.replaceAll("(:0)([ABCDEFabcdef123456789])", ":$2");
-//
-//            //return shortened IP
-//            targetUriHost = targetUriHost.replaceAll("((?:(?:^|:)0\\b){2,}):?(?!\\S*\\b\\1:0\\b)(\\S*)", "::$2");
-//            log.debug("Target host: " + targetUriHost);
-//
-//            String targetUriPath = targetUri.getRawPath();
-//            log.debug("Target path: " + targetUriPath);
-//
-//            if(IPAddressUtil.isIPv6LiteralAddress(targetUriHost)){
-//                targetUriHost = "[" + targetUriHost + "]";
-//            }
-//
-//            targetUri = normalizeURI(URI.create("core://" + targetUriHost + httpRequest.getUri()));
-//            log.debug("Shortened target URI: " + targetUri);
-//        }
-
         //Create a future to wait for a response asynchronously
         final SettableFuture<HttpResponse> responseFuture = SettableFuture.create();
+
         responseFuture.addListener(new Runnable(){
             @Override
             public void run() {
                 HttpResponse httpResponse;
                 try {
                    httpResponse = responseFuture.get();
-                   log.debug("Write Response: {}.", httpRequest);
+                   log.debug("Write Response: {}.", httpResponse);
                 } catch (Exception e) {
                     httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
                             HttpResponseStatus.INTERNAL_SERVER_ERROR);
@@ -175,11 +140,14 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             }
         }, ioExecutorService);
 
-        if(httpRequestProcessors.containsKey(targetUri)){
-            HttpRequestProcessor httpRequestProcessor = httpRequestProcessors.get(targetUri);
+        if(services.containsKey(targetUri)){
+            log.info("HttpRequestProcessor found for {}", targetUri);
+
+            HttpRequestProcessor httpRequestProcessor = services.get(targetUri);
             httpRequestProcessor.processHttpRequest(responseFuture, httpRequest);
         }
         else{
+            log.warn("No HttpRequestProcessor found for {}. Send error response.", targetUri);
             HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
                     HttpResponseStatus.NOT_FOUND);
 
@@ -190,37 +158,104 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
         log.info("Downstream: {}.", me.getMessage());
+
         if(me.getMessage() instanceof InternalRegisterServiceMessage){
-            InternalRegisterServiceMessage registrationMessage = (InternalRegisterServiceMessage) me.getMessage();
-
-            String prefix = registrationMessage.getGateway().getPrefix();
-            String servicePath = registrationMessage.getServicePath();
-
-            URI targetURI;
-            if(Main.DNS_WILDCARD_POSTFIX != null)
-                targetURI = new URI("http://" + prefix + "." + Main.DNS_WILDCARD_POSTFIX + ":"
-                        + Main.SSP_HTTP_SERVER_PORT + servicePath);
-            else
-                targetURI = new URI("http://" + Main.SSP_DNS_NAME + ":" + Main.SSP_HTTP_SERVER_PORT
-                        + "/" + registrationMessage.getGateway().getPrefix() + servicePath);
-
-            targetURI = normalizeURI(targetURI);
-
-            log.debug("Try to register new service {}.", targetURI);
-
-            registerService(targetURI, registrationMessage.getGateway());
-
-            registrationMessage.getRegistrationFuture().set(targetURI);
-            //me.getFuture().setSuccess();
+            registerService((InternalRegisterServiceMessage) me.getMessage());
+            me.getFuture().setSuccess();
+            return;
+        }
+        else if(me.getMessage() instanceof InternalAbsoluteUriRequest){
+            retrieveAbsoluteUri((InternalAbsoluteUriRequest) me.getMessage());
+            me.getFuture().setSuccess();
             return;
         }
 
         ctx.sendDownstream(me);
     }
 
+    private void retrieveAbsoluteUri(InternalAbsoluteUriRequest message){
 
+        String proxyUriHost;
+        String proxyUriPath = message.getServicePath();
 
-    public boolean unregisterService(String path, AbstractGateway backend) {
+        if(Main.DNS_WILDCARD_POSTFIX == null){
+            //Create host part of proxy URI
+            proxyUriHost = Main.SSP_DNS_NAME;
+
+            log.debug("1 {}", proxyUriPath);
+
+            //Add possibly contained target host of service origin to path part of proxy URI
+            if(message.getTargetHostAddress() != null)
+                proxyUriPath = "/" + formatInetAddress(message.getTargetHostAddress()) + proxyUriPath;
+
+            log.debug("2 {}", proxyUriPath);
+            //Add gateway prefix to path part of proxy URI
+            proxyUriPath = "/" + message.getGatewayPrefix() + proxyUriPath;
+            log.debug("3 {}", proxyUriPath);
+        }
+        else{
+            //Add gateway prefix to host part of proxy URI
+            proxyUriHost = message.getGatewayPrefix() + "." + Main.DNS_WILDCARD_POSTFIX;
+
+            //Add possibly contained target host of service origin to host part of proxy URI
+            if(message.getTargetHostAddress() != null)
+                proxyUriHost = formatInetAddress(message.getTargetHostAddress()) + "." + proxyUriHost;
+        }
+
+        if(Main.SSP_HTTP_SERVER_PORT != 80)
+            proxyUriHost += ":" + Main.SSP_HTTP_SERVER_PORT;
+
+        try {
+            log.debug("Host: {}", proxyUriHost);
+            URI proxyUri = URI.create("http://" + proxyUriHost + proxyUriPath);
+            log.debug("Requested absolute URI: {}", proxyUri);
+            message.getUriFuture().set(proxyUri);
+        }
+        catch (Exception e) {
+            message.getUriFuture().setException(e);
+        }
+    }
+
+    private void registerService(InternalRegisterServiceMessage message){
+        registerService(message.getProxyUri(), message.getHttpRequestProcessor());
+    }
+
+    private void registerService(URI serviceURI, HttpRequestProcessor httpRequestProcessor){
+        services.put(serviceURI, httpRequestProcessor);
+        log.info("Registered new service: {}", serviceURI);
+    }
+
+    private String formatInetAddress(InetAddress inetAddress){
+        if(inetAddress instanceof Inet6Address)
+            return formatInet6Address((Inet6Address) inetAddress);
+
+        if(inetAddress instanceof Inet4Address)
+            return formatInet4Address((Inet4Address) inetAddress);
+
+        return inetAddress.toString();
+    }
+
+    private String formatInet4Address(Inet4Address inet4Address) {
+        return inet4Address.getHostAddress().replaceAll(".", "-");
+    }
+
+    private String formatInet6Address(Inet6Address inet6Address){
+        String result = inet6Address.getHostAddress();
+        
+        //remove leading zeros per block
+        result = result.replaceAll(":0000", ":0");
+        result = result.replaceAll(":000", ":0");
+        result = result.replaceAll(":00", ":0");
+        result = result.replaceAll("(:0)([ABCDEFabcdef123456789])", ":$2");
+
+        //return shortened IP
+        result = result.replaceAll("((?:(?:^|:)0\\b){2,}):?(?!\\S*\\b\\1:0\\b)(\\S*)", "::$2");
+        log.debug("Shortened IPv6 address: {}", result);
+
+        return result.replaceAll(":", "-");
+    }
+
+    public boolean unregisterService(String path, ProxyServiceCreator backend) {
         //TODO
         return true;
     }

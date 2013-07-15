@@ -3,8 +3,8 @@
 //import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 //import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
 //import de.uniluebeck.itm.ncoap.message.CoapResponse;
-//import eu.spitfire.ssp.gateway.coap.CoapBackend;
-//import eu.spitfire.ssp.gateway.coap.translation.Http2CoapConverter;
+//import eu.spitfire.ssp.gateway.coap.CoapProxyServiceCreator;
+//import eu.spitfire.ssp.gateway.coap.requestprocessing.Http2CoapConverter;
 //import eu.spitfire.ssp.core.SelfDescription;
 //import org.apache.log4j.Logger;
 //import org.jboss.netty.buffer.ChannelBuffers;
@@ -26,9 +26,9 @@
 //
 //    private Logger log = Logger.getLogger(this.getClass().getName());
 //
-//    private CoapBackend coapBackend;
+//    private CoapProxyServiceCreator coapBackend;
 //
-//    public CoapClient(CoapBackend coapBackend){
+//    public CoapClient(CoapProxyServiceCreator coapBackend){
 //        this.coapBackend = coapBackend;
 //    }
 //
@@ -44,7 +44,7 @@
 //            }
 //            else{
 //                log.debug("CoAP response is error message or without payload.");
-//                response = Http2CoapConverter.convertCoapToHttpResponse(coapResponse,
+//                response = Http2CoapConverter.convertToHttpResponse(coapResponse,
 //                        httpRequest.getProtocolVersion());
 //            }
 //        }

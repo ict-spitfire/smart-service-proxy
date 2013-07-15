@@ -54,7 +54,7 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
     private PayloadFormatter payloadFormatter;
     private HttpMirrorUriHandler httpMirrorUriHandler;
     private HttpRequestDispatcher httpRequestDispatcher;
-    private ModelCache modelCache;
+    //private ModelCache modelCache;
 
     ExecutionHandler executionHandler;
 
@@ -66,7 +66,7 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 
         executionHandler = new ExecutionHandler(executorService);
 
-        modelCache = new ModelCache();
+//        modelCache = new ModelCache();
         httpRequestDispatcher = new HttpRequestDispatcher(executorService);
     }
 

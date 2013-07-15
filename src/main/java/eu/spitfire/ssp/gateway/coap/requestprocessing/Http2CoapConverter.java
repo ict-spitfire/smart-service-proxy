@@ -22,22 +22,31 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire.ssp.gateway.coap.translation;
+package eu.spitfire.ssp.gateway.coap.requestprocessing;
 
-import org.jboss.netty.handler.codec.http.HttpMethod;
+import de.uniluebeck.itm.ncoap.message.CoapRequest;
+import de.uniluebeck.itm.ncoap.message.CoapResponse;
+import de.uniluebeck.itm.ncoap.message.InvalidMessageException;
+import de.uniluebeck.itm.ncoap.message.MessageDoesNotAllowPayloadException;
+import de.uniluebeck.itm.ncoap.message.header.Code;
+import de.uniluebeck.itm.ncoap.message.header.MsgType;
+import de.uniluebeck.itm.ncoap.message.options.InvalidOptionException;
+import de.uniluebeck.itm.ncoap.message.options.ToManyOptionsException;
+import org.apache.log4j.Logger;
+import org.jboss.netty.handler.codec.http.*;
 
-/**
- * @author Oliver Kleine
- */
-public class MethodNotAllowedException extends Throwable {
+import java.net.URI;
+import java.net.URISyntaxException;
+
+import static de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType.APP_RDF_XML;
+import static org.jboss.netty.handler.codec.http.HttpResponseStatus.*;
+
+public class Http2CoapConverter {
     
-    HttpMethod method;
+    private static Logger log = Logger.getLogger(Http2CoapConverter.class.getName());
+    
 
-    public MethodNotAllowedException(HttpMethod method) {
-        this.method = method;
-    }
 
-    public HttpMethod getMethod(){
-        return method;
-    }
+
+
 }

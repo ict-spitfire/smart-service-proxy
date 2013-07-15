@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.gateway;
 
-import com.google.common.util.concurrent.SettableFuture;
+import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 
 import java.net.URI;
 
@@ -13,25 +13,19 @@ import java.net.URI;
  */
 public class InternalRegisterServiceMessage {
 
-    private SettableFuture<URI> registrationFuture;
-    private String servicePath;
-    private AbstractGateway gateway;
+    private URI proxyUri;
+    private HttpRequestProcessor httpRequestProcessor;
 
-    public InternalRegisterServiceMessage(SettableFuture<URI> registrationFuture, String servicePath, AbstractGateway gateway) {
-        this.registrationFuture = registrationFuture;
-        this.servicePath = servicePath;
-        this.gateway = gateway;
+    public InternalRegisterServiceMessage(URI proxyUri, HttpRequestProcessor httpRequestProcessor) {
+        this.proxyUri = proxyUri;
+        this.httpRequestProcessor = httpRequestProcessor;
     }
 
-    public String getServicePath() {
-        return servicePath;
+    public URI getProxyUri() {
+        return proxyUri;
     }
 
-    public AbstractGateway getGateway() {
-        return gateway;
-    }
-
-    public SettableFuture<URI> getRegistrationFuture() {
-        return registrationFuture;
+    public HttpRequestProcessor getHttpRequestProcessor() {
+        return httpRequestProcessor;
     }
 }

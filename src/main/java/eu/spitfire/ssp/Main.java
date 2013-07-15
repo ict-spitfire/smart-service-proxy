@@ -24,9 +24,10 @@
 */
 package eu.spitfire.ssp;
 
-import eu.spitfire.ssp.gateway.AbstractGateway;
-import eu.spitfire.ssp.gateway.files.FilesGatewayFactory;
-import eu.spitfire.ssp.gateway.simple.SimpleGatewayFactory;
+import eu.spitfire.ssp.gateway.ProxyServiceCreator;
+//import eu.spitfire.ssp.gateway.files.FilesGateway;
+import eu.spitfire.ssp.gateway.coap.CoapProxyServiceCreator;
+import eu.spitfire.ssp.gateway.simple.SimpleProxyServiceCreator;
 import eu.spitfire.ssp.core.pipeline.SmartServiceProxyPipelineFactory;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -64,12 +65,12 @@ public class Main {
         SSP_HTTP_SERVER_PORT = config.getInt("SSP_HTTP_SERVER_PORT", 8080);
 
         //create pipeline for server
-        OrderedMemoryAwareThreadPoolExecutor executor = new OrderedMemoryAwareThreadPoolExecutor(20, 0, 0);
+        OrderedMemoryAwareThreadPoolExecutor executorService = new OrderedMemoryAwareThreadPoolExecutor(20, 0, 0);
         ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
                                                                 Executors.newCachedThreadPool(),
                                                                 Executors.newCachedThreadPool()
         ));
-        SmartServiceProxyPipelineFactory pipelineFactory = new SmartServiceProxyPipelineFactory(executor);
+        SmartServiceProxyPipelineFactory pipelineFactory = new SmartServiceProxyPipelineFactory(executorService);
         bootstrap.setPipelineFactory(pipelineFactory);
 
         //start server
@@ -82,49 +83,50 @@ public class Main {
         LocalServerChannel internalChannel = internalChannelFactory.newChannel(pipelineFactory.getInternalPipeline());
 
         //Create enabled gateway
-        createGateways(config, internalChannel, executor);
+        startProxyServiceCreators(config, internalChannel, executorService);
     }
 
     //Create the gateway enabled in ssp.properties
-    private static void createGateways(Configuration config, LocalServerChannel internalChannel,
-                                       ExecutorService ioExecutorService) throws Exception {
+    private static void startProxyServiceCreators(Configuration config, LocalServerChannel internalChannel,
+                                                  ExecutorService executorService) throws Exception {
 
-        log.debug("Start creating enabled Gateways!");
-        String[] enabledGateways = config.getStringArray("enableGateway");
+        log.debug("Start creating enabled ProxyServiceCreators!");
+        String[] enabledProxyServiceCreators = config.getStringArray("enableProxyServiceCreator");
 
-        for(String gatewayName : enabledGateways){
+        for(String proxyServiceCreatorName : enabledProxyServiceCreators){
 
-            AbstractGateway gateway;
-            //CoAPBackend
-//            if(gatewayName.equals("coap")) {
-//                //CoapBackend coapBackend = new CoapBackend(internalChannel);
-//            }
-
-            //SimpleGatewayFactory
-            if(gatewayName.equals("simple")){
+            ProxyServiceCreator proxyServiceCreator;
+            //SimpleProxyServiceCreator
+            if(proxyServiceCreatorName.equals("simple")){
                 log.info("Create Simple Gateway.");
-                gateway = new SimpleGatewayFactory("simple");
+                proxyServiceCreator = new SimpleProxyServiceCreator("simple");
+            }
+
+            //CoAPBackend
+            else if(proxyServiceCreatorName.equals("coap")) {
+                log.info("Create CoAP Gateway.");
+                proxyServiceCreator = new CoapProxyServiceCreator("coap");
             }
 
             //FilesGateway
-            else if(gatewayName.equals("files")){
-                String directory = config.getString("files.directory");
-                if(directory == null){
-                    throw new Exception("Property 'files.directory' not set.");
-                }
-                gateway = new FilesGatewayFactory(directory);
-            }
+//            else if(gatewayName.equals("files")){
+//                String directory = config.getString("files.directory");
+//                if(directory == null){
+//                    throw new Exception("Property 'files.directory' not set.");
+//                }
+//                proxyServiceCreator = new FilesGateway(directory);
+//            }
 
             //Unknown AbstractGatewayFactory Type
             else {
-                log.error("Config file error: Gateway for '" + gatewayName + "' not found!");
+                log.error("Config file error: Gateway for '" + proxyServiceCreatorName + "' not found!");
                 continue;
             }
 
-            gateway.setInternalChannel(internalChannel);
-            gateway.setExecutorService(ioExecutorService);
+            proxyServiceCreator.setInternalChannel(internalChannel);
+            proxyServiceCreator.setExecutorService(executorService);
 
-            gateway.registerInitialServices();
+            proxyServiceCreator.registerInitialServices();
         }
     }
 
@@ -136,6 +138,7 @@ public class Main {
         Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
 
         Logger.getRootLogger().setLevel(Level.DEBUG);
+        Logger.getLogger("de.uniluebeck.itm.ncoap").setLevel(Level.INFO);
     }
 }
 

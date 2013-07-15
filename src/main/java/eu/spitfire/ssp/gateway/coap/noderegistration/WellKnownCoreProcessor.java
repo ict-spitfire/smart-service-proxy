@@ -2,7 +2,7 @@ package eu.spitfire.ssp.gateway.coap.noderegistration;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import de.uniluebeck.itm.examples.performance.client.CoapResponseProcessor;
+import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
@@ -21,7 +21,6 @@ import java.util.TreeSet;
 * Time: 15:41
 * To change this template use File | Settings | File Templates.
 */
-//Handles the registration process for new nodes in a new thread
 public class WellKnownCoreProcessor implements CoapResponseProcessor, RetransmissionTimeoutProcessor{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());

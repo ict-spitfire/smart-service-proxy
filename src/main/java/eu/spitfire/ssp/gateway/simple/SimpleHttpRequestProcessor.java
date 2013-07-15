@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.net.URI;
 import java.nio.charset.Charset;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
@@ -29,18 +30,19 @@ public class SimpleHttpRequestProcessor implements HttpRequestProcessor{
     public static String DEFAULT_RESPONSE_MIME_TYPE = "application/rdf+xml";
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
-    private Model model;
+    private Model model = null;
 
-    public SimpleHttpRequestProcessor(){
-        String servicePath = "http://example.org/JohnSmith";
+    public void setAboutUri(URI aboutURI){
         model = ModelFactory.createDefaultModel();
-        model.createResource(servicePath).addProperty(VCARD.FN, "John Smith");
+        model.createResource(aboutURI.toString()).addProperty(VCARD.FN, "John Smith");
     }
 
     @Override
     public void processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest) {
 
         log.debug("Received request for path {}.", httpRequest.getUri());
+
+        while(model == null){};
 
         HttpResponse httpResponse;
 

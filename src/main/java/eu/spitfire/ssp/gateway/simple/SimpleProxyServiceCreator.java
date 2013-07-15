@@ -22,52 +22,55 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire.ssp.gateway.coap;
+package eu.spitfire.ssp.gateway.simple;
 
 import com.google.common.util.concurrent.SettableFuture;
-import de.uniluebeck.itm.examples.performance.client.CoapClientApplication;
-import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
-import eu.spitfire.ssp.gateway.coap.noderegistration.CoapNodeRegistrationService;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
-import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import eu.spitfire.ssp.gateway.ProxyServiceCreator;
+import org.apache.log4j.Logger;
 
-import java.net.InetSocketAddress;
+import java.net.URI;
 
 /**
+ * A {@link SimpleProxyServiceCreator} instance hosts a simple standard model. This backend is basicly to ensure the functionality
+ * of the underlying handler stack. If it's instanciated (by setting <code>enableBackend="simple"</code> in the
+ * <code>ssp.properties</code> file) it registers its WebService (/JohnSmith) at the {@link eu.spitfire.ssp.core.pipeline.handler.HttpRequestDispatcher} instance which
+ * causes this WebService to occur on the HTML page (at <code>core://<ssp-ip>:<ssp-port>/) listing the available webServices.
+ *
  * @author Oliver Kleine
  *
  */
 
-public class CoapBackend implements HttpRequestProcessor {
+public class SimpleProxyServiceCreator extends ProxyServiceCreator {
 
-    public static final int NODES_COAP_PORT = 5683;
+    private static Logger log = Logger.getLogger(SimpleProxyServiceCreator.class.getName());
 
-    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
-
-    private CoapServerApplication coapServer;
-    private CoapClientApplication coapClient;
-
-    public CoapBackend(){
-        this.coapServer = new CoapServerApplication();
-        coapServer.registerService(new CoapNodeRegistrationService(this));
-
-        this.coapClient = new CoapClientApplication();
+    public SimpleProxyServiceCreator(String prefix) {
+        super(prefix);
     }
-
-    public void addService(InetSocketAddress remoteAddress, String servicePath){
-
-    }
-
-    public CoapClientApplication getCoapClient(){
-        return this.coapClient;
-    }
-
 
     @Override
-    public void processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest) {
-        //To change body of implemented methods use File | Settings | File Templates.
+    public HttpRequestProcessor getGui() {
+        return null;
+    }
+
+    @Override
+    public void registerInitialServices(){
+        log.info("Add service /JohnSmith");
+        final SettableFuture<URI> uriFuture = SettableFuture.create();
+        final SimpleHttpRequestProcessor processor = new SimpleHttpRequestProcessor();
+
+        registerService(uriFuture, "/JohnSmith", processor);
+
+        uriFuture.addListener(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    processor.setAboutUri(uriFuture.get());
+                } catch (Exception e) {
+                    log.error("This should never happen.", e);
+                }
+            }
+        }, executorService);
     }
 }
