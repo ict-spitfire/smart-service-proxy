@@ -1,20 +1,25 @@
 package eu.spitfire.ssp.gateway.coap.requestprocessing;
 
+import com.google.common.collect.Multimap;
 import com.google.common.net.InetAddresses;
 import com.google.common.util.concurrent.SettableFuture;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import de.uniluebeck.itm.ncoap.message.InvalidMessageException;
-import de.uniluebeck.itm.ncoap.message.MessageDoesNotAllowPayloadException;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import de.uniluebeck.itm.ncoap.message.options.InvalidOptionException;
-import de.uniluebeck.itm.ncoap.message.options.ToManyOptionsException;
+import de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType;
 import eu.spitfire.ssp.Main;
+import eu.spitfire.ssp.core.payloadserialization.Language;
+import eu.spitfire.ssp.core.payloadserialization.ModelSerializer;
+import eu.spitfire.ssp.core.payloadserialization.ShdtDeserializer;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
+import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBufferInputStream;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
@@ -35,6 +40,8 @@ import static org.jboss.netty.handler.codec.http.HttpResponseStatus.*;
  * To change this template use File | Settings | File Templates.
  */
 public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor{
+
+
 
     private static Logger log = LoggerFactory.getLogger(HttpRequestProcessorForCoapServices.class.getName());
 
@@ -76,22 +83,38 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
             coapClientApplication.writeCoapRequest(coapRequest, new CoapResponseProcessor() {
                 @Override
                 public void processCoapResponse(CoapResponse coapResponse) {
+
+                    HttpResponse httpResponse;
+
                     try {
-                        responseFuture.set(convertToHttpResponse(coapResponse, httpRequest.getProtocolVersion()));
+                        String accept = httpRequest.getHeader("Accept");
+                        log.debug("Accept header of HTTP request: {}", accept);
+                        Language accepted = Language.getByHttpMimeType(accept);
+                        if(accepted == null)
+                            httpResponse = HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+                                    HttpResponseStatus.UNSUPPORTED_MEDIA_TYPE, httpRequest.getHeader("Accept"));
+                        else
+                            httpResponse =
+                                    convertToHttpResponse(coapResponse, httpRequest.getProtocolVersion(), accepted);
                     }
                     catch (Exception e) {
                         log.error("Exception while converting from CoAP to HTTP.", e);
-                        responseFuture.set(createErrorResponse(httpRequest.getProtocolVersion(),
-                                HttpResponseStatus.INTERNAL_SERVER_ERROR));
+                        httpResponse =
+                                HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+                                        HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+
                     }
+
+                    responseFuture.set(httpResponse);
                 }
             });
-
         }
         catch (Exception e) {
             log.error("Exception while converting from HTTP to CoAP!", e);
-            responseFuture.set(createErrorResponse(httpRequest.getProtocolVersion(),
-                    HttpResponseStatus.INTERNAL_SERVER_ERROR));
+            HttpResponse httpResponse =
+                    HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+                            HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+            responseFuture.set(httpResponse);
         }
     }
     
@@ -110,19 +133,6 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
         throw new URISyntaxException(ipString.replaceAll(":", "-"), "Could not get IP!");
     }
    
-
-    private static HttpResponse createErrorResponse(HttpVersion version, HttpResponseStatus status){
-        HttpResponse httpResponse = new DefaultHttpResponse(version, status);
-
-        ChannelBuffer content = ChannelBuffers.wrappedBuffer(status.getReasonPhrase().
-                                                                    getBytes(Charset.forName("UTF-8")));
-        httpResponse.setContent(content);
-        httpResponse.setHeader("Content-Length", content.readableBytes());
-
-        return httpResponse;
-    }
-
-
     public static CoapRequest convertToCoapRequest(HttpRequest httpRequest, URI targetURI) throws Exception{
 
         //convert method
@@ -154,11 +164,12 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
         return coapRequest;
     }
 
-    public static HttpResponse convertToHttpResponse(CoapResponse coapResponse, HttpVersion httpVersion) throws Exception {
+    public static HttpResponse convertToHttpResponse(CoapResponse coapResponse, HttpVersion httpVersion,
+                                                     Language payloadMimeType){
+
         //convert status code / response code
-        int responseCode = coapResponse.getHeader().getCode().number;
         HttpResponseStatus httpStatus = INTERNAL_SERVER_ERROR;
-        switch (responseCode) {
+        switch (coapResponse.getHeader().getCode().number) {
             case 65:  httpStatus = CREATED; break;
             case 66:  httpStatus = NO_CONTENT; break;
             case 67:  httpStatus = NOT_MODIFIED; break;
@@ -179,43 +190,55 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
             case 164: httpStatus = GATEWAY_TIMEOUT; break;
             case 165: httpStatus = BAD_GATEWAY; break;
         }
-        HttpResponse response = new DefaultHttpResponse(httpVersion, httpStatus);
 
-//        //convert options / header
-//        List<Option> options = coapResponse.getOptions().getOptionList();
-//        for (Option o : options) {
-//            switch (o.getNumber()) {
-//                case 1:  String contentType = "";
-//                    switch((int)((UintOption)o).getValue()) {
-//                        case 00:  contentType = "text/plain; charset=utf-8"; break;
-//                        case 01:  contentType = "text/xml; charset=utf-8"; break;
-//                        case 02:  contentType = "text/csv; charset=utf-8"; break;
-//                        case 03:  contentType = "text/html; charset=utf-8"; break;
-//                        case 40:  contentType = "application/link-format"; break;
-//                        case 41:  contentType = "application/xml"; break;
-//                        case 42:  contentType = "application/octet-stream"; break;
-//                        case 43:  contentType = "application/rdf+xml"; break;
-//                        case 44:  contentType = "application/soap+xml"; break;
-//                        case 45:  contentType = "application/atom+xml"; break;
-//                        case 46:  contentType = "application/xmpp+xml"; break;
-//                        case 47:  contentType = "application/exi"; break;
-//                        case 48:  contentType = "application/fastinfoset"; break;
-//                        case 49:  contentType = "application/soap+fastinfoset"; break;
-//                        case 50:  contentType = "application/json"; break;
-//                        case 51:  contentType = "application/x-obix-binary";
-//                    }
-//                    if (!contentType.isEmpty()) {
-//                        response.setHeader(CONTENT_TYPE, contentType);
-//                    }
-//                    break;
-//            }
-//        }
 
-        //convert content / payload
-        response.setContent(coapResponse.getPayload());
-        response.setHeader("Content-Length", response.getContent().readableBytes());
+        //check for obvious payload errors
+        if(coapResponse.getContentType() == null)
+            return HttpResponseFactory.createHttpErrorResponse(httpVersion, HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                    "CoAP response without content type option.");
 
-        log.debug("Http response {} created.", response.getStatus());
-        return response;
+        if(coapResponse.getCode().isErrorMessage())
+            return HttpResponseFactory.createHttpErrorResponse(httpVersion, httpStatus,
+                    "CoAP response had error code " + coapResponse.getCode());
+
+
+        //read payload from CoAP response
+        byte[] coapPayload = new byte[coapResponse.getPayload().readableBytes()];
+        coapResponse.getPayload().getBytes(0, coapPayload);
+
+        //Create Jena Model from CoAP response
+        Model model = ModelFactory.createDefaultModel();
+        if(coapResponse.getContentType() == MediaType.APP_SHDT){
+
+            log.debug("SHDT payload in CoAP response.");
+
+            try{
+                (new ShdtDeserializer(64)).read_buffer(model, coapPayload);
+            }
+            catch(Exception e){
+                log.error("SHDT error!", e);
+                return HttpResponseFactory.createHttpErrorResponse(httpVersion,
+                        HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+            }
+        }
+        else{
+            try{
+                Language language = Language.getByCoapMediaType(coapResponse.getContentType());
+                model.read(new ChannelBufferInputStream(coapResponse.getPayload()), null, language.lang);
+            }
+            catch(Exception e){
+                log.error("Error while reading CoAP response payload into model. ", e);
+                return HttpResponseFactory.createHttpErrorResponse(httpVersion,
+                        HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+            }
+        }
+
+        //Serialize payload for HTTP response
+        ChannelBuffer httpPayload = ModelSerializer.serializeModel(model, payloadMimeType);
+
+        Multimap<String, String> httpHeaders = CoapOptionHttpHeaderMapper.getHttpHeaders(coapResponse.getOptionList());
+
+        return HttpResponseFactory.createHttpResponse(httpVersion, httpStatus, httpHeaders, httpPayload);
+
     }
 }

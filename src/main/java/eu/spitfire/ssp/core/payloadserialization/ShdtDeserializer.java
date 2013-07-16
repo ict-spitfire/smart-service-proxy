@@ -1,7 +1,4 @@
-package eu.spitfire.ssp.converter.payload.shdt;
-
-//import com.hp.hpl.jena.rdf.model.Model;
-//import com.hp.hpl.jena.rdf.model.ModelFactory;
+package eu.spitfire.ssp.core.payloadserialization;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.Statement;
@@ -18,9 +15,9 @@ import java.util.NoSuchElementException;
  * - sizeof(command_t) = 1
  * - table_size <= 255
  */
-public class ShdtSerializer {
+public class ShdtDeserializer {
 
-    private static Logger log = Logger.getLogger(ShdtSerializer.class.getName());
+    private static Logger log = Logger.getLogger(ShdtDeserializer.class.getName());
 
 	private Map<Byte, String> lookup_table;
 	private int TABLE_SIZE;
@@ -31,7 +28,7 @@ public class ShdtSerializer {
 	private static final byte CMD_INSERT = (byte)0xfe;
 	private static final byte CMD_END = (byte)0xff;
 
-	public ShdtSerializer(int table_size) {
+	public ShdtDeserializer(int table_size) {
 		this.TABLE_SIZE = table_size;
 		this.lookup_table = new HashMap<Byte, String>();
 	}
@@ -199,4 +196,12 @@ public class ShdtSerializer {
 			}
 		}
 	}
+
+    private class Cell<T> {
+        private T value;
+        public Cell(T t) { value = t; }
+        public void set(T t) { value = t; }
+        public T get() { return value; }
+
+    }
 }
