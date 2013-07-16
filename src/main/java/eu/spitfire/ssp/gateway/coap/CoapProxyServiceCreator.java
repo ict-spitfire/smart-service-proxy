@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 
 /**
 * @author Oliver Kleine
-*
 */
 
 public class CoapProxyServiceCreator extends ProxyServiceCreator {
@@ -46,6 +45,9 @@ public class CoapProxyServiceCreator extends ProxyServiceCreator {
     private CoapServerApplication coapServer;
     private CoapClientApplication coapClient;
 
+    /**
+     * @param prefix the unique prefix for this {@link ProxyServiceCreator} instance
+     */
     public CoapProxyServiceCreator(String prefix){
         super(prefix);
 
