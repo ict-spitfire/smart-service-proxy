@@ -20,45 +20,45 @@ import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferInputStream;
-import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.Charset;
 
 import static de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType.APP_SHDT;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.*;
 
 /**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 15.07.13
- * Time: 20:36
- * To change this template use File | Settings | File Templates.
+ * @author Oliver Kleine
  */
 public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor{
 
-
-
+    public static final int COAP_SERVER_PORT = 5683;
     private static Logger log = LoggerFactory.getLogger(HttpRequestProcessorForCoapServices.class.getName());
 
     private CoapClientApplication coapClientApplication;
 
-    public HttpRequestProcessorForCoapServices(CoapClientApplication coapClientApplication){
-        this.coapClientApplication = coapClientApplication;
+    public HttpRequestProcessorForCoapServices(){
+        this.coapClientApplication = new CoapClientApplication();
     }
 
+    @Override
     public void processHttpRequest(final SettableFuture<HttpResponse> responseFuture, final HttpRequest httpRequest) {
 
         try{
             String coapAddress;
             String coapPath;
 
-            if(Main.DNS_WILDCARD_POSTFIX != null){
-                coapAddress = httpRequest.getHeader("HOST");
+            log.debug("Host: {}", httpRequest.getHeader(HttpHeaders.Names.HOST));
+
+            if(httpRequest.getHeader(HttpHeaders.Names.HOST).endsWith(":" + COAP_SERVER_PORT)){
+                coapAddress = httpRequest.getHeader(HttpHeaders.Names.HOST).replaceFirst(":" + COAP_SERVER_PORT, "");
+                coapPath = httpRequest.getUri();
+            }
+            else if(Main.DNS_WILDCARD_POSTFIX != null){
+                coapAddress = httpRequest.getHeader(HttpHeaders.Names.HOST);
 
                 //cut out the target host related part of the http request host
                 coapAddress = getCoapTargetHost(coapAddress.substring(0, coapAddress.indexOf(".")));
@@ -75,7 +75,7 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
                     coapPath += "/" + pathParts[i];
             }
 
-            URI coapUri = new URI("coap", coapAddress + ":5683", coapPath, null);
+            URI coapUri = new URI("coap", coapAddress + ":" + COAP_SERVER_PORT, coapPath, null);
             log.debug("CoAP target URI: {}", coapUri);
 
             CoapRequest coapRequest = convertToCoapRequest(httpRequest, coapUri);

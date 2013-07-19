@@ -52,12 +52,12 @@ public class HttpMirrorUriHandler extends SimpleChannelUpstreamHandler {
         }
     }
 
-    private final String DNS_WILDCARD_POSTFIX = config.getString("IPv4_SERVER_DNS_WILDCARD_POSTFIX");
+
 
 
     /**
      * Changes the requests host part to the IPv6 address of the target resource. This is to enable IPv4 clients to
-     * access IPv6 resources. E.g. a request for the resource core://2001-638--1.example.org/path would be transparently
+     * access IPv6 resources. E.g. a request for the resource http://2001-638--1.example.org/path would be transparently
      * redirected to core://[2001:638::1]/path
      *
      * @param ctx The ChannelHandlerContext

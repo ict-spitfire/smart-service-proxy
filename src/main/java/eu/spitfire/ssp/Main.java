@@ -24,11 +24,10 @@
 */
 package eu.spitfire.ssp;
 
+import eu.spitfire.ssp.core.pipeline.SmartServiceProxyPipelineFactory;
 import eu.spitfire.ssp.gateway.ProxyServiceCreator;
-//import eu.spitfire.ssp.gateway.files.FilesGateway;
 import eu.spitfire.ssp.gateway.coap.CoapProxyServiceCreator;
 import eu.spitfire.ssp.gateway.simple.SimpleProxyServiceCreator;
-import eu.spitfire.ssp.core.pipeline.SmartServiceProxyPipelineFactory;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.ConsoleAppender;
@@ -44,6 +43,8 @@ import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+//import eu.spitfire.ssp.gateway.files.FilesGateway;
 
 public class Main {
 
@@ -73,10 +74,8 @@ public class Main {
         SmartServiceProxyPipelineFactory pipelineFactory = new SmartServiceProxyPipelineFactory(executorService);
         bootstrap.setPipelineFactory(pipelineFactory);
 
-        //start server
-        int httpServerPort = config.getInt("SSP_HTTP_SERVER_PORT", 8080);
-        bootstrap.bind(new InetSocketAddress(httpServerPort));
-        log.info("HTTP server started. Listening on port " + httpServerPort);
+        bootstrap.bind(new InetSocketAddress(SSP_HTTP_SERVER_PORT));
+        log.info("HTTP server started. Listening on port " + SSP_HTTP_SERVER_PORT + ".");
 
         //Create local channel (for internal messages)
         DefaultLocalServerChannelFactory internalChannelFactory = new DefaultLocalServerChannelFactory();
@@ -126,7 +125,7 @@ public class Main {
             proxyServiceCreator.setInternalChannel(internalChannel);
             proxyServiceCreator.setExecutorService(executorService);
 
-            proxyServiceCreator.registerInitialServices();
+            proxyServiceCreator.initialize();
         }
     }
 
@@ -138,7 +137,7 @@ public class Main {
         Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
 
         Logger.getRootLogger().setLevel(Level.DEBUG);
-        Logger.getLogger("de.uniluebeck.itm.ncoap").setLevel(Level.INFO);
+        Logger.getLogger("de.uniluebeck.itm.ncoap").setLevel(Level.ERROR);
     }
 }
 

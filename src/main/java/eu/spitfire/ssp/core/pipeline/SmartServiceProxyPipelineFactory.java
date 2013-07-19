@@ -50,7 +50,6 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
     private static Logger log = Logger.getLogger(SmartServiceProxyPipelineFactory.class.getName());
 
     private HttpResponseEncoder httpResponseEncoder;
-    private HttpCorsHandler httpCorsHandler;
     private PayloadFormatter payloadFormatter;
     private HttpMirrorUriHandler httpMirrorUriHandler;
     private HttpRequestDispatcher httpRequestDispatcher;
@@ -60,7 +59,6 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 
     public SmartServiceProxyPipelineFactory(ExecutorService executorService) throws Exception {
         httpResponseEncoder = new HttpResponseEncoder();
-        httpCorsHandler = new HttpCorsHandler();
         payloadFormatter = new PayloadFormatter();
         httpMirrorUriHandler = new HttpMirrorUriHandler();
 
@@ -89,7 +87,6 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 		pipeline.addLast("HTTP Chunk Aggrgator", new HttpChunkAggregator(1048576));
         pipeline.addLast("HTTP Encoder", new HttpResponseEncoder());
 		pipeline.addLast("HTTP Deflater", new HttpContentCompressor());
-        pipeline.addLast("Http CORS Handler", new HttpCorsHandler());
 
         //SSP specific handlers
         //pipeline.addLast("Payload Formatter", new PayloadFormatter());

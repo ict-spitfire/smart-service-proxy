@@ -91,7 +91,7 @@
 //     * Register all files as new resources at the HttpRequestDispatcher (ignore *.swp files)
 //     */
 //    @Override
-//    public void registerInitialServices(){
+//    public void initialize(){
 //        //watchFuture = listeningExecutorService.submit(new WatchTask());
 //    }
 //

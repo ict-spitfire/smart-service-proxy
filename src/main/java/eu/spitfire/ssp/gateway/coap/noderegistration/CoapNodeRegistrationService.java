@@ -3,13 +3,13 @@ package eu.spitfire.ssp.gateway.coap.noderegistration;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.webservice.NotObservableWebService;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
 import eu.spitfire.ssp.gateway.coap.CoapProxyServiceCreator;
-import eu.spitfire.ssp.gateway.coap.requestprocessing.HttpRequestProcessorForCoapServices;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,12 +32,15 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private CoapProxyServiceCreator coapProxyServiceCreator;
-    private HttpRequestProcessorForCoapServices requestProcessor;
+    private CoapClientApplication coapClientApplication;
+
+    //private HttpRequestProcessorForCoapServices requestProcessor;
 
     public CoapNodeRegistrationService(CoapProxyServiceCreator coapProxyServiceCreator){
         super("/here_i_am", Boolean.TRUE);
         this.coapProxyServiceCreator = coapProxyServiceCreator;
-        this.requestProcessor = new HttpRequestProcessorForCoapServices(coapProxyServiceCreator.getCoapClient());
+        this.coapClientApplication = new CoapClientApplication();
+        //this.requestProcessor = new HttpRequestProcessorForCoapServices(coapProxyServiceCreator.getCoapClient());
     }
 
     /**
@@ -77,7 +80,7 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
                 targetURIHost = "[" + targetURIHost.substring(1) + "]";
 
             //create request for /.well-known/core and a processor to process the response
-            URI targetURI = new URI("coap://" + targetURIHost + ":" + CoapProxyServiceCreator.NODES_COAP_PORT +
+            URI targetURI = new URI("coap://" + targetURIHost + ":" + CoapProxyServiceCreator.COAP_SERVER_PORT +
                     "/.well-known/core");
             CoapRequest discoveringRequest = new CoapRequest(MsgType.CON, Code.GET, targetURI);
             WellKnownCoreProcessor wellKnownCoreProcessor = new WellKnownCoreProcessor();
@@ -98,7 +101,7 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
                             localServiceRegistrationFutures.add(localServiceRegistrationFuture);
 
                             coapProxyServiceCreator.registerService(localServiceRegistrationFuture, remoteAddress.getAddress(),
-                                    servicePath, requestProcessor);
+                                    servicePath);
                         }
 
                         final ListenableFuture<List<URI>> registrationDoneFuture =
@@ -130,7 +133,7 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
             }, this.getScheduledExecutorService());
 
             //write the CoAP request to the .well-known/core resource
-            coapProxyServiceCreator.getCoapClient().writeCoapRequest(discoveringRequest, wellKnownCoreProcessor);
+            coapClientApplication.writeCoapRequest(discoveringRequest, wellKnownCoreProcessor);
 
         }
         catch (Exception e) {

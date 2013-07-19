@@ -28,14 +28,13 @@ import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.Main;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import eu.spitfire.ssp.core.webservice.ListOfServices;
+import eu.spitfire.ssp.gateway.InternalRegisterTransparentGatewayMessage;
 import eu.spitfire.ssp.gateway.ProxyServiceCreator;
 import eu.spitfire.ssp.gateway.InternalAbsoluteUriRequest;
 import eu.spitfire.ssp.gateway.InternalRegisterServiceMessage;
+import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
-import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponse;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,12 +53,17 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
 	//Matches target URIs to request processor (either local webwervice or gateway)
-	private Map<URI, HttpRequestProcessor> services;
+	private Map<URI, HttpRequestProcessor> proxyServices;
+
+    private HttpRequestProcessor transparentCoapGateway;
 
     private ExecutorService ioExecutorService;
 
     public HttpRequestDispatcher(ExecutorService ioExecutorService) throws Exception {
         this.ioExecutorService = ioExecutorService;
+
+        this.proxyServices = Collections.synchronizedMap(new TreeMap<URI, HttpRequestProcessor>());
+        //this.transparentGateways = Collections.synchronizedMap(new TreeMap<Integer, HttpRequestProcessor>());
 
         registerServiceForListOfServices();
         registerFavicon();
@@ -70,9 +74,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     }
 
     private void registerServiceForListOfServices() throws URISyntaxException {
-        services = Collections.synchronizedMap(new TreeMap<URI, HttpRequestProcessor>());
-
-        //register service to provide list of available services
+        //register service to provide list of available proxyServices
         String host;
         if(Main.SSP_DNS_NAME != null)
             host = Main.SSP_DNS_NAME;
@@ -86,7 +88,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             host += ":" + Main.SSP_HTTP_SERVER_PORT;
 
         URI targetUri = new URI("http://" + host + "/");
-        registerService(targetUri, new ListOfServices(services.keySet()));
+        registerService(targetUri, new ListOfServices(proxyServices.keySet()));
     }
 
     /**
@@ -113,23 +115,22 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 		}
 
         me.getFuture().setSuccess();
-
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
-
-        URI targetUri = normalizeURI(new URI("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri())) ;
-
-        log.debug("Received HTTP request for " + targetUri);
 
         //Create a future to wait for a response asynchronously
         final SettableFuture<HttpResponse> responseFuture = SettableFuture.create();
-
         responseFuture.addListener(new Runnable(){
             @Override
             public void run() {
                 HttpResponse httpResponse;
                 try {
-                   httpResponse = responseFuture.get();
-                   log.debug("Write Response: {}.", httpResponse);
+                    httpResponse = responseFuture.get();
+
+                    //Set HTTP CORS header to allow cross-site scripting
+                    httpResponse.setHeader("Access-Control-Allow-Origin", "*");
+                    httpResponse.setHeader("Access-Control-Allow-Credentials", "true");
+
+                    log.debug("Write Response: {}.", httpResponse);
                 } catch (Exception e) {
                     httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
                             HttpResponseStatus.INTERNAL_SERVER_ERROR);
@@ -140,18 +141,67 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             }
         }, ioExecutorService);
 
-        if(services.containsKey(targetUri)){
-            log.info("HttpRequestProcessor found for {}", targetUri);
 
-            HttpRequestProcessor httpRequestProcessor = services.get(targetUri);
-            httpRequestProcessor.processHttpRequest(responseFuture, httpRequest);
+        String httpTargetHost = httpRequest.getHeader(HttpHeaders.Names.HOST);
+        String httpTargetPath = httpRequest.getUri();
+
+        //Transparent proxy request or proxy service request?
+        if(httpTargetPath.startsWith("http://" + httpTargetHost))
+            handleTransparentProxyRequest(responseFuture, httpRequest);
+        else
+            handleProxyServiceRequest(responseFuture,httpRequest);
+    }
+
+    private void handleProxyServiceRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest){
+        try{
+            URI targetUri = normalizeURI(new URI("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri()));
+
+            log.debug("Received HTTP request for " + targetUri);
+
+            if(proxyServices.containsKey(targetUri)){
+                log.info("HttpRequestProcessor found for {}", targetUri);
+
+                HttpRequestProcessor httpRequestProcessor = proxyServices.get(targetUri);
+                httpRequestProcessor.processHttpRequest(responseFuture, httpRequest);
+            }
+            else{
+                log.warn("No HttpRequestProcessor found for {}. Send error response.", targetUri);
+                HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+                        HttpResponseStatus.NOT_FOUND);
+
+                responseFuture.set(httpResponse);
+            }
         }
-        else{
-            log.warn("No HttpRequestProcessor found for {}. Send error response.", targetUri);
-            HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
-                    HttpResponseStatus.NOT_FOUND);
+        catch(URISyntaxException e){
+            responseFuture.set(HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+                    HttpResponseStatus.INTERNAL_SERVER_ERROR, e));
+        }
+    }
 
-            responseFuture.set(httpResponse);
+    private void handleTransparentProxyRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest){
+        try{
+            URI targetUri = new URI(httpRequest.getUri());
+            log.info("Received transparent proxy request for port {}.", targetUri.getPort());
+
+            //Rewrite host and path of the HTTP request
+            httpRequest.setHeader(HttpHeaders.Names.HOST,
+                    targetUri.getPort() < 0 ? targetUri.getHost() : targetUri.getHost() + ":" + targetUri.getPort());
+            httpRequest.setUri(targetUri.getPath());
+
+            if(transparentCoapGateway != null){
+                log.debug("HttpRequestProcessor found for port {}", targetUri.getPort());
+                transparentCoapGateway.processHttpRequest(responseFuture, httpRequest);
+            }
+            else{
+                HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+                        HttpResponseStatus.BAD_GATEWAY);
+
+                responseFuture.set(httpResponse);
+            }
+        }
+        catch (URISyntaxException e) {
+            responseFuture.set(HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+                    HttpResponseStatus.INTERNAL_SERVER_ERROR, e));
         }
     }
 
@@ -169,8 +219,18 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             me.getFuture().setSuccess();
             return;
         }
+        else if(me.getMessage() instanceof InternalRegisterTransparentGatewayMessage){
+            registerTransparentGateway((InternalRegisterTransparentGatewayMessage) me.getMessage());
+            me.getFuture().setSuccess();
+            return;
+        }
 
         ctx.sendDownstream(me);
+    }
+
+    private void registerTransparentGateway(InternalRegisterTransparentGatewayMessage message){
+        this.transparentCoapGateway = message.getHttpRequestProcessor();
+        log.info("Added transparent proxy/gateway for port: {}.", message.getPort());
     }
 
     private void retrieveAbsoluteUri(InternalAbsoluteUriRequest message){
@@ -182,16 +242,12 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             //Create host part of proxy URI
             proxyUriHost = Main.SSP_DNS_NAME;
 
-            log.debug("1 {}", proxyUriPath);
-
             //Add possibly contained target host of service origin to path part of proxy URI
             if(message.getTargetHostAddress() != null)
                 proxyUriPath = "/" + formatInetAddress(message.getTargetHostAddress()) + proxyUriPath;
 
-            log.debug("2 {}", proxyUriPath);
             //Add gateway prefix to path part of proxy URI
             proxyUriPath = "/" + message.getGatewayPrefix() + proxyUriPath;
-            log.debug("3 {}", proxyUriPath);
         }
         else{
             //Add gateway prefix to host part of proxy URI
@@ -221,7 +277,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     }
 
     private void registerService(URI serviceURI, HttpRequestProcessor httpRequestProcessor){
-        services.put(serviceURI, httpRequestProcessor);
+        proxyServices.put(serviceURI, httpRequestProcessor);
         log.info("Registered new service: {}", serviceURI);
     }
 

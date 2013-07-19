@@ -55,7 +55,7 @@ public class SimpleProxyServiceCreator extends ProxyServiceCreator {
     }
 
     @Override
-    public void registerInitialServices(){
+    public void initialize(){
         log.info("Add service /JohnSmith");
         final SettableFuture<URI> uriFuture = SettableFuture.create();
         final SimpleHttpRequestProcessor processor = new SimpleHttpRequestProcessor();

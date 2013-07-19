@@ -24,13 +24,17 @@
 */
 package eu.spitfire.ssp.gateway.coap;
 
-import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
+import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
 import eu.spitfire.ssp.gateway.ProxyServiceCreator;
 import eu.spitfire.ssp.gateway.coap.noderegistration.CoapNodeRegistrationService;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
+import eu.spitfire.ssp.gateway.coap.requestprocessing.HttpRequestProcessorForCoapServices;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.net.InetAddress;
+import java.net.URI;
 
 /**
 * @author Oliver Kleine
@@ -38,12 +42,13 @@ import org.slf4j.LoggerFactory;
 
 public class CoapProxyServiceCreator extends ProxyServiceCreator {
 
-    public static final int NODES_COAP_PORT = 5683;
+    public static final int COAP_SERVER_PORT = 5683;
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private CoapServerApplication coapServer;
-    private CoapClientApplication coapClient;
+    private HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices;
+    //private CoapClientApplication coapClient;
 
     /**
      * @param prefix the unique prefix for this {@link ProxyServiceCreator} instance
@@ -51,15 +56,24 @@ public class CoapProxyServiceCreator extends ProxyServiceCreator {
     public CoapProxyServiceCreator(String prefix){
         super(prefix);
 
-        this.coapClient = new CoapClientApplication();
+        this.httpRequestProcessorForCoapServices = new HttpRequestProcessorForCoapServices();
+//        this.coapClient = new CoapClientApplication();
 
         this.coapServer = new CoapServerApplication();
         coapServer.registerService(new CoapNodeRegistrationService(this));
+
+
     }
 
-    public CoapClientApplication getCoapClient(){
-        return this.coapClient;
+
+    public void registerService(SettableFuture<URI> uriFuture, InetAddress remoteAddress, String servicePath){
+        super.registerService(uriFuture, remoteAddress, servicePath, httpRequestProcessorForCoapServices);
     }
+
+
+//    public CoapClientApplication getCoapClient(){
+//        return this.coapClient;
+//    }
 
     @Override
     public HttpRequestProcessor getGui() {
@@ -67,7 +81,7 @@ public class CoapProxyServiceCreator extends ProxyServiceCreator {
     }
 
     @Override
-    public void registerInitialServices() {
-        //Nothing to do
+    public void initialize() {
+        registerTransparentGateway(COAP_SERVER_PORT, httpRequestProcessorForCoapServices);
     }
 }

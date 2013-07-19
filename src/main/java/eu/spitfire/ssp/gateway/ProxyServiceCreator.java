@@ -137,6 +137,12 @@ public abstract class ProxyServiceCreator {
         registerService(uriFuture, null, servicePath, requestProcessor);
     }
 
+    public void registerTransparentGateway(int targetPort, HttpRequestProcessor requestProcessor){
+        InternalRegisterTransparentGatewayMessage message =
+                new InternalRegisterTransparentGatewayMessage(targetPort, requestProcessor);
+
+        Channels.write(internalChannel, message);
+    }
     /**
      * Retrieves a proper absolute URI for the given original providers host address and the relative service path.
      * The {@link URI} which is eventually set in the given {@link SettableFuture<URI>} can be considered the URI
@@ -168,7 +174,7 @@ public abstract class ProxyServiceCreator {
      * This method is invoked upon initialization of the gateway instance. It is considered to register all
      * services available on startup.
      */
-    public abstract void registerInitialServices();
+    public abstract void initialize();
 
     /**
      * Returns the specific prefix of this gateway. If wildcard DNS is enabled, then the prefix is used as the very
