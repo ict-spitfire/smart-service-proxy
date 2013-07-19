@@ -68,10 +68,10 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
             }
             else{
                 String[] pathParts = httpRequest.getUri().split("/");
-                coapAddress = getCoapTargetHost(pathParts[1]);
+                coapAddress = getCoapTargetHost(pathParts[2]);
 
                 coapPath ="";
-                for(int i = 2; i < pathParts.length; i++)
+                for(int i = 3; i < pathParts.length; i++)
                     coapPath += "/" + pathParts[i];
             }
 
@@ -80,9 +80,13 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
 
             CoapRequest coapRequest = convertToCoapRequest(httpRequest, coapUri);
 
+            log.debug("Send CoAP request: {}", coapRequest);
+
             coapClientApplication.writeCoapRequest(coapRequest, new CoapResponseProcessor() {
                 @Override
                 public void processCoapResponse(CoapResponse coapResponse) {
+
+                    log.debug("Process CoAP response: {}", coapResponse);
 
                     HttpResponse httpResponse;
 
