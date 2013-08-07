@@ -1,7 +1,7 @@
 //package eu.spitfire.ssp.gateways.coap.observation;
 //
-//import eu.spitfire.ssp.gateway.coap.CoapProxyServiceCreator;
-//import eu.spitfire.ssp.core.pipeline.handler.ModelCache;
+//import eu.spitfire.ssp.gateway.coap.CoapProxyServiceManager;
+//import eu.spitfire.ssp.core.pipeline.handler.cache.AbstractSemanticCache;
 //import org.apache.log4j.Logger;
 //import org.jboss.netty.channel.*;
 //
@@ -14,9 +14,9 @@
 // */
 //public class ResourceUpdateChannelPipelineFactory implements ChannelPipelineFactory{
 //
-//    private CoapProxyServiceCreator coapBackend;
+//    private CoapProxyServiceManager coapBackend;
 //
-//    public ResourceUpdateChannelPipelineFactory(CoapProxyServiceCreator coapBackend){
+//    public ResourceUpdateChannelPipelineFactory(CoapProxyServiceManager coapBackend){
 //        this.coapBackend = coapBackend;
 //    }
 //
@@ -34,8 +34,8 @@
 //            }
 //        });
 //
-//        pipeline.addLast("Cache", ModelCache.getInstance());
-//        pipeline.addLast("CoapProxyServiceCreator", coapBackend);
+//        pipeline.addLast("Cache", AbstractSemanticCache.getInstance());
+//        pipeline.addLast("CoapProxyServiceManager", coapBackend);
 //        return pipeline;
 //    }
 //}

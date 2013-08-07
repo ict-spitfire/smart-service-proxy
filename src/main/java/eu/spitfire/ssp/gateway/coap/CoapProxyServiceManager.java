@@ -26,7 +26,7 @@ package eu.spitfire.ssp.gateway.coap;
 
 import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
-import eu.spitfire.ssp.gateway.ProxyServiceCreator;
+import eu.spitfire.ssp.gateway.ProxyServiceManager;
 import eu.spitfire.ssp.gateway.coap.noderegistration.CoapNodeRegistrationService;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import eu.spitfire.ssp.gateway.coap.requestprocessing.HttpRequestProcessorForCoapServices;
@@ -40,7 +40,7 @@ import java.net.URI;
 * @author Oliver Kleine
 */
 
-public class CoapProxyServiceCreator extends ProxyServiceCreator {
+public class CoapProxyServiceManager extends ProxyServiceManager {
 
     public static final int COAP_SERVER_PORT = 5683;
 
@@ -51,9 +51,9 @@ public class CoapProxyServiceCreator extends ProxyServiceCreator {
     //private CoapClientApplication coapClient;
 
     /**
-     * @param prefix the unique prefix for this {@link ProxyServiceCreator} instance
+     * @param prefix the unique prefix for this {@link eu.spitfire.ssp.gateway.ProxyServiceManager} instance
      */
-    public CoapProxyServiceCreator(String prefix){
+    public CoapProxyServiceManager(String prefix){
         super(prefix);
 
         this.httpRequestProcessorForCoapServices = new HttpRequestProcessorForCoapServices();

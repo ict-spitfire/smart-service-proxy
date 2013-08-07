@@ -21,13 +21,13 @@ import java.util.TreeSet;
 * Time: 15:41
 * To change this template use File | Settings | File Templates.
 */
-public class WellKnownCoreProcessor implements CoapResponseProcessor, RetransmissionTimeoutProcessor{
+public class WellKnownCoreResponseProcessor implements CoapResponseProcessor, RetransmissionTimeoutProcessor{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
-    private SettableFuture<Set<String>> discoveringFuture = SettableFuture.create();
+    private SettableFuture<Set<String>> serviceDiscoveryFuture = SettableFuture.create();
 
-    public ListenableFuture<Set<String>> getDiscoveringFuture() {
-        return discoveringFuture;
+    public ListenableFuture<Set<String>> getServiceDiscoveryFuture() {
+        return serviceDiscoveryFuture;
     }
 
     @Override
@@ -35,15 +35,15 @@ public class WellKnownCoreProcessor implements CoapResponseProcessor, Retransmis
         Set<String> services = processWellKnownCoreResource(coapResponse);
         if(services != null){
             log.info("/.well-known/core resource succesfully processed, found {} services.", services.size());
-            discoveringFuture.set(services);
+            serviceDiscoveryFuture.set(services);
         }
         else
-            discoveringFuture.setException(new ResourceInvalidException());
+            serviceDiscoveryFuture.setException(new ResourceInvalidException());
     }
 
     @Override
     public void processRetransmissionTimeout(InternalRetransmissionTimeoutMessage timeoutMessage) {
-        discoveringFuture.setException(new ResourceDiscoveringTimeoutException(timeoutMessage.getRemoteAddress()));
+        serviceDiscoveryFuture.setException(new ResourceDiscoveringTimeoutException(timeoutMessage.getRemoteAddress()));
     }
 
     private Set<String> processWellKnownCoreResource(CoapResponse coapResponse){

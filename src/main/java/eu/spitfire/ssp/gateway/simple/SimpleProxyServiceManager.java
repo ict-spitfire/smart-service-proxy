@@ -26,13 +26,13 @@ package eu.spitfire.ssp.gateway.simple;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
-import eu.spitfire.ssp.gateway.ProxyServiceCreator;
+import eu.spitfire.ssp.gateway.ProxyServiceManager;
 import org.apache.log4j.Logger;
 
 import java.net.URI;
 
 /**
- * A {@link SimpleProxyServiceCreator} instance hosts a simple standard model. This backend is basicly to ensure the functionality
+ * A {@link SimpleProxyServiceManager} instance hosts a simple standard model. This backend is basicly to ensure the functionality
  * of the underlying handler stack. If it's instanciated (by setting <code>enableBackend="simple"</code> in the
  * <code>ssp.properties</code> file) it registers its WebService (/JohnSmith) at the {@link eu.spitfire.ssp.core.pipeline.handler.HttpRequestDispatcher} instance which
  * causes this WebService to occur on the HTML page (at <code>core://<ssp-ip>:<ssp-port>/) listing the available webServices.
@@ -41,11 +41,11 @@ import java.net.URI;
  *
  */
 
-public class SimpleProxyServiceCreator extends ProxyServiceCreator {
+public class SimpleProxyServiceManager extends ProxyServiceManager {
 
-    private static Logger log = Logger.getLogger(SimpleProxyServiceCreator.class.getName());
+    private static Logger log = Logger.getLogger(SimpleProxyServiceManager.class.getName());
 
-    public SimpleProxyServiceCreator(String prefix) {
+    public SimpleProxyServiceManager(String prefix) {
         super(prefix);
     }
 

@@ -57,15 +57,6 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
                 coapAddress = httpRequest.getHeader(HttpHeaders.Names.HOST).replaceFirst(":" + COAP_SERVER_PORT, "");
                 coapPath = httpRequest.getUri();
             }
-            else if(Main.DNS_WILDCARD_POSTFIX != null){
-                coapAddress = httpRequest.getHeader(HttpHeaders.Names.HOST);
-
-                //cut out the target host related part of the http request host
-                coapAddress = getCoapTargetHost(coapAddress.substring(0, coapAddress.indexOf(".")));
-
-                //set CoAP target path
-                coapPath = httpRequest.getUri();
-            }
             else{
                 String[] pathParts = httpRequest.getUri().split("/");
                 coapAddress = getCoapTargetHost(pathParts[2]);
@@ -75,7 +66,7 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
                     coapPath += "/" + pathParts[i];
             }
 
-            URI coapUri = new URI("coap", coapAddress + ":" + COAP_SERVER_PORT, coapPath, null);
+            URI coapUri = new URI("coap", null, coapAddress, COAP_SERVER_PORT, coapPath, null, null);
             log.debug("CoAP target URI: {}", coapUri);
 
             CoapRequest coapRequest = convertToCoapRequest(httpRequest, coapUri);
@@ -169,7 +160,7 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
     }
 
     public static HttpResponse convertToHttpResponse(CoapResponse coapResponse, HttpVersion httpVersion,
-                                                     Language payloadMimeType){
+                                                     Language acceptedMimeType){
 
         //convert status code / response code
         HttpResponseStatus httpStatus = INTERNAL_SERVER_ERROR;
@@ -210,11 +201,13 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
         byte[] coapPayload = new byte[coapResponse.getPayload().readableBytes()];
         coapResponse.getPayload().getBytes(0, coapPayload);
 
-        //Create Jena Model from CoAP response
-        Model model = ModelFactory.createDefaultModel();
-        if(coapResponse.getContentType() == MediaType.APP_SHDT){
+        ChannelBuffer httpResponsePayload;
 
+        //Create payload for HTTP response
+        if(coapResponse.getContentType() == MediaType.APP_SHDT){
             log.debug("SHDT payload in CoAP response.");
+
+            Model model = ModelFactory.createDefaultModel();
 
             try{
                 (new ShdtDeserializer(64)).read_buffer(model, coapPayload);
@@ -224,25 +217,24 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
                 return HttpResponseFactory.createHttpErrorResponse(httpVersion,
                         HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
             }
+
+            //Serialize payload for HTTP response
+            httpResponsePayload = ModelSerializer.serializeModel(model, acceptedMimeType);
         }
         else{
-            try{
-                Language language = Language.getByCoapMediaType(coapResponse.getContentType());
-                model.read(new ChannelBufferInputStream(coapResponse.getPayload()), null, language.lang);
-            }
-            catch(Exception e){
-                log.error("Error while reading CoAP response payload into model. ", e);
-                return HttpResponseFactory.createHttpErrorResponse(httpVersion,
-                        HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-            }
+            httpResponsePayload = coapResponse.getPayload();
         }
 
-        //Serialize payload for HTTP response
-        ChannelBuffer httpPayload = ModelSerializer.serializeModel(model, payloadMimeType);
-
+        //Create HTTP header fields
         Multimap<String, String> httpHeaders = CoapOptionHttpHeaderMapper.getHttpHeaders(coapResponse.getOptionList());
 
-        return HttpResponseFactory.createHttpResponse(httpVersion, httpStatus, httpHeaders, httpPayload);
+        //Create HTTP response
+        HttpResponse httpResponse =
+                HttpResponseFactory.createHttpResponse(httpVersion, httpStatus, httpHeaders, httpResponsePayload);
 
+        //Set HTTP content type header
+        httpResponse.setHeader(HttpHeaders.Names.CONTENT_TYPE, acceptedMimeType.mimeType);
+
+        return httpResponse;
     }
 }

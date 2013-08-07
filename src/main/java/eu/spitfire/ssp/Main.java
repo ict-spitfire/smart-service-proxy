@@ -25,9 +25,9 @@
 package eu.spitfire.ssp;
 
 import eu.spitfire.ssp.core.pipeline.SmartServiceProxyPipelineFactory;
-import eu.spitfire.ssp.gateway.ProxyServiceCreator;
-import eu.spitfire.ssp.gateway.coap.CoapProxyServiceCreator;
-import eu.spitfire.ssp.gateway.simple.SimpleProxyServiceCreator;
+import eu.spitfire.ssp.gateway.ProxyServiceManager;
+import eu.spitfire.ssp.gateway.coap.CoapProxyServiceManager;
+import eu.spitfire.ssp.gateway.simple.SimpleProxyServiceManager;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.ConsoleAppender;
@@ -94,17 +94,17 @@ public class Main {
 
         for(String proxyServiceCreatorName : enabledProxyServiceCreators){
 
-            ProxyServiceCreator proxyServiceCreator;
-            //SimpleProxyServiceCreator
+            ProxyServiceManager proxyServiceManager;
+            //SimpleProxyServiceManager
             if(proxyServiceCreatorName.equals("simple")){
                 log.info("Create Simple Gateway.");
-                proxyServiceCreator = new SimpleProxyServiceCreator("simple");
+                proxyServiceManager = new SimpleProxyServiceManager("simple");
             }
 
             //CoAPBackend
             else if(proxyServiceCreatorName.equals("coap")) {
                 log.info("Create CoAP Gateway.");
-                proxyServiceCreator = new CoapProxyServiceCreator("coap");
+                proxyServiceManager = new CoapProxyServiceManager("coap");
             }
 
             //FilesGateway
@@ -113,7 +113,7 @@ public class Main {
 //                if(directory == null){
 //                    throw new Exception("Property 'files.directory' not set.");
 //                }
-//                proxyServiceCreator = new FilesGateway(directory);
+//                proxyServiceManager = new FilesGateway(directory);
 //            }
 
             //Unknown AbstractGatewayFactory Type
@@ -122,10 +122,10 @@ public class Main {
                 continue;
             }
 
-            proxyServiceCreator.setInternalChannel(internalChannel);
-            proxyServiceCreator.setExecutorService(executorService);
+            proxyServiceManager.setInternalChannel(internalChannel);
+            proxyServiceManager.setExecutorService(executorService);
 
-            proxyServiceCreator.initialize();
+            proxyServiceManager.initialize();
         }
     }
 
@@ -137,6 +137,7 @@ public class Main {
         Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
 
         Logger.getRootLogger().setLevel(Level.DEBUG);
+        Logger.getLogger("eu.spitfire.ssp.core.payloadserialization.ShdtDeserializer").setLevel(Level.ERROR);
         Logger.getLogger("de.uniluebeck.itm.ncoap").setLevel(Level.ERROR);
     }
 }

@@ -3,7 +3,8 @@ package eu.spitfire.ssp.core.payloadserialization;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -17,7 +18,7 @@ import java.util.NoSuchElementException;
  */
 public class ShdtDeserializer {
 
-    private static Logger log = Logger.getLogger(ShdtDeserializer.class.getName());
+    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
 	private Map<Byte, String> lookup_table;
 	private int TABLE_SIZE;

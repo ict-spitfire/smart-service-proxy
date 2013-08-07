@@ -7,7 +7,7 @@
 //import de.uniluebeck.itm.ncoap.message.header.Code;
 //import de.uniluebeck.itm.ncoap.message.header.MsgType;
 //import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
-//import eu.spitfire.ssp.gateway.coap.CoapProxyServiceCreator;
+//import eu.spitfire.ssp.gateway.coap.CoapProxyServiceManager;
 //import eu.spitfire.ssp.core.SelfDescription;
 //import org.apache.log4j.Logger;
 //import org.jboss.netty.channel.*;
@@ -28,11 +28,11 @@
 //
 //    private static Logger log =  Logger.getLogger(CoapResourceObserver.class.getName());
 //
-//    private CoapProxyServiceCreator coapBackend;
+//    private CoapProxyServiceManager coapBackend;
 //    private Inet6Address serviceToObserveHost;
 //    private String serviceToObservePath;
 //
-//    public CoapResourceObserver(CoapProxyServiceCreator coapBackend , Inet6Address observableServiceHost,
+//    public CoapResourceObserver(CoapProxyServiceManager coapBackend , Inet6Address observableServiceHost,
 //                                String observableServicePath){
 //
 //        this.coapBackend = coapBackend;
@@ -70,7 +70,7 @@
 //                object = new ObservingFailedMessage(serviceToObserveHost, serviceToObservePath);
 //            }
 //            else{
-//                URI httpMirrorURI = (CoapProxyServiceCreator.createHttpURIs(serviceToObserveHost, serviceToObservePath))[1];
+//                URI httpMirrorURI = (CoapProxyServiceManager.createHttpURIs(serviceToObserveHost, serviceToObservePath))[1];
 //                object = new SelfDescription(coapResponse, httpMirrorURI);
 //            }
 //

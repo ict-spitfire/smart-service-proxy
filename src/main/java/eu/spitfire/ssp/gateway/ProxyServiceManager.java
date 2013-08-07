@@ -42,14 +42,19 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 /**
- * A {@link ProxyServiceCreator} instance is a software component to enable a client that is capable of talking HTTP to
- * communicate with an arbitrary server. The {@link ProxyServiceCreator} is responsible for translating the incoming
- * {@link HttpRequest} to whatever (proprietary) protocol the server talks and to return a suitable {@link HttpResponse}
+ * A {@link ProxyServiceManager} instance is a software component to enable a client that is capable of talking HTTP to
+ * communicate with an arbitrary server.
+ *
+ * The {@link ProxyServiceManager} is responsible for translating the incoming {@link HttpRequest} to whatever
+ * (potentially proprietary) protocol the actual server talks and to produce a suitable {@link HttpResponse}
  * which is then sent to the client.
+ *
+ * Furthermore it is responsible for creating all necessary sub-components to manage the communication with the
+ * actual server.
  *
  * @author Oliver Kleine
  */
-public abstract class ProxyServiceCreator {
+public abstract class ProxyServiceManager {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -58,10 +63,7 @@ public abstract class ProxyServiceCreator {
 
     private String prefix;
 
-    /**
-     *
-     */
-    protected ProxyServiceCreator(String prefix){
+    protected ProxyServiceManager(String prefix){
         this.prefix = prefix;
 
         HttpRequestProcessor gui = this.getGui();
@@ -72,7 +74,7 @@ public abstract class ProxyServiceCreator {
     public abstract HttpRequestProcessor getGui();
 
     /**
-     * Method to be called by extending classes, i.e. instances of {@link ProxyServiceCreator} whenever there is a new
+     * Method to be called by extending classes, i.e. instances of {@link ProxyServiceManager} whenever there is a new
      * webservice to be created on the smart service proxy, if the network behind this gateway is an IP enabled
      * network.
      *
@@ -122,7 +124,7 @@ public abstract class ProxyServiceCreator {
     }
 
     /**
-     * Method to be called by extending classes, i.e. instances of {@link ProxyServiceCreator} whenever there is a new
+     * Method to be called by extending classes, i.e. instances of {@link ProxyServiceManager} whenever there is a new
      * webservice to be created on the smart service proxy, if the network behind this gateway is <b>not</b> an IP
      * enabled network.
      *

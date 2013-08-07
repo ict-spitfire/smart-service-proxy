@@ -64,8 +64,7 @@ public class PayloadFormatter extends SimpleChannelHandler {
 //                    + " accepts " + httpRequest.getHeader("Accept"));
 //		}
 //
-//		ctx.sendUpstream(me);
-        super.messageReceived(ctx, me);
+		ctx.sendUpstream(me);
 	}
 
 	/**

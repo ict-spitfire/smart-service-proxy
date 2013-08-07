@@ -28,7 +28,7 @@
 //import com.google.common.util.concurrent.ListeningExecutorService;
 //import com.google.common.util.concurrent.MoreExecutors;
 //import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
-//import eu.spitfire.ssp.gateway.ProxyServiceCreator;
+//import eu.spitfire.ssp.gateway.ProxyServiceManager;
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 //
@@ -52,7 +52,7 @@
 //* @author Oliver Kleine
 //* @author Henning Hasemann
 //*/
-//public class FilesGateway extends ProxyServiceCreator {
+//public class FilesGateway extends ProxyServiceManager {
 //
 //    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 //

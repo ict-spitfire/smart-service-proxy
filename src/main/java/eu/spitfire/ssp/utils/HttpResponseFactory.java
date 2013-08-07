@@ -3,17 +3,17 @@ package eu.spitfire.ssp.utils;
 import com.google.common.collect.Multimap;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
-import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
-import org.jboss.netty.handler.codec.http.HttpResponse;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
-import org.jboss.netty.handler.codec.http.HttpVersion;
+import org.jboss.netty.handler.codec.http.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.Charset;
-import java.util.Map;
 
 public class HttpResponseFactory {
+
+    private static Logger log = LoggerFactory.getLogger(HttpResponseFactory.class.getName());
 
     public static HttpResponse createHttpErrorResponse(HttpVersion version, HttpResponseStatus status, String content){
         HttpResponse response = new DefaultHttpResponse(version, status);
@@ -42,13 +42,18 @@ public class HttpResponseFactory {
         HttpResponse response = new DefaultHttpResponse(version, status);
         response.setContent(payload);
 
-        for(String header : headers.keySet()){
-            response.setHeader(header, headers.get(header));
-        }
+        setHeaders(response, headers);
 
         response.setHeader("Content-Length", payload.readableBytes());
 
         return response;
     }
 
+    public static void setHeaders(HttpMessage httpMessage, Multimap<String, String> headers){
+        for(String headerName : headers.keySet()){
+            Iterable<String> headerValue = headers.get(headerName);
+            httpMessage.setHeader(headerName, headerValue);
+            log.debug("Set Header: {} (Name), {} (Value(s))", headerName, headerValue);
+        }
+    }
 }

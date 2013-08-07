@@ -29,7 +29,7 @@ import eu.spitfire.ssp.Main;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import eu.spitfire.ssp.core.webservice.ListOfServices;
 import eu.spitfire.ssp.gateway.InternalRegisterTransparentGatewayMessage;
-import eu.spitfire.ssp.gateway.ProxyServiceCreator;
+import eu.spitfire.ssp.gateway.ProxyServiceManager;
 import eu.spitfire.ssp.gateway.InternalAbsoluteUriRequest;
 import eu.spitfire.ssp.gateway.InternalRegisterServiceMessage;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
@@ -52,7 +52,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-	//Matches target URIs to request processor (either local webwervice or gateway)
+	//Matches target URIs to request processor
 	private Map<URI, HttpRequestProcessor> proxyServices;
 
     private HttpRequestProcessor transparentCoapGateway;
@@ -78,11 +78,8 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         String host;
         if(Main.SSP_DNS_NAME != null)
             host = Main.SSP_DNS_NAME;
-        else if(Main.DNS_WILDCARD_POSTFIX != null)
-            host = "www." + Main.DNS_WILDCARD_POSTFIX;
         else
-            throw new RuntimeException("At least one of SSP_DNS_NAME and DNS_WILDCARD_POSTFIX must be set." +
-                    " SSP_DNS_NAME can be an IP address!");
+            throw new RuntimeException("SSP_DNS_NAME must be defined! SSP_DNS_NAME can also be an IP address!");
 
         if(Main.SSP_HTTP_SERVER_PORT != 80)
             host += ":" + Main.SSP_HTTP_SERVER_PORT;
@@ -234,40 +231,34 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     }
 
     private void retrieveAbsoluteUri(InternalAbsoluteUriRequest message){
-
-        String proxyUriHost;
         String proxyUriPath = message.getServicePath();
 
-        if(Main.DNS_WILDCARD_POSTFIX == null){
-            //Create host part of proxy URI
-            proxyUriHost = Main.SSP_DNS_NAME;
+        //Add possibly contained target host of service origin to path part of proxy URI
+        if(message.getTargetHostAddress() != null){
+            InetAddress hostAddress = message.getTargetHostAddress();
 
-            //Add possibly contained target host of service origin to path part of proxy URI
-            if(message.getTargetHostAddress() != null)
-                proxyUriPath = "/" + formatInetAddress(message.getTargetHostAddress()) + proxyUriPath;
-
-            //Add gateway prefix to path part of proxy URI
-            proxyUriPath = "/" + message.getGatewayPrefix() + proxyUriPath;
-        }
-        else{
-            //Add gateway prefix to host part of proxy URI
-            proxyUriHost = message.getGatewayPrefix() + "." + Main.DNS_WILDCARD_POSTFIX;
-
-            //Add possibly contained target host of service origin to host part of proxy URI
-            if(message.getTargetHostAddress() != null)
-                proxyUriHost = formatInetAddress(message.getTargetHostAddress()) + "." + proxyUriHost;
+            if(hostAddress instanceof Inet6Address)
+                proxyUriPath = "/" + shortenInet6Address((Inet6Address) hostAddress) + proxyUriPath;
+            else
+                proxyUriPath = "/" + hostAddress + proxyUriPath;
         }
 
-        if(Main.SSP_HTTP_SERVER_PORT != 80)
-            proxyUriHost += ":" + Main.SSP_HTTP_SERVER_PORT;
+        //Add gateway prefix to path part of proxy URI
+        proxyUriPath = "/" + message.getGatewayPrefix() + proxyUriPath;
 
         try {
-            log.debug("Host: {}", proxyUriHost);
-            URI proxyUri = URI.create("http://" + proxyUriHost + proxyUriPath);
+            URI proxyUri = new URI("http",
+                                   null,
+                                   Main.SSP_DNS_NAME,
+                                   Main.SSP_HTTP_SERVER_PORT == 80 ? -1 : Main.SSP_HTTP_SERVER_PORT,
+                                   proxyUriPath,
+                                   null,
+                                   null);
+
             log.debug("Requested absolute URI: {}", proxyUri);
             message.getUriFuture().set(proxyUri);
         }
-        catch (Exception e) {
+        catch (URISyntaxException e) {
             message.getUriFuture().setException(e);
         }
     }
@@ -281,23 +272,9 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         log.info("Registered new service: {}", serviceURI);
     }
 
-    private String formatInetAddress(InetAddress inetAddress){
-        if(inetAddress instanceof Inet6Address)
-            return formatInet6Address((Inet6Address) inetAddress);
-
-        if(inetAddress instanceof Inet4Address)
-            return formatInet4Address((Inet4Address) inetAddress);
-
-        return inetAddress.toString();
-    }
-
-    private String formatInet4Address(Inet4Address inet4Address) {
-        return inet4Address.getHostAddress().replaceAll(".", "-");
-    }
-
-    private String formatInet6Address(Inet6Address inet6Address){
+    private String shortenInet6Address(Inet6Address inet6Address){
         String result = inet6Address.getHostAddress();
-        
+
         //remove leading zeros per block
         result = result.replaceAll(":0000", ":0");
         result = result.replaceAll(":000", ":0");
@@ -308,10 +285,40 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         result = result.replaceAll("((?:(?:^|:)0\\b){2,}):?(?!\\S*\\b\\1:0\\b)(\\S*)", "::$2");
         log.debug("Shortened IPv6 address: {}", result);
 
-        return result.replaceAll(":", "-");
+        return result;
     }
 
-    public boolean unregisterService(String path, ProxyServiceCreator backend) {
+//    private String formatInetAddress(InetAddress inetAddress){
+//        if(inetAddress instanceof Inet6Address)
+//            return formatInet6Address((Inet6Address) inetAddress);
+//
+//        if(inetAddress instanceof Inet4Address)
+//            return formatInet4Address((Inet4Address) inetAddress);
+//
+//        return inetAddress.toString();
+//    }
+//
+//    private String formatInet4Address(Inet4Address inet4Address) {
+//        return inet4Address.getHostAddress().replaceAll(".", "-");
+//    }
+//
+//    private String formatInet6Address(Inet6Address inet6Address){
+//        String result = inet6Address.getHostAddress();
+//
+//        //remove leading zeros per block
+//        result = result.replaceAll(":0000", ":0");
+//        result = result.replaceAll(":000", ":0");
+//        result = result.replaceAll(":00", ":0");
+//        result = result.replaceAll("(:0)([ABCDEFabcdef123456789])", ":$2");
+//
+//        //return shortened IP
+//        result = result.replaceAll("((?:(?:^|:)0\\b){2,}):?(?!\\S*\\b\\1:0\\b)(\\S*)", "::$2");
+//        log.debug("Shortened IPv6 address: {}", result);
+//
+//        return result.replaceAll(":", "-");
+//    }
+
+    public boolean unregisterService(String path, ProxyServiceManager backend) {
         //TODO
         return true;
     }

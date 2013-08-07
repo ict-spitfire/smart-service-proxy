@@ -51,20 +51,20 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 
     private HttpResponseEncoder httpResponseEncoder;
     private PayloadFormatter payloadFormatter;
-    private HttpMirrorUriHandler httpMirrorUriHandler;
+    //private HttpMirrorUriHandler httpMirrorUriHandler;
     private HttpRequestDispatcher httpRequestDispatcher;
-    //private ModelCache modelCache;
+    //private AbstractSemanticCache modelCache;
 
     ExecutionHandler executionHandler;
 
     public SmartServiceProxyPipelineFactory(ExecutorService executorService) throws Exception {
         httpResponseEncoder = new HttpResponseEncoder();
         payloadFormatter = new PayloadFormatter();
-        httpMirrorUriHandler = new HttpMirrorUriHandler();
+        //httpMirrorUriHandler = new HttpMirrorUriHandler();
 
         executionHandler = new ExecutionHandler(executorService);
 
-//        modelCache = new ModelCache();
+//        modelCache = new AbstractSemanticCache();
         httpRequestDispatcher = new HttpRequestDispatcher(executorService);
     }
 
