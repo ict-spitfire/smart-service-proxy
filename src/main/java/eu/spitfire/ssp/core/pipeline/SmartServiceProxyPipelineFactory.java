@@ -25,6 +25,8 @@
 package eu.spitfire.ssp.core.pipeline;
 
 import eu.spitfire.ssp.core.pipeline.handler.*;
+import eu.spitfire.ssp.core.pipeline.handler.cache.AbstractSemanticCache;
+import eu.spitfire.ssp.core.pipeline.handler.cache.SimpleSemanticCache;
 import org.apache.log4j.Logger;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
@@ -49,22 +51,17 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 
     private static Logger log = Logger.getLogger(SmartServiceProxyPipelineFactory.class.getName());
 
-    private HttpResponseEncoder httpResponseEncoder;
-    private PayloadFormatter payloadFormatter;
-    //private HttpMirrorUriHandler httpMirrorUriHandler;
     private HttpRequestDispatcher httpRequestDispatcher;
-    //private AbstractSemanticCache modelCache;
+    private AbstractSemanticCache semanticCache            ;
 
-    ExecutionHandler executionHandler;
+    private ExecutionHandler executionHandler;
 
     public SmartServiceProxyPipelineFactory(ExecutorService executorService) throws Exception {
-        httpResponseEncoder = new HttpResponseEncoder();
-        payloadFormatter = new PayloadFormatter();
         //httpMirrorUriHandler = new HttpMirrorUriHandler();
 
         executionHandler = new ExecutionHandler(executorService);
+        semanticCache = new SimpleSemanticCache();
 
-//        modelCache = new AbstractSemanticCache();
         httpRequestDispatcher = new HttpRequestDispatcher(executorService);
     }
 
@@ -89,10 +86,10 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 		pipeline.addLast("HTTP Deflater", new HttpContentCompressor());
 
         //SSP specific handlers
-        //pipeline.addLast("Payload Formatter", new PayloadFormatter());
+        pipeline.addLast("Payload Formatter", new SemanticPayloadFormatter());
         //pipeline.addLast("HTTP Mirror URI Handler", new HttpMirrorUriHandler());
         pipeline.addLast("Execution Handler", executionHandler);
-        //pipeline.addLast("Model Cache", modelCache);
+        pipeline.addLast("Semantic Cache", semanticCache);
 
         pipeline.addLast("HTTP Request Dispatcher", httpRequestDispatcher);
 

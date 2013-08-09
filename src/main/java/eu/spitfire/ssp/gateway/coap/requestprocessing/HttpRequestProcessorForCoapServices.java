@@ -1,7 +1,5 @@
 package eu.spitfire.ssp.gateway.coap.requestprocessing;
 
-import com.google.common.collect.Multimap;
-import com.google.common.net.InetAddresses;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
@@ -11,31 +9,32 @@ import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType;
-import eu.spitfire.ssp.Main;
+import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
 import eu.spitfire.ssp.core.payloadserialization.Language;
-import eu.spitfire.ssp.core.payloadserialization.ModelSerializer;
 import eu.spitfire.ssp.core.payloadserialization.ShdtDeserializer;
-import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
-import eu.spitfire.ssp.utils.HttpResponseFactory;
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBufferInputStream;
-import org.jboss.netty.handler.codec.http.*;
+import eu.spitfire.ssp.core.pipeline.handler.cache.ResourceStatusMessage;
+import eu.spitfire.ssp.core.webservice.SemanticHttpRequestProcessor;
+import eu.spitfire.ssp.gateway.ProxyServiceException;
+import org.jboss.netty.handler.codec.http.HttpHeaders;
+import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
+import java.util.Date;
 
 import static de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType.APP_SHDT;
-import static org.jboss.netty.handler.codec.http.HttpResponseStatus.*;
+import static org.jboss.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
+import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
 /**
  * @author Oliver Kleine
  */
-public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor{
+public class HttpRequestProcessorForCoapServices implements SemanticHttpRequestProcessor {
 
-    public static final int COAP_SERVER_PORT = 5683;
     private static Logger log = LoggerFactory.getLogger(HttpRequestProcessorForCoapServices.class.getName());
 
     private CoapClientApplication coapClientApplication;
@@ -45,90 +44,128 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
     }
 
     @Override
-    public void processHttpRequest(final SettableFuture<HttpResponse> responseFuture, final HttpRequest httpRequest) {
-
+    public void processHttpRequest(final SettableFuture<ResourceStatusMessage> responseFuture,
+                                   final HttpRequest httpRequest) {
         try{
-            String coapAddress;
-            String coapPath;
+            URI proxyUri = new URI(httpRequest.getUri());
 
-            log.debug("Host: {}", httpRequest.getHeader(HttpHeaders.Names.HOST));
-
-            if(httpRequest.getHeader(HttpHeaders.Names.HOST).endsWith(":" + COAP_SERVER_PORT)){
-                coapAddress = httpRequest.getHeader(HttpHeaders.Names.HOST).replaceFirst(":" + COAP_SERVER_PORT, "");
-                coapPath = httpRequest.getUri();
-            }
-            else{
-                String[] pathParts = httpRequest.getUri().split("/");
-                coapAddress = getCoapTargetHost(pathParts[2]);
-
-                coapPath ="";
-                for(int i = 3; i < pathParts.length; i++)
-                    coapPath += "/" + pathParts[i];
+            if(proxyUri.getQuery() == null || !(proxyUri.getQuery().startsWith("uri=coap://"))){
+                responseFuture.setException(new ProxyServiceException(httpRequest.getProtocolVersion(),
+                        BAD_GATEWAY, "Requested URI scheme was either emoty or not coap."));
+                return;
             }
 
-            URI coapUri = new URI("coap", null, coapAddress, COAP_SERVER_PORT, coapPath, null, null);
+            final URI coapUri = new URI(proxyUri.getQuery().substring(4));
             log.debug("CoAP target URI: {}", coapUri);
 
+            //Send CoAP request and wait for response
             CoapRequest coapRequest = convertToCoapRequest(httpRequest, coapUri);
-
-            log.debug("Send CoAP request: {}", coapRequest);
-
             coapClientApplication.writeCoapRequest(coapRequest, new CoapResponseProcessor() {
                 @Override
                 public void processCoapResponse(CoapResponse coapResponse) {
-
                     log.debug("Process CoAP response: {}", coapResponse);
 
-                    HttpResponse httpResponse;
-
-                    try {
-                        String accept = httpRequest.getHeader("Accept");
-                        log.debug("Accept header of HTTP request: {}", accept);
-                        Language accepted = Language.getByHttpMimeType(accept);
-                        if(accepted == null)
-                            httpResponse = HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
-                                    HttpResponseStatus.UNSUPPORTED_MEDIA_TYPE, httpRequest.getHeader("Accept"));
-                        else
-                            httpResponse =
-                                    convertToHttpResponse(coapResponse, httpRequest.getProtocolVersion(), accepted);
-                    }
-                    catch (Exception e) {
-                        log.error("Exception while converting from CoAP to HTTP.", e);
-                        httpResponse =
-                                HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
-                                        HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-
+                    if(coapResponse.getCode().isErrorMessage()){
+                        HttpResponseStatus httpResponseStatus =
+                                CoapCodeHttpStatusMapper.getHttpResponseStatus(coapResponse.getCode());
+                        responseFuture.setException(new ProxyServiceException(httpRequest.getProtocolVersion(),
+                                httpResponseStatus));
+                        return;
                     }
 
-                    responseFuture.set(httpResponse);
+                    if(coapResponse.getContentType() == null){
+                        responseFuture.setException(new ProxyServiceException(httpRequest.getProtocolVersion(),
+                                INTERNAL_SERVER_ERROR, "CoAP response had no content type option."));
+                        return;
+                    }
+
+                    if(coapResponse.getContentType() != null && coapResponse.getPayload().readableBytes() == 0){
+                        responseFuture.setException(new ProxyServiceException(httpRequest.getProtocolVersion(),
+                                INTERNAL_SERVER_ERROR, "CoAP response had content type option but no content"));
+                        return;
+                    }
+
+                    Model resourceStatus = ModelFactory.createDefaultModel();;
+
+                    //read payload from CoAP response
+                    byte[] coapPayload = new byte[coapResponse.getPayload().readableBytes()];
+                    coapResponse.getPayload().getBytes(0, coapPayload);
+
+                    if(coapResponse.getContentType() == OptionRegistry.MediaType.APP_SHDT){
+                        log.debug("SHDT payload in CoAP response.");
+
+                        try{
+                            (new ShdtDeserializer(64)).read_buffer(resourceStatus, coapPayload);
+                        }
+                        catch(Exception e){
+                            String message = "SHDT error!";
+                            log.error(message, e);
+                            responseFuture.setException(new ProxyServiceException(httpRequest.getProtocolVersion(),
+                                    INTERNAL_SERVER_ERROR, message, e));
+                            return;
+                        }
+                    }
+                    else{
+                        Language language = Language.getByCoapMediaType(coapResponse.getContentType());
+                        if(language == null){
+                            responseFuture.setException(new ProxyServiceException(httpRequest.getProtocolVersion(),
+                                    INTERNAL_SERVER_ERROR, "CoAP response had no semantic content type"));
+                            return;
+                        }
+
+                        try{
+                            resourceStatus.read(new ByteArrayInputStream(coapPayload), null, language.lang);
+                        }
+                        catch(Exception e){
+                            log.error("Error while reading resource status from CoAP response!", e);
+                            responseFuture.setException(new ProxyServiceException(httpRequest.getProtocolVersion(),
+                                    INTERNAL_SERVER_ERROR,
+                                    "Error while reading resource status from CoAP response!", e));
+                            return;
+                        }
+                    }
+
+                    //Get expiry of resource
+                    Long maxAge = (Long) coapResponse.getOption(OptionRegistry.OptionName.MAX_AGE)
+                                                     .get(0).getDecodedValue();
+
+                    ResourceStatusMessage resourceStatusMessage =
+                            new ResourceStatusMessage(coapUri, resourceStatus, getExpiryDate(maxAge));
+
+                    responseFuture.set(resourceStatusMessage);
                 }
             });
+            log.debug("CoAP request sent: {}", coapRequest);
         }
         catch (Exception e) {
-            log.error("Exception while converting from HTTP to CoAP!", e);
-            HttpResponse httpResponse =
-                    HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
-                            HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-            responseFuture.set(httpResponse);
+            String message = "Exception while converting from HTTP to CoAP request!";
+            log.error(message, e);
+            responseFuture.setException(new ProxyServiceException(httpRequest.getProtocolVersion(),
+                    INTERNAL_SERVER_ERROR, message, e));
         }
     }
-    
-    private String getCoapTargetHost(String ipString) throws URISyntaxException{
 
-        //check if it's an IPv4 address
-        ipString = ipString.replace("-", ".");
-        if(InetAddresses.isInetAddress(ipString))
-            return ipString;
 
-        //check if it's an IPv6 address
-        ipString = ipString.replace(".", ":");
-        if(InetAddresses.isInetAddress(ipString.replace("-", ":")))
-            return "[" + ipString.replace("-", ":") + "]";
-
-        throw new URISyntaxException(ipString.replaceAll(":", "-"), "Could not get IP!");
+    private Date getExpiryDate(Long secondsFromNow){
+        return new Date(System.currentTimeMillis() + 1000 * secondsFromNow);
     }
+
+//    private String getCoapTargetHost(String ipString) throws URISyntaxException{
+//
+//        //check if it's an IPv4 address
+//        ipString = ipString.replace("-", ".");
+//        if(InetAddresses.isInetAddress(ipString))
+//            return ipString;
+//
+//        //check if it's an IPv6 address
+//        ipString = ipString.replace(".", ":");
+//        if(InetAddresses.isInetAddress(ipString.replace("-", ":")))
+//            return "[" + ipString.replace("-", ":") + "]";
+//
+//        throw new URISyntaxException(ipString.replaceAll(":", "-"), "Could not get IP!");
+//    }
    
-    public static CoapRequest convertToCoapRequest(HttpRequest httpRequest, URI targetURI) throws Exception{
+    private static CoapRequest convertToCoapRequest(HttpRequest httpRequest, URI targetURI) throws Exception{
 
         //convert method
         Code code;
@@ -159,82 +196,5 @@ public class HttpRequestProcessorForCoapServices implements HttpRequestProcessor
         return coapRequest;
     }
 
-    public static HttpResponse convertToHttpResponse(CoapResponse coapResponse, HttpVersion httpVersion,
-                                                     Language acceptedMimeType){
 
-        //convert status code / response code
-        HttpResponseStatus httpStatus = INTERNAL_SERVER_ERROR;
-        switch (coapResponse.getHeader().getCode().number) {
-            case 65:  httpStatus = CREATED; break;
-            case 66:  httpStatus = NO_CONTENT; break;
-            case 67:  httpStatus = NOT_MODIFIED; break;
-            case 68:  httpStatus = NO_CONTENT; break;
-            case 69:  httpStatus = OK; break;
-            case 128: httpStatus = BAD_REQUEST; break;
-            case 129: httpStatus = BAD_REQUEST; break;
-            case 130: httpStatus = BAD_REQUEST; break;
-            case 131: httpStatus = FORBIDDEN; break;
-            case 132: httpStatus = NOT_FOUND; break;
-            case 133: httpStatus = METHOD_NOT_ALLOWED; break;
-            case 141: httpStatus = REQUEST_ENTITY_TOO_LARGE; break;
-            case 143: httpStatus = UNSUPPORTED_MEDIA_TYPE; break;
-            case 160: httpStatus = INTERNAL_SERVER_ERROR; break;
-            case 161: httpStatus = NOT_IMPLEMENTED; break;
-            case 162: httpStatus = BAD_GATEWAY; break;
-            case 163: httpStatus = SERVICE_UNAVAILABLE; break;
-            case 164: httpStatus = GATEWAY_TIMEOUT; break;
-            case 165: httpStatus = BAD_GATEWAY; break;
-        }
-
-
-        //check for obvious payload errors
-        if(coapResponse.getContentType() == null)
-            return HttpResponseFactory.createHttpErrorResponse(httpVersion, HttpResponseStatus.INTERNAL_SERVER_ERROR,
-                    "CoAP response without content type option.");
-
-        if(coapResponse.getCode().isErrorMessage())
-            return HttpResponseFactory.createHttpErrorResponse(httpVersion, httpStatus,
-                    "CoAP response had error code " + coapResponse.getCode());
-
-
-        //read payload from CoAP response
-        byte[] coapPayload = new byte[coapResponse.getPayload().readableBytes()];
-        coapResponse.getPayload().getBytes(0, coapPayload);
-
-        ChannelBuffer httpResponsePayload;
-
-        //Create payload for HTTP response
-        if(coapResponse.getContentType() == MediaType.APP_SHDT){
-            log.debug("SHDT payload in CoAP response.");
-
-            Model model = ModelFactory.createDefaultModel();
-
-            try{
-                (new ShdtDeserializer(64)).read_buffer(model, coapPayload);
-            }
-            catch(Exception e){
-                log.error("SHDT error!", e);
-                return HttpResponseFactory.createHttpErrorResponse(httpVersion,
-                        HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-            }
-
-            //Serialize payload for HTTP response
-            httpResponsePayload = ModelSerializer.serializeModel(model, acceptedMimeType);
-        }
-        else{
-            httpResponsePayload = coapResponse.getPayload();
-        }
-
-        //Create HTTP header fields
-        Multimap<String, String> httpHeaders = CoapOptionHttpHeaderMapper.getHttpHeaders(coapResponse.getOptionList());
-
-        //Create HTTP response
-        HttpResponse httpResponse =
-                HttpResponseFactory.createHttpResponse(httpVersion, httpStatus, httpHeaders, httpResponsePayload);
-
-        //Set HTTP content type header
-        httpResponse.setHeader(HttpHeaders.Names.CONTENT_TYPE, acceptedMimeType.mimeType);
-
-        return httpResponse;
-    }
 }

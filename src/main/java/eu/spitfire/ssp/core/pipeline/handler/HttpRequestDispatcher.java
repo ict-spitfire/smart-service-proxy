@@ -81,8 +81,8 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         else
             throw new RuntimeException("SSP_DNS_NAME must be defined! SSP_DNS_NAME can also be an IP address!");
 
-        if(Main.SSP_HTTP_SERVER_PORT != 80)
-            host += ":" + Main.SSP_HTTP_SERVER_PORT;
+        if(Main.SSP_HTTP_PROXY_PORT != 80)
+            host += ":" + Main.SSP_HTTP_PROXY_PORT;
 
         URI targetUri = new URI("http://" + host + "/");
         registerService(targetUri, new ListOfServices(proxyServices.keySet()));
@@ -115,27 +115,40 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
         //Create a future to wait for a response asynchronously
-        final SettableFuture<HttpResponse> responseFuture = SettableFuture.create();
+        final SettableFuture responseFuture = SettableFuture.create();
         responseFuture.addListener(new Runnable(){
             @Override
             public void run() {
-                HttpResponse httpResponse;
+                Object object = new Object();
                 try {
-                    httpResponse = responseFuture.get();
+                    object = responseFuture.get();
+                    log.debug("Class of object: {}", object.getClass().getName());
 
-                    //Set HTTP CORS header to allow cross-site scripting
-                    httpResponse.setHeader("Access-Control-Allow-Origin", "*");
-                    httpResponse.setHeader("Access-Control-Allow-Credentials", "true");
+                    if(object instanceof HttpResponse){
+                        ((HttpResponse) object).setHeader("Access-Control-Allow-Origin", "*");
+                        ((HttpResponse) object).setHeader("Access-Control-Allow-Credentials", "true");
+                    }
 
-                    log.debug("Write Response: {}.", httpResponse);
+
+
+//                    httpResponse = responseFuture.get();
+//
+//                    //Set HTTP CORS header to allow cross-site scripting
+//                    httpResponse.setHeader("Access-Control-Allow-Origin", "*");
+//                    httpResponse.setHeader("Access-Control-Allow-Credentials", "true");
+
+                    //log.debug("Write Response: {}.", httpResponse);
+
                 } catch (Exception e) {
-                    httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
-                            HttpResponseStatus.INTERNAL_SERVER_ERROR);
+//                    httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+//                            HttpResponseStatus.INTERNAL_SERVER_ERROR);
+//                }
                 }
 
-                ChannelFuture future = Channels.write(ctx.getChannel(), httpResponse, me.getRemoteAddress());
+                ChannelFuture future = Channels.write(ctx.getChannel(), object, me.getRemoteAddress());
                 future.addListener(ChannelFutureListener.CLOSE);
             }
+
         }, ioExecutorService);
 
 
@@ -212,7 +225,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             return;
         }
         else if(me.getMessage() instanceof InternalAbsoluteUriRequest){
-            retrieveAbsoluteUri((InternalAbsoluteUriRequest) me.getMessage());
+            getProxyUri((InternalAbsoluteUriRequest) me.getMessage());
             me.getFuture().setSuccess();
             return;
         }
@@ -230,35 +243,24 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         log.info("Added transparent proxy/gateway for port: {}.", message.getPort());
     }
 
-    private void retrieveAbsoluteUri(InternalAbsoluteUriRequest message){
-        String proxyUriPath = message.getServicePath();
-
-        //Add possibly contained target host of service origin to path part of proxy URI
-        if(message.getTargetHostAddress() != null){
-            InetAddress hostAddress = message.getTargetHostAddress();
-
-            if(hostAddress instanceof Inet6Address)
-                proxyUriPath = "/" + shortenInet6Address((Inet6Address) hostAddress) + proxyUriPath;
-            else
-                proxyUriPath = "/" + hostAddress + proxyUriPath;
-        }
-
-        //Add gateway prefix to path part of proxy URI
-        proxyUriPath = "/" + message.getGatewayPrefix() + proxyUriPath;
-
-        try {
-            URI proxyUri = new URI("http",
-                                   null,
-                                   Main.SSP_DNS_NAME,
-                                   Main.SSP_HTTP_SERVER_PORT == 80 ? -1 : Main.SSP_HTTP_SERVER_PORT,
-                                   proxyUriPath,
-                                   null,
-                                   null);
-
-            log.debug("Requested absolute URI: {}", proxyUri);
+    private void getProxyUri(InternalAbsoluteUriRequest message){
+        try{
+            URI originalUri = message.getServiceUri();
+            URI proxyUri;
+            if(originalUri.isAbsolute()){
+                proxyUri = new URI("http", null, Main.SSP_DNS_NAME,
+                                        Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT, "/",
+                                        "uri=" + originalUri.toString(), null);
+            }
+            else{
+                proxyUri = new URI("http", null, Main.SSP_DNS_NAME,
+                                        Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT,
+                                        originalUri.getPath(), originalUri.getQuery(), originalUri.getFragment());
+            }
             message.getUriFuture().set(proxyUri);
         }
         catch (URISyntaxException e) {
+            log.error("This should never happen.", e);
             message.getUriFuture().setException(e);
         }
     }
@@ -288,39 +290,19 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         return result;
     }
 
-//    private String formatInetAddress(InetAddress inetAddress){
-//        if(inetAddress instanceof Inet6Address)
-//            return formatInet6Address((Inet6Address) inetAddress);
-//
-//        if(inetAddress instanceof Inet4Address)
-//            return formatInet4Address((Inet4Address) inetAddress);
-//
-//        return inetAddress.toString();
-//    }
-//
-//    private String formatInet4Address(Inet4Address inet4Address) {
-//        return inet4Address.getHostAddress().replaceAll(".", "-");
-//    }
-//
-//    private String formatInet6Address(Inet6Address inet6Address){
-//        String result = inet6Address.getHostAddress();
-//
-//        //remove leading zeros per block
-//        result = result.replaceAll(":0000", ":0");
-//        result = result.replaceAll(":000", ":0");
-//        result = result.replaceAll(":00", ":0");
-//        result = result.replaceAll("(:0)([ABCDEFabcdef123456789])", ":$2");
-//
-//        //return shortened IP
-//        result = result.replaceAll("((?:(?:^|:)0\\b){2,}):?(?!\\S*\\b\\1:0\\b)(\\S*)", "::$2");
-//        log.debug("Shortened IPv6 address: {}", result);
-//
-//        return result.replaceAll(":", "-");
-//    }
-
     public boolean unregisterService(String path, ProxyServiceManager backend) {
         //TODO
         return true;
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception{
+        log.warn("Exception caught! Send Error Response.", e.getCause());
+
+        HttpResponse httpResponse = HttpResponseFactory.createHttpErrorResponse(HttpVersion.HTTP_1_1,
+                HttpResponseStatus.INTERNAL_SERVER_ERROR, (Exception) e.getCause());
+
+        Channels.write(ctx.getChannel(), httpResponse, ctx.getChannel().getRemoteAddress());
     }
 }
 

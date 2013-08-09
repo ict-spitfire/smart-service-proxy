@@ -11,8 +11,8 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
  * Time: 14:13
  * To change this template use File | Settings | File Templates.
  */
-public interface HttpRequestProcessor {
+public interface HttpRequestProcessor<E> {
 
-    public void processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest);
+    public void processHttpRequest(SettableFuture<E> responseFuture, HttpRequest httpRequest);
 
 }

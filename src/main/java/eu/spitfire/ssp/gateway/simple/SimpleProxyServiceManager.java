@@ -30,6 +30,7 @@ import eu.spitfire.ssp.gateway.ProxyServiceManager;
 import org.apache.log4j.Logger;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * A {@link SimpleProxyServiceManager} instance hosts a simple standard model. This backend is basicly to ensure the functionality
@@ -57,20 +58,27 @@ public class SimpleProxyServiceManager extends ProxyServiceManager {
     @Override
     public void initialize(){
         log.info("Add service /JohnSmith");
-        final SettableFuture<URI> uriFuture = SettableFuture.create();
-        final SimpleHttpRequestProcessor processor = new SimpleHttpRequestProcessor();
+        try {
+            final SettableFuture<URI> uriFuture = SettableFuture.create();
+            final SimpleHttpRequestProcessor simpleHttpRequestProcessor = new SimpleHttpRequestProcessor();
 
-        registerService(uriFuture, "/JohnSmith", processor);
+            URI serviceUri = new URI(null, null, null, -1, "/JohnSmith", null, null);
+            registerService(uriFuture, serviceUri, simpleHttpRequestProcessor);
 
-        uriFuture.addListener(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    processor.setAboutUri(uriFuture.get());
-                } catch (Exception e) {
-                    log.error("This should never happen.", e);
+
+            uriFuture.addListener(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        simpleHttpRequestProcessor.setAboutUri(uriFuture.get());
+                    } catch (Exception e) {
+                        log.error("This should never happen.", e);
+                    }
                 }
-            }
-        }, executorService);
+            }, executorService);
+        }
+        catch (URISyntaxException e) {
+            log.error("This should never happen.", e);
+        }
     }
 }

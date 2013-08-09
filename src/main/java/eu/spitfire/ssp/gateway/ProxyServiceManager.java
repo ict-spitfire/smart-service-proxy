@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
@@ -67,8 +68,13 @@ public abstract class ProxyServiceManager {
         this.prefix = prefix;
 
         HttpRequestProcessor gui = this.getGui();
-        if(gui != null)
-            registerService(SettableFuture.<URI>create(), "/", gui);
+        if(gui != null){
+            try {
+                registerService(SettableFuture.<URI>create(), new URI(null, null, null, -1, "/", null, null), gui);
+            } catch (URISyntaxException e) {
+                log.error("This should never happen.", e);
+            }
+        }
     }
 
     public abstract HttpRequestProcessor getGui();
@@ -80,16 +86,15 @@ public abstract class ProxyServiceManager {
      *
      * @param uriFuture the {@link SettableFuture<URI>} containing the absolute {@link URI} for the newly registered
      *                  service or a {@link Throwable} if an error occured.
-     * @param targetHostAddress the {@link InetAddress} of the host hosting the original service
-     * @param servicePath the relative path of the service
+//     * @param targetHostAddress the {@link InetAddress} of the host hosting the original service
+//     * @param servicePath the relative path of the service
      * @param requestProcessor the {@link HttpRequestProcessor} instance to handle incoming requests
      */
-    public void registerService(final SettableFuture<URI> uriFuture, InetAddress targetHostAddress,
-                                   final String servicePath, final HttpRequestProcessor requestProcessor){
+    public void registerService(final SettableFuture<URI> uriFuture, URI serviceUri, final HttpRequestProcessor requestProcessor){
 
         //Retrieve the URI the new service is available at on the proxy
         final SettableFuture<URI> uriRequestFuture = SettableFuture.create();
-        retrieveAbsoluteURI(uriRequestFuture, targetHostAddress, servicePath);
+        retrieveProxyUri(uriRequestFuture, serviceUri);
 
         uriRequestFuture.addListener(new Runnable(){
             @Override
@@ -123,53 +128,34 @@ public abstract class ProxyServiceManager {
         }, executorService);
     }
 
-    /**
-     * Method to be called by extending classes, i.e. instances of {@link ProxyServiceManager} whenever there is a new
-     * webservice to be created on the smart service proxy, if the network behind this gateway is <b>not</b> an IP
-     * enabled network.
-     *
-     * @param uriFuture the {@link SettableFuture<URI>} to eventually contain the absolute {@link URI} for the newly
-     *                  registered service or a {@link Throwable} if an error occured.
-     * @param servicePath the path of the service
-     * @param requestProcessor the {@link HttpRequestProcessor} instance to handle incoming requests
-     */
-    public void registerService(SettableFuture<URI> uriFuture, final String servicePath,
-                                   final HttpRequestProcessor requestProcessor){
+//    /**
+//     * Method to be called by extending classes, i.e. instances of {@link ProxyServiceManager} whenever there is a new
+//     * webservice to be created on the smart service proxy, if the network behind this gateway is <b>not</b> an IP
+//     * enabled network.
+//     *
+//     * @param uriFuture the {@link SettableFuture<URI>} to eventually contain the absolute {@link URI} for the newly
+//     *                  registered service or a {@link Throwable} if an error occured.
+//     * @param servicePath the path of the service
+//     * @param requestProcessor the {@link HttpRequestProcessor} instance to handle incoming requests
+//     */
+//    public void registerService(SettableFuture<URI> uriFuture, final String servicePath,
+//                                   final HttpRequestProcessor requestProcessor){
+//
+//        registerService(uriFuture, null, servicePath, requestProcessor);
+//    }
 
-        registerService(uriFuture, null, servicePath, requestProcessor);
-    }
-
-    public void registerTransparentGateway(int targetPort, HttpRequestProcessor requestProcessor){
-        InternalRegisterTransparentGatewayMessage message =
-                new InternalRegisterTransparentGatewayMessage(targetPort, requestProcessor);
-
-        Channels.write(internalChannel, message);
-    }
     /**
      * Retrieves a proper absolute URI for the given original providers host address and the relative service path.
      * The {@link URI} which is eventually set in the given {@link SettableFuture<URI>} can be considered the URI
      * of an HTTP service mirroring the original service
      *
      * @param uriRequestFuture the {@link SettableFuture<URI>} to eventually contain the absolute {@link URI}
-     * @param targetHostAddress the {@link InetAddress} of the original service provider, e.g. a sensor node
-     * @param servicePath the path of the service
+     * @param serviceUri the {@link URI} of the service to get the proxy URI for. The URI may either be absolute or
+     *                   relative, i.e. only contain path and possibly additionaly query and/or fragment
      */
-    public void retrieveAbsoluteURI(SettableFuture<URI> uriRequestFuture, InetAddress targetHostAddress,
-                                       String servicePath){
+    public void retrieveProxyUri(SettableFuture<URI> uriRequestFuture, URI serviceUri){
         Channels.write(internalChannel, new InternalAbsoluteUriRequest(uriRequestFuture, this.getPrefix(),
-                servicePath, targetHostAddress));
-    }
-
-    /**
-     * Retrieves a proper absolute URI for the given relative service path.
-     * The {@link URI} which is eventually set in the given {@link SettableFuture<URI>} can be considered the URI
-     * of an HTTP service mirroring the original service
-     *
-     * @param uriRequestFuture the {@link SettableFuture<URI>} to eventually contain the absolute {@link URI}
-     * @param servicePath the path of the service
-     */
-    public void retrieveAbsoluteURI(SettableFuture<URI> uriRequestFuture, String servicePath){
-        retrieveAbsoluteURI(uriRequestFuture, null, servicePath);
+                serviceUri));
     }
 
     /**

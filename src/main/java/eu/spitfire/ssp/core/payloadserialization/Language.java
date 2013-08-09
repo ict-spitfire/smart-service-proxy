@@ -11,7 +11,6 @@ import de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType;
  */
 public enum Language{
 
-    XML("RDF/XML", "application/xml"),
     RDF_XML("RDF/XML", "application/rdf+xml"),
     RDF_N3 ("N3", "application/n3"),
     RDF_TURTLE("TURTLE", "application/turtle");
@@ -45,6 +44,14 @@ public enum Language{
             return RDF_TURTLE;
 
         return null;
+    }
 
+    public static Language getByName(String name){
+        for(Language language : Language.values()){
+            if(name.equals(language.lang))
+                return language;
+        }
+
+        return null;
     }
 }

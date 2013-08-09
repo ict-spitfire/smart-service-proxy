@@ -16,19 +16,12 @@ public class InternalAbsoluteUriRequest {
 
     private final SettableFuture<URI> uriFuture;
     private final String gatewayPrefix;
-    private final String servicePath;
-    private final InetAddress targetHostAddress;
+    private final URI serviceUri;
 
-    public InternalAbsoluteUriRequest(SettableFuture<URI> uriFuture, String gatewayPrefix, String servicePath,
-                                      InetAddress targetHostAddress){
+    public InternalAbsoluteUriRequest(SettableFuture<URI> uriFuture, String gatewayPrefix, URI serviceUri){
         this.uriFuture = uriFuture;
         this.gatewayPrefix = gatewayPrefix;
-        this.servicePath = servicePath;
-        this.targetHostAddress = targetHostAddress;
-    }
-
-    public InternalAbsoluteUriRequest(SettableFuture<URI> uriFuture, String gatewayPrefix, String servicePath){
-        this(uriFuture, gatewayPrefix, servicePath, null);
+        this.serviceUri = serviceUri;
     }
 
     public SettableFuture<URI> getUriFuture() {
@@ -39,17 +32,12 @@ public class InternalAbsoluteUriRequest {
         return gatewayPrefix;
     }
 
-    public String getServicePath() {
-        return servicePath;
-    }
-
-    public InetAddress getTargetHostAddress() {
-        return targetHostAddress;
+    public URI getServiceUri() {
+        return serviceUri;
     }
 
     @Override
     public String toString(){
-        return "URI request for: " + gatewayPrefix + " (gateway prefix), " + targetHostAddress +
-                " (target host address), " + servicePath + " (path)";
+        return "URI request from " + getGatewayPrefix() + " (gateway name) for: " + getServiceUri();
     }
 }

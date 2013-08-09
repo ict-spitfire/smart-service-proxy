@@ -51,8 +51,7 @@ public class Main {
     private static Logger log = Logger.getLogger(Main.class.getName());
 
     public static String SSP_DNS_NAME;
-    public static int SSP_HTTP_SERVER_PORT;
-    public static String DNS_WILDCARD_POSTFIX;
+    public static int SSP_HTTP_PROXY_PORT;
 
     /**
      * @throws Exception might be everything
@@ -62,8 +61,7 @@ public class Main {
         Configuration config = new PropertiesConfiguration("ssp.properties");
 
         SSP_DNS_NAME = config.getString("SSP_DNS_NAME", null);
-        DNS_WILDCARD_POSTFIX = config.getString("DNS_WILDCARD_POSTFIX", null);
-        SSP_HTTP_SERVER_PORT = config.getInt("SSP_HTTP_SERVER_PORT", 8080);
+        SSP_HTTP_PROXY_PORT = config.getInt("SSP_HTTP_PROXY_PORT", 8080);
 
         //create pipeline for server
         OrderedMemoryAwareThreadPoolExecutor executorService = new OrderedMemoryAwareThreadPoolExecutor(20, 0, 0);
@@ -74,25 +72,25 @@ public class Main {
         SmartServiceProxyPipelineFactory pipelineFactory = new SmartServiceProxyPipelineFactory(executorService);
         bootstrap.setPipelineFactory(pipelineFactory);
 
-        bootstrap.bind(new InetSocketAddress(SSP_HTTP_SERVER_PORT));
-        log.info("HTTP server started. Listening on port " + SSP_HTTP_SERVER_PORT + ".");
+        bootstrap.bind(new InetSocketAddress(SSP_HTTP_PROXY_PORT));
+        log.info("HTTP server started. Listening on port " + SSP_HTTP_PROXY_PORT + ".");
 
         //Create local channel (for internal messages)
         DefaultLocalServerChannelFactory internalChannelFactory = new DefaultLocalServerChannelFactory();
         LocalServerChannel internalChannel = internalChannelFactory.newChannel(pipelineFactory.getInternalPipeline());
 
         //Create enabled gateway
-        startProxyServiceCreators(config, internalChannel, executorService);
+        startProxyServiceManagers(config, internalChannel, executorService);
     }
 
     //Create the gateway enabled in ssp.properties
-    private static void startProxyServiceCreators(Configuration config, LocalServerChannel internalChannel,
+    private static void startProxyServiceManagers(Configuration config, LocalServerChannel internalChannel,
                                                   ExecutorService executorService) throws Exception {
 
         log.debug("Start creating enabled ProxyServiceCreators!");
-        String[] enabledProxyServiceCreators = config.getStringArray("enableProxyServiceCreator");
+        String[] enabledProxyServiceManagers = config.getStringArray("enableProxyServiceManager");
 
-        for(String proxyServiceCreatorName : enabledProxyServiceCreators){
+        for(String proxyServiceCreatorName : enabledProxyServiceManagers){
 
             ProxyServiceManager proxyServiceManager;
             //SimpleProxyServiceManager

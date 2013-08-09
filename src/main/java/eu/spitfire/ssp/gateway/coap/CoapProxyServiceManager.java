@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
 * @author Oliver Kleine
@@ -48,7 +49,7 @@ public class CoapProxyServiceManager extends ProxyServiceManager {
 
     private CoapServerApplication coapServer;
     private HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices;
-    //private CoapClientApplication coapClient;
+
 
     /**
      * @param prefix the unique prefix for this {@link eu.spitfire.ssp.gateway.ProxyServiceManager} instance
@@ -57,23 +58,21 @@ public class CoapProxyServiceManager extends ProxyServiceManager {
         super(prefix);
 
         this.httpRequestProcessorForCoapServices = new HttpRequestProcessorForCoapServices();
-//        this.coapClient = new CoapClientApplication();
 
         this.coapServer = new CoapServerApplication();
         coapServer.registerService(new CoapNodeRegistrationService(this));
-
-
     }
-
 
     public void registerService(SettableFuture<URI> uriFuture, InetAddress remoteAddress, String servicePath){
-        super.registerService(uriFuture, remoteAddress, servicePath, httpRequestProcessorForCoapServices);
+        try {
+            URI serviceURI = new URI("coap", null, remoteAddress.getHostAddress(), -1, servicePath, null, null);
+            super.registerService(uriFuture, serviceURI, httpRequestProcessorForCoapServices);
+        } catch (URISyntaxException e) {
+            log.error("This should never happen!", e);
+            uriFuture.setException(e);
+        }
+
     }
-
-
-//    public CoapClientApplication getCoapClient(){
-//        return this.coapClient;
-//    }
 
     @Override
     public HttpRequestProcessor getGui() {
@@ -82,6 +81,6 @@ public class CoapProxyServiceManager extends ProxyServiceManager {
 
     @Override
     public void initialize() {
-        registerTransparentGateway(COAP_SERVER_PORT, httpRequestProcessorForCoapServices);
+        //registerTransparentGateway(COAP_SERVER_PORT, httpRequestProcessorForCoapServices);
     }
 }

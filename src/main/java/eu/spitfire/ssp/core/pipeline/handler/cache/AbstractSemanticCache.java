@@ -24,16 +24,17 @@
 */
 package eu.spitfire.ssp.core.pipeline.handler.cache;
 
-import com.google.common.net.InetAddresses;
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.Main;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
 * Checks whether the incoming {@link HttpRequest} can be answered with cached information. This depends on the
@@ -49,18 +50,25 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
 
     private Logger log = LoggerFactory.getLogger(AbstractSemanticCache.class.getName());
 
+    private static Map<Integer, String> defaultPorts = new HashMap<>();
+    static{
+        defaultPorts.put(80, "http");
+        defaultPorts.put(5683, "coap");
+    }
+
     /**
      * This method is invoked for upstream {@link MessageEvent}s and handles incoming {@link HttpRequest}s.
-     * It tries to find a fresh statement of the requested resource (identified using the requests target URI) in its
-     * internal cache. If a fresh statement is found, it sends this statement (as an instance of {@link Model})
-     * downstream to the {@link eu.spitfire.ssp.core.pipeline.handler.PayloadFormatter}.
+     * It tries to find a fresh status of the requested resource (identified using the requests target URI) in its
+     * internal cache. If a fresh status is found, it sends this status (as an instance of {@link Model})
+     * downstream to the {@link eu.spitfire.ssp.core.pipeline.handler.SemanticPayloadFormatter}.
      *
      * @param ctx The {@link ChannelHandlerContext} to relate this handler with its current {@link Channel}
-     * @param me The {@link MessageEvent} containing the {@link HttpRequest}
-     * @throws Exception
+     * @param me The {@link MessageEvent} potentially containing the {@link HttpRequest}
+     *
+     * @throws Exception in case of an error
      */
     @Override
-    public void messageReceived(ChannelHandlerContext ctx, MessageEvent me)throws Exception {
+    public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
 
         if (!(me.getMessage() instanceof HttpRequest)) {
             ctx.sendUpstream(me);
@@ -69,74 +77,72 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
 
         HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
-        final URI resourceUri;
-        String[] uriParts = httpRequest.getUri().split("/");
-        if(uriParts.length < 2 || !isUriScheme(uriParts[1]))
-            resourceUri = new URI("http", null, Main.SSP_DNS_NAME, Main.SSP_HTTP_SERVER_PORT,
-                    httpRequest.getUri(), null, null);
-        else{
-            //Scheme
-            String scheme = uriParts[1];
-            //Host and path
-            String host = null;
-            String path = "";
-            if(uriParts.length > 2 && InetAddresses.isInetAddress(uriParts[2])){
-                host = uriParts[2];
-                for(int i = 3; i < uriParts.length; i++)
-                    path += "/" + uriParts[i];
-            }
-            resourceUri =  new URI(scheme, null, host, -1, path, null, null);
+        URI proxyUri = new URI(httpRequest.getUri());
+        URI resourceUri;
 
-        }
+        if(proxyUri.getQuery() != null && proxyUri.getQuery().startsWith("uri="))
+            resourceUri = new URI(proxyUri.getQuery().substring(4));
+        else
+            resourceUri = new URI("http", null, Main.SSP_DNS_NAME,
+                                  Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT,
+                                  proxyUri.getPath(), proxyUri.getQuery(), proxyUri.getFragment());
 
         log.debug("Lookup resource with URI: {}", resourceUri);
-        Model cachedResource = findCachedResource(resourceUri);
+        ResourceStatusMessage cachedResource = getCachedResource(resourceUri);
 
         if(cachedResource != null){
-            ChannelFuture future = Channels.write(ctx.getChannel(), cachedResource);
-            future.addListener(ChannelFutureListener.CLOSE);
+            log.debug("Cached status for {} found.", resourceUri);
 
-            future.addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture future) throws Exception {
-                    log.debug("Cached status for " + resourceUri + " sent.");
-                }
-            });
+            ChannelFuture future = Channels.future(ctx.getChannel());
+            Channels.write(ctx, future, cachedResource, me.getRemoteAddress());
+            future.addListener(ChannelFutureListener.CLOSE);
         }
         else{
+            log.debug("NO cached status for {} found. Try to get a fresh one.", resourceUri);
             ctx.sendUpstream(me);
         }
     }
 
-    public abstract Model findCachedResource(URI resourceUri);
+    /**
+     * Returns an instance of {@link Model} that represents the resource identified by the given {@link URI}.
+     *
+     * @param resourceUri the {@link URI} identifying the wanted resource
+     * @return the {@link Model} representing the status of the wanted resource
+     */
+    public abstract ResourceStatusMessage getCachedResource(URI resourceUri);
 
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me)
             throws Exception {
 
-        if(!(me.getMessage() instanceof HttpResponse)){
-            ctx.sendDownstream(me);
-            return;
+        if(me.getMessage() instanceof ResourceStatusMessage){
+            log.debug("Downstream: {}", me.getMessage());
+            ResourceStatusMessage updateMessage = (ResourceStatusMessage) me.getMessage();
+
+            //Update Resource
+            log.debug("Put fresh resource status for {} into cache.", updateMessage.getResourceUri());
+            putResourceToCache(updateMessage.getResourceUri(), updateMessage.getResourceStatus(),
+                    updateMessage.getExpiry());
         }
 
-        HttpResponse httpResponse = (HttpResponse) me.getMessage();
-
-        //TODO: Get Jena Model from response
-//        putResourceToCache(URI resourceUri, )
-
+        ctx.sendDownstream(me);
     }
 
-    public abstract void putResourceToCache(URI resourceUri, Model model);
+    /**
+     * Insert a new resource into the cache or updated an already cached one. The expiry is given to enable the
+     * cache to delete the resource status from the cache when its no longer valid.
+     *
+     * @param resourceUri the {@link URI} identifying the resource to be cached
+     * @param model the {@link Model} representing the resource status to be cached
+     * @param expiry the expiry of the resource status to be cached
+     */
+    public abstract void putResourceToCache(URI resourceUri, Model model, Date expiry);
 
+    /**
+     * For future use! Method to delete a cached resource from the cache (not yet used by the framework).
+     * @param resourceUri the {@link URI} identifying the cached resource who's status is to be deleted
+     */
+    public abstract void deleteResource(URI resourceUri);
 
-    private boolean isUriScheme(String string){
-        if("coap".equals(string))
-            return true;
-
-        if("file".equals(string))
-            return true;
-
-        return false;
-    }
 }
 

@@ -2,7 +2,6 @@ package eu.spitfire.ssp.core.webservice;
 
 import com.google.common.net.InetAddresses;
 import com.google.common.util.concurrent.SettableFuture;
-import org.apache.log4j.helpers.LogLog;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
@@ -12,7 +11,8 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.*;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.Set;
 
@@ -26,7 +26,7 @@ import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
  * Time: 09:51
  * To change this template use File | Settings | File Templates.
  */
-public class ListOfServices implements HttpRequestProcessor{
+public class ListOfServices implements DefaultHttpRequestProcessor{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -43,31 +43,31 @@ public class ListOfServices implements HttpRequestProcessor{
         buf.append("<ul>\n");
 
         for(URI uri : services){
-            buf.append(String.format("<li><a href=\"%s\">", uri));
+            buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
 
-            String[] uriParts = uri.getPath().split("/");
-            if(uriParts.length < 2 || !isUriScheme(uriParts[1]))
-                buf.append(String.format("%s</a></li>\n", uri));
-            else{
-                //Scheme
-                String scheme = uriParts[1];
-
-                //Host and path
-                String host = null;
-                String path = "";
-                if(uriParts.length > 2 && InetAddresses.isInetAddress(uriParts[2])){
-                    host = uriParts[2];
-                    for(int i = 3; i < uriParts.length; i++)
-                        path += "/" + uriParts[i];
-                }
-
-                try {
-                    buf.append(String.format("%s</a></li>\n", new URI(scheme, null, host, -1, path, null, null)));
-                }
-                catch (URISyntaxException e) {
-                    log.error("This should never happen!", e);
-                }
-            }
+//            String[] uriParts = uri.getPath().split("/");
+//            if(uriParts.length < 2 || !isUriScheme(uriParts[1]))
+//                buf.append(String.format("%s</a></li>\n", uri));
+//            else{
+//                //Scheme
+//                String scheme = uriParts[1];
+//
+//                //Host and path
+//                String host = null;
+//                String path = "";
+//                if(uriParts.length > 2 && InetAddresses.isInetAddress(uriParts[2])){
+//                    host = uriParts[2];
+//                    for(int i = 3; i < uriParts.length; i++)
+//                        path += "/" + uriParts[i];
+//                }
+//
+//                try {
+//                    buf.append(String.format("%s</a></li>\n", new URI(scheme, null, host, -1, path, null, null)));
+//                }
+//                catch (URISyntaxException e) {
+//                    log.error("This should never happen!", e);
+//                }
+//            }
         }
 
         buf.append("</ul>\n");
