@@ -1,6 +1,8 @@
 package eu.spitfire.ssp.gateway.coap.observation;
 
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
+import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
+import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
 import eu.spitfire.ssp.core.pipeline.handler.cache.ResourceStatusMessage;
@@ -9,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 
 
 /**
@@ -19,7 +20,7 @@ import java.net.URISyntaxException;
 * Time: 09:43
 * To change this template use File | Settings | File Templates.
 */
-public class CoapResourceObserver implements CoapResponseProcessor{
+public class CoapResourceObserver implements CoapResponseProcessor, RetransmissionTimeoutProcessor{
 
     private Logger log =  LoggerFactory.getLogger(this.getClass().getName());
 
@@ -47,13 +48,16 @@ public class CoapResourceObserver implements CoapResponseProcessor{
         ResourceStatusMessage resourceStatusMessage;
         try {
             resourceStatusMessage = ResourceStatusMessage.create(coapResponse, observableServiceUri);
-            coapProxyServiceManager.updateResourceStatus(resourceStatusMessage);
+//            coapProxyServiceManager.updateCachedResourceStatus(resourceStatusMessage);
         } catch (Exception e) {
             log.warn("Exception while creating resource status message from CoAP update notification.");
             return;
         }
+    }
 
-
+    @Override
+    public void processRetransmissionTimeout(InternalRetransmissionTimeoutMessage timeoutMessage) {
+        //timeoutMessage.getRemoteAddress()
     }
 
 //    private Channel createChannelForInternalMessages() throws Exception {

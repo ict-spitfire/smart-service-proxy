@@ -3,7 +3,6 @@ package eu.spitfire.ssp.gateway.coap.noderegistration;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import com.google.inject.Inject;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.webservice.NotObservableWebService;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
@@ -37,6 +36,7 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private CoapProxyServiceManager coapProxyServiceManager;
+
     //Application to send the service discovery requests
     private CoapClientApplication coapClientApplication;
     private HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices;
@@ -113,8 +113,8 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
                             final SettableFuture<URI> serviceRegistrationFuture = SettableFuture.create();
                             serviceRegistrationFutureSet.add(serviceRegistrationFuture);
 
-                            coapProxyServiceManager.registerService(serviceRegistrationFuture,
-                                    new URI("coap", null, remoteAddress.getAddress().getHostAddress(),-1,
+                            coapProxyServiceManager.registerResource(serviceRegistrationFuture,
+                                    new URI("coap", null, remoteAddress.getAddress().getHostAddress(), -1,
                                             remoteServicePath, null, null), httpRequestProcessorForCoapServices);
                         }
 
@@ -172,7 +172,7 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
 
         }
         catch(Exception e){
-            log.error("Cause was {}", e.getCause());
+            log.error("Exception while processing node registration.", e);
             nodeRegistrationFuture.set(createCoapResponse(Code.INTERNAL_SERVER_ERROR_500, e.getCause().toString()));
         }
     }

@@ -37,8 +37,9 @@ public class WellKnownCoreResponseProcessor implements CoapResponseProcessor, Re
             log.info("/.well-known/core resource succesfully processed, found {} services.", services.size());
             serviceDiscoveryFuture.set(services);
         }
-        else
+        else{
             serviceDiscoveryFuture.setException(new ResourceInvalidException());
+        }
     }
 
     @Override

@@ -1,6 +1,5 @@
 package eu.spitfire.ssp.core.webservice;
 
-import com.google.common.net.InetAddresses;
 import com.google.common.util.concurrent.SettableFuture;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -12,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.Set;
 
@@ -26,13 +24,13 @@ import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
  * Time: 09:51
  * To change this template use File | Settings | File Templates.
  */
-public class ListOfServices implements DefaultHttpRequestProcessor{
+public class ListOfRegisteredServices implements DefaultHttpRequestProcessor{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private Set<URI> services;
 
-    public ListOfServices(Set<URI> services){
+    public ListOfRegisteredServices(Set<URI> services){
         this.services = services;
     }
 
@@ -44,34 +42,9 @@ public class ListOfServices implements DefaultHttpRequestProcessor{
 
         for(URI uri : services){
             buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
-
-//            String[] uriParts = uri.getPath().split("/");
-//            if(uriParts.length < 2 || !isUriScheme(uriParts[1]))
-//                buf.append(String.format("%s</a></li>\n", uri));
-//            else{
-//                //Scheme
-//                String scheme = uriParts[1];
-//
-//                //Host and path
-//                String host = null;
-//                String path = "";
-//                if(uriParts.length > 2 && InetAddresses.isInetAddress(uriParts[2])){
-//                    host = uriParts[2];
-//                    for(int i = 3; i < uriParts.length; i++)
-//                        path += "/" + uriParts[i];
-//                }
-//
-//                try {
-//                    buf.append(String.format("%s</a></li>\n", new URI(scheme, null, host, -1, path, null, null)));
-//                }
-//                catch (URISyntaxException e) {
-//                    log.error("This should never happen!", e);
-//                }
-//            }
         }
 
         buf.append("</ul>\n");
-
         buf.append("</body></html>\n");
 
         return ChannelBuffers.wrappedBuffer(buf.toString().getBytes(Charset.forName("UTF-8")));
@@ -85,15 +58,5 @@ public class ListOfServices implements DefaultHttpRequestProcessor{
         httpResponse.setHeader(CONTENT_LENGTH, httpResponse.getContent().readableBytes());
 
         responseFuture.set(httpResponse);
-    }
-
-    private boolean isUriScheme(String string){
-        if("coap".equals(string))
-            return true;
-
-        if("file".equals(string))
-            return true;
-
-        return false;
     }
 }

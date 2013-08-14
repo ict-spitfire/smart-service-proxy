@@ -5,13 +5,7 @@ import com.hp.hpl.jena.rdf.model.Model;
 import java.net.URI;
 import java.util.Date;
 
-/**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 12.08.13
- * Time: 12:08
- * To change this template use File | Settings | File Templates.
- */
+//TODO Sandro
 public class P2PSemanticCache extends AbstractSemanticCache{
     @Override
     public ResourceStatusMessage getCachedResource(URI resourceUri) {

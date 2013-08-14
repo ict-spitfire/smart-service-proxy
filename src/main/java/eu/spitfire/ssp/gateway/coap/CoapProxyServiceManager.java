@@ -25,8 +25,6 @@
 package eu.spitfire.ssp.gateway.coap;
 
 import com.google.common.util.concurrent.SettableFuture;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
@@ -40,9 +38,7 @@ import eu.spitfire.ssp.gateway.coap.requestprocessing.HttpRequestProcessorForCoa
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetAddress;
 import java.net.URI;
-import java.net.URISyntaxException;
 
 /**
 * @author Oliver Kleine
@@ -54,45 +50,38 @@ public class CoapProxyServiceManager extends ProxyServiceManager {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices;
+    //private HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices;
     private CoapClientApplication coapClientApplication;
+    private CoapServerApplication coapServerApplication;
 
-    /**
-     * @param prefix the unique prefix for this {@link eu.spitfire.ssp.gateway.ProxyServiceManager} instance
-     */
-    public CoapProxyServiceManager(String prefix){
-        super(prefix);
-
-        //create client for proxy request processing and resource observation
-        coapClientApplication = new CoapClientApplication();
-        this.httpRequestProcessorForCoapServices = new HttpRequestProcessorForCoapServices(coapClientApplication);
-
-        //create server and service for node registration
-        CoapServerApplication coapServerApplication = new CoapServerApplication();
-        CoapNodeRegistrationService coapNodeRegistrationService = new CoapNodeRegistrationService(this,
-                coapClientApplication, httpRequestProcessorForCoapServices);
-        coapServerApplication.registerService(coapNodeRegistrationService);
-    }
+//    /**
+//     * @param prefix the unique prefix for this {@link eu.spitfire.ssp.gateway.ProxyServiceManager} instance
+//     */
+//    public CoapProxyServiceManager(String prefix){
+//        super(prefix);
+//
+//
+//    }
 
     @Override
-    public void registerService(final SettableFuture<URI> uriFuture, final URI serviceUri,
-                                final HttpRequestProcessor requestProcessor){
+    public void registerResource(final SettableFuture<URI> uriFuture, final URI resourceUri,
+                                 final HttpRequestProcessor requestProcessor){
 
-        super.registerService(uriFuture, serviceUri, requestProcessor);
+        super.registerResource(uriFuture, resourceUri, requestProcessor);
         uriFuture.addListener(new Runnable(){
             @Override
             public void run() {
                 try{
-                    if(serviceUri.toString().contains("_minimal")){
-                        log.info("Start observation of {}.", serviceUri);
-                        CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.GET, serviceUri);
+                    if(resourceUri.toString().contains("_minimal")){
+                        log.info("Start observation of {}.", resourceUri);
+                        CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.GET, resourceUri);
                         coapRequest.setObserveOptionRequest();
                         coapClientApplication.writeCoapRequest(coapRequest,
-                                new CoapResourceObserver(CoapProxyServiceManager.this, serviceUri));
+                                new CoapResourceObserver(CoapProxyServiceManager.this, resourceUri));
                     }
                 }
                 catch(Exception e){
-                    log.error("Error while starting observation of service {}.", serviceUri);
+                    log.error("Error while starting observation of service {}.", resourceUri);
                 }
             }
         }, executorService);
@@ -106,6 +95,27 @@ public class CoapProxyServiceManager extends ProxyServiceManager {
 
     @Override
     public void initialize() {
-        //registerTransparentGateway(COAP_SERVER_PORT, httpRequestProcessorForCoapServices);
+        //create client for proxy request processing and resource observation
+        this.coapClientApplication = new CoapClientApplication();
+
+        //create instance of HttpRequestProcessor
+        HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices =
+                new HttpRequestProcessorForCoapServices(coapClientApplication);
+
+        //create server and service for node registration
+        this.coapServerApplication = new CoapServerApplication();
+        CoapNodeRegistrationService coapNodeRegistrationService =
+                new CoapNodeRegistrationService(this, coapClientApplication, httpRequestProcessorForCoapServices);
+        coapServerApplication.registerService(coapNodeRegistrationService);
+    }
+
+    @Override
+    public void shutdown() {
+        coapClientApplication.shutdown();
+        try {
+            coapServerApplication.shutdown();
+        } catch (InterruptedException e) {
+            log.error("Exception during CoAP server shutdown!", e);
+        }
     }
 }

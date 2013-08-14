@@ -46,9 +46,9 @@ public class SimpleProxyServiceManager extends ProxyServiceManager {
 
     private static Logger log = Logger.getLogger(SimpleProxyServiceManager.class.getName());
 
-    public SimpleProxyServiceManager(String prefix) {
-        super(prefix);
-    }
+//    public SimpleProxyServiceManager(String prefix) {
+//        super(prefix);
+//    }
 
     @Override
     public HttpRequestProcessor getGui() {
@@ -63,9 +63,9 @@ public class SimpleProxyServiceManager extends ProxyServiceManager {
             final SimpleHttpRequestProcessor simpleHttpRequestProcessor = new SimpleHttpRequestProcessor();
 
             URI serviceUri = new URI(null, null, null, -1, "/JohnSmith", null, null);
-            registerService(uriFuture, serviceUri, simpleHttpRequestProcessor);
+            registerResource(uriFuture, serviceUri, simpleHttpRequestProcessor);
 
-
+            //Set subjet of the
             uriFuture.addListener(new Runnable() {
                 @Override
                 public void run() {
@@ -80,5 +80,10 @@ public class SimpleProxyServiceManager extends ProxyServiceManager {
         catch (URISyntaxException e) {
             log.error("This should never happen.", e);
         }
+    }
+
+    @Override
+    public void shutdown() {
+        //Nothing to do here...
     }
 }

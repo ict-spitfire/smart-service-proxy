@@ -2,30 +2,23 @@ package eu.spitfire.ssp.gateway.coap.requestprocessing;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Inject;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
-import eu.spitfire.ssp.core.payloadserialization.Language;
-import eu.spitfire.ssp.core.payloadserialization.ShdtDeserializer;
 import eu.spitfire.ssp.core.pipeline.handler.cache.ResourceStatusMessage;
+import eu.spitfire.ssp.core.webservice.MethodNotAllowedException;
 import eu.spitfire.ssp.core.webservice.SemanticHttpRequestProcessor;
 import eu.spitfire.ssp.gateway.ProxyServiceException;
-import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
 import java.net.URI;
-import java.util.Date;
 
 import static de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType.APP_SHDT;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;

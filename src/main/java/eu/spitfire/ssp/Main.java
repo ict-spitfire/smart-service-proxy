@@ -108,13 +108,14 @@ public class Main {
             //SimpleProxyServiceManager
             if(proxyServiceCreatorName.equals("simple")){
                 log.info("Create Simple Gateway.");
-                proxyServiceManager = new SimpleProxyServiceManager("simple");
+                proxyServiceManager = new SimpleProxyServiceManager();
+                proxyServiceManager.setPrefix("simple");
             }
 
             //CoAPBackend
             else if(proxyServiceCreatorName.equals("coap")) {
                 log.info("Create CoAP Gateway.");
-                proxyServiceManager = new CoapProxyServiceManager("coap");
+                proxyServiceManager = new CoapProxyServiceManager();
             }
 
             //FilesGateway

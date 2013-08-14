@@ -27,22 +27,11 @@ package eu.spitfire.ssp.core.pipeline.handler;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.TreeMultimap;
 import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
 import eu.spitfire.ssp.core.payloadserialization.Language;
-import eu.spitfire.ssp.core.payloadserialization.ModelSerializer;
-import eu.spitfire.ssp.core.payloadserialization.ShdtDeserializer;
 import eu.spitfire.ssp.core.pipeline.handler.cache.ResourceStatusMessage;
-import eu.spitfire.ssp.gateway.coap.requestprocessing.CoapCodeHttpStatusMapper;
-import eu.spitfire.ssp.gateway.coap.requestprocessing.CoapOptionHttpHeaderMapper;
-import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelHandler;
+import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,13 +43,14 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.TimeZone;
 
-import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.OK;
 
 /**
- * The {@link SemanticPayloadFormatter} recognizes the requested mimetype from the incoming {@link HttpRequest}. The payload
- * of the corresponding {@link HttpResponse} will be converted to the requested mimetype, i.e. the supported one with the
- * highest priority. If none of the the requested mimetype(s) is available, the {@link SemanticPayloadFormatter} sends
+ * The {@link SemanticPayloadFormatter} recognizes the requested mimetype from the incoming {@link HttpRequest}.
+ * The payload of the corresponding {@link HttpResponse} will be converted to the requested mimetype, i.e. the
+ * supported one with the highest priority.
+ *
+ * If none of the the requested mimetype(s) is available, the {@link SemanticPayloadFormatter} sends
  * a {@link HttpResponse} with status code 415 (Unsupported media type).
  *
  * @author Oliver Kleine
@@ -78,10 +68,8 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
     private Language acceptedLanguage;
     private HttpVersion httpVersion;
 
-
 	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
-
 		if(me.getMessage() instanceof HttpRequest) {
             HttpRequest httpRequest = (HttpRequest) me.getMessage();
             String acceptHeader = httpRequest.getHeader(HttpHeaders.Names.ACCEPT);
@@ -103,7 +91,7 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
             if(acceptedLanguage == null)
                 acceptedLanguage = DEFAULT_LANGUAGE;
 
-            log.debug("Accepted language: {}", acceptedLanguage);
+            log.info("Language with highest priority which is both, accepted and supported: {}", acceptedLanguage);
             httpVersion = httpRequest.getProtocolVersion();
 		}
 
@@ -111,11 +99,11 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
 	}
 
 	@Override
-	public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
+	public void writeRequested(ChannelHandlerContext ctx, final MessageEvent me) throws Exception {
         log.debug("Downstream: {}", me.getMessage());
 
         if(me.getMessage() instanceof ResourceStatusMessage){
-            ResourceStatusMessage internalResourceUpdateMessage =
+            final ResourceStatusMessage internalResourceUpdateMessage =
                     (ResourceStatusMessage) me.getMessage();
 
             Model resourceStatus = internalResourceUpdateMessage.getResourceStatus();
@@ -135,8 +123,23 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
                     dateFormat.format(internalResourceUpdateMessage.getExpiry()));
 
             httpResponse.setHeader(HttpHeaders.Names.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
-            Channels.write(ctx, me.getFuture(), httpResponse, me.getRemoteAddress());
-            return;
+
+            httpResponse.setHeader("Access-Control-Allow-Origin", "*");
+            httpResponse.setHeader("Access-Control-Allow-Credentials", "true");
+
+            if(ctx.getChannel().isConnected()){
+                Channels.write(ctx, me.getFuture(), httpResponse, me.getRemoteAddress());
+
+                me.getFuture().addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        log.info("Status of {} (encoded in {}) successfully written to {}.",
+                                new Object[]{internalResourceUpdateMessage.getResourceUri(), acceptedLanguage.lang,
+                                me.getRemoteAddress()});
+                    }
+                });
+                return;
+            }
         }
 
         ctx.sendDownstream(me);
@@ -198,113 +201,5 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
 
         return result;
     }
-
-
-
-
-    public HttpResponse convertToHttpResponse(CoapResponse coapResponse, HttpVersion httpVersion,
-                                                     Language acceptedMimeType){
-
-        //convert status code / response code
-        HttpResponseStatus httpStatus = CoapCodeHttpStatusMapper.getHttpResponseStatus(coapResponse.getCode());
-        if(httpStatus == null)
-            httpStatus = INTERNAL_SERVER_ERROR;
-
-        //check for potential errors
-        if(coapResponse.getCode().isErrorMessage())
-            return HttpResponseFactory.createHttpErrorResponse(httpVersion, httpStatus,
-                    "CoAP response had error code " + coapResponse.getCode());
-
-        if(coapResponse.getContentType() == null)
-            return HttpResponseFactory.createHttpErrorResponse(httpVersion, HttpResponseStatus.INTERNAL_SERVER_ERROR,
-                    "CoAP response without content type option.");
-
-
-        //read payload from CoAP response
-        byte[] coapPayload = new byte[coapResponse.getPayload().readableBytes()];
-        coapResponse.getPayload().getBytes(0, coapPayload);
-
-        ChannelBuffer httpResponsePayload;
-
-        //Create payload for HTTP response
-        if(coapResponse.getContentType() == OptionRegistry.MediaType.APP_SHDT){
-            log.debug("SHDT payload in CoAP response.");
-
-            Model model = ModelFactory.createDefaultModel();
-
-            try{
-                (new ShdtDeserializer(64)).read_buffer(model, coapPayload);
-            }
-            catch(Exception e){
-                log.error("SHDT error!", e);
-                return HttpResponseFactory.createHttpErrorResponse(httpVersion,
-                        HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-            }
-
-            //Serialize payload for HTTP response
-            httpResponsePayload = ModelSerializer.serializeModel(model, acceptedMimeType);
-        }
-        else{
-            httpResponsePayload = coapResponse.getPayload();
-        }
-
-        //Create HTTP header fields
-        Multimap<String, String> httpHeaders = CoapOptionHttpHeaderMapper.getHttpHeaders(coapResponse.getOptionList());
-
-        //Create HTTP response
-        HttpResponse httpResponse =
-                HttpResponseFactory.createHttpResponse(httpVersion, httpStatus, httpHeaders, httpResponsePayload);
-
-        //Set HTTP content type header
-        httpResponse.setHeader(HttpHeaders.Names.CONTENT_TYPE, acceptedMimeType.mimeType);
-
-        return httpResponse;
-    }
-
-//    if(httpRequest.getMethod() == HttpMethod.GET){
-//        String acceptHeader = httpRequest.getHeader("Accept");
-//        log.debug("Accept header of request: {}.", acceptHeader);
-//
-//        String lang = DEFAULT_MODEL_LANGUAGE;
-//        String mimeType = DEFAULT_RESPONSE_MIME_TYPE;
-//
-//        if(acceptHeader != null) {
-//            if(acceptHeader.indexOf("application/rdf+xml") != -1){
-//                lang = "RDF/XML";
-//                mimeType = "application/rdf+xml";
-//            }
-//            else if(acceptHeader.indexOf("application/xml") != -1){
-//                lang = "RDF/XML";
-//                mimeType = "application/xml";
-//            }
-//            else if(acceptHeader.indexOf("text/n3") != -1){
-//                lang = "N3";
-//                mimeType = "text/n3";
-//            }
-//            else if(acceptHeader.indexOf("text/turtle") != -1) {
-//                lang = "TURTLE";
-//                mimeType = "text/turtle";
-//            }
-//        }
-//
-//        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-//
-//        model.write(byteArrayOutputStream, lang);
-//
-//        //Create Payload and
-//        httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
-//        httpResponse.setHeader(CONTENT_TYPE, mimeType + "; charset=utf-8");
-//        httpResponse.setContent(ChannelBuffers.wrappedBuffer(byteArrayOutputStream.toByteArray()));
-//        httpResponse.setHeader(CONTENT_LENGTH, httpResponse.getContent().readableBytes());
-//    }
-//    else{
-//        httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
-//                HttpResponseStatus.METHOD_NOT_ALLOWED);
-//
-//        httpResponse.setHeader(CONTENT_TYPE, DEFAULT_RESPONSE_MIME_TYPE + "; charset=utf-8");
-//        String message = "Method not allowed: " + httpRequest.getMethod();
-//        httpResponse.setContent(ChannelBuffers.wrappedBuffer(message.getBytes(Charset.forName("UTF-8"))));
-//        httpResponse.setHeader(CONTENT_LENGTH, httpResponse.getContent().readableBytes());
-//    }
 }
 

@@ -25,6 +25,10 @@
 package eu.spitfire.ssp.gateway;
 
 import com.google.common.util.concurrent.SettableFuture;
+import com.hp.hpl.jena.rdf.model.Model;
+import eu.spitfire.ssp.core.InternalProxyUriRequest;
+import eu.spitfire.ssp.core.InternalRegisterResourceMessage;
+import eu.spitfire.ssp.core.InternalRemoveResourceMessage;
 import eu.spitfire.ssp.core.pipeline.handler.cache.ResourceStatusMessage;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import org.jboss.netty.channel.Channel;
@@ -37,9 +41,9 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Date;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
@@ -65,17 +69,19 @@ public abstract class ProxyServiceManager {
 
     private String prefix;
 
-    protected ProxyServiceManager(String prefix){
-        this.prefix = prefix;
-
+    protected ProxyServiceManager(){
         HttpRequestProcessor gui = this.getGui();
         if(gui != null){
             try {
-                registerService(SettableFuture.<URI>create(), new URI(null, null, null, -1, "/", null, null), gui);
+                registerResource(SettableFuture.<URI>create(), new URI(null, null, null, -1, "/", null, null), gui);
             } catch (URISyntaxException e) {
                 log.error("This should never happen.", e);
             }
         }
+    }
+
+    public void setPrefix(String prefix){
+        this.prefix = prefix;
     }
 
     public abstract HttpRequestProcessor getGui();
@@ -87,14 +93,15 @@ public abstract class ProxyServiceManager {
      *
      * @param uriFuture the {@link SettableFuture<URI>} containing the absolute {@link URI} for the newly registered
      *                  service or a {@link Throwable} if an error occured after method completion.
-*      @param serviceUri The (original/remote) {@link URI} of the new service to be registered.
+*      @param resourceUri the (original/remote) {@link URI} of the new resource to be registered.
      * @param requestProcessor the {@link HttpRequestProcessor} instance to handle incoming requests
      */
-    public void registerService(final SettableFuture<URI> uriFuture, URI serviceUri, final HttpRequestProcessor requestProcessor){
+    public void registerResource(final SettableFuture<URI> uriFuture, URI resourceUri,
+                                 final HttpRequestProcessor requestProcessor){
 
         //Retrieve the URI the new service is available at on the proxy
         final SettableFuture<URI> uriRequestFuture = SettableFuture.create();
-        retrieveProxyUri(uriRequestFuture, serviceUri);
+        retrieveProxyUri(uriRequestFuture, resourceUri);
 
         uriRequestFuture.addListener(new Runnable(){
             @Override
@@ -104,7 +111,7 @@ public abstract class ProxyServiceManager {
                     final URI proxyUri = uriRequestFuture.get();
                     ChannelFuture registrationFuture =
                             Channels.write(internalChannel,
-                                    new InternalRegisterServiceMessage(proxyUri, requestProcessor));
+                                    new InternalRegisterResourceMessage(proxyUri, requestProcessor));
 
                     registrationFuture.addListener(new ChannelFutureListener() {
                         @Override
@@ -132,9 +139,14 @@ public abstract class ProxyServiceManager {
      * Method to update a somehow observed resource that changed its status. This method is to be invoked by
      * observers to update the status in the cache.
      *
-     * @param resourceStatusMessage all necessary information about the new resource status to be cached
+     * @param resourceUri the {@link URI} identifying the resource whose status was updated
+     * @param resourceStatus the {@link Model} containing the actual status of the resource
+     * @param expiry the expiry of this status
      */
-    public void updateResourceStatus(final ResourceStatusMessage resourceStatusMessage){
+    public void updateCachedResourceStatus(URI resourceUri, Model resourceStatus, Date expiry){
+        final ResourceStatusMessage resourceStatusMessage =
+                new ResourceStatusMessage(resourceUri, resourceStatus, expiry);
+
         ChannelFuture future = Channels.write(internalChannel, resourceStatusMessage);
         future.addListener(new ChannelFutureListener() {
             @Override
@@ -144,23 +156,41 @@ public abstract class ProxyServiceManager {
         });
     }
 
-    /**
-     * Retrieves a proper absolute URI for the given original providers host address and the relative service path.
-     * The {@link URI} which is eventually set in the given {@link SettableFuture<URI>} can be considered the URI
-     * of an HTTP service mirroring the original service
-     *
-     * @param uriRequestFuture the {@link SettableFuture<URI>} to eventually contain the absolute {@link URI}
-     * @param serviceUri the {@link URI} of the service to get the proxy URI for. The URI may either be absolute or
-     *                   relative, i.e. only contain path and possibly additionaly query and/or fragment
-     */
-    public void retrieveProxyUri(SettableFuture<URI> uriRequestFuture, URI serviceUri){
-        Channels.write(internalChannel, new InternalAbsoluteUriRequest(uriRequestFuture, this.getPrefix(),
-                serviceUri));
+    public void removeResource(URI resourceUri){
+        final InternalRemoveResourceMessage internalRemoveResourceMessage =
+                new InternalRemoveResourceMessage(resourceUri);
+
+        ChannelFuture future = Channels.write(internalChannel, internalRemoveResourceMessage);
+        future.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                log.debug("Successfully removed resource {}.", internalRemoveResourceMessage.getResourceUri());
+            }
+        });
     }
 
     /**
-     * This method is invoked upon initialization of the gateway instance. It is considered to register all
-     * services available on startup.
+     * Retrieves an absolute proxy {@link URI} for the given service {@link URI}. The proxy URI is the URI that
+     * will be listed in the list of available proxy services.
+     *
+     * The originURI may be either absolute or relative, i.e. only contain path and possibly additionally query and/or
+     * fragment.
+     *
+     * If originURI is absolute the proxy URI will be like <code>http:<ssp-host>:<ssp-port>/?uri=originUri</code>. i.e.
+     * with the originUri in the query part of the proxy URI. If the originUri is relative, i.e. without scheme, host
+     * and port, the proxy URI will contain the path of the originUri in its path extended by a gateway prefix.
+     *
+     * @param uriRequestFuture the {@link SettableFuture<URI>} to eventually contain the absolute proxy {@link URI}
+     * @param originUri the {@link URI} of the origin (remote) service to get the proxy URI for.
+     */
+    public void retrieveProxyUri(SettableFuture<URI> uriRequestFuture, URI originUri){
+        Channels.write(internalChannel, new InternalProxyUriRequest(uriRequestFuture, this.getPrefix(),
+                originUri));
+    }
+
+    /**
+     * This method is invoked upon construction of the gateway instance. It is considered to contain everything that is
+     * necessary to make the gateway instance working properly.
      */
     public abstract void initialize();
 
@@ -188,5 +218,7 @@ public abstract class ProxyServiceManager {
     public void setExecutorService(ExecutorService executorService){
         this.executorService = executorService;
     }
+
+    public abstract void shutdown();
 }
 
