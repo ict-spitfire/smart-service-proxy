@@ -3,11 +3,7 @@ package eu.spitfire.ssp.gateway.coap.noderegistration;
 import java.net.InetSocketAddress;
 
 /**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 28.06.13
- * Time: 19:26
- * To change this template use File | Settings | File Templates.
+ * Exception to be thrown when
  */
 public class ResourceDiscoveringTimeoutException extends Exception{
 

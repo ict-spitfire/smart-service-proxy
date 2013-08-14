@@ -13,23 +13,23 @@ import org.jboss.netty.handler.codec.http.HttpVersion;
  */
 public class ProxyServiceException extends Exception{
 
-    private HttpVersion httpResponseVersion;
+    //private HttpVersion httpResponseVersion;
     private HttpResponseStatus httpResponseStatus;
 
-    public ProxyServiceException(HttpVersion httpResponseVersion, HttpResponseStatus httpResponseStatus){
-        this(httpResponseVersion, httpResponseStatus, httpResponseStatus.toString());
+    public ProxyServiceException(HttpResponseStatus httpResponseStatus){
+        this(httpResponseStatus, httpResponseStatus.toString());
     }
 
-    public ProxyServiceException(HttpVersion httpResponseVersion, HttpResponseStatus httpResponseStatus,
+    public ProxyServiceException(HttpResponseStatus httpResponseStatus,
                                  String message){
         super(message);
-        this.httpResponseVersion = httpResponseVersion;
+        //this.httpResponseVersion = httpResponseVersion;
         this.httpResponseStatus = httpResponseStatus;
     }
 
-    public ProxyServiceException(HttpVersion httpResponseVersion, HttpResponseStatus httpResponseStatus,
+    public ProxyServiceException(HttpResponseStatus httpResponseStatus,
                                  String message, Throwable cause){
-        this(httpResponseVersion, httpResponseStatus, message);
+        this(httpResponseStatus, message);
         this.initCause(cause);
     }
 
@@ -37,7 +37,7 @@ public class ProxyServiceException extends Exception{
         return httpResponseStatus;
     }
 
-    public HttpVersion getHttpResponseVersion() {
-        return httpResponseVersion;
-    }
+//    public HttpVersion getHttpResponseVersion() {
+//        return httpResponseVersion;
+//    }
 }

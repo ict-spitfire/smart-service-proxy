@@ -28,17 +28,17 @@ import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.Main;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import eu.spitfire.ssp.core.webservice.ListOfServices;
-import eu.spitfire.ssp.gateway.InternalRegisterTransparentGatewayMessage;
-import eu.spitfire.ssp.gateway.ProxyServiceManager;
-import eu.spitfire.ssp.gateway.InternalAbsoluteUriRequest;
-import eu.spitfire.ssp.gateway.InternalRegisterServiceMessage;
+import eu.spitfire.ssp.gateway.*;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
+import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.*;
+import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
@@ -119,7 +119,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         responseFuture.addListener(new Runnable(){
             @Override
             public void run() {
-                Object object = new Object();
+                Object object;
                 try {
                     object = responseFuture.get();
                     log.debug("Class of object: {}", object.getClass().getName());
@@ -129,21 +129,17 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
                         ((HttpResponse) object).setHeader("Access-Control-Allow-Credentials", "true");
                     }
 
-
-
-//                    httpResponse = responseFuture.get();
-//
-//                    //Set HTTP CORS header to allow cross-site scripting
-//                    httpResponse.setHeader("Access-Control-Allow-Origin", "*");
-//                    httpResponse.setHeader("Access-Control-Allow-Credentials", "true");
-
-                    //log.debug("Write Response: {}.", httpResponse);
-
-                } catch (Exception e) {
-//                    httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
-//                            HttpResponseStatus.INTERNAL_SERVER_ERROR);
-//                }
                 }
+                catch(Exception e){
+                    object = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
+                            HttpResponseStatus.INTERNAL_SERVER_ERROR);
+
+                    ChannelBuffer payload =
+                            ChannelBuffers.wrappedBuffer(e.getMessage().getBytes(Charset.forName("UTF-8")));
+                    ((HttpResponse) object).setContent(payload);
+                    ((HttpResponse) object).setHeader(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
+                }
+
 
                 ChannelFuture future = Channels.write(ctx.getChannel(), object, me.getRemoteAddress());
                 future.addListener(ChannelFutureListener.CLOSE);

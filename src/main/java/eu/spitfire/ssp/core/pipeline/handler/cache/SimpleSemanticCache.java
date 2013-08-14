@@ -46,16 +46,20 @@ public class SimpleSemanticCache extends AbstractSemanticCache {
 
     @Override
     public synchronized void putResourceToCache(final URI resourceUri, Model model, Date expiry) {
-        //Stop deletion of resource from cache
+
+        //Stop deletion of resource status from cache (if any)
         if(expiryTasks.containsKey(resourceUri)){
             if(expiryTasks.get(resourceUri).cancel(false))
                 log.debug("Deletion of cached resource status of {} canceled.", resourceUri);
             else
-                log.debug("Failed to cancel deletion of cached resource status of {}.", resourceUri);
+                log.warn("Failed to cancel deletion of cached resource status of {}.", resourceUri);
         }
 
+        //Put fresh status into cache and schedule deletion on expiry
         cache.put(resourceUri, model);
         expiries.put(resourceUri, expiry);
+        log.info("Put fresh status of {} into cache (expiry: {}).", resourceUri, expiry);
+
 
         expiryTasks.put(resourceUri, executorService.schedule(new Runnable(){
 

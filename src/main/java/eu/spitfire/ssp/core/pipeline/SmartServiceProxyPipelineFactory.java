@@ -26,8 +26,6 @@ package eu.spitfire.ssp.core.pipeline;
 
 import eu.spitfire.ssp.core.pipeline.handler.*;
 import eu.spitfire.ssp.core.pipeline.handler.cache.AbstractSemanticCache;
-import eu.spitfire.ssp.core.pipeline.handler.cache.SimpleSemanticCache;
-import org.apache.log4j.Logger;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
@@ -36,6 +34,8 @@ import org.jboss.netty.handler.codec.http.HttpContentCompressor;
 import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 import org.jboss.netty.handler.execution.ExecutionHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ExecutorService;
 
@@ -49,18 +49,19 @@ import java.util.concurrent.ExecutorService;
  */
 public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory {
 
-    private static Logger log = Logger.getLogger(SmartServiceProxyPipelineFactory.class.getName());
+    private static Logger log = LoggerFactory.getLogger(SmartServiceProxyPipelineFactory.class.getName());
 
     private HttpRequestDispatcher httpRequestDispatcher;
     private AbstractSemanticCache semanticCache            ;
 
     private ExecutionHandler executionHandler;
 
-    public SmartServiceProxyPipelineFactory(ExecutorService executorService) throws Exception {
-        //httpMirrorUriHandler = new HttpMirrorUriHandler();
-
+    public SmartServiceProxyPipelineFactory(ExecutorService executorService, AbstractSemanticCache cache)
+            throws Exception {
         executionHandler = new ExecutionHandler(executorService);
-        semanticCache = new SimpleSemanticCache();
+
+        semanticCache = cache;
+        log.info("Added instance of {} as cache.", semanticCache.getClass().getName());
 
         httpRequestDispatcher = new HttpRequestDispatcher(executorService);
     }
@@ -68,7 +69,7 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
     public ChannelPipeline getInternalPipeline() throws Exception{
         ChannelPipeline pipeline = Channels.pipeline();
 
-        //pipeline.addLast("Model Cache", modelCache);
+        pipeline.addLast("Semantic Cache", semanticCache);
         pipeline.addLast("HTTP Request Dispatcher", httpRequestDispatcher);
 
         return pipeline;
@@ -87,13 +88,14 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 
         //SSP specific handlers
         pipeline.addLast("Payload Formatter", new SemanticPayloadFormatter());
-        //pipeline.addLast("HTTP Mirror URI Handler", new HttpMirrorUriHandler());
         pipeline.addLast("Execution Handler", executionHandler);
-        pipeline.addLast("Semantic Cache", semanticCache);
+
+        if(semanticCache != null)
+            pipeline.addLast("Semantic Cache", semanticCache);
+
 
         pipeline.addLast("HTTP Request Dispatcher", httpRequestDispatcher);
 
         return pipeline;
 	}
-
 }

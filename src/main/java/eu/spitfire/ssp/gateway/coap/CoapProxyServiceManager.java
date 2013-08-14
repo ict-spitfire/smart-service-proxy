@@ -25,10 +25,17 @@
 package eu.spitfire.ssp.gateway.coap;
 
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
+import de.uniluebeck.itm.ncoap.message.CoapRequest;
+import de.uniluebeck.itm.ncoap.message.header.Code;
+import de.uniluebeck.itm.ncoap.message.header.MsgType;
 import eu.spitfire.ssp.gateway.ProxyServiceManager;
 import eu.spitfire.ssp.gateway.coap.noderegistration.CoapNodeRegistrationService;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
+import eu.spitfire.ssp.gateway.coap.observation.CoapResourceObserver;
 import eu.spitfire.ssp.gateway.coap.requestprocessing.HttpRequestProcessorForCoapServices;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,9 +54,8 @@ public class CoapProxyServiceManager extends ProxyServiceManager {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private CoapServerApplication coapServer;
     private HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices;
-
+    private CoapClientApplication coapClientApplication;
 
     /**
      * @param prefix the unique prefix for this {@link eu.spitfire.ssp.gateway.ProxyServiceManager} instance
@@ -57,20 +63,39 @@ public class CoapProxyServiceManager extends ProxyServiceManager {
     public CoapProxyServiceManager(String prefix){
         super(prefix);
 
-        this.httpRequestProcessorForCoapServices = new HttpRequestProcessorForCoapServices();
+        //create client for proxy request processing and resource observation
+        coapClientApplication = new CoapClientApplication();
+        this.httpRequestProcessorForCoapServices = new HttpRequestProcessorForCoapServices(coapClientApplication);
 
-        this.coapServer = new CoapServerApplication();
-        coapServer.registerService(new CoapNodeRegistrationService(this));
+        //create server and service for node registration
+        CoapServerApplication coapServerApplication = new CoapServerApplication();
+        CoapNodeRegistrationService coapNodeRegistrationService = new CoapNodeRegistrationService(this,
+                coapClientApplication, httpRequestProcessorForCoapServices);
+        coapServerApplication.registerService(coapNodeRegistrationService);
     }
 
-    public void registerService(SettableFuture<URI> uriFuture, InetAddress remoteAddress, String servicePath){
-        try {
-            URI serviceURI = new URI("coap", null, remoteAddress.getHostAddress(), -1, servicePath, null, null);
-            super.registerService(uriFuture, serviceURI, httpRequestProcessorForCoapServices);
-        } catch (URISyntaxException e) {
-            log.error("This should never happen!", e);
-            uriFuture.setException(e);
-        }
+    @Override
+    public void registerService(final SettableFuture<URI> uriFuture, final URI serviceUri,
+                                final HttpRequestProcessor requestProcessor){
+
+        super.registerService(uriFuture, serviceUri, requestProcessor);
+        uriFuture.addListener(new Runnable(){
+            @Override
+            public void run() {
+                try{
+                    if(serviceUri.toString().contains("_minimal")){
+                        log.info("Start observation of {}.", serviceUri);
+                        CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.GET, serviceUri);
+                        coapRequest.setObserveOptionRequest();
+                        coapClientApplication.writeCoapRequest(coapRequest,
+                                new CoapResourceObserver(CoapProxyServiceManager.this, serviceUri));
+                    }
+                }
+                catch(Exception e){
+                    log.error("Error while starting observation of service {}.", serviceUri);
+                }
+            }
+        }, executorService);
 
     }
 

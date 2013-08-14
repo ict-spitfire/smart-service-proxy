@@ -25,6 +25,7 @@
 package eu.spitfire.ssp.gateway;
 
 import com.google.common.util.concurrent.SettableFuture;
+import eu.spitfire.ssp.core.pipeline.handler.cache.ResourceStatusMessage;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
@@ -85,9 +86,8 @@ public abstract class ProxyServiceManager {
      * network.
      *
      * @param uriFuture the {@link SettableFuture<URI>} containing the absolute {@link URI} for the newly registered
-     *                  service or a {@link Throwable} if an error occured.
-//     * @param targetHostAddress the {@link InetAddress} of the host hosting the original service
-//     * @param servicePath the relative path of the service
+     *                  service or a {@link Throwable} if an error occured after method completion.
+*      @param serviceUri The (original/remote) {@link URI} of the new service to be registered.
      * @param requestProcessor the {@link HttpRequestProcessor} instance to handle incoming requests
      */
     public void registerService(final SettableFuture<URI> uriFuture, URI serviceUri, final HttpRequestProcessor requestProcessor){
@@ -128,21 +128,21 @@ public abstract class ProxyServiceManager {
         }, executorService);
     }
 
-//    /**
-//     * Method to be called by extending classes, i.e. instances of {@link ProxyServiceManager} whenever there is a new
-//     * webservice to be created on the smart service proxy, if the network behind this gateway is <b>not</b> an IP
-//     * enabled network.
-//     *
-//     * @param uriFuture the {@link SettableFuture<URI>} to eventually contain the absolute {@link URI} for the newly
-//     *                  registered service or a {@link Throwable} if an error occured.
-//     * @param servicePath the path of the service
-//     * @param requestProcessor the {@link HttpRequestProcessor} instance to handle incoming requests
-//     */
-//    public void registerService(SettableFuture<URI> uriFuture, final String servicePath,
-//                                   final HttpRequestProcessor requestProcessor){
-//
-//        registerService(uriFuture, null, servicePath, requestProcessor);
-//    }
+    /**
+     * Method to update a somehow observed resource that changed its status. This method is to be invoked by
+     * observers to update the status in the cache.
+     *
+     * @param resourceStatusMessage all necessary information about the new resource status to be cached
+     */
+    public void updateResourceStatus(final ResourceStatusMessage resourceStatusMessage){
+        ChannelFuture future = Channels.write(internalChannel, resourceStatusMessage);
+        future.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                log.debug("Successfully updated resource {}.", resourceStatusMessage.getResourceUri());
+            }
+        });
+    }
 
     /**
      * Retrieves a proper absolute URI for the given original providers host address and the relative service path.

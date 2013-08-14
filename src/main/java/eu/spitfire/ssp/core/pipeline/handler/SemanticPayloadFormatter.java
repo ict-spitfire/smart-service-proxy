@@ -58,13 +58,13 @@ import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SER
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.OK;
 
 /**
-* The {@link SemanticPayloadFormatter} recognizes the requested mimetype from the incoming {@link HttpRequest}. The payload
-* of the corresponding {@link HttpResponse} will be converted to the requested mimetype. If the requested mimetype
-* is not available, the {@link SemanticPayloadFormatter} sends a {@link HttpResponse} with status code
-* 415 (Unsupported media type).
-*
-* @author Oliver Kleine
-*/
+ * The {@link SemanticPayloadFormatter} recognizes the requested mimetype from the incoming {@link HttpRequest}. The payload
+ * of the corresponding {@link HttpResponse} will be converted to the requested mimetype, i.e. the supported one with the
+ * highest priority. If none of the the requested mimetype(s) is available, the {@link SemanticPayloadFormatter} sends
+ * a {@link HttpResponse} with status code 415 (Unsupported media type).
+ *
+ * @author Oliver Kleine
+ */
 public class SemanticPayloadFormatter extends SimpleChannelHandler {
 
     public static Language DEFAULT_LANGUAGE = Language.RDF_XML;
@@ -78,11 +78,7 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
     private Language acceptedLanguage;
     private HttpVersion httpVersion;
 
-	/**
-	 * Expected:
-	 * - HTTP Request
-	 * (remembers requested mime type for response)
-	 */
+
 	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
 
@@ -114,14 +110,9 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
 		ctx.sendUpstream(me);
 	}
 
-	/**
-	 * Outbound Message types:
-	 * - String
-	 *	 (core response in remembered mime type)
-	 */
 	@Override
 	public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
-        log.info("Downstream: {}", me.getMessage());
+        log.debug("Downstream: {}", me.getMessage());
 
         if(me.getMessage() instanceof ResourceStatusMessage){
             ResourceStatusMessage internalResourceUpdateMessage =
@@ -143,6 +134,7 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
             httpResponse.setHeader(HttpHeaders.Names.EXPIRES,
                     dateFormat.format(internalResourceUpdateMessage.getExpiry()));
 
+            httpResponse.setHeader(HttpHeaders.Names.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
             Channels.write(ctx, me.getFuture(), httpResponse, me.getRemoteAddress());
             return;
         }
@@ -150,30 +142,6 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
         ctx.sendDownstream(me);
     }
 
-//    public static List<Option> getAcceptOptions(String httpAcceptHeaderValue){
-//        ArrayList<Option> result = new ArrayList<>();
-//
-//        Multimap<Double, String> acceptedMediaTypes = getAcceptedMediaTypes(httpAcceptHeaderValue);
-//
-//        for(Double priority : acceptedMediaTypes.keySet()){
-//            for(String httpMediaType : acceptedMediaTypes.get(priority)){
-//                OptionRegistry.MediaType coapMediaType = mediaTypes.get(httpMediaType);
-//                if(coapMediaType != null){
-//                    try {
-//                        result.add(Option.createUintOption(OptionRegistry.OptionName.ACCEPT, coapMediaType.number));
-//                        log.debug("Added CoAP ACCEPT Option {}.", coapMediaType);
-//                    } catch (InvalidOptionException e) {
-//                        log.error("This should never happen.", e);
-//                    }
-//                }
-//                else{
-//                    log.warn("No appropriate CoAP media type found for {}.", httpMediaType);
-//                }
-//            }
-//        }
-//
-//        return result;
-//    }
 
     /**
      * Returns a {@link com.google.common.collect.Multimap}  with priorities as key and the name of the

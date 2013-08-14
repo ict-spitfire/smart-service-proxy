@@ -25,6 +25,9 @@
 package eu.spitfire.ssp;
 
 import eu.spitfire.ssp.core.pipeline.SmartServiceProxyPipelineFactory;
+import eu.spitfire.ssp.core.pipeline.handler.cache.AbstractSemanticCache;
+import eu.spitfire.ssp.core.pipeline.handler.cache.P2PSemanticCache;
+import eu.spitfire.ssp.core.pipeline.handler.cache.SimpleSemanticCache;
 import eu.spitfire.ssp.gateway.ProxyServiceManager;
 import eu.spitfire.ssp.gateway.coap.CoapProxyServiceManager;
 import eu.spitfire.ssp.gateway.simple.SimpleProxyServiceManager;
@@ -69,7 +72,16 @@ public class Main {
                                                                 Executors.newCachedThreadPool(),
                                                                 Executors.newCachedThreadPool()
         ));
-        SmartServiceProxyPipelineFactory pipelineFactory = new SmartServiceProxyPipelineFactory(executorService);
+
+        //caching
+        AbstractSemanticCache cache = null;
+        String cacheType = config.getString("cache");
+        if("simple".equals(cacheType))
+            cache = new SimpleSemanticCache();
+        else if("p2p".equals(cacheType))
+            cache = new P2PSemanticCache();
+
+        SmartServiceProxyPipelineFactory pipelineFactory = new SmartServiceProxyPipelineFactory(executorService, cache);
         bootstrap.setPipelineFactory(pipelineFactory);
 
         bootstrap.bind(new InetSocketAddress(SSP_HTTP_PROXY_PORT));

@@ -3,6 +3,7 @@ package eu.spitfire.ssp.gateway.coap.noderegistration;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.inject.Inject;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.webservice.NotObservableWebService;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
@@ -11,6 +12,7 @@ import de.uniluebeck.itm.ncoap.message.MessageDoesNotAllowPayloadException;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
 import eu.spitfire.ssp.gateway.coap.CoapProxyServiceManager;
+import eu.spitfire.ssp.gateway.coap.requestprocessing.HttpRequestProcessorForCoapServices;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +21,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 
 /**
 * This is the WebService for new sensor nodes to register at. It's path is <code>/here_i_am</code>. It only accepts
@@ -33,13 +36,18 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private CoapProxyServiceManager coapProxyServiceCreator;
+    private CoapProxyServiceManager coapProxyServiceManager;
+    //Application to send the service discovery requests
     private CoapClientApplication coapClientApplication;
+    private HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices;
 
-    public CoapNodeRegistrationService(CoapProxyServiceManager coapProxyServiceCreator){
+    public CoapNodeRegistrationService(CoapProxyServiceManager coapProxyServiceManager,
+                                       CoapClientApplication coapClientApplication,
+                                       HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices){
         super("/here_i_am", Boolean.TRUE);
-        this.coapProxyServiceCreator = coapProxyServiceCreator;
-        this.coapClientApplication = new CoapClientApplication();
+        this.coapProxyServiceManager = coapProxyServiceManager;
+        this.coapClientApplication = coapClientApplication;
+        this.httpRequestProcessorForCoapServices = httpRequestProcessorForCoapServices;
     }
 
     /**
@@ -105,8 +113,9 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
                             final SettableFuture<URI> serviceRegistrationFuture = SettableFuture.create();
                             serviceRegistrationFutureSet.add(serviceRegistrationFuture);
 
-                            coapProxyServiceCreator.registerService(serviceRegistrationFuture,
-                                    remoteAddress.getAddress(), remoteServicePath);
+                            coapProxyServiceManager.registerService(serviceRegistrationFuture,
+                                    new URI("coap", null, remoteAddress.getAddress().getHostAddress(),-1,
+                                            remoteServicePath, null, null), httpRequestProcessorForCoapServices);
                         }
 
                         final ListenableFuture<List<URI>> registrationCompletedFuture =
@@ -134,6 +143,14 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
 
                     }
                     catch (Exception e) {
+                        if(e instanceof ExecutionException){
+                            if(e.getCause() instanceof ResourceDiscoveringTimeoutException){
+                                log.error("Timeout during resource discovery of node {}.",
+                                        ((ResourceDiscoveringTimeoutException) e.getCause()).getNodeAddress());
+                            }
+                            log.error("Cause was {}", e.getCause().toString());
+                        }
+
                         String message = "Error in service discovery process.";
                         log.error(message, e);
 
@@ -154,8 +171,8 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
             coapClientApplication.writeCoapRequest(serviceDiscoveryRequest, wellKnownCoreResponseProcessor);
 
         }
-        catch (Exception e) {
-            log.error("This should never happen.", e);
+        catch(Exception e){
+            log.error("Cause was {}", e.getCause());
             nodeRegistrationFuture.set(createCoapResponse(Code.INTERNAL_SERVER_ERROR_500, e.getCause().toString()));
         }
     }
