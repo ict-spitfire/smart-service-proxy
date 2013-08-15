@@ -24,13 +24,14 @@
 */
 package eu.spitfire.ssp;
 
-import eu.spitfire.ssp.core.pipeline.SmartServiceProxyPipelineFactory;
-import eu.spitfire.ssp.core.pipeline.handler.cache.AbstractSemanticCache;
-import eu.spitfire.ssp.core.pipeline.handler.cache.P2PSemanticCache;
-import eu.spitfire.ssp.core.pipeline.handler.cache.SimpleSemanticCache;
-import eu.spitfire.ssp.gateway.ProxyServiceManager;
-import eu.spitfire.ssp.gateway.coap.CoapProxyServiceManager;
-import eu.spitfire.ssp.gateway.simple.SimpleProxyServiceManager;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import eu.spitfire.ssp.proxyservicemanagement.AbstractProxyServiceManager;
+import eu.spitfire.ssp.server.pipeline.SmartServiceProxyPipelineFactory;
+import eu.spitfire.ssp.server.pipeline.handler.cache.AbstractSemanticCache;
+import eu.spitfire.ssp.server.pipeline.handler.cache.P2PSemanticCache;
+import eu.spitfire.ssp.server.pipeline.handler.cache.SimpleSemanticCache;
+import eu.spitfire.ssp.proxyservicemanagement.coap.CoapProxyServiceManager;
+import eu.spitfire.ssp.proxyservicemanagement.simple.SimpleProxyServiceManager;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.ConsoleAppender;
@@ -44,8 +45,7 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
 import java.net.InetSocketAddress;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 //import eu.spitfire.ssp.gateway.files.FilesGateway;
 
@@ -67,7 +67,9 @@ public class Main {
         SSP_HTTP_PROXY_PORT = config.getInt("SSP_HTTP_PROXY_PORT", 8080);
 
         //create pipeline for server
-        OrderedMemoryAwareThreadPoolExecutor executorService = new OrderedMemoryAwareThreadPoolExecutor(20, 0, 0);
+        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP-I/O-Thread #%d").build();
+        OrderedMemoryAwareThreadPoolExecutor executorService =
+                new OrderedMemoryAwareThreadPoolExecutor(20, 0, 0, 10, TimeUnit.SECONDS, threadFactory);
         ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
                                                                 Executors.newCachedThreadPool(),
                                                                 Executors.newCachedThreadPool()
@@ -92,30 +94,37 @@ public class Main {
         LocalServerChannel internalChannel = internalChannelFactory.newChannel(pipelineFactory.getInternalPipeline());
 
         //Create enabled gateway
-        startProxyServiceManagers(config, internalChannel, executorService);
+        startProxyServiceManagers(config, internalChannel);
     }
 
     //Create the gateway enabled in ssp.properties
-    private static void startProxyServiceManagers(Configuration config, LocalServerChannel internalChannel,
-                                                  ExecutorService executorService) throws Exception {
+    private static void startProxyServiceManagers(Configuration config, LocalServerChannel internalChannel) throws Exception {
 
         log.debug("Start creating enabled ProxyServiceCreators!");
+
+        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("Service-Management-Thread #%d").build();
+        ScheduledExecutorService scheduledExecutorService =
+                Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() * 2, threadFactory);
+
+
         String[] enabledProxyServiceManagers = config.getStringArray("enableProxyServiceManager");
 
-        for(String proxyServiceCreatorName : enabledProxyServiceManagers){
+        for(String proxyServiceManagerName : enabledProxyServiceManagers){
 
-            ProxyServiceManager proxyServiceManager;
+            AbstractProxyServiceManager abstractProxyServiceManager;
             //SimpleProxyServiceManager
-            if(proxyServiceCreatorName.equals("simple")){
+            if(proxyServiceManagerName.equals("simple")){
                 log.info("Create Simple Gateway.");
-                proxyServiceManager = new SimpleProxyServiceManager();
-                proxyServiceManager.setPrefix("simple");
+                abstractProxyServiceManager =
+                        new SimpleProxyServiceManager("simple", internalChannel, scheduledExecutorService);
+
             }
 
             //CoAPBackend
-            else if(proxyServiceCreatorName.equals("coap")) {
+            else if(proxyServiceManagerName.equals("coap")) {
                 log.info("Create CoAP Gateway.");
-                proxyServiceManager = new CoapProxyServiceManager();
+                abstractProxyServiceManager =
+                        new CoapProxyServiceManager("coap", internalChannel, scheduledExecutorService);
             }
 
             //FilesGateway
@@ -124,19 +133,16 @@ public class Main {
 //                if(directory == null){
 //                    throw new Exception("Property 'files.directory' not set.");
 //                }
-//                proxyServiceManager = new FilesGateway(directory);
+//                abstractProxyServiceManager = new FilesGateway(directory);
 //            }
 
             //Unknown AbstractGatewayFactory Type
             else {
-                log.error("Config file error: Gateway for '" + proxyServiceCreatorName + "' not found!");
+                log.error("Config file error: Gateway for '" + proxyServiceManagerName + "' not found!");
                 continue;
             }
 
-            proxyServiceManager.setInternalChannel(internalChannel);
-            proxyServiceManager.setExecutorService(executorService);
-
-            proxyServiceManager.initialize();
+            abstractProxyServiceManager.initialize();
         }
     }
 
@@ -147,9 +153,9 @@ public class Main {
         Logger.getRootLogger().removeAllAppenders();
         Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
 
-        Logger.getRootLogger().setLevel(Level.DEBUG);
-        Logger.getLogger("eu.spitfire.ssp.core.payloadserialization.ShdtDeserializer").setLevel(Level.ERROR);
-        Logger.getLogger("de.uniluebeck.itm.ncoap").setLevel(Level.ERROR);
+        Logger.getRootLogger().setLevel(Level.INFO);
+        Logger.getLogger("eu.spitfire.ssp.server.payloadserialization.ShdtDeserializer").setLevel(Level.ERROR);
+        Logger.getLogger("de.uniluebeck.itm.ncoap").setLevel(Level.WARN);
     }
 }
 
