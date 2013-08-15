@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.core.webservice;
 
-import eu.spitfire.ssp.core.pipeline.handler.cache.ResourceStatusMessage;
+import eu.spitfire.ssp.core.pipeline.messages.ResourceStatusMessage;
 
 /**
  * Created with IntelliJ IDEA.

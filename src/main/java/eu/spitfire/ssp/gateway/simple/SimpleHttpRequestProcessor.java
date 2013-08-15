@@ -5,7 +5,7 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.vocabulary.VCARD;
 import eu.spitfire.ssp.Main;
-import eu.spitfire.ssp.core.pipeline.handler.cache.ResourceStatusMessage;
+import eu.spitfire.ssp.core.pipeline.messages.ResourceStatusMessage;
 import eu.spitfire.ssp.core.webservice.SemanticHttpRequestProcessor;
 import eu.spitfire.ssp.gateway.ProxyServiceException;
 import org.jboss.netty.handler.codec.http.*;

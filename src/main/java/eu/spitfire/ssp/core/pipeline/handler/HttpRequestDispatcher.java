@@ -26,9 +26,11 @@ package eu.spitfire.ssp.core.pipeline.handler;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.Main;
-import eu.spitfire.ssp.core.InternalProxyUriRequest;
-import eu.spitfire.ssp.core.InternalRegisterResourceMessage;
-import eu.spitfire.ssp.core.InternalRemoveResourceMessage;
+import eu.spitfire.ssp.core.pipeline.messages.InternalProxyUriRequest;
+import eu.spitfire.ssp.core.pipeline.messages.InternalRegisterResourceMessage;
+import eu.spitfire.ssp.core.pipeline.messages.InternalRemoveResourceMessage;
+import eu.spitfire.ssp.core.webservice.DefaultHttpRequestProcessor;
+import eu.spitfire.ssp.core.webservice.FaviconHttpRequestProcessor;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import eu.spitfire.ssp.core.webservice.ListOfRegisteredServices;
 import eu.spitfire.ssp.gateway.*;
@@ -49,6 +51,10 @@ import java.util.concurrent.ExecutorService;
 
 
 /**
+ * The {@link HttpRequestDispatcher} is the topmost handler of the netty stack to receive incoming
+ * HTTP requests. It contains a mapping from {@link URI} to {@link HttpRequestProcessor} instances to
+ * forward the request to the proper processor. *
+ *
  * @author Oliver Kleine
  */
 public class HttpRequestDispatcher extends SimpleChannelHandler {
@@ -60,6 +66,10 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
     private ExecutorService ioExecutorService;
 
+    /**
+     * @param ioExecutorService the {@link ExecutorService} providing the threads to send the responses
+     * @throws Exception if some unexpected error occurs
+     */
     public HttpRequestDispatcher(ExecutorService ioExecutorService) throws Exception {
         this.ioExecutorService = ioExecutorService;
 
@@ -67,10 +77,16 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
         registerServiceForListOfServices();
         registerFavicon();
+
     }
 
-    private void registerFavicon() {
-        //TODO
+    private void registerFavicon(){
+        try {
+            registerResource(new URI("http", null, Main.SSP_DNS_NAME, Main.SSP_HTTP_PROXY_PORT, "/favicon.ico", null, null),
+                    new FaviconHttpRequestProcessor());
+        } catch (URISyntaxException e) {
+            log.error("This should never happen.");
+        }
     }
 
     private void registerServiceForListOfServices() throws URISyntaxException {
@@ -88,6 +104,15 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         registerResource(targetUri, new ListOfRegisteredServices(proxyServices.keySet()));
     }
 
+    /**
+     * This method is invoked by the netty framework for incoming messages from remote peers. It forwards
+     * the incoming {@link HttpRequest} contained in the {@link MessageEvent} to the proper instance of
+     * {@link HttpRequestProcessor}, awaits its result asynchronously and sends the response to the client.
+     *
+     * @param ctx the {@link ChannelHandlerContext} to link actual task to a {@link Channel}
+     * @param me the {@link MessageEvent} containing the {@link HttpRequest}
+     * @throws Exception
+     */
 	@Override
 	public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent me) throws Exception {
 
@@ -110,12 +135,6 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
                 try {
                     object = responseFuture.get();
                     log.debug("Class of object: {}", object.getClass().getName());
-
-//                    if(object instanceof HttpResponse){
-//                        ((HttpResponse) object).setHeader("Access-Control-Allow-Origin", "*");
-//                        ((HttpResponse) object).setHeader("Access-Control-Allow-Credentials", "true");
-//                    }
-
                 }
                 catch(Exception e){
                     object = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
@@ -135,7 +154,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         }, ioExecutorService);
 
         //Start processing of HTTP request
-        handleProxyServiceRequest(responseFuture,httpRequest);
+        handleProxyServiceRequest(responseFuture, httpRequest);
     }
 
     private void handleProxyServiceRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest){
@@ -163,6 +182,12 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         }
     }
 
+    /**
+     * This method is invoked by the netty framework for downstream messages.
+     * @param ctx
+     * @param me
+     * @throws Exception
+     */
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
         log.info("Downstream: {}.", me.getMessage());

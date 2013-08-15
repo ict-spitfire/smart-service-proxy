@@ -23,13 +23,16 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 /**
-* This is the WebService for new sensor nodes to register at. It's path is <code>/here_i_am</code>. It only accepts
-* {@link CoapRequest}s with code {@link Code#POST}. Any contained payload is ignored.
-*
-* Upon reception of such a request the service sends a {@link CoapRequest} with {@link Code#GET} to the
-* <code>/.well-known/core</code> resource of the sensor node to discover the services available on the new node.
-*
-* @author Oliver Kleine
+ * This is the WebService for new sensor nodes to register. It's path is <code>/here_i_am</code>. It only accepts
+ * {@link CoapRequest}s with code {@link Code#POST}. Any contained payload is ignored.
+ *
+ * Upon reception of such a request the service sends a {@link CoapRequest} with {@link Code#GET} to the
+ * <code>/.well-known/core</code> resource of the sensor node to discover the services available on the new node.
+ *
+ * Upon discovery of the available services it responds to the original registration request with a proper response
+ * code.
+ *
+ * @author Oliver Kleine
 */
 public class CoapNodeRegistrationService extends NotObservableWebService<Boolean> {
 
@@ -96,11 +99,11 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
             URI targetURI = new URI("coap://" + targetURIHost + ":" + CoapProxyServiceManager.COAP_SERVER_PORT +
                     "/.well-known/core");
             CoapRequest serviceDiscoveryRequest = new CoapRequest(MsgType.CON, Code.GET, targetURI);
-            WellKnownCoreResponseProcessor wellKnownCoreResponseProcessor = new WellKnownCoreResponseProcessor();
 
-            //get the future to indicate whether list of services was succesfully retrieved from sensor node
-            final ListenableFuture<Set<String>> serviceDiscoveryFuture =
-                    wellKnownCoreResponseProcessor.getServiceDiscoveryFuture();
+            //Create the processor for the .well-known/core resource and a future to wait for set of services
+            WellKnownCoreResponseProcessor wellKnownCoreResponseProcessor = new WellKnownCoreResponseProcessor();
+            final SettableFuture<Set<String>> serviceDiscoveryFuture = SettableFuture.create();
+            wellKnownCoreResponseProcessor.setServiceDiscoveryFuture(serviceDiscoveryFuture);
 
             serviceDiscoveryFuture.addListener(new Runnable() {
                 @Override

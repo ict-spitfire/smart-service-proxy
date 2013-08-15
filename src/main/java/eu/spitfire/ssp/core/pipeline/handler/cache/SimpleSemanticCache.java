@@ -1,6 +1,7 @@
 package eu.spitfire.ssp.core.pipeline.handler.cache;
 
 import com.hp.hpl.jena.rdf.model.Model;
+import eu.spitfire.ssp.core.pipeline.messages.ResourceStatusMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

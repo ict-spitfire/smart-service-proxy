@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.core.pipeline.handler.cache;
+package eu.spitfire.ssp.core.pipeline.messages;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
@@ -7,7 +7,6 @@ import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
 import eu.spitfire.ssp.core.payloadserialization.Language;
 import eu.spitfire.ssp.core.payloadserialization.ShdtDeserializer;
 import eu.spitfire.ssp.gateway.ProxyServiceException;
-import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

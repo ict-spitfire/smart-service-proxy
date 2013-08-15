@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.core;
+package eu.spitfire.ssp.core.pipeline.messages;
 
 import java.net.URI;
 

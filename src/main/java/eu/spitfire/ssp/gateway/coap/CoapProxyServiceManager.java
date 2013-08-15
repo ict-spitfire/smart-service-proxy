@@ -50,24 +50,16 @@ public class CoapProxyServiceManager extends ProxyServiceManager {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    //private HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices;
     private CoapClientApplication coapClientApplication;
     private CoapServerApplication coapServerApplication;
-
-//    /**
-//     * @param prefix the unique prefix for this {@link eu.spitfire.ssp.gateway.ProxyServiceManager} instance
-//     */
-//    public CoapProxyServiceManager(String prefix){
-//        super(prefix);
-//
-//
-//    }
 
     @Override
     public void registerResource(final SettableFuture<URI> uriFuture, final URI resourceUri,
                                  final HttpRequestProcessor requestProcessor){
 
         super.registerResource(uriFuture, resourceUri, requestProcessor);
+
+        //Start observation of the newly registered resources
         uriFuture.addListener(new Runnable(){
             @Override
             public void run() {
@@ -85,7 +77,6 @@ public class CoapProxyServiceManager extends ProxyServiceManager {
                 }
             }
         }, executorService);
-
     }
 
     @Override

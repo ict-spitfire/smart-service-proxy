@@ -24,10 +24,14 @@ import java.util.TreeSet;
 public class WellKnownCoreResponseProcessor implements CoapResponseProcessor, RetransmissionTimeoutProcessor{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
-    private SettableFuture<Set<String>> serviceDiscoveryFuture = SettableFuture.create();
+    private SettableFuture<Set<String>> serviceDiscoveryFuture;
 
-    public ListenableFuture<Set<String>> getServiceDiscoveryFuture() {
-        return serviceDiscoveryFuture;
+//    public ListenableFuture<Set<String>> getServiceDiscoveryFuture() {
+//        return serviceDiscoveryFuture;
+//    }
+
+    public void setServiceDiscoveryFuture(SettableFuture<Set<String>> serviceDiscoveryFuture){
+        this.serviceDiscoveryFuture = serviceDiscoveryFuture;
     }
 
     @Override

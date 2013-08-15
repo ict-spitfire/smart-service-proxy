@@ -5,7 +5,7 @@ import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetran
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
-import eu.spitfire.ssp.core.pipeline.handler.cache.ResourceStatusMessage;
+import eu.spitfire.ssp.core.pipeline.messages.ResourceStatusMessage;
 import eu.spitfire.ssp.gateway.coap.CoapProxyServiceManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

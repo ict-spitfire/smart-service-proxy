@@ -26,6 +26,7 @@ package eu.spitfire.ssp.core.pipeline.handler.cache;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.Main;
+import eu.spitfire.ssp.core.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.slf4j.Logger;

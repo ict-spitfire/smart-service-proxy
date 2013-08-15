@@ -8,7 +8,7 @@ import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import eu.spitfire.ssp.core.pipeline.handler.cache.ResourceStatusMessage;
+import eu.spitfire.ssp.core.pipeline.messages.ResourceStatusMessage;
 import eu.spitfire.ssp.core.webservice.MethodNotAllowedException;
 import eu.spitfire.ssp.core.webservice.SemanticHttpRequestProcessor;
 import eu.spitfire.ssp.gateway.ProxyServiceException;

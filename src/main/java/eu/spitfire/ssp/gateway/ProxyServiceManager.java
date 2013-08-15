@@ -26,10 +26,10 @@ package eu.spitfire.ssp.gateway;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.core.InternalProxyUriRequest;
-import eu.spitfire.ssp.core.InternalRegisterResourceMessage;
-import eu.spitfire.ssp.core.InternalRemoveResourceMessage;
-import eu.spitfire.ssp.core.pipeline.handler.cache.ResourceStatusMessage;
+import eu.spitfire.ssp.core.pipeline.messages.InternalProxyUriRequest;
+import eu.spitfire.ssp.core.pipeline.messages.InternalRegisterResourceMessage;
+import eu.spitfire.ssp.core.pipeline.messages.InternalRemoveResourceMessage;
+import eu.spitfire.ssp.core.pipeline.messages.ResourceStatusMessage;
 import eu.spitfire.ssp.core.webservice.HttpRequestProcessor;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
