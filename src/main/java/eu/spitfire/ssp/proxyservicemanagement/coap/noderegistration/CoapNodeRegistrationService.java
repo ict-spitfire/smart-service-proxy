@@ -12,6 +12,9 @@ import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
 import eu.spitfire.ssp.proxyservicemanagement.coap.CoapProxyServiceManager;
 import eu.spitfire.ssp.proxyservicemanagement.coap.requestprocessing.HttpRequestProcessorForCoapServices;
+import eu.spitfire.ssp.server.pipeline.messages.ResourceAlreadyRegisteredException;
+import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +47,13 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
     private CoapClientApplication coapClientApplication;
     private HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices;
 
+    /**
+     * @param coapProxyServiceManager the {@link CoapProxyServiceManager} to register new resources at the proxy
+     * @param coapClientApplication the {@link CoapClientApplication} to send resource discovery requests
+     *                              (to .well-known/core) upon reception of registration request
+     * @param httpRequestProcessorForCoapServices the {@link HttpRequestProcessor} to handle incoming HTTP requests
+     *                                            for CoAP resources.
+     */
     public CoapNodeRegistrationService(CoapProxyServiceManager coapProxyServiceManager,
                                        CoapClientApplication coapClientApplication,
                                        HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices){
@@ -137,7 +147,10 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
                                 }
                                 catch (Exception e) {
                                     String message = "Error in local service registration process";
-                                    log.error(message, e);
+                                    if(e.getCause().getCause() instanceof ResourceAlreadyRegisteredException)
+                                        log.warn(message, e.getMessage());
+                                    else
+                                        log.error(message, e);
                                     nodeRegistrationFuture.set(createCoapResponse(Code.INTERNAL_SERVER_ERROR_500,
                                             message + ":\n" + e.getCause()));
                                 }

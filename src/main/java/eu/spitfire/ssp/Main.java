@@ -102,7 +102,7 @@ public class Main {
 
         log.debug("Start creating enabled ProxyServiceCreators!");
 
-        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("Service-Management-Thread #%d").build();
+        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("Proxy-Service-Mgmt.-Thread #%d").build();
         ScheduledExecutorService scheduledExecutorService =
                 Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() * 2, threadFactory);
 

@@ -89,8 +89,8 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 		pipeline.addLast("HTTP Deflater", new HttpContentCompressor());
 
         //SSP specific handlers
-        pipeline.addLast("Payload Formatter", new SemanticPayloadFormatter());
         pipeline.addLast("Execution Handler", executionHandler);
+        pipeline.addLast("Payload Formatter", new SemanticPayloadFormatter());
 
         if(semanticCache != null)
             pipeline.addLast("Semantic Cache", semanticCache);

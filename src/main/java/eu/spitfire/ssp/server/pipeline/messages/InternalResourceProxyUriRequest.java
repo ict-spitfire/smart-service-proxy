@@ -9,7 +9,7 @@ import java.net.URI;
  * resource-URI is the URI identifying the resource. The resource-proxyservicemanagement-URI is the URI to make the resource
  * accessable via the proxyservicemanagement.
  */
-public class InternalProxyUriRequest {
+public class InternalResourceProxyUriRequest {
 
     private final SettableFuture<URI> resourceProxyUriFuture;
     private final String gatewayPrefix;
@@ -21,7 +21,7 @@ public class InternalProxyUriRequest {
      * @param gatewayPrefix the prefix of the gateway initiating this request
      * @param resourceUri   the {@link URI} identifying the resource
      */
-    public InternalProxyUriRequest(SettableFuture<URI> resourceProxyUriFuture, String gatewayPrefix, URI resourceUri){
+    public InternalResourceProxyUriRequest(SettableFuture<URI> resourceProxyUriFuture, String gatewayPrefix, URI resourceUri){
         this.resourceProxyUriFuture = resourceProxyUriFuture;
         this.gatewayPrefix = gatewayPrefix;
         this.resourceUri = resourceUri;

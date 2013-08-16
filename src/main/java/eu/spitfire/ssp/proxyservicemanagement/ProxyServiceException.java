@@ -2,6 +2,8 @@ package eu.spitfire.ssp.proxyservicemanagement;
 
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
+import java.net.URI;
+
 /**
  * Created with IntelliJ IDEA.
  * User: olli
@@ -11,23 +13,23 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
  */
 public class ProxyServiceException extends Exception{
 
-    //private HttpVersion httpResponseVersion;
     private HttpResponseStatus httpResponseStatus;
+    private URI resourceUri;
 
-    public ProxyServiceException(HttpResponseStatus httpResponseStatus){
-        this(httpResponseStatus, httpResponseStatus.toString());
+    public ProxyServiceException(URI resourceUri, HttpResponseStatus httpResponseStatus){
+        this(resourceUri, httpResponseStatus, httpResponseStatus.toString());
     }
 
-    public ProxyServiceException(HttpResponseStatus httpResponseStatus,
+    public ProxyServiceException(URI resourceUri, HttpResponseStatus httpResponseStatus,
                                  String message){
         super(message);
-        //this.httpResponseVersion = httpResponseVersion;
+        this.resourceUri = resourceUri;
         this.httpResponseStatus = httpResponseStatus;
     }
 
-    public ProxyServiceException(HttpResponseStatus httpResponseStatus,
+    public ProxyServiceException(URI resourceUri, HttpResponseStatus httpResponseStatus,
                                  String message, Throwable cause){
-        this(httpResponseStatus, message);
+        this(resourceUri, httpResponseStatus, message);
         this.initCause(cause);
     }
 
@@ -35,7 +37,7 @@ public class ProxyServiceException extends Exception{
         return httpResponseStatus;
     }
 
-//    public HttpVersion getHttpResponseVersion() {
-//        return httpResponseVersion;
-//    }
+    public URI getResourceUri() {
+        return resourceUri;
+    }
 }

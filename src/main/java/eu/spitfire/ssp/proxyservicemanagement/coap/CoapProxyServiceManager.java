@@ -34,7 +34,7 @@ import de.uniluebeck.itm.ncoap.message.header.MsgType;
 import eu.spitfire.ssp.proxyservicemanagement.AbstractProxyServiceManager;
 import eu.spitfire.ssp.proxyservicemanagement.coap.noderegistration.CoapNodeRegistrationService;
 import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
-import eu.spitfire.ssp.proxyservicemanagement.coap.observation.CoapResourceObserver;
+import eu.spitfire.ssp.proxyservicemanagement.coap.noderegistration.CoapResourceObserver;
 import eu.spitfire.ssp.proxyservicemanagement.coap.requestprocessing.HttpRequestProcessorForCoapServices;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
@@ -46,9 +46,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 
 /**
-* @author Oliver Kleine
-*/
-
+ * The {@link CoapProxyServiceManager} provides all functionality to manage CoAP resources, i.e. it provides a
+ * {@link CoapServerApplication} with a {@link CoapNodeRegistrationService} to enable CoAP webservers to register
+ * at the SSP.
+ *
+ * Furthermore it provides a {@link CoapClientApplication} and a {@link HttpRequestProcessorForCoapServices}
+ * to forward incoming HTTP requests to the original host.
+ *
+ * @author Oliver Kleine
+ */
 public class CoapProxyServiceManager extends AbstractProxyServiceManager {
 
     public static final int COAP_SERVER_PORT = 5683;
@@ -58,19 +64,24 @@ public class CoapProxyServiceManager extends AbstractProxyServiceManager {
     private CoapClientApplication coapClientApplication;
     private CoapServerApplication coapServerApplication;
 
+    /**
+     * @param prefix the prefix used for not-absolute resource URIs, e.g. <code>prefix/gui</code>
+     * @param localChannel the {@link LocalServerChannel} to send internal messages, e.g. resource status updates.
+     * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
+     */
     public CoapProxyServiceManager(String prefix, LocalServerChannel localChannel,
                                    ScheduledExecutorService scheduledExecutorService){
         super(prefix, localChannel, scheduledExecutorService);
     }
 
     @Override
-    public void registerResource(final SettableFuture<URI> resourceProxyUriFuture, final URI resourceUri,
+    public void registerResource(final SettableFuture<URI> resourceRegistrationFuture, final URI resourceUri,
                                  final HttpRequestProcessor requestProcessor){
 
-        super.registerResource(resourceProxyUriFuture, resourceUri, requestProcessor);
+        super.registerResource(resourceRegistrationFuture, resourceUri, requestProcessor);
 
         //Start observation of the newly registered resources
-        resourceProxyUriFuture.addListener(new Runnable() {
+        resourceRegistrationFuture.addListener(new Runnable() {
             @Override
             public void run() {
                 try {
@@ -101,11 +112,6 @@ public class CoapProxyServiceManager extends AbstractProxyServiceManager {
 
     @Override
     public void initialize() {
-        ThreadFactory threadFactory =  new ThreadFactoryBuilder().setNameFormat("CoAP proxy management thread#%d")
-                                                                 .build();
-        this.scheduledExecutorService =
-                Executors.newScheduledThreadPool(1, threadFactory);
-
         //create client for proxyservicemanagement request processing and resource observation
         this.coapClientApplication = new CoapClientApplication();
 

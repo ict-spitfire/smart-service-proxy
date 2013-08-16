@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.proxyservicemanagement.coap.observation;
+package eu.spitfire.ssp.proxyservicemanagement.coap.noderegistration;
 
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
@@ -8,7 +8,6 @@ import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
 import eu.spitfire.ssp.proxyservicemanagement.AbstractResourceObserver;
 import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourceMessage;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
-import eu.spitfire.ssp.proxyservicemanagement.coap.CoapProxyServiceManager;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,12 +19,12 @@ import java.util.concurrent.TimeUnit;
 
 
 /**
-* Created with IntelliJ IDEA.
-* User: olli
-* Date: 18.04.13
-* Time: 09:43
-* To change this template use File | Settings | File Templates.
-*/
+ * Instances of {@link CoapResourceObserver} are instances of {@link CoapResponseProcessor} to observe
+ * CoAP webservices. If an update notification was received for an observed CoAP resource it sends
+ * an {@link ResourceStatusMessage} to update the actual resource status in the cache.
+ *
+ * @author Oliver Kleine
+ */
 public class CoapResourceObserver extends AbstractResourceObserver implements CoapResponseProcessor,
         RetransmissionTimeoutProcessor{
 
@@ -35,9 +34,15 @@ public class CoapResourceObserver extends AbstractResourceObserver implements Co
     private ScheduledExecutorService scheduledExecutorService;
     private ScheduledFuture scheduledFuture;
 
+    /**
+     * @param resourceUri the {@link URI} identifying the resource to be observed
+     * @param scheduledExecutorService the {@link ScheduledExecutorService} to run observation specific tasks
+     * @param localChannel the {@link LocalServerChannel} to send internal messages, e.g. {@link ResourceStatusMessage}s
+     *                     to update the cache.
+     */
     public CoapResourceObserver(URI resourceUri, ScheduledExecutorService scheduledExecutorService,
                                 LocalServerChannel localChannel){
-        super(localChannel);
+        super(scheduledExecutorService, localChannel);
 
         this.resourceUri = resourceUri;
         this.scheduledExecutorService = scheduledExecutorService;
@@ -49,9 +54,10 @@ public class CoapResourceObserver extends AbstractResourceObserver implements Co
 
         if(scheduledFuture != null){
             if(scheduledFuture.cancel(false))
-                log.info("Deletion of observed resource {} canceled!", resourceUri);
+                log.debug("Received update notification for {} within max-age.", resourceUri);
             else
-                log.error("Deletion of observed resource {} could not be canceled!", resourceUri);
+                log.error("Received update notification for {} within max-age but something went wrong...",
+                        resourceUri);
         }
 
         if(coapResponse.getOption(OptionRegistry.OptionName.OBSERVE_RESPONSE).isEmpty()
@@ -67,17 +73,17 @@ public class CoapResourceObserver extends AbstractResourceObserver implements Co
             resourceStatusMessage = ResourceStatusMessage.create(coapResponse, resourceUri);
             updateResourceStatus(resourceStatusMessage);
         } catch (Exception e) {
-            log.warn("Exception while creating resource status message from CoAP update notification.");
+            log.error("Exception while creating resource status message from CoAP update notification.", e);
             return;
         }
 
-        //schedule removal of the resource after expiry
+        //log a warning about resource expiry, i.e. no update within max-age
         long maxAge = coapResponse.getMaxAge();
         scheduledFuture = scheduledExecutorService.schedule(new Runnable(){
             @Override
             public void run() {
-                log.info("Start removal of service because of expiry: {}.", resourceUri);
-                removeResource(new InternalRemoveResourceMessage(resourceUri));
+                log.warn("No update notification from {} within max-age of last state.", resourceUri);
+                //removeResource(new InternalRemoveResourceMessage(resourceUri));
             }
         }, maxAge, TimeUnit.SECONDS);
     }
@@ -91,41 +97,4 @@ public class CoapResourceObserver extends AbstractResourceObserver implements Co
             }
         }, 0, TimeUnit.SECONDS) ;
     }
-
-//    private Channel createChannelForInternalMessages() throws Exception {
-//        ChannelFactory channelFactory = new DefaultLocalClientChannelFactory();
-//
-//        ChannelPipelineFactory pipelineFactory = new ResourceUpdateChannelPipelineFactory(coapProxyServiceManager);
-//
-//        return channelFactory.newChannel(pipelineFactory.getPipeline());
-//    }
-//
-//    @Override
-//    public void receiveEmptyACK() {
-//        log.info("Received empty ACK for request from " + serviceToObservePath + " at " + serviceToObserveHost);
-//    }
-//
-//    @Override
-//    public void handleRetransmissionTimeout(InternalRetransmissionTimeoutMessage timeoutMessage) {
-//        log.info("Giving up retransmitting request to " + serviceToObservePath + " at " + serviceToObserveHost);
-//        try {
-//            Channel internalChannel = createChannelForInternalMessages();
-//            ChannelFuture future =
-//                    internalChannel.write(new ObservingFailedMessage(serviceToObserveHost, serviceToObservePath));
-//            future.addListener(new ChannelFutureListener() {
-//                @Override
-//                public void operationComplete(ChannelFuture channelFuture) throws Exception {
-//                    if(!channelFuture.isSuccess()){
-//                        log.debug("Finished with error: " + channelFuture.getCause());
-//                    }
-//                }
-//            });
-//            future.addListener(ChannelFutureListener.CLOSE);
-//
-//        } catch (Exception e) {
-//            log.error("Unexpected error: ", e);
-//        }
-//    }
-
-
 }

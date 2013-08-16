@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Inject;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
+import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.header.Code;
@@ -20,11 +21,15 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 
-import static de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType.APP_SHDT;
+import static de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType.*;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
 /**
+ * An instance of {@link HttpRequestProcessorForCoapServices} provides all functionality to handle
+ * incoming {@link HttpRequest}s which is to convert them to a {@link CoapRequest}, send it to
+ * the CoAP service host, await the response and convert the response to a {@link ResourceStatusMessage}.
+ *
  * @author Oliver Kleine
  */
 public class HttpRequestProcessorForCoapServices implements SemanticHttpRequestProcessor {
@@ -33,75 +38,42 @@ public class HttpRequestProcessorForCoapServices implements SemanticHttpRequestP
 
     private CoapClientApplication coapClientApplication;
 
-    @Inject
+    /**
+     * @param coapClientApplication the {@link CoapClientApplication} to send the {@link CoapRequest}s
+     */
     public HttpRequestProcessorForCoapServices(CoapClientApplication coapClientApplication){
         this.coapClientApplication = coapClientApplication;
     }
 
     @Override
-    public void processHttpRequest(final SettableFuture<ResourceStatusMessage> responseFuture,
+    public void processHttpRequest(final SettableFuture<ResourceStatusMessage> resourceStatusFuture,
                                    final HttpRequest httpRequest) {
         try{
-            URI proxyUri = new URI(httpRequest.getUri());
+            URI resourceProxyUri = new URI(httpRequest.getUri());
 
-            if(proxyUri.getQuery() == null || !(proxyUri.getQuery().startsWith("uri=coap://"))){
-                responseFuture.setException(new ProxyServiceException(BAD_GATEWAY,
+            if(resourceProxyUri.getQuery() == null || !(resourceProxyUri.getQuery().startsWith("uri=coap://"))){
+                resourceStatusFuture.setException(new ProxyServiceException(resourceProxyUri, BAD_GATEWAY,
                         "Requested URI scheme was either emoty or not coap."));
                 return;
             }
 
-            final URI coapUri = new URI(proxyUri.getQuery().substring(4));
-            log.debug("CoAP target URI: {}", coapUri);
+            final URI resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
+            log.debug("CoAP target URI: {}", resourceUri);
 
             //Send CoAP request and wait for response
-            CoapRequest coapRequest = convertToCoapRequest(httpRequest, coapUri);
-            coapClientApplication.writeCoapRequest(coapRequest, new CoapResponseProcessor() {
-                @Override
-                public void processCoapResponse(CoapResponse coapResponse) {
-                    log.debug("Process CoAP response: {}", coapResponse);
-
-                    if(coapResponse.getCode().isErrorMessage()){
-                        HttpResponseStatus httpResponseStatus =
-                                CoapCodeHttpStatusMapper.getHttpResponseStatus(coapResponse.getCode());
-                        responseFuture.setException(new ProxyServiceException(httpResponseStatus));
-                        return;
-                    }
-
-                    if(coapResponse.getContentType() == null){
-                        responseFuture.setException(new ProxyServiceException(INTERNAL_SERVER_ERROR,
-                                "CoAP response had no content type option."));
-                        return;
-                    }
-
-                    if(coapResponse.getContentType() != null && coapResponse.getPayload().readableBytes() == 0){
-                        responseFuture.setException(new ProxyServiceException(INTERNAL_SERVER_ERROR,
-                                "CoAP response had content type option but no content"));
-                        return;
-                    }
-
-                    try{
-                        ResourceStatusMessage resourceStatusMessage =
-                                ResourceStatusMessage.create(coapResponse, coapUri);
-                        responseFuture.set(resourceStatusMessage);
-                    }
-                    catch(Exception e){
-                        log.error("Error while creating resource status message from CoAP response.", e);
-                        responseFuture.setException(e);
-                    }
-                }
-            });
-            log.debug("CoAP request sent: {}", coapRequest);
+            CoapRequest coapRequest = convertToCoapRequest(httpRequest, resourceUri);
+            coapClientApplication.writeCoapRequest(coapRequest,
+                    new SspCoapResponseProcessor(resourceStatusFuture, resourceUri));
         }
         catch (Exception e) {
             String message = "Exception while converting from HTTP to CoAP request!";
             log.error(message, e);
-            responseFuture.setException(new ProxyServiceException(INTERNAL_SERVER_ERROR, message, e));
+            resourceStatusFuture.setException(new ProxyServiceException(null, INTERNAL_SERVER_ERROR, message, e));
         }
     }
 
 
-    private static CoapRequest convertToCoapRequest(HttpRequest httpRequest, URI targetURI) throws Exception{
-
+    private static CoapRequest convertToCoapRequest(HttpRequest httpRequest, URI resourceUri) throws Exception{
         //convert method
         Code code;
         HttpMethod method = httpRequest.getMethod();
@@ -117,16 +89,17 @@ public class HttpRequestProcessorForCoapServices implements SemanticHttpRequestP
         else
             throw new MethodNotAllowedException(httpRequest.getMethod());
 
-        CoapRequest coapRequest = new CoapRequest(MsgType.CON, code, targetURI);
+        CoapRequest coapRequest = new CoapRequest(MsgType.CON, code, resourceUri);
 
         if(code == Code.POST || code == Code.PUT){
             if(httpRequest.getContent().readableBytes() > 0)
                 coapRequest.setPayload(httpRequest.getContent());
         }
 
-        //TODO Set CoAP "Accept-Options" according to the HTTP "Accept-Header"
-
         coapRequest.setAccept(APP_SHDT);
+        coapRequest.setAccept(APP_RDF_XML);
+        coapRequest.setAccept(APP_N3);
+        coapRequest.setAccept(APP_TURTLE);
 
         return coapRequest;
     }

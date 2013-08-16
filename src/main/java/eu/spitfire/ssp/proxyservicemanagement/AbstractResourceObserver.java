@@ -9,6 +9,8 @@ import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 /**
  * Created with IntelliJ IDEA.
  * User: olli
@@ -20,10 +22,16 @@ public class AbstractResourceObserver {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
+    private ScheduledExecutorService scheduledExecutorService;
     private LocalServerChannel localChannel;
 
-    public AbstractResourceObserver(LocalServerChannel localChannel){
+    public AbstractResourceObserver(ScheduledExecutorService scheduledExecutorService, LocalServerChannel localChannel){
+        this.scheduledExecutorService = scheduledExecutorService;
         this.localChannel = localChannel;
+    }
+
+    protected ScheduledExecutorService getScheduledExecutorService(){
+        return this.scheduledExecutorService;
     }
 
     public void updateResourceStatus(final ResourceStatusMessage resourceStatusMessage){

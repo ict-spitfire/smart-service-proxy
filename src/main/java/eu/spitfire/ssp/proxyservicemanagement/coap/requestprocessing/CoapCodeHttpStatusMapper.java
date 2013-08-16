@@ -7,11 +7,9 @@ import java.util.HashMap;
 
 
 /**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 08.08.13
- * Time: 15:27
- * To change this template use File | Settings | File Templates.
+ * Abstract class to provide a mapping from {@link Code} to the proper {@link HttpResponseStatus}.
+ *
+ * @author Oliver Kleine
  */
 public abstract class CoapCodeHttpStatusMapper {
 
@@ -41,8 +39,10 @@ public abstract class CoapCodeHttpStatusMapper {
     }
 
     /**
-     * Returns the HTTP response status semantically equivalent to the given CoAP code
+     * Returns the HTTP response status semantically equivalent (or similar) to the given CoAP code
+     *
      * @param coapCode a CoAP response code
+     *
      * @return a HTTP response status or null if no proper status was found
      */
     public static HttpResponseStatus getHttpResponseStatus(Code coapCode){

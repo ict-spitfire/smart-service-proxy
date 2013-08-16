@@ -54,7 +54,7 @@ public class SimpleHttpRequestProcessor implements SemanticHttpRequestProcessor 
         } catch (URISyntaxException e) {
             String message = "Error with URI creation of simple resource";
             log.error(message, e);
-            responseFuture.setException(new ProxyServiceException(HttpResponseStatus.INTERNAL_SERVER_ERROR,
+            responseFuture.setException(new ProxyServiceException(null, HttpResponseStatus.INTERNAL_SERVER_ERROR,
                     message, e));
             return;
         }

@@ -25,10 +25,8 @@
 package eu.spitfire.ssp.proxyservicemanagement;
 
 import com.google.common.util.concurrent.SettableFuture;
-import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.server.pipeline.messages.*;
 import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
-import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;
@@ -41,7 +39,6 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -97,24 +94,24 @@ public abstract class AbstractProxyServiceManager {
      * webservice to be created on the smart service proxyservicemanagement, if the network behind this gateway is an IP enabled
      * network.
      *
-     * @param resourceProxyUriFuture the {@link SettableFuture<URI>} containing the absolute {@link URI} for the newly registered
+     * @param resourceRegistrationFuture the {@link SettableFuture<URI>} containing the absolute {@link URI} for the newly registered
      *                  service or a {@link Throwable} if an error occured after method completion.
 *      @param resourceUri the (original/remote) {@link URI} of the new resource to be registered.
      * @param requestProcessor the {@link HttpRequestProcessor} instance to handle incoming requests
      */
-    public void registerResource(final SettableFuture<URI> resourceProxyUriFuture, URI resourceUri,
+    public void registerResource(final SettableFuture<URI> resourceRegistrationFuture, URI resourceUri,
                                  final HttpRequestProcessor requestProcessor){
 
         //Retrieve the URI the new service is available at on the proxy
-        final SettableFuture<URI> uriRequestFuture = SettableFuture.create();
-        retrieveProxyUri(uriRequestFuture, resourceUri);
+        final SettableFuture<URI> resourceProxyUriFuture = SettableFuture.create();
+        retrieveProxyUri(resourceProxyUriFuture, resourceUri);
 
-        uriRequestFuture.addListener(new Runnable(){
+        resourceProxyUriFuture.addListener(new Runnable() {
             @Override
-            public void run(){
+            public void run() {
                 try {
                     //Register new service with the retrieved resource proxy URI
-                    final URI resourceProxyUri = uriRequestFuture.get();
+                    final URI resourceProxyUri = resourceProxyUriFuture.get();
                     ChannelFuture registrationFuture =
                             Channels.write(localChannel,
                                     new InternalRegisterResourceMessage(resourceProxyUri, requestProcessor));
@@ -122,22 +119,20 @@ public abstract class AbstractProxyServiceManager {
                     registrationFuture.addListener(new ChannelFutureListener() {
                         @Override
                         public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                            if(channelFuture.isSuccess())
-                                resourceProxyUriFuture.set(resourceProxyUri);
+                            if (channelFuture.isSuccess())
+                                resourceRegistrationFuture.set(resourceProxyUri);
                             else
-                                resourceProxyUriFuture.setException(channelFuture.getCause());
+                                resourceRegistrationFuture.setException(channelFuture.getCause());
                         }
                     });
 
-                }
-                catch (InterruptedException e) {
+                } catch (InterruptedException e) {
                     log.error("Exception during service registration process.", e);
-                    resourceProxyUriFuture.setException(e);
+                    resourceRegistrationFuture.setException(e);
 
-                }
-                catch (ExecutionException e) {
-                    log.warn("Exception during service registration process.", e);
-                    resourceProxyUriFuture.setException(e);
+                } catch (ExecutionException e) {
+                    log.warn("Exception during service registration process.", e.getMessage());
+                    resourceRegistrationFuture.setException(e);
                 }
 
             }
@@ -160,7 +155,7 @@ public abstract class AbstractProxyServiceManager {
      * @param originUri the {@link URI} of the origin (remote) service to get the resource proxy URI for.
      */
     public void retrieveProxyUri(SettableFuture<URI> uriRequestFuture, URI originUri){
-        Channels.write(localChannel, new InternalProxyUriRequest(uriRequestFuture, this.getPrefix(),
+        Channels.write(localChannel, new InternalResourceProxyUriRequest(uriRequestFuture, this.getPrefix(),
                 originUri));
     }
 

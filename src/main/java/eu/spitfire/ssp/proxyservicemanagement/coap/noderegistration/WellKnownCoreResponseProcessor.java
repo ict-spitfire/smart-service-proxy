@@ -25,10 +25,6 @@ public class WellKnownCoreResponseProcessor implements CoapResponseProcessor, Re
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     private SettableFuture<Set<String>> serviceDiscoveryFuture;
 
-//    public ListenableFuture<Set<String>> getServiceDiscoveryFuture() {
-//        return serviceDiscoveryFuture;
-//    }
-
     public void setServiceDiscoveryFuture(SettableFuture<Set<String>> serviceDiscoveryFuture){
         this.serviceDiscoveryFuture = serviceDiscoveryFuture;
     }
@@ -41,7 +37,7 @@ public class WellKnownCoreResponseProcessor implements CoapResponseProcessor, Re
             serviceDiscoveryFuture.set(services);
         }
         else{
-            serviceDiscoveryFuture.setException(new ResourceInvalidException());
+            serviceDiscoveryFuture.setException(new WellKnownCoreResourceInvalidException());
         }
     }
 

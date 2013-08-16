@@ -26,27 +26,20 @@ package eu.spitfire.ssp.server.pipeline.handler;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.Main;
-import eu.spitfire.ssp.server.pipeline.messages.InternalProxyUriRequest;
-import eu.spitfire.ssp.server.pipeline.messages.InternalRegisterResourceMessage;
-import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourceMessage;
-import eu.spitfire.ssp.server.pipeline.messages.ResourceAlreadyRegisteredException;
-import eu.spitfire.ssp.server.webservices.FaviconHttpRequestProcessor;
-import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
-import eu.spitfire.ssp.server.webservices.ListOfRegisteredServices;
+import eu.spitfire.ssp.server.pipeline.messages.*;
+import eu.spitfire.ssp.server.webservices.*;
 import eu.spitfire.ssp.proxyservicemanagement.*;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.*;
-import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 
@@ -61,7 +54,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-	//Maps resource proxyservicemanagement uris to request processors
+	//Maps resource proxy uris to request processors
 	private Map<URI, HttpRequestProcessor> proxyServices;
 
     private ExecutorService ioExecutorService;
@@ -77,37 +70,6 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
         registerServiceForListOfServices();
         registerFavicon();
-    }
-
-    /**
-     * Registers the service to provide the favicon.ico
-     */
-    private void registerFavicon(){
-        try {
-            registerResource(new URI("http", null, Main.SSP_DNS_NAME, Main.SSP_HTTP_PROXY_PORT, "/favicon.ico", null, null),
-                    new FaviconHttpRequestProcessor());
-        } catch (URISyntaxException e) {
-            log.error("This should never happen.", e);
-        }
-    }
-
-    /**
-     * Registers the service to
-     * @throws URISyntaxException
-     */
-    private void registerServiceForListOfServices(){
-        try{
-            //register service to provide list of available proxyServices
-            if(Main.SSP_DNS_NAME == null)
-               throw new RuntimeException("SSP_DNS_NAME must be defined! SSP_DNS_NAME can also be an IP address!");
-
-            URI targetUri = new URI("http", null, Main.SSP_DNS_NAME,
-                    Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT , "/", null, null);
-
-            registerResource(targetUri, new ListOfRegisteredServices(proxyServices.keySet()));
-        } catch (URISyntaxException e) {
-            log.error("This should never happen!", e);
-        }
     }
 
     /**
@@ -130,67 +92,110 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         me.getFuture().setSuccess();
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
-        //Create a future to wait for a response asynchronously
-        final SettableFuture responseFuture = SettableFuture.create();
-        responseFuture.addListener(new Runnable(){
-            @Override
-            public void run() {
-                //The object can either be an instance of ResourceStatusMessage, an Exception or a
-                //HTTP response
-                Object object;
-                try {
-                    object = responseFuture.get();
-                    log.debug("Class of object: {}", object.getClass().getName());
-                }
-                catch(Exception e){
-                    object = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
-                            HttpResponseStatus.INTERNAL_SERVER_ERROR);
-
-                    ChannelBuffer payload =
-                            ChannelBuffers.wrappedBuffer(e.getMessage().getBytes(Charset.forName("UTF-8")));
-                    ((HttpResponse) object).setContent(payload);
-                    ((HttpResponse) object).setHeader(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
-                }
-
-                //Send object downstream
-                ChannelFuture future = Channels.write(ctx.getChannel(), object, me.getRemoteAddress());
-                future.addListener(ChannelFutureListener.CLOSE);
-            }
-
-        }, ioExecutorService);
-
-        //Start processing of HTTP request
-        handleProxyServiceRequest(responseFuture, httpRequest);
-    }
-
-    private void handleProxyServiceRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest){
+        //Create resource proxy uri from request
+        URI resourceProxyUri;
         try{
-            URI targetUri = new URI("http://" + httpRequest.getHeader("HOST") + httpRequest.getUri());
-            targetUri = targetUri.normalize();
-
-            log.debug("Received HTTP request for " + targetUri);
-
-            if(proxyServices.containsKey(targetUri)){
-                log.info("HttpRequestProcessor found for {}", targetUri);
-
-                HttpRequestProcessor httpRequestProcessor = proxyServices.get(targetUri);
-                httpRequestProcessor.processHttpRequest(responseFuture, httpRequest);
+            resourceProxyUri = new URI(httpRequest.getUri());
+            if(!resourceProxyUri.isAbsolute()){
+                resourceProxyUri = new URI("http", null, Main.SSP_DNS_NAME,
+                        Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT, resourceProxyUri.getPath(),
+                        resourceProxyUri.getQuery(), resourceProxyUri.getFragment());
             }
-            else{
-                log.warn("No HttpRequestProcessor found for {}. Send error response.", targetUri);
-                responseFuture.set(HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
-                        HttpResponseStatus.NOT_FOUND, targetUri.toString()));
-            }
+            resourceProxyUri = resourceProxyUri.normalize();
+            log.info("Received HTTP request for " + resourceProxyUri);
         }
         catch(URISyntaxException e){
-            responseFuture.set(HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
-                    HttpResponseStatus.INTERNAL_SERVER_ERROR, e));
+            HttpResponse httpResponse = HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+                    HttpResponseStatus.BAD_REQUEST, e);
+            writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
+            return;
+        }
+
+        //Lookup proper http request processor
+        HttpRequestProcessor httpRequestProcessor = proxyServices.get(resourceProxyUri);
+
+        //Send NOT FOUND if there is no proper processor
+        if(httpRequestProcessor == null){
+            log.warn("No HttpRequestProcessor found for {}. Send error response.", resourceProxyUri);
+            HttpResponse httpResponse = HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+                    HttpResponseStatus.NOT_FOUND, resourceProxyUri.toString());
+            writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
+            return;
+        }
+
+        //For non-semantic services, e.g. GUIs
+        if(httpRequestProcessor instanceof DefaultHttpRequestProcessor){
+            final SettableFuture<HttpResponse> httpResponseFuture = SettableFuture.create();
+            httpResponseFuture.addListener(new Runnable(){
+
+                @Override
+                public void run() {
+                    try {
+                        writeHttpResponse(ctx.getChannel(), httpResponseFuture.get(),
+                                (InetSocketAddress) me.getRemoteAddress());
+                    }
+                    catch (Exception e) {
+                        HttpResponse httpResponse =
+                                HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+                                        HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+                        writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
+                    }
+                }
+            }, ioExecutorService);
+
+            httpRequestProcessor.processHttpRequest(httpResponseFuture, httpRequest);
+        }
+
+        //For semantic services
+        else if(httpRequestProcessor instanceof SemanticHttpRequestProcessor){
+            final SettableFuture<ResourceStatusMessage> resourceStatusFuture = SettableFuture.create();
+
+            resourceStatusFuture.addListener(new Runnable(){
+                @Override
+                public void run() {
+                    try {
+                        writeResourceStatusMessage(ctx.getChannel(), resourceStatusFuture.get(),
+                                (InetSocketAddress) me.getRemoteAddress());
+                    }
+                    catch (InterruptedException e) {
+                        HttpResponse httpResponse =
+                                HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+                                        HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+                        writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
+                    }
+                    catch (ExecutionException e) {
+                        HttpResponse httpResponse;
+                        if(e.getCause() instanceof ProxyServiceException){
+                            ProxyServiceException exception = (ProxyServiceException) e.getCause();
+                            if(exception.getHttpResponseStatus() == HttpResponseStatus.GATEWAY_TIMEOUT){
+                                URI resourceProxyUri = generateResourceProxyUri(exception.getResourceUri());
+                                log.info("Request for resource {} timed out. Remove!", resourceProxyUri);
+                                unregisterResourceProxyUri(resourceProxyUri);
+                            }
+
+                            String message = "Could not get status from " + exception.getResourceUri();
+                            httpResponse =
+                                    HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+                                    exception.getHttpResponseStatus(), message);
+                        }
+                        else{
+                            httpResponse =
+                                    HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+                                    HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+                        }
+
+                        writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
+                    }
+                }
+            }, ioExecutorService);
+
+            httpRequestProcessor.processHttpRequest(resourceStatusFuture, httpRequest);
         }
     }
 
     /**
      * This method is invoked by the netty framework for downstream messages. Messages other than
-     * {@link InternalRegisterResourceMessage}, {@link InternalProxyUriRequest} and
+     * {@link InternalRegisterResourceMessage}, {@link eu.spitfire.ssp.server.pipeline.messages.InternalResourceProxyUriRequest} and
      * {@link InternalRemoveResourceMessage} are just forwarded downstream without doing anything else.
      *
      * @param ctx the {@link ChannelHandlerContext} to link the method invokation with a {@link Channel}
@@ -214,13 +219,13 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             me.getFuture().setSuccess();
             return;
         }
-        else if(me.getMessage() instanceof InternalProxyUriRequest){
-            InternalProxyUriRequest message = (InternalProxyUriRequest) me.getMessage();
-            URI resourceProxyUri = getProxyUri(message.getResourceUri());
+        else if(me.getMessage() instanceof InternalResourceProxyUriRequest){
+            InternalResourceProxyUriRequest message = (InternalResourceProxyUriRequest) me.getMessage();
+            URI resourceProxyUri = generateResourceProxyUri(message.getResourceUri());
 
             if(proxyServices.containsKey(resourceProxyUri)){
                 message.getResourceProxyUriFuture()
-                       .setException(new ResourceAlreadyRegisteredException(message.getResourceUri()));
+                        .setException(new ResourceAlreadyRegisteredException(message.getResourceUri()));
                 return;
             }
 
@@ -230,7 +235,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             return;
         }
         else if(me.getMessage() instanceof InternalRemoveResourceMessage){
-            boolean removed = removeResource(((InternalRemoveResourceMessage) me.getMessage()).getResourceUri());
+            boolean removed = unregisterResourceUri(((InternalRemoveResourceMessage) me.getMessage()).getResourceUri());
             if(!removed){
                 me.getFuture().setFailure(new NullPointerException("There was no such service found!"));
 
@@ -242,20 +247,84 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         ctx.sendDownstream(me);
     }
 
-    private boolean removeResource(URI resourceUri){
-        URI resourceProxyUri = getProxyUri(resourceUri);
-        if(proxyServices.remove(resourceProxyUri) != null){
-            log.info("Successfully removed resource from list of registered services: {}.", resourceProxyUri);
-            return true;
-        }
-        else{
-            log.warn("Could not remove resource {}. (NOT FOUND)", resourceProxyUri);
-            return false;
+    /**
+     * Registers the service to provide the favicon.ico
+     */
+    private void registerFavicon(){
+        try {
+            registerResource(new URI("http", null, Main.SSP_DNS_NAME, Main.SSP_HTTP_PROXY_PORT, "/favicon.ico", null, null),
+                    new FaviconHttpRequestProcessor());
+        } catch (URISyntaxException e) {
+            log.error("This should never happen.", e);
         }
     }
 
+    /**
+     * Registers the service to provide a list of registered services
+     */
+    private void registerServiceForListOfServices(){
+        try{
+            //register service to provide list of available proxyServices
+            if(Main.SSP_DNS_NAME == null)
+                throw new RuntimeException("SSP_DNS_NAME must be defined! SSP_DNS_NAME can also be an IP address!");
 
-    private URI getProxyUri(URI resourceUri){
+            URI targetUri = new URI("http", null, Main.SSP_DNS_NAME,
+                    Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT , "/", null, null);
+
+            registerResource(targetUri, new ListOfRegisteredServices(proxyServices.keySet()));
+        } catch (URISyntaxException e) {
+            log.error("This should never happen!", e);
+        }
+    }
+
+    /**
+     * Sends an HTTP response to the given remote address
+     *
+     * @param channel the {@link Channel} to send the response over
+     * @param httpResponse the {@link HttpResponse} to be sent
+     * @param remoteAddress the recipient of the response
+     */
+    private void writeHttpResponse(Channel channel, final HttpResponse httpResponse,
+                                   final InetSocketAddress remoteAddress){
+        ChannelFuture future = Channels.write(channel, httpResponse, remoteAddress);
+        future.addListener(ChannelFutureListener.CLOSE);
+        future.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                log.debug("Response sent to {} (Status: {})", remoteAddress, httpResponse.getStatus());
+            }
+        });
+    }
+
+    /**
+     * Sends a {@link ResourceStatusMessage} on the given channel which is converted into an HTTP response after
+     * caching.
+     *
+     * @param channel the {@link Channel} to send the message over
+     * @param resourceStatusMessage the message containing the information to be sent
+     * @param remoteAddress the recipient of the eventual HTTP response (which is generated from the given
+     *                      {@link ResourceStatusMessage}
+     */
+    private void writeResourceStatusMessage(Channel channel, final ResourceStatusMessage resourceStatusMessage,
+                                            final InetSocketAddress remoteAddress){
+        ChannelFuture future = Channels.write(channel, resourceStatusMessage, remoteAddress);
+        future.addListener(ChannelFutureListener.CLOSE);
+        future.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                log.debug("Resource status sent to {}.", remoteAddress);
+            }
+        });
+    }
+
+    /**
+     * Returns the proper absolute resource proxy uri for the given resource uri
+     *
+     * @param resourceUri the {@link URI} to get the proxy resource uri for
+     *
+     * @return the proper absolute resource proxy uri for the given resource uri or null if an error occurred.
+     */
+    private URI generateResourceProxyUri(URI resourceUri){
         try{
             if(resourceUri.isAbsolute()){
                 return new URI("http", null, Main.SSP_DNS_NAME,
@@ -274,14 +343,48 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         }
     }
 
+    /**
+     * Registers a new resource with its appropriate {@link HttpRequestProcessor}. Upon invokation of this method
+     * the resource proxy uri is contained in the list of registered services.
+     *
+     * @param resourceProxyUri the resource proxy uri to be registered
+     * @param httpRequestProcessor the {@link HttpRequestProcessor} to handle incoming requests for the resource proxy uri
+     */
     private void registerResource(URI resourceProxyUri, HttpRequestProcessor httpRequestProcessor){
         proxyServices.put(resourceProxyUri, httpRequestProcessor);
         log.info("Registered new resource: {}", resourceProxyUri);
     }
 
-    public boolean unregisterService(String path, AbstractProxyServiceManager backend) {
-        //TODO
-        return true;
+    /**
+     * Removes the resource proxy uri representing the given resource uri from the list of registered resources
+     *
+     * @param resourceUri the {@link URI} identifying the resource to be removed
+     *
+     * @return <code>true</code> if the resource was deleted successfully, <code>false</code> if the resource could
+     * not be deleted or if there was no such resource registered.
+     */
+    private boolean unregisterResourceUri(URI resourceUri){
+        URI resourceProxyUri = generateResourceProxyUri(resourceUri);
+        return unregisterResourceProxyUri(resourceProxyUri);
+    }
+
+    /**
+     * Removes the resource proxy uri from the list of registered resources
+     *
+     * @param resourceProxyUri the {@link URI} identifying the resource to be removed
+     *
+     * @return <code>true</code> if the resource was deleted successfully, <code>false</code> if the resource could
+     * not be deleted or if there was no such resource registered.
+     */
+    private boolean unregisterResourceProxyUri(URI resourceProxyUri){
+        if(proxyServices.remove(resourceProxyUri) != null){
+            log.info("Successfully removed resource from list of registered services: {}.", resourceProxyUri);
+            return true;
+        }
+        else{
+            log.warn("Could not remove resource {}. (NOT FOUND)", resourceProxyUri);
+            return false;
+        }
     }
 
     @Override
