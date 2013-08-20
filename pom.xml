@@ -117,7 +117,7 @@
         <repository>
             <id>apache</id>
             <name>jena</name>
-            <url>http://repository.apache.org</url>
+            <url>https://repository.apache.org/content/repositories/releases</url>
         </repository>
         <repository>
             <id>itm-maven-repository-releases-site</id>

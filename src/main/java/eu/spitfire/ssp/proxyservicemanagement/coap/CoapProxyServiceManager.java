@@ -25,7 +25,6 @@
 package eu.spitfire.ssp.proxyservicemanagement.coap;
 
 import com.google.common.util.concurrent.SettableFuture;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
@@ -34,16 +33,14 @@ import de.uniluebeck.itm.ncoap.message.header.MsgType;
 import eu.spitfire.ssp.proxyservicemanagement.AbstractProxyServiceManager;
 import eu.spitfire.ssp.proxyservicemanagement.coap.noderegistration.CoapNodeRegistrationService;
 import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
-import eu.spitfire.ssp.proxyservicemanagement.coap.noderegistration.CoapResourceObserver;
+import eu.spitfire.ssp.proxyservicemanagement.coap.observation.CoapResourceObserver;
 import eu.spitfire.ssp.proxyservicemanagement.coap.requestprocessing.HttpRequestProcessorForCoapServices;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 
 /**
  * The {@link CoapProxyServiceManager} provides all functionality to manage CoAP resources, i.e. it provides a

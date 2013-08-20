@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.proxyservicemanagement.coap.noderegistration;
+package eu.spitfire.ssp.proxyservicemanagement.coap.observation;
 
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
