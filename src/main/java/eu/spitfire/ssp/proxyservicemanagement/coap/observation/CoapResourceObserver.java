@@ -1,9 +1,15 @@
 package eu.spitfire.ssp.proxyservicemanagement.coap.observation;
 
+import com.google.common.util.concurrent.SettableFuture;
+import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
+import de.uniluebeck.itm.ncoap.communication.observe.ObservationTimeoutProcessor;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
+import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
+import de.uniluebeck.itm.ncoap.message.header.Code;
+import de.uniluebeck.itm.ncoap.message.header.MsgType;
 import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
 import eu.spitfire.ssp.proxyservicemanagement.AbstractResourceObserver;
 import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourceMessage;
@@ -26,66 +32,46 @@ import java.util.concurrent.TimeUnit;
  * @author Oliver Kleine
  */
 public class CoapResourceObserver extends AbstractResourceObserver implements CoapResponseProcessor,
-        RetransmissionTimeoutProcessor{
+        RetransmissionTimeoutProcessor, ObservationTimeoutProcessor{
 
     private Logger log =  LoggerFactory.getLogger(this.getClass().getName());
 
-    private URI resourceUri;
+    private CoapRequest coapRequest;
     private ScheduledExecutorService scheduledExecutorService;
-    private ScheduledFuture scheduledFuture;
 
     /**
-     * @param resourceUri the {@link URI} identifying the resource to be observed
+     * @param coapRequest the {@link CoapRequest} to be sent if the observation times out (max-age expiry)
      * @param scheduledExecutorService the {@link ScheduledExecutorService} to run observation specific tasks
      * @param localChannel the {@link LocalServerChannel} to send internal messages, e.g. {@link ResourceStatusMessage}s
      *                     to update the cache.
      */
-    public CoapResourceObserver(URI resourceUri, ScheduledExecutorService scheduledExecutorService,
+    public CoapResourceObserver(CoapRequest coapRequest, ScheduledExecutorService scheduledExecutorService,
                                 LocalServerChannel localChannel){
         super(scheduledExecutorService, localChannel);
 
-        this.resourceUri = resourceUri;
+        this.coapRequest = coapRequest;
         this.scheduledExecutorService = scheduledExecutorService;
     }
 
     @Override
     public void processCoapResponse(CoapResponse coapResponse) {
-        log.info("Received response from service {}.", resourceUri);
-
-        if(scheduledFuture != null){
-            if(scheduledFuture.cancel(false))
-                log.debug("Received update notification for {} within max-age.", resourceUri);
-            else
-                log.error("Received update notification for {} within max-age but something went wrong...",
-                        resourceUri);
-        }
+        log.info("Received response from service {}.", coapRequest.getTargetUri());
 
         if(coapResponse.getOption(OptionRegistry.OptionName.OBSERVE_RESPONSE).isEmpty()
                     || coapResponse.getCode().isErrorMessage()){
-
-            log.warn("Observation of {} failed. CoAP response was: {}", resourceUri, coapResponse);
+            log.warn("Observation of {} failed. CoAP response was: {}", coapRequest.getTargetUri(), coapResponse);
             return;
         }
 
         //create resource status message to update the cache
         ResourceStatusMessage resourceStatusMessage;
         try {
-            resourceStatusMessage = ResourceStatusMessage.create(coapResponse, resourceUri);
+            resourceStatusMessage = ResourceStatusMessage.create(coapResponse, coapRequest.getTargetUri());
             updateResourceStatus(resourceStatusMessage);
         } catch (Exception e) {
             log.error("Exception while creating resource status message from CoAP update notification.", e);
             return;
         }
-
-        //log a warning about resource expiry, i.e. no update within max-age
-        long maxAge = coapResponse.getMaxAge();
-        scheduledFuture = scheduledExecutorService.schedule(new Runnable(){
-            @Override
-            public void run() {
-                log.warn("No update notification from {} within max-age of last state.", resourceUri);
-                //removeResource(new InternalRemoveResourceMessage(resourceUri));
-            }
-        }, maxAge, TimeUnit.SECONDS);
     }
 
     @Override
@@ -93,8 +79,16 @@ public class CoapResourceObserver extends AbstractResourceObserver implements Co
         scheduledExecutorService.schedule(new Runnable(){
             @Override
             public void run() {
-                removeResource(new InternalRemoveResourceMessage(resourceUri));
+                log.warn("Resource {} is unreachable. Remove from list of registered resoureces.",
+                        coapRequest.getTargetUri());
+                removeResource(new InternalRemoveResourceMessage(coapRequest.getTargetUri()));
             }
         }, 0, TimeUnit.SECONDS) ;
+    }
+
+    @Override
+    public void processObservationTimeout(SettableFuture<CoapRequest> continueObservationFuture) {
+        log.info("Max-Age of observed resource {} expired. Try to restart observation!", coapRequest.getTargetUri());
+        continueObservationFuture.set(coapRequest);
     }
 }

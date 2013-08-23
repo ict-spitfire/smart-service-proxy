@@ -389,12 +389,19 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception{
-        log.warn("Exception caught! Send Error Response.", e.getCause());
 
-        HttpResponse httpResponse = HttpResponseFactory.createHttpErrorResponse(HttpVersion.HTTP_1_1,
-                HttpResponseStatus.INTERNAL_SERVER_ERROR, (Exception) e.getCause());
+        if(ctx.getChannel().isConnected()){
+            log.warn("Exception caught! Send Error Response.", e.getCause());
 
-        Channels.write(ctx.getChannel(), httpResponse, ctx.getChannel().getRemoteAddress());
+            HttpResponse httpResponse = HttpResponseFactory.createHttpErrorResponse(HttpVersion.HTTP_1_1,
+                    HttpResponseStatus.INTERNAL_SERVER_ERROR, (Exception) e.getCause());
+
+            writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) ctx.getChannel().getRemoteAddress());
+        }
+        else{
+            log.warn("Exception on an unconnected channel! IGNORE.", e.getCause());
+            ctx.getChannel().close();
+        }
     }
 }
 

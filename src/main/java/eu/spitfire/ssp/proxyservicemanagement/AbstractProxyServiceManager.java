@@ -103,15 +103,15 @@ public abstract class AbstractProxyServiceManager {
                                  final HttpRequestProcessor requestProcessor){
 
         //Retrieve the URI the new service is available at on the proxy
-        final SettableFuture<URI> resourceProxyUriFuture = SettableFuture.create();
-        retrieveProxyUri(resourceProxyUriFuture, resourceUri);
+        final SettableFuture<URI> proxyResourceUriFuture = SettableFuture.create();
+        retrieveProxyUri(proxyResourceUriFuture, resourceUri);
 
-        resourceProxyUriFuture.addListener(new Runnable() {
+        proxyResourceUriFuture.addListener(new Runnable() {
             @Override
             public void run() {
                 try {
                     //Register new service with the retrieved resource proxy URI
-                    final URI resourceProxyUri = resourceProxyUriFuture.get();
+                    final URI resourceProxyUri = proxyResourceUriFuture.get();
                     ChannelFuture registrationFuture =
                             Channels.write(localChannel,
                                     new InternalRegisterResourceMessage(resourceProxyUri, requestProcessor));

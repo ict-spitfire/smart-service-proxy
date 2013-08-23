@@ -82,7 +82,7 @@ public class CoapProxyServiceManager extends AbstractProxyServiceManager {
             @Override
             public void run() {
                 try {
-                    if ("/light".equals(resourceUri.getPath())) {
+                    if ("/light/_minimal".equals(resourceUri.getPath())) {
                         log.info("Try to start observing {}.", resourceUri);
 
                         //create observation request
@@ -91,7 +91,7 @@ public class CoapProxyServiceManager extends AbstractProxyServiceManager {
 
                         //send observation request
                         coapClientApplication.writeCoapRequest(coapRequest,
-                                new CoapResourceObserver(resourceUri, scheduledExecutorService,
+                                new CoapResourceObserver(coapRequest, scheduledExecutorService,
                                         CoapProxyServiceManager.this.localChannel));
 
                     }

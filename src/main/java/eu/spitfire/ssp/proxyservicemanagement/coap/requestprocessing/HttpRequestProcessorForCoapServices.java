@@ -1,21 +1,16 @@
 package eu.spitfire.ssp.proxyservicemanagement.coap.requestprocessing;
 
 import com.google.common.util.concurrent.SettableFuture;
-import com.google.inject.Inject;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
-import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
-import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
-import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
+import eu.spitfire.ssp.proxyservicemanagement.ProxyServiceException;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import eu.spitfire.ssp.server.webservices.MethodNotAllowedException;
 import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
-import eu.spitfire.ssp.proxyservicemanagement.ProxyServiceException;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

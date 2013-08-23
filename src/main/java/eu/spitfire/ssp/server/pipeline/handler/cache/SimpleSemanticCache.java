@@ -44,6 +44,8 @@ public class SimpleSemanticCache extends AbstractSemanticCache {
         if(expiry == null || expiry.before(new Date()))
             return null;
 
+        log.info("Found valid resource status for {}.", resourceUri);
+
         return new ResourceStatusMessage(resourceUri, cachedResource, expiry);
     }
 
