@@ -80,7 +80,8 @@ public class ResourceStatusMessage {
         else{
             Language language = Language.getByCoapMediaType(coapResponse.getContentType());
             if(language == null){
-                throw new ProxyServiceException(resourceUri, INTERNAL_SERVER_ERROR, "CoAP response had no semantic content type");
+                throw new ProxyServiceException(resourceUri, INTERNAL_SERVER_ERROR,
+                        "CoAP response had no semantic content type");
             }
 
             try{

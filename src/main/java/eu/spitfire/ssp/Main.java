@@ -130,14 +130,14 @@ public class Main {
 
             //Local files
             else if(proxyServiceManagerName.equals("files")){
-                String[] directories = config.getStringArray("files.directory");
-                if(directories.length == 0){
+                String directory = config.getString("files.directory");
+                if(directory == null){
                     throw new Exception("Property 'files.directory' not set.");
                 }
                 boolean copyExamples = config.getBoolean("files.copyExamples");
                 proxyServiceManager =
-                        new FilesProxyServiceManager("file", internalChannel, scheduledExecutorService, copyExamples,
-                                directories);
+                        new FilesProxyServiceManager("files", internalChannel, scheduledExecutorService, copyExamples,
+                                directory);
             }
 
             //Unknown AbstractGatewayFactory Type
@@ -146,7 +146,7 @@ public class Main {
                 continue;
             }
 
-            proxyServiceManager.initialize();
+            proxyServiceManager.prepare();
         }
     }
 

@@ -221,7 +221,14 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         }
         else if(me.getMessage() instanceof InternalResourceProxyUriRequest){
             InternalResourceProxyUriRequest message = (InternalResourceProxyUriRequest) me.getMessage();
-            URI resourceProxyUri = generateResourceProxyUri(message.getResourceUri());
+            URI resourceUri = message.getResourceUri();
+
+            URI resourceProxyUri;
+            if(resourceUri.isAbsolute())
+                resourceProxyUri = generateResourceProxyUri(message.getResourceUri());
+            else
+                resourceProxyUri = generateResourceProxyUri(new URI("/" + message.getGatewayPrefix() +
+                    message.getResourceUri().toString()));
 
             if(proxyServices.containsKey(resourceProxyUri)){
                 message.getResourceProxyUriFuture()

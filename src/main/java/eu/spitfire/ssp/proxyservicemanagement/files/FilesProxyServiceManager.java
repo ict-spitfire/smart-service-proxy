@@ -33,14 +33,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.*;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
-import static java.nio.file.StandardWatchEventKinds.*;
 
 /**
 * The FilesProxyServiceManager is responsible for the webServices backed by the files (except of *.swp) in the directory given as
@@ -57,123 +51,88 @@ public class FilesProxyServiceManager extends AbstractProxyServiceManager {
 
     private HttpRequestProcessorForLocalFiles httpRequestProcessor;
 
-    private WatchService watchService;
-    private Map<WatchKey, Path> watchKeys;
+    private Path observedDirectory;
+    private FilesObserver filesObserver;
+
+    private HttpRequestProcessor gui;
     private boolean copyExamples;
 
     /**
      * Constructor for a new FileBackend instance which provides all files in the specified directory
      * as resources.
      *
-     * @param directories the paths to the directories where the files are located
+     * @param directory the paths to the directory where the files are located
      */
     public FilesProxyServiceManager(String prefix, LocalServerChannel localChannel,
                                     ScheduledExecutorService scheduledExecutorService, boolean copyExamples,
-                                    String... directories) throws IOException {
+                                    String directory) throws IOException {
         super(prefix, localChannel, scheduledExecutorService);
-
-        watchService = FileSystems.getDefault().newWatchService();
-
-        watchKeys = new HashMap<>();
-
-        //Register directory to be watched, i.e. observed for changes
-        for(int i = 0; i < directories.length; i++){
-            Path directoryPath = Paths.get(directories[i]);
-            WatchKey watchKey = directoryPath.register(watchService, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
-            watchKeys.put(watchKey, directoryPath);
-        }
-
         this.copyExamples = copyExamples;
 
+        this.observedDirectory = Paths.get(directory);
         httpRequestProcessor = new HttpRequestProcessorForLocalFiles();
+
+        this.filesObserver = new FilesObserver(this, observedDirectory, scheduledExecutorService, localChannel);
+        this.gui = new FilesGatewayGui(filesObserver);
     }
 
+    public void registerResource(final SettableFuture<URI> resourceRegistrationFuture, final URI resourceUri){
+        registerResource(resourceRegistrationFuture, resourceUri, httpRequestProcessor);
+
+        resourceRegistrationFuture.addListener(new Runnable(){
+            @Override
+            public void run() {
+                try{
+                    URI resourceProxyUri = resourceRegistrationFuture.get();
+                    log.info("Successfully registered resource {} with proxy Uri {}", resourceUri, resourceProxyUri);
+                }
+                catch (Exception e) {
+                    log.error("Exception during registration of services from local file.", e);
+                }
+            }
+        }, scheduledExecutorService);
+
+    }
 
     @Override
     public HttpRequestProcessor getGui() {
-        return null;
+        return gui;
     }
 
     /**
      * Starts the observation of the directory specidied as constructor argument
      */
     @Override
-    public void initialize(){
-        scheduledExecutorService.schedule(new Runnable(){
-
-            @Override
-            public void run() {
-                while(true){
-                    WatchKey watchKey;
-                    try{
-                        watchKey = watchService.take();
-                    }
-                    catch (InterruptedException e) {
-                        log.error("Exception while taking watch key.", e);
-                        return;
-                    }
-
-                    Path directory = watchKeys.get(watchKey);
-                    if(directory == null){
-                        log.error("Directory not recognized ({}).", directory);
-                        continue;
-                    }
-
-                    for(WatchEvent ev : watchKey.pollEvents()){
-                        //Which kind of event occured?
-                        WatchEvent.Kind eventKind = ev.kind();
-
-                        if(eventKind == OVERFLOW){
-                            log.warn("Unhandled event kind OVERFLOW");
-                            continue;
-                        }
-
-                        Object context = ev.context();
-                        if(context instanceof Path){
-                            Path filePath = directory.resolve((Path) context);
-                            log.debug("Event {} at path {}", eventKind, filePath);
-
-                            if(eventKind == ENTRY_CREATE){
-                                SettableFuture<URI> proxyResourceUriFuture = SettableFuture.create();
-                                URI resourceUri;
-                                try {
-                                    resourceUri = new URI(null, null, null, -1,
-                                            "/" + getPrefix() + "/" + directory.relativize(filePath).toString(), null, null);
-
-                                } catch (URISyntaxException e) {
-                                   log.error("This should never happen!", e);
-                                    continue;
-                                }
-                                registerResource(proxyResourceUriFuture, resourceUri, httpRequestProcessor);
-                            }
-                        }
-                    }
-
-                    // reset key and remove from set if directory no longer accessible
-                    boolean valid = watchKey.reset();
-                    if (!valid) {
-                        log.error("Stopped observation of directory {}.", watchKeys.get(watchKey));
-                        watchKeys.remove(watchKey);
-                    }
-                }
-            }
-        }, 0, TimeUnit.SECONDS);
+    public void initialize() {
+        scheduledExecutorService.submit(filesObserver);
 
         if(copyExamples)
-            copyExamples();
+            copyExampleFiles();
+
     }
 
+    private void copyExampleFiles(){
+        try{
+            //create directory ./examples
+            Path examplesDirectory = observedDirectory.resolve("examples");
 
+            if(Files.exists(examplesDirectory))
+                deleteRecursicvly(examplesDirectory.toFile());
 
-    private void copyExamples() {
-        String[] exampleFiles = new String[]{"file01.txt", "file02.txt"};
+            Files.createDirectory(examplesDirectory);
 
-        for(int i = 0; i < exampleFiles.length; i++){
-            InputStream inputStream = getClass().getResourceAsStream("examples/" + exampleFiles[i]);
+            //Wait for examples directory to be observed
+            while(!filesObserver.getObservedDirectories().contains(examplesDirectory)){};
 
-            String directory = watchKeys.get(watchKeys.keySet().iterator().next()).toString();
-            File file = new File(directory + "/" + exampleFiles[i]);
-            try {
+            //Copy the example files
+            String[] exampleFiles = new String[]{"example12b.n3"};
+
+            for(int i = 0; i < exampleFiles.length; i++){
+                InputStream inputStream = getClass().getResourceAsStream("examples/" + exampleFiles[i]);
+
+                Path filePath = Paths.get(observedDirectory.toString() + "/examples/" + exampleFiles[i]);
+                File file = new File(filePath.toString() + ".tmp");
+
                 OutputStream outputStream = new FileOutputStream(file);
 
                 int nextByte = inputStream.read();
@@ -185,14 +144,31 @@ public class FilesProxyServiceManager extends AbstractProxyServiceManager {
                 outputStream.flush();
                 outputStream.close();
 
-                log.info("Written file {}", directory + "/" + exampleFiles[i]);
+                file.renameTo(new File(filePath.toString()));
             }
-            catch (FileNotFoundException e) {
-                log.error("Error while copying file examples/{}", exampleFiles[i]);
+        }
+        catch (FileNotFoundException e) {
+            log.error("Error while copying file.", e);
+        }
+        catch (IOException e) {
+            log.error("Error while creating, modifying or deleting file or directory.", e);
+        }
+    }
+
+    private void deleteRecursicvly(File file){
+        log.debug("Try to delete {}", file.getAbsolutePath());
+        if (file.isDirectory()) {
+            String[] children = file.list();
+            for (int i = 0; i < children.length; i++) {
+                File child = new File(file, children[i]);
+                deleteRecursicvly(child);
             }
-            catch (IOException e) {
-                log.error("This should never happen.", e);
-            }
+            if(file.delete())
+                log.debug("Deleted directory {}", file.getAbsolutePath());
+        }
+        else{
+            if(file.delete())
+                log.debug("Deleted file {}", file.getAbsolutePath());
         }
     }
 
@@ -201,4 +177,6 @@ public class FilesProxyServiceManager extends AbstractProxyServiceManager {
         //To change body of implemented methods use File | Settings | File Templates.
     }
 }
+
+
 

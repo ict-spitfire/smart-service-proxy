@@ -72,26 +72,19 @@ public abstract class AbstractProxyServiceManager {
     private String prefix;
 
     protected AbstractProxyServiceManager(String prefix, LocalServerChannel localChannel,
-                                          ScheduledExecutorService scheduledExecutorService){
+                                          final ScheduledExecutorService scheduledExecutorService){
         this.prefix = prefix;
         this.localChannel = localChannel;
         this.scheduledExecutorService = scheduledExecutorService;
 
-        HttpRequestProcessor gui = this.getGui();
-        if(gui != null){
-            try {
-                registerResource(SettableFuture.<URI>create(), new URI(null, null, null, -1, "/", null, null), gui);
-            } catch (URISyntaxException e) {
-                log.error("This should never happen.", e);
-            }
-        }
+
     }
 
     public abstract HttpRequestProcessor getGui();
 
     /**
      * Method to be called by extending classes, i.e. instances of {@link AbstractProxyServiceManager} whenever there is a new
-     * webservice to be created on the smart service proxyservicemanagement, if the network behind this gateway is an IP enabled
+     * webservice to be created on the smart service proxy, if the network behind this gateway is an IP enabled
      * network.
      *
      * @param resourceRegistrationFuture the {@link SettableFuture<URI>} containing the absolute {@link URI} for the newly registered
@@ -157,6 +150,34 @@ public abstract class AbstractProxyServiceManager {
     public void retrieveProxyUri(SettableFuture<URI> uriRequestFuture, URI originUri){
         Channels.write(localChannel, new InternalResourceProxyUriRequest(uriRequestFuture, this.getPrefix(),
                 originUri));
+    }
+
+    public final void prepare(){
+        HttpRequestProcessor gui = this.getGui();
+        if(gui != null){
+            try {
+                final SettableFuture<URI> guiRegistrationFuture = SettableFuture.create();
+
+                guiRegistrationFuture.addListener(new Runnable() {
+                    @Override
+                    public void run() {
+                        try{
+                            URI guiUri = guiRegistrationFuture.get();
+                            log.debug("Successfully registered GUI at {}", guiUri);
+                        }
+                        catch (Exception e) {
+                            log.error("Exception while registering GUI", e);
+                        }
+                    }
+                }, scheduledExecutorService);
+
+                registerResource(guiRegistrationFuture, new URI(null, null, null, -1, "/", null, null), gui);
+            } catch (URISyntaxException e) {
+                log.error("This should never happen.", e);
+            }
+        }
+
+        initialize();
     }
 
     /**

@@ -22,7 +22,7 @@ public class HttpResponseFactory {
         ChannelBuffer payloadBuffer = ChannelBuffers.wrappedBuffer(payload.getBytes(Charset.forName("UTF-8")));
         response.setContent(payloadBuffer);
 
-        response.setHeader("Content-Length", payloadBuffer.readableBytes());
+        response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, payloadBuffer.readableBytes());
         return response;
     }
 

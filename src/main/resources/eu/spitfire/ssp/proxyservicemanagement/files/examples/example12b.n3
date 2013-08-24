@@ -1,0 +1,31 @@
+<http://www.example.org/device/remotea12b>
+      a       <http://purl.oclc.org/NET/ssnx/ssn#Device> ;
+      <http://purl.org/NET/corelf#bn>
+              <http://www.example2.org/device/> ;
+      <http://purl.org/NET/corelf#bovn>
+              <http://www.example1.org/ov/> ;
+      <http://purl.org/NET/corelf#bt>
+              "12-08-28T19:03Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> ;
+      <http://purl.org/dc/terms/isPartOf>
+              "http://localhost:8182/ld4s/void" ;
+      <http://spitfire-project.eu/ontology/ns/obs>
+           <http://localhost:8182/ld4s/resource/property/temperature> ;
+      <http://spitfire-project.eu/ontology/ns/uom>
+              <http://localhost:8182/ld4s/resource/uom/centigrade> ;
+      <http://www.ontologydesignpatterns.org/ont/dul/DUL.owl/hasLocation>
+              <http://localhost:8182/ld4s/resource/location/patras> ;
+      <http://www.w3.org/ns/prov#wasGeneratedBy>
+              <http://localhost:8182/ld4s/resource/people/manfredhauswirth> .
+
+<http://www.example.org/ov/remotex12y>
+      a       <http://spitfire-project.eu/ontology/ns/OV> ;
+      <http://purl.org/NET/corelf#rt>
+              "22846"^^<http://www.w3.org/2001/XMLSchema#long> ;
+      <http://purl.org/dc/terms/isPartOf>
+              "http://localhost:8182/ld4s/void" ;
+      <http://spitfire-project.eu/ontology/ns/tEnd>
+              "10321"^^<http://www.w3.org/2001/XMLSchema#long> ;
+      <http://spitfire-project.eu/ontology/ns/tStart>
+              "5800"^^<http://www.w3.org/2001/XMLSchema#long> ;
+      <http://spitfire-project.eu/ontology/ns/value>
+              "12.4"^^<http://www.w3.org/2001/XMLSchema#double> , "21.9"^^<http://www.w3.org/2001/XMLSchema#double> , "24.5"^^<http://www.w3.org/2001/XMLSchema#double> , "88.7"^^<http://www.w3.org/2001/XMLSchema#double> .
