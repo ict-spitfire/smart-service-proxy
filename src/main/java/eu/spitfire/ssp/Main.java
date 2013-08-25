@@ -158,8 +158,11 @@ public class Main {
         Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
 
         Logger.getRootLogger().setLevel(Level.DEBUG);
-        Logger.getLogger("eu.spitfire.ssp.server.payloadserialization.ShdtDeserializer").setLevel(Level.ERROR);
-        Logger.getLogger("de.uniluebeck.itm.ncoap").setLevel(Level.INFO);
+        Logger.getLogger("eu.spitfire.ssp.proxyservicemanagement.files").setLevel(Level.DEBUG);
+        Logger.getLogger("eu.spitfire.ssp.server.pipeline.handler").setLevel(Level.DEBUG);
+        //Logger.getLogger("eu.spitfire.ssp.server.payloadserialization.ShdtDeserializer").setLevel(Level.ERROR);
+        Logger.getLogger("eu.spitfire.ssp.server.pipeline.handler.SemanticPayloadFormatter").setLevel(Level.ERROR);
+        //Logger.getLogger("de.uniluebeck.itm.ncoap").setLevel(Level.INFO);
     }
 }
 

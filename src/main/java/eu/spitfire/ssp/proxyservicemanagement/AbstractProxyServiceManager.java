@@ -171,7 +171,7 @@ public abstract class AbstractProxyServiceManager {
                     }
                 }, scheduledExecutorService);
 
-                registerResource(guiRegistrationFuture, new URI(null, null, null, -1, "/", null, null), gui);
+                registerResource(guiRegistrationFuture, new URI(null, null, null, -1, "/gui", null, null), gui);
             } catch (URISyntaxException e) {
                 log.error("This should never happen.", e);
             }

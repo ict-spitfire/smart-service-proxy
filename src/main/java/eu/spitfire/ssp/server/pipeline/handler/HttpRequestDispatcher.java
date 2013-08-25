@@ -242,13 +242,12 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             return;
         }
         else if(me.getMessage() instanceof InternalRemoveResourceMessage){
-            boolean removed = unregisterResourceUri(((InternalRemoveResourceMessage) me.getMessage()).getResourceUri());
-            if(!removed){
-                me.getFuture().setFailure(new NullPointerException("There was no such service found!"));
-
-                return;
-            }
-
+            InternalRemoveResourceMessage removeResourceMessage = (InternalRemoveResourceMessage) me.getMessage();
+            boolean removed = unregisterResourceUri(removeResourceMessage.getResourceUri());
+            if(removed)
+                log.info("Removed {} from list of registered resources.", removeResourceMessage.getResourceUri());
+            else
+                log.error("Could not remove {}. Resource was not registered.", removeResourceMessage.getResourceUri());
         }
 
         ctx.sendDownstream(me);

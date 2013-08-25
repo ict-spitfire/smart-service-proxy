@@ -26,6 +26,7 @@ package eu.spitfire.ssp.server.pipeline.handler.cache;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.Main;
+import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourceMessage;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -117,13 +118,20 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
             throws Exception {
 
         if(me.getMessage() instanceof ResourceStatusMessage){
-            log.debug("Downstream: {}", me.getMessage());
             ResourceStatusMessage updateMessage = (ResourceStatusMessage) me.getMessage();
+            log.info("Received new status of {}", updateMessage.getResourceUri());
 
             //Update Resource
-            log.debug("Put fresh resource status for {} into cache.", updateMessage.getResourceUri());
             putResourceToCache(updateMessage.getResourceUri(), updateMessage.getResourceStatus(),
                     updateMessage.getExpiry());
+        }
+
+        if(me.getMessage() instanceof InternalRemoveResourceMessage){
+            InternalRemoveResourceMessage removeResourceMessage =
+                    (InternalRemoveResourceMessage) me.getMessage();
+
+            log.info("Received message to remove resource {}", removeResourceMessage.getResourceUri());
+            deleteResource(removeResourceMessage.getResourceUri());
         }
 
         ctx.sendDownstream(me);
@@ -140,7 +148,7 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
     public abstract void putResourceToCache(URI resourceUri, Model model, Date expiry);
 
     /**
-     * For future use! Method to delete a cached resource from the cache (not yet used by the framework).
+     * Method to delete a cached resource from the cache.
      * @param resourceUri the {@link URI} identifying the cached resource who's status is to be deleted
      */
     public abstract void deleteResource(URI resourceUri);

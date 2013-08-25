@@ -67,11 +67,15 @@ public class FilesProxyServiceManager extends AbstractProxyServiceManager {
                                     ScheduledExecutorService scheduledExecutorService, boolean copyExamples,
                                     String directory) throws IOException {
         super(prefix, localChannel, scheduledExecutorService);
-        this.copyExamples = copyExamples;
 
         this.observedDirectory = Paths.get(directory);
-        httpRequestProcessor = new HttpRequestProcessorForLocalFiles();
 
+        this.copyExamples = copyExamples;
+        Path examplesDirectory = observedDirectory.resolve("examples");
+        if(Files.exists(examplesDirectory))
+            deleteRecursicvly(examplesDirectory.toFile());
+
+        httpRequestProcessor = new HttpRequestProcessorForLocalFiles();
         this.filesObserver = new FilesObserver(this, observedDirectory, scheduledExecutorService, localChannel);
         this.gui = new FilesGatewayGui(filesObserver);
     }
@@ -104,23 +108,24 @@ public class FilesProxyServiceManager extends AbstractProxyServiceManager {
      */
     @Override
     public void initialize() {
-        scheduledExecutorService.submit(filesObserver);
-
-        if(copyExamples)
-            copyExampleFiles();
-
-    }
-
-    private void copyExampleFiles(){
         try{
             //create directory ./examples
             Path examplesDirectory = observedDirectory.resolve("examples");
 
-            if(Files.exists(examplesDirectory))
-                deleteRecursicvly(examplesDirectory.toFile());
-
             Files.createDirectory(examplesDirectory);
 
+            scheduledExecutorService.submit(filesObserver);
+
+            if(copyExamples)
+                copyExampleFiles(examplesDirectory);
+        }
+        catch (IOException e) {
+            log.error("Exception during initialization!", e);
+        }
+    }
+
+    private void copyExampleFiles(Path examplesDirectory){
+        try{
             //Wait for examples directory to be observed
             while(!filesObserver.getObservedDirectories().contains(examplesDirectory)){};
 

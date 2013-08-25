@@ -38,4 +38,9 @@ public class InternalRegisterResourceMessage {
     public HttpRequestProcessor getHttpRequestProcessor() {
         return httpRequestProcessor;
     }
+
+    @Override
+    public String toString(){
+        return "[Resource registration] " +  resourceProxyUri + " (proxy uri)";
+    }
 }

@@ -18,6 +18,7 @@ public class InternalPipelineSink extends SimpleChannelDownstreamHandler{
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
+        me.getFuture().setSuccess();
         log.debug("Internal pipeline sink received downstream message to be discarded: {}", me.getMessage());
     }
 }

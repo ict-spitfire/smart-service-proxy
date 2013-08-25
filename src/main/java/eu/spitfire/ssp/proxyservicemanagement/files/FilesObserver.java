@@ -6,22 +6,17 @@ import com.google.common.collect.Multimaps;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.proxyservicemanagement.AbstractResourceObserver;
-import eu.spitfire.ssp.server.payloadserialization.Language;
+import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourceMessage;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
@@ -51,130 +46,12 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
         super(scheduledExecutorService, localChannel);
 
         this.observedDirectory = directory;
-
         this.watchService = FileSystems.getDefault().newWatchService();
-        this.watchKeys = new HashMap<>();
-
+        this.watchKeys = Collections.synchronizedMap(new HashMap<WatchKey, Path>());
         this.observedResources = Multimaps.synchronizedMultimap(HashMultimap.<Path, URI>create());
         this.serviceManager = serviceManager;
 
         observeDirectoryRecursively(directory);
-    }
-
-    /**
-     * Returns a {@link Collection} containing all the observed files (incl. directories)
-     * @return a {@link Collection} containing all the observed files (incl. directories)
-     */
-    public Collection<Path> getObservedDirectories(){
-        return watchKeys.values();
-    }
-
-    public Collection<Path> getObservedFiles(){
-        return this.observedResources.keySet();
-    }
-
-    public Collection<URI> getObservedResources(Path file){
-        return this.observedResources.get(file);
-    }
-
-    public Path getObservedDirectory(){
-        return this.observedDirectory;
-    }
-
-    private void observeDirectoryRecursively(Path directoryPath) throws IOException{
-        Files.walkFileTree(directoryPath, new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-                    throws IOException{
-
-                WatchKey watchKey = dir.register(watchService, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
-                watchKeys.put(watchKey, dir);
-
-                log.info("Added directory to be observed: {}", dir);
-                return FileVisitResult.CONTINUE;
-            }
-        });
-    }
-
-    private Map<URI, Model> getModelsPerSubject(Model completeModel){
-
-        Map<URI, Model> result = new HashMap<>();
-
-        try{
-            //Iterate over all subjects in the Model
-            ResIterator subjectIterator = completeModel.listSubjects();
-            while(subjectIterator.hasNext()){
-                Resource resource = subjectIterator.next();
-
-                log.debug("Create model for subject {}.", resource.getURI());
-                Model model = ModelFactory.createDefaultModel();
-
-                //Iterate over all properties of the actual subject
-                StmtIterator stmtIterator = resource.listProperties();
-                while(stmtIterator.hasNext()){
-                    model = model.add(stmtIterator.next());
-                }
-
-                result.put(new URI(resource.getURI()), model);
-            }
-        }
-        catch (URISyntaxException e) {
-            log.error("Exception while creating sub-models.", e);
-        }
-
-        return result;
-    }
-
-    private void handleFileModification(Path filePath){
-
-    }
-
-    private void handleFileCreation(final Path filePath){
-        try {
-            //If a new directory was created then try to add it
-            if (Files.isDirectory(filePath, NOFOLLOW_LINKS)) {
-                observeDirectoryRecursively(filePath);
-                return;
-            }
-
-            //If a file was created then register it as new resource
-            if(filePath.toString().endsWith(".n3")){
-
-                Model completeModel = ModelFactory.createDefaultModel();
-                FileInputStream inputStream = new FileInputStream(filePath.toFile());
-                completeModel.read(inputStream, null, Language.RDF_N3.lang);
-
-                final Map<URI, Model> resources = getModelsPerSubject(completeModel);
-
-                for(final URI resourceUri : resources.keySet()){
-                    final SettableFuture<URI> resourceRegistrationFuture = SettableFuture.create();
-                    resourceRegistrationFuture.addListener(new Runnable(){
-                        @Override
-                        public void run() {
-                            try{
-                                URI resourceProxyUri = resourceRegistrationFuture.get();
-                                observedResources.put(filePath, resourceUri);
-                                log.info("Successfully registered resource {} from file {}.", resourceUri, filePath);
-
-                                //Send status to cache (expires in ~1 year)
-                                ResourceStatusMessage resourceStatusMessage =
-                                        new ResourceStatusMessage(resourceUri, resources.get(resourceUri),
-                                                new Date(System.currentTimeMillis() + 31560000000L));
-
-                                updateResourceStatus(resourceStatusMessage);
-                            }
-                            catch (Exception e) {
-                                log.error("Exception while creating service to observe a file.", e);
-                            }
-                        }
-                    }, getScheduledExecutorService());
-                    serviceManager.registerResource(resourceRegistrationFuture, resourceUri);
-                }
-            }
-        }
-        catch (IOException e) {
-            log.error("Exception while adding new directory to be observed.", e);
-        }
     }
 
     @Override
@@ -196,7 +73,7 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
             }
 
             for(WatchEvent ev : watchKey.pollEvents()){
-                //Which kind of event occured?
+                //Which kind of event occurred?
                 WatchEvent.Kind eventKind = ev.kind();
 
                 if(eventKind == OVERFLOW){
@@ -209,11 +86,11 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
                     Path filePath = directory.resolve((Path) context);
                     log.debug("Event {} at path {}", eventKind, filePath);
 
-                    if(eventKind == ENTRY_CREATE){
+                    if(eventKind == ENTRY_CREATE || eventKind == ENTRY_MODIFY){
                         handleFileCreation(filePath);
                     }
-                    else if(eventKind == ENTRY_MODIFY){
-                        handleFileModification(filePath);
+                    else if(eventKind == ENTRY_DELETE){
+                        handleFileDeletion(filePath);
                     }
                 }
             }
@@ -227,6 +104,141 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
         }
     }
 
+    private void observeDirectoryRecursively(Path directoryPath){
+        try{
+            Files.walkFileTree(directoryPath, new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+                        throws IOException{
+
+                    WatchKey watchKey = dir.register(watchService, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
+                    watchKeys.put(watchKey, dir);
+
+                    log.info("Added directory to be observed: {}", dir);
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            log.error("Exception while trying to start recursive observation of {}.", directoryPath, e);
+        }
+    }
+
+    private void handleFileCreation(final Path filePath){
+        //If a new directory was created then try to add it
+        if (Files.isDirectory(filePath, NOFOLLOW_LINKS)) {
+            observeDirectoryRecursively(filePath);
+            return;
+        }
+
+        //If a file is no N3 file then ignore it
+        if(!filePath.toString().endsWith(".n3")){
+            log.warn("File is no N3 file {}. IGNORE!", filePath);
+            return;
+        }
+
+        Map<URI, Model> resourcesFromFile = SemanticFileTools.readModelsFromFile(filePath);
+
+        //Delete resources which where included in the previous version of this file
+        List<URI> deletedResourceUris = new ArrayList<>();
+        for(URI resourceUri : observedResources.get(filePath).toArray(new URI[0])){
+            if(!resourcesFromFile.keySet().contains(resourceUri)){
+                log.debug("Resource {} was deleted from file!", resourceUri);
+                deletedResourceUris.add(resourceUri);
+            }
+        }
+
+        for(URI resourceUri : deletedResourceUris){
+            InternalRemoveResourceMessage removeResourceMessage = new InternalRemoveResourceMessage(resourceUri);
+            sendRemoveResourceMessage(removeResourceMessage);
+
+            observedResources.remove(filePath, resourceUri);
+        }
+
+
+        //Register or update resources from file
+        for(URI resourceUri : resourcesFromFile.keySet()){
+            if(observedResources.values().contains(resourceUri)){
+                ResourceStatusMessage resourceStatusMessage =
+                        new ResourceStatusMessage(resourceUri, resourcesFromFile.get(resourceUri),
+                                new Date(System.currentTimeMillis() + 31560000000L));
+                sendResourceStatusMessage(resourceStatusMessage);
+            }
+            else{
+                registerResource(filePath, resourceUri, resourcesFromFile.get(resourceUri));
+            }
+        }
+    }
+
+    private void handleFileDeletion(Path filePath){
+        //If a new directory was created then try to add it
+        if (Files.isDirectory(filePath, NOFOLLOW_LINKS)) {
+            log.info("Nothing to do when a directory was deleted ({}).", filePath);
+            return;
+        }
+
+        Collection<URI> deletedResources = observedResources.get(filePath);
+        for(URI resourceUri : deletedResources){
+            InternalRemoveResourceMessage removeResourceMessage = new InternalRemoveResourceMessage(resourceUri);
+            sendRemoveResourceMessage(removeResourceMessage);
+        }
+
+        observedResources.removeAll(filePath);
+    }
+
+
+
+    private void registerResource(final Path filePath, final URI resourceUri, final Model model){
+        final SettableFuture<URI> resourceRegistrationFuture = SettableFuture.create();
+        resourceRegistrationFuture.addListener(new Runnable(){
+            @Override
+            public void run() {
+                try{
+                    //This is just to check if an exception was thrown
+                    resourceRegistrationFuture.get();
+
+                    //If there was no exception finalize registration process
+                    observedResources.put(filePath, resourceUri);
+                    log.info("Successfully registered resource {} from file {}.", resourceUri, filePath);
+
+                    //Send status to cache (expires in ~1 year)
+                    ResourceStatusMessage resourceStatusMessage =
+                            new ResourceStatusMessage(resourceUri, model,
+                                    new Date(System.currentTimeMillis() + 31560000000L));
+
+                    sendResourceStatusMessage(resourceStatusMessage);
+                }
+                catch (Exception e) {
+                    log.error("Exception while creating service to observe a file.", e);
+                }
+            }
+        }, getScheduledExecutorService());
+
+        serviceManager.registerResource(resourceRegistrationFuture, resourceUri);
+    }
+
+
+
+
+
+    /**
+     * Returns a {@link Collection} containing all the observed files (incl. directories)
+     * @return a {@link Collection} containing all the observed files (incl. directories)
+     */
+    public Collection<Path> getObservedDirectories(){
+        return watchKeys.values();
+    }
+
+    public Collection<Path> getObservedFiles(){
+        return this.observedResources.keySet();
+    }
+
+    public Collection<URI> getObservedResources(Path file){
+        return this.observedResources.get(file);
+    }
+
+    public Path getObservedDirectory(){
+        return this.observedDirectory;
+    }
 
 }
 

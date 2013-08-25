@@ -34,7 +34,7 @@ public class AbstractResourceObserver {
         return this.scheduledExecutorService;
     }
 
-    public void updateResourceStatus(final ResourceStatusMessage resourceStatusMessage){
+    public void sendResourceStatusMessage(final ResourceStatusMessage resourceStatusMessage){
         ChannelFuture future = Channels.write(localChannel, resourceStatusMessage);
 
         future.addListener(new ChannelFutureListener() {
@@ -50,7 +50,7 @@ public class AbstractResourceObserver {
         });
     }
 
-    public void removeResource(final InternalRemoveResourceMessage removeResourceMessage){
+    public void sendRemoveResourceMessage(final InternalRemoveResourceMessage removeResourceMessage){
         ChannelFuture future = Channels.write(localChannel, removeResourceMessage);
 
         future.addListener(new ChannelFutureListener() {

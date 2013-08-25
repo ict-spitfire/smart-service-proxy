@@ -21,4 +21,8 @@ public class InternalRemoveResourceMessage {
     public URI getResourceUri() {
         return resourceUri;
     }
+
+    public String toString(){
+        return "[Remove resource message] " + resourceUri + " (uri)";
+    }
 }
