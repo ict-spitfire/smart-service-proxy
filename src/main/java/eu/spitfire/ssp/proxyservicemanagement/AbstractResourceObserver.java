@@ -1,5 +1,7 @@
 package eu.spitfire.ssp.proxyservicemanagement;
 
+import com.google.common.util.concurrent.SettableFuture;
+import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourceMessage;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.channel.ChannelFuture;
@@ -9,6 +11,8 @@ import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
+import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -18,7 +22,9 @@ import java.util.concurrent.ScheduledExecutorService;
  * Time: 16:08
  * To change this template use File | Settings | File Templates.
  */
-public class AbstractResourceObserver {
+public abstract class AbstractResourceObserver {
+
+    public static long MILLIS_PER_YEAR = 31560000000L;
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -34,13 +40,21 @@ public class AbstractResourceObserver {
         return this.scheduledExecutorService;
     }
 
-    public void sendResourceStatusMessage(final ResourceStatusMessage resourceStatusMessage){
-        ChannelFuture future = Channels.write(localChannel, resourceStatusMessage);
+    public ChannelFuture cacheResourceStatus(URI resourceUri, Model resourceStatus){
+        return this.cacheResourceStatus(resourceUri, resourceStatus,
+                new Date(System.currentTimeMillis() + MILLIS_PER_YEAR));
+    }
 
-        future.addListener(new ChannelFutureListener() {
+    public ChannelFuture cacheResourceStatus(URI resourceUri, Model resourceStatus, Date expiry){
+
+        final ResourceStatusMessage resourceStatusMessage =
+                new ResourceStatusMessage(resourceUri, resourceStatus, expiry);
+
+        ChannelFuture channelFuture = Channels.write(localChannel, resourceStatusMessage);
+        channelFuture.addListener(new ChannelFutureListener() {
             @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                if(future.isSuccess())
+            public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                if (channelFuture.isSuccess())
                     log.debug("Succesfully updated resource {} (expiry: {}).",
                             resourceStatusMessage.getResourceUri(), resourceStatusMessage.getExpiry());
                 else
@@ -48,19 +62,24 @@ public class AbstractResourceObserver {
                             resourceStatusMessage.getResourceUri(), resourceStatusMessage.getExpiry());
             }
         });
+
+        return channelFuture;
     }
 
-    public void sendRemoveResourceMessage(final InternalRemoveResourceMessage removeResourceMessage){
-        ChannelFuture future = Channels.write(localChannel, removeResourceMessage);
+    public ChannelFuture removeResourceStatusFromCache(URI resourceUri){
+        final InternalRemoveResourceMessage removeResourceMessage = new InternalRemoveResourceMessage(resourceUri);
+        ChannelFuture channelFuture = Channels.write(localChannel, removeResourceMessage);
 
-        future.addListener(new ChannelFutureListener() {
+        channelFuture.addListener(new ChannelFutureListener() {
             @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                if(future.isSuccess())
+            public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                if (channelFuture.isSuccess())
                     log.debug("Succesfully removed resource {}.", removeResourceMessage.getResourceUri());
                 else
                     log.warn("Failed to remove resource {}.", removeResourceMessage.getResourceUri());
             }
         });
+
+        return channelFuture;
     }
 }

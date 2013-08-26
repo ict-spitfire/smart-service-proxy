@@ -10,16 +10,17 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 
 /**
-* Created with IntelliJ IDEA.
-* User: olli
-* Date: 12.07.13
-* Time: 15:40
-* To change this template use File | Settings | File Templates.
+ * The GUI is just an HTML page to show which resources states are stored in which local files.
+ *
+ * @author Oliver Kleine
 */
 public class FilesGatewayGui implements DefaultHttpRequestProcessor {
 
     private FilesObserver filesObserver;
 
+    /**
+     * @param filesObserver The instance of {@link FilesObserver} to observe directory
+     */
     public FilesGatewayGui(FilesObserver filesObserver){
         this.filesObserver = filesObserver;
     }

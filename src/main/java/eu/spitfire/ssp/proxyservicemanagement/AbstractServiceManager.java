@@ -42,19 +42,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * A {@link AbstractProxyServiceManager} instance is a software component to enable a client that is capable of talking HTTP to
- * communicate with an arbitrary server.
+ * A {@link AbstractServiceManager} instance is a software component to enable a client that is capable of
+ * talking HTTP to communicate with an arbitrary server.
  *
- * The {@link AbstractProxyServiceManager} is responsible for translating the incoming {@link HttpRequest} to whatever
- * (potentially proprietary) protocol the actual server talks and to produce a suitable {@link HttpResponse}
- * which is then sent to the client.
- *
- * Furthermore it is responsible for creating all necessary sub-components to manage the communication with the
- * actual server.
+ * Classes inheriting from {@link AbstractServiceManager} are responsible to provide the necessary components,
+ * i.e. {@link HttpRequestProcessor} instances to translate the incoming
+ * {@link HttpRequest} to whatever (potentially proprietary) protocol the actual server talks and to enable the
+ * SSP framework to produce a suitable {@link HttpResponse} which is then sent to the client.
  *
  * @author Oliver Kleine
  */
-public abstract class AbstractProxyServiceManager {
+public abstract class AbstractServiceManager {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -71,33 +69,32 @@ public abstract class AbstractProxyServiceManager {
 
     private String prefix;
 
-    protected AbstractProxyServiceManager(String prefix, LocalServerChannel localChannel,
-                                          final ScheduledExecutorService scheduledExecutorService){
+    protected AbstractServiceManager(String prefix, LocalServerChannel localChannel,
+                                     final ScheduledExecutorService scheduledExecutorService){
         this.prefix = prefix;
         this.localChannel = localChannel;
         this.scheduledExecutorService = scheduledExecutorService;
-
-
     }
 
     public abstract HttpRequestProcessor getGui();
 
     /**
-     * Method to be called by extending classes, i.e. instances of {@link AbstractProxyServiceManager} whenever there is a new
+     * Method to be called by extending classes, i.e. instances of {@link AbstractServiceManager} whenever there is a new
      * webservice to be created on the smart service proxy, if the network behind this gateway is an IP enabled
      * network.
      *
-     * @param resourceRegistrationFuture the {@link SettableFuture<URI>} containing the absolute {@link URI} for the newly registered
-     *                  service or a {@link Throwable} if an error occured after method completion.
-*      @param resourceUri the (original/remote) {@link URI} of the new resource to be registered.
+     * @param resourceUri the (original/remote) {@link URI} of the new resource to be registered.
      * @param requestProcessor the {@link HttpRequestProcessor} instance to handle incoming requests
+     *
+     * @return the {@link SettableFuture<URI>} containing the absolute {@link URI} for the newly registered
+     * service or a {@link Throwable} if an error occurred during the registration process.
      */
-    public void registerResource(final SettableFuture<URI> resourceRegistrationFuture, URI resourceUri,
-                                 final HttpRequestProcessor requestProcessor){
+    public SettableFuture<URI> registerResource(URI resourceUri, final HttpRequestProcessor requestProcessor){
+
+        final SettableFuture<URI> resourceRegistrationFuture = SettableFuture.create();
 
         //Retrieve the URI the new service is available at on the proxy
-        final SettableFuture<URI> proxyResourceUriFuture = SettableFuture.create();
-        retrieveProxyUri(proxyResourceUriFuture, resourceUri);
+        final SettableFuture<URI> proxyResourceUriFuture =  retrieveProxyUri(resourceUri);
 
         proxyResourceUriFuture.addListener(new Runnable() {
             @Override
@@ -130,6 +127,8 @@ public abstract class AbstractProxyServiceManager {
 
             }
         }, scheduledExecutorService);
+
+        return resourceRegistrationFuture;
     }
 
     /**
@@ -140,23 +139,31 @@ public abstract class AbstractProxyServiceManager {
      * fragment.
      *
      * If originURI is absolute the resource proxy URI will be like
-     * <code>http:<ssp-host>:<ssp-port>/?uri=originUri</code>. i.e. with the originUri in the query part of the
-     * resource proxy URI. If the originUri is relative, i.e. without scheme, host and port, the resource proxy URI will
-     * contain the path of the originUri in its path extended by a gateway prefix.
+     * <code>http:<ssp-host>:<ssp-port>/?uri=resourceUri</code>. i.e. with the resourceUri in the query part of the
+     * resource proxy URI. If the resourceUri is relative, i.e. without scheme, host and port, the resource proxy URI will
+     * contain the path of the resourceUri in its path extended by a gateway prefix.
      *
-     * @param uriRequestFuture the {@link SettableFuture<URI>} to eventually contain the absolute resource proxy URI
-     * @param originUri the {@link URI} of the origin (remote) service to get the resource proxy URI for.
+     * @param resourceUri the {@link URI} of the origin (remote) service to get the resource proxy URI for.
      */
-    public void retrieveProxyUri(SettableFuture<URI> uriRequestFuture, URI originUri){
-        Channels.write(localChannel, new InternalResourceProxyUriRequest(uriRequestFuture, this.getPrefix(),
-                originUri));
+    public SettableFuture<URI> retrieveProxyUri(URI resourceUri){
+        SettableFuture<URI> uriRequestFuture = SettableFuture.create();
+        InternalResourceProxyUriRequest proxyUriRequest =
+                new InternalResourceProxyUriRequest(uriRequestFuture, this.getPrefix(),
+                resourceUri);
+        Channels.write(localChannel, proxyUriRequest);
+        return uriRequestFuture;
     }
 
-    public final void prepare(){
+    /**
+     * Method invoked by the SSP framework to register a webservice for the GUI (if a GUI exists) and to
+     * invoke the {@link #initialize()} method.
+     */
+    public final void registerGuiAndInitialize(){
         HttpRequestProcessor gui = this.getGui();
         if(gui != null){
             try {
-                final SettableFuture<URI> guiRegistrationFuture = SettableFuture.create();
+                final SettableFuture<URI> guiRegistrationFuture =
+                        registerResource(new URI(null, null, null, -1, "/gui", null, null), gui);
 
                 guiRegistrationFuture.addListener(new Runnable() {
                     @Override
@@ -170,19 +177,17 @@ public abstract class AbstractProxyServiceManager {
                         }
                     }
                 }, scheduledExecutorService);
-
-                registerResource(guiRegistrationFuture, new URI(null, null, null, -1, "/gui", null, null), gui);
-            } catch (URISyntaxException e) {
+            }
+            catch (URISyntaxException e) {
                 log.error("This should never happen.", e);
             }
         }
-
         initialize();
     }
 
     /**
-     * This method is invoked upon construction of the gateway instance. It is considered to contain everything that is
-     * necessary to make the gateway instance working properly.
+     * Method automatically invoked upon construction of the gateway instance. It is considered to contain everything
+     * that is necessary to make the gateway instance working properly.
      */
     public abstract void initialize();
 
@@ -196,21 +201,6 @@ public abstract class AbstractProxyServiceManager {
     public String getPrefix() {
         return prefix;
     }
-
-//    /**
-//     * @param localChannel the {@link Channel} to send internal messages to e.g. register or update services
-//     */
-//    public void setLocalChannel(LocalServerChannel localChannel){
-//        this.localChannel = localChannel;
-//    }
-
-//    /**
-//     * @param scheduledExecutorService the thread-pool to handle gateway specific tasks, e.g. register or update
-//     *                                 services
-//     */
-//    public void setExecutorService(ScheduledExecutorService scheduledExecutorService){
-//        this.scheduledExecutorService = scheduledExecutorService;
-//    }
 
     public abstract void shutdown();
 }

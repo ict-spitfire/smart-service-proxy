@@ -8,6 +8,8 @@ import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.proxyservicemanagement.AbstractResourceObserver;
 import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourceMessage;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
+import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,10 +38,10 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
     private WatchService watchService;
     private Map<WatchKey, Path> watchKeys;
     private Multimap<Path, URI> observedResources;
-    private FilesProxyServiceManager serviceManager;
+    private FilesServiceManager serviceManager;
     private Path observedDirectory;
 
-    public FilesObserver(FilesProxyServiceManager serviceManager, Path directory,
+    public FilesObserver(FilesServiceManager serviceManager, Path directory,
                          ScheduledExecutorService scheduledExecutorService,
                          LocalServerChannel localChannel) throws IOException {
 
@@ -87,7 +89,7 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
                     log.debug("Event {} at path {}", eventKind, filePath);
 
                     if(eventKind == ENTRY_CREATE || eventKind == ENTRY_MODIFY){
-                        handleFileCreation(filePath);
+                        handleFileCreationOrModification(filePath);
                     }
                     else if(eventKind == ENTRY_DELETE){
                         handleFileDeletion(filePath);
@@ -95,7 +97,7 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
                 }
             }
 
-            // reset key and remove from set if directory no longer accessible
+            // reset key and remove from set if directory is no longer accessible
             boolean valid = watchKey.reset();
             if (!valid) {
                 log.error("Stopped observation of directory {}.", watchKeys.get(watchKey));
@@ -104,6 +106,11 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
         }
     }
 
+    /**
+     * The invocation of this method causes the given directory and all its subdirectories to be observed
+     *
+     * @param directoryPath the directory to be observed
+     */
     private void observeDirectoryRecursively(Path directoryPath){
         try{
             Files.walkFileTree(directoryPath, new SimpleFileVisitor<Path>() {
@@ -123,7 +130,7 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
         }
     }
 
-    private void handleFileCreation(final Path filePath){
+    private void handleFileCreationOrModification(final Path filePath){
         //If a new directory was created then try to add it
         if (Files.isDirectory(filePath, NOFOLLOW_LINKS)) {
             observeDirectoryRecursively(filePath);
@@ -138,7 +145,7 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
 
         Map<URI, Model> resourcesFromFile = SemanticFileTools.readModelsFromFile(filePath);
 
-        //Delete resources which where included in the previous version of this file
+        //Detect resources which where included in the previous version of this file but not in the new version
         List<URI> deletedResourceUris = new ArrayList<>();
         for(URI resourceUri : observedResources.get(filePath).toArray(new URI[0])){
             if(!resourcesFromFile.keySet().contains(resourceUri)){
@@ -147,21 +154,16 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
             }
         }
 
+        //Delete resources which where included in the previous version of this file but not in the new version
         for(URI resourceUri : deletedResourceUris){
-            InternalRemoveResourceMessage removeResourceMessage = new InternalRemoveResourceMessage(resourceUri);
-            sendRemoveResourceMessage(removeResourceMessage);
-
+            removeResourceStatusFromCache(resourceUri);
             observedResources.remove(filePath, resourceUri);
         }
 
-
-        //Register or update resources from file
+        //Register or update resources from file (expiry is in ~1 year)
         for(URI resourceUri : resourcesFromFile.keySet()){
             if(observedResources.values().contains(resourceUri)){
-                ResourceStatusMessage resourceStatusMessage =
-                        new ResourceStatusMessage(resourceUri, resourcesFromFile.get(resourceUri),
-                                new Date(System.currentTimeMillis() + 31560000000L));
-                sendResourceStatusMessage(resourceStatusMessage);
+                cacheResourceStatus(resourceUri, resourcesFromFile.get(resourceUri));
             }
             else{
                 registerResource(filePath, resourceUri, resourcesFromFile.get(resourceUri));
@@ -178,17 +180,14 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
 
         Collection<URI> deletedResources = observedResources.get(filePath);
         for(URI resourceUri : deletedResources){
-            InternalRemoveResourceMessage removeResourceMessage = new InternalRemoveResourceMessage(resourceUri);
-            sendRemoveResourceMessage(removeResourceMessage);
+            removeResourceStatusFromCache(resourceUri);
         }
 
         observedResources.removeAll(filePath);
     }
 
-
-
     private void registerResource(final Path filePath, final URI resourceUri, final Model model){
-        final SettableFuture<URI> resourceRegistrationFuture = SettableFuture.create();
+        final SettableFuture<URI> resourceRegistrationFuture = serviceManager.registerResource(resourceUri);
         resourceRegistrationFuture.addListener(new Runnable(){
             @Override
             public void run() {
@@ -200,25 +199,23 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
                     observedResources.put(filePath, resourceUri);
                     log.info("Successfully registered resource {} from file {}.", resourceUri, filePath);
 
-                    //Send status to cache (expires in ~1 year)
-                    ResourceStatusMessage resourceStatusMessage =
-                            new ResourceStatusMessage(resourceUri, model,
-                                    new Date(System.currentTimeMillis() + 31560000000L));
-
-                    sendResourceStatusMessage(resourceStatusMessage);
+                    ChannelFuture future = cacheResourceStatus(resourceUri, model);
+                    future.addListener(new ChannelFutureListener() {
+                        @Override
+                        public void operationComplete(ChannelFuture future) throws Exception {
+                            if(future.isSuccess())
+                                log.info("Succesfully stored status of {} in cache.", resourceUri);
+                            else
+                                log.error("Failed to store status of {} in cache.", resourceUri);
+                        }
+                    });
                 }
                 catch (Exception e) {
                     log.error("Exception while creating service to observe a file.", e);
                 }
             }
         }, getScheduledExecutorService());
-
-        serviceManager.registerResource(resourceRegistrationFuture, resourceUri);
     }
-
-
-
-
 
     /**
      * Returns a {@link Collection} containing all the observed files (incl. directories)

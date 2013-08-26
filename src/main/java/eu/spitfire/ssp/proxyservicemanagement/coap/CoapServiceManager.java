@@ -30,7 +30,7 @@ import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import eu.spitfire.ssp.proxyservicemanagement.AbstractProxyServiceManager;
+import eu.spitfire.ssp.proxyservicemanagement.AbstractServiceManager;
 import eu.spitfire.ssp.proxyservicemanagement.coap.noderegistration.CoapNodeRegistrationService;
 import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 import eu.spitfire.ssp.proxyservicemanagement.coap.observation.CoapResourceObserver;
@@ -43,7 +43,7 @@ import java.net.URI;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * The {@link CoapProxyServiceManager} provides all functionality to manage CoAP resources, i.e. it provides a
+ * The {@link CoapServiceManager} provides all functionality to manage CoAP resources, i.e. it provides a
  * {@link CoapServerApplication} with a {@link CoapNodeRegistrationService} to enable CoAP webservers to register
  * at the SSP.
  *
@@ -52,7 +52,7 @@ import java.util.concurrent.ScheduledExecutorService;
  *
  * @author Oliver Kleine
  */
-public class CoapProxyServiceManager extends AbstractProxyServiceManager {
+public class CoapServiceManager extends AbstractServiceManager {
 
     public static final int COAP_SERVER_PORT = 5683;
 
@@ -66,16 +66,15 @@ public class CoapProxyServiceManager extends AbstractProxyServiceManager {
      * @param localChannel the {@link LocalServerChannel} to send internal messages, e.g. resource status updates.
      * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
      */
-    public CoapProxyServiceManager(String prefix, LocalServerChannel localChannel,
-                                   ScheduledExecutorService scheduledExecutorService){
+    public CoapServiceManager(String prefix, LocalServerChannel localChannel,
+                              ScheduledExecutorService scheduledExecutorService){
         super(prefix, localChannel, scheduledExecutorService);
     }
 
     @Override
-    public void registerResource(final SettableFuture<URI> resourceRegistrationFuture, final URI resourceUri,
-                                 final HttpRequestProcessor requestProcessor){
+    public SettableFuture<URI> registerResource(final URI resourceUri, final HttpRequestProcessor requestProcessor){
 
-        super.registerResource(resourceRegistrationFuture, resourceUri, requestProcessor);
+        SettableFuture<URI> resourceRegistrationFuture = super.registerResource(resourceUri, requestProcessor);
 
         //Start observation of the newly registered resources
         resourceRegistrationFuture.addListener(new Runnable() {
@@ -92,7 +91,7 @@ public class CoapProxyServiceManager extends AbstractProxyServiceManager {
                         //send observation request
                         coapClientApplication.writeCoapRequest(coapRequest,
                                 new CoapResourceObserver(coapRequest, scheduledExecutorService,
-                                        CoapProxyServiceManager.this.localChannel));
+                                        CoapServiceManager.this.localChannel));
 
                     }
                 } catch (Exception e) {
@@ -100,6 +99,8 @@ public class CoapProxyServiceManager extends AbstractProxyServiceManager {
                 }
             }
         }, scheduledExecutorService);
+
+        return resourceRegistrationFuture;
     }
 
     @Override

@@ -1,25 +1,44 @@
 package eu.spitfire.ssp.proxyservicemanagement;
 
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import com.google.common.util.concurrent.SettableFuture;
+import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 
 import java.net.URI;
 
 /**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 08.08.13
- * Time: 15:24
- * To change this template use File | Settings | File Templates.
+ * Exception to be thrown by implementations of {@link AbstractServiceManager} or its subcomponents whenever
+ * something went wrong during the processing of an incoming {@link HttpRequest}.
+ *
+ * To be more precise, instances
+ * of this exception must be set on the given {@link SettableFuture} on method invocation of
+ * {@link HttpRequestProcessor#processHttpRequest(SettableFuture, HttpRequest)}.
+ *
+ * Upon setting such an exception, the SSP will send a proper {@link HttpResponse} to the client
+ *
+ * @author Oliver Kleine
  */
 public class ProxyServiceException extends Exception{
 
     private HttpResponseStatus httpResponseStatus;
     private URI resourceUri;
 
+    /**
+     * @param resourceUri the {@link URI} of the resource that caused the exception.
+     * @param httpResponseStatus the {@link HttpResponseStatus} to be set on the {@link HttpResponse}.
+     */
     public ProxyServiceException(URI resourceUri, HttpResponseStatus httpResponseStatus){
         this(resourceUri, httpResponseStatus, httpResponseStatus.toString());
     }
 
+
+    /**
+     * @param resourceUri the {@link URI} of the resource that caused the exception.
+     * @param httpResponseStatus the {@link HttpResponseStatus} to be set on the {@link HttpResponse}.
+     * @param message a {@łink String} containing additional messages to included in the payload of the response.
+     */
     public ProxyServiceException(URI resourceUri, HttpResponseStatus httpResponseStatus,
                                  String message){
         super(message);
@@ -27,16 +46,31 @@ public class ProxyServiceException extends Exception{
         this.httpResponseStatus = httpResponseStatus;
     }
 
+    /**
+     * @param resourceUri the {@link URI} of the resource that caused the exception.
+     * @param httpResponseStatus the {@link HttpResponseStatus} to be set on the {@link HttpResponse}.
+     * @param message a {@łink String} containing additional messages to included in the payload of the response.
+     * @param cause the {@link Throwable} that caused this exception. The stacktrace will be included in the
+     *              payload of the HTTP response.
+     */
     public ProxyServiceException(URI resourceUri, HttpResponseStatus httpResponseStatus,
                                  String message, Throwable cause){
         this(resourceUri, httpResponseStatus, message);
         this.initCause(cause);
     }
 
+    /**
+     * Returns the {@link HttpResponseStatus} to be set on the HTTP response
+     * @return the {@link HttpResponseStatus} to be set on the HTTP response
+     */
     public HttpResponseStatus getHttpResponseStatus() {
         return httpResponseStatus;
     }
 
+    /**
+     * Returns the {@link URI} of the resource that caused the exception
+     * @return the {@link URI} of the resource that caused the exception
+     */
     public URI getResourceUri() {
         return resourceUri;
     }

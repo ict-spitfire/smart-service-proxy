@@ -10,7 +10,7 @@ import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.MessageDoesNotAllowPayloadException;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import eu.spitfire.ssp.proxyservicemanagement.coap.CoapProxyServiceManager;
+import eu.spitfire.ssp.proxyservicemanagement.coap.CoapServiceManager;
 import eu.spitfire.ssp.proxyservicemanagement.coap.requestprocessing.HttpRequestProcessorForCoapServices;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceAlreadyRegisteredException;
 import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
@@ -41,20 +41,20 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private CoapProxyServiceManager coapProxyServiceManager;
+    private CoapServiceManager coapProxyServiceManager;
 
     //Application to send the service discovery requests
     private CoapClientApplication coapClientApplication;
     private HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices;
 
     /**
-     * @param coapProxyServiceManager the {@link CoapProxyServiceManager} to register new resources at the proxy
+     * @param coapProxyServiceManager the {@link eu.spitfire.ssp.proxyservicemanagement.coap.CoapServiceManager} to register new resources at the proxy
      * @param coapClientApplication the {@link CoapClientApplication} to send resource discovery requests
      *                              (to .well-known/core) upon reception of registration request
      * @param httpRequestProcessorForCoapServices the {@link HttpRequestProcessor} to handle incoming HTTP requests
      *                                            for CoAP resources.
      */
-    public CoapNodeRegistrationService(CoapProxyServiceManager coapProxyServiceManager,
+    public CoapNodeRegistrationService(CoapServiceManager coapProxyServiceManager,
                                        CoapClientApplication coapClientApplication,
                                        HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices){
         super("/here_i_am", Boolean.TRUE);
@@ -106,7 +106,7 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
                 targetURIHost = "[" + targetURIHost.substring(1) + "]";
 
             //create request for /.well-known/core and a processor to process the response
-            URI targetURI = new URI("coap://" + targetURIHost + ":" + CoapProxyServiceManager.COAP_SERVER_PORT +
+            URI targetURI = new URI("coap://" + targetURIHost + ":" + CoapServiceManager.COAP_SERVER_PORT +
                     "/.well-known/core");
             CoapRequest serviceDiscoveryRequest = new CoapRequest(MsgType.CON, Code.GET, targetURI);
 
@@ -119,20 +119,24 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
                 @Override
                 public void run() {
                     try {
-                        Set<ListenableFuture<URI>> serviceRegistrationFutureSet = new HashSet<>();
+                        Set<ListenableFuture<URI>> resourceRegistrationFutureSet = new HashSet<>();
 
                         //register new proxy services
                         for (String remoteServicePath : serviceDiscoveryFuture.get()) {
-                            final SettableFuture<URI> serviceRegistrationFuture = SettableFuture.create();
-                            serviceRegistrationFutureSet.add(serviceRegistrationFuture);
+//                            final SettableFuture<URI> serviceRegistrationFuture = SettableFuture.create();
+//                            resourceRegistrationFutureSet.add(serviceRegistrationFuture);
+                            URI resourceUri = new URI("coap", null, remoteAddress.getAddress().getHostAddress(), -1,
+                                                        remoteServicePath, null, null);
 
-                            coapProxyServiceManager.registerResource(serviceRegistrationFuture,
-                                    new URI("coap", null, remoteAddress.getAddress().getHostAddress(), -1,
-                                            remoteServicePath, null, null), httpRequestProcessorForCoapServices);
+                            SettableFuture<URI> resourceRegistrationFuture =
+                                    coapProxyServiceManager.registerResource(resourceUri,
+                                                        httpRequestProcessorForCoapServices);
+
+                             resourceRegistrationFutureSet.add(resourceRegistrationFuture);
                         }
 
                         final ListenableFuture<List<URI>> registrationCompletedFuture =
-                                Futures.allAsList(serviceRegistrationFutureSet);
+                                Futures.allAsList(resourceRegistrationFutureSet);
 
                         //Send 201 response when the registration was successful or 500 response in case of an error
                         registrationCompletedFuture.addListener(new Runnable() {

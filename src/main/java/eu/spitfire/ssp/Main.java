@@ -25,14 +25,15 @@
 package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import eu.spitfire.ssp.proxyservicemanagement.AbstractProxyServiceManager;
-import eu.spitfire.ssp.proxyservicemanagement.files.FilesProxyServiceManager;
+import eu.spitfire.ssp.proxyservicemanagement.AbstractServiceManager;
+import eu.spitfire.ssp.proxyservicemanagement.files.FilesServiceManager;
+import eu.spitfire.ssp.proxyservicemanagement.simple.SimpleServiceManager;
 import eu.spitfire.ssp.server.pipeline.SmartServiceProxyPipelineFactory;
 import eu.spitfire.ssp.server.pipeline.handler.cache.AbstractSemanticCache;
 import eu.spitfire.ssp.server.pipeline.handler.cache.P2PSemanticCache;
 import eu.spitfire.ssp.server.pipeline.handler.cache.SimpleSemanticCache;
-import eu.spitfire.ssp.proxyservicemanagement.coap.CoapProxyServiceManager;
-import eu.spitfire.ssp.proxyservicemanagement.simple.SimpleProxyServiceManager;
+import eu.spitfire.ssp.proxyservicemanagement.coap.CoapServiceManager;
+//import eu.spitfire.ssp.proxyservicemanagement.simple.SimpleServiceManager;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.ConsoleAppender;
@@ -111,21 +112,20 @@ public class Main {
 
         for(String proxyServiceManagerName : enabledProxyServiceManagers){
 
-            AbstractProxyServiceManager proxyServiceManager;
+            AbstractServiceManager proxyServiceManager;
 
             //Simple (John Smith VCARD)
             if(proxyServiceManagerName.equals("simple")){
                 log.info("Create Simple Gateway.");
                 proxyServiceManager =
-                        new SimpleProxyServiceManager("simple", internalChannel, scheduledExecutorService);
-
+                        new SimpleServiceManager("simple", internalChannel, scheduledExecutorService);
             }
 
             //CoAP
             else if(proxyServiceManagerName.equals("coap")) {
                 log.info("Create CoAP Gateway.");
                 proxyServiceManager =
-                        new CoapProxyServiceManager("coap", internalChannel, scheduledExecutorService);
+                        new CoapServiceManager("coap", internalChannel, scheduledExecutorService);
             }
 
             //Local files
@@ -136,7 +136,7 @@ public class Main {
                 }
                 boolean copyExamples = config.getBoolean("files.copyExamples");
                 proxyServiceManager =
-                        new FilesProxyServiceManager("files", internalChannel, scheduledExecutorService, copyExamples,
+                        new FilesServiceManager("files", internalChannel, scheduledExecutorService, copyExamples,
                                 directory);
             }
 
@@ -146,7 +146,7 @@ public class Main {
                 continue;
             }
 
-            proxyServiceManager.prepare();
+            proxyServiceManager.registerGuiAndInitialize();
         }
     }
 

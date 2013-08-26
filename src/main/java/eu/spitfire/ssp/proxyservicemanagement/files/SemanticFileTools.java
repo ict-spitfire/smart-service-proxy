@@ -13,16 +13,23 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 25.08.13
- * Time: 15:21
- * To change this template use File | Settings | File Templates.
+ * A helper class to handle semantic information from files
+ *
+ * @author Oliver Kleine
  */
 public abstract class SemanticFileTools {
 
     private static Logger log = LoggerFactory.getLogger(SemanticFileTools.class.getName());
 
+    /**
+     * Reads the file at the given path and returns a {@link Map} containing a {@link Model} instance for each
+     * subject that was found in the given file. The keys of this Map are the {@link URI}s identifying the subjects.
+     *
+     * @param filePath the {@link Path} of the local file containing the semantic informations
+     *
+     * @return a {@link Map} containing the subjects in the given file as keys and a {@link Model} for each such
+     * subject.
+     */
     public static Map<URI, Model> readModelsFromFile(Path filePath){
         try{
             BufferedReader fileReader = new BufferedReader(new FileReader(filePath.toString()));
@@ -38,26 +45,34 @@ public abstract class SemanticFileTools {
         }
     }
 
-    public static Map<URI, Model> getModelsPerSubject(Model completeModel){
+    /**
+     * Splits the given {@link Model} into several {@link Model} instances, one for each subject contained in the
+     * given model.
+     *
+     * @param model a {@link Model} instance to be split up into models per subject
+     *
+     * @return a {@link Map} containing the subjects of the given model as keys and the appropriate model as value
+     */
+    public static Map<URI, Model> getModelsPerSubject(Model model){
 
         Map<URI, Model> result = new HashMap<>();
 
         try{
             //Iterate over all subjects in the Model
-            ResIterator subjectIterator = completeModel.listSubjects();
+            ResIterator subjectIterator = model.listSubjects();
             while(subjectIterator.hasNext()){
                 Resource resource = subjectIterator.next();
 
                 log.debug("Create model for subject {}.", resource.getURI());
-                Model model = ModelFactory.createDefaultModel();
+                Model subModel = ModelFactory.createDefaultModel();
 
                 //Iterate over all properties of the actual subject
                 StmtIterator stmtIterator = resource.listProperties();
                 while(stmtIterator.hasNext()){
-                    model = model.add(stmtIterator.next());
+                    subModel = subModel.add(stmtIterator.next());
                 }
 
-                result.put(new URI(resource.getURI()), model);
+                result.put(new URI(resource.getURI()), subModel);
             }
         }
         catch (URISyntaxException e) {

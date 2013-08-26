@@ -64,46 +64,4 @@ public class ResourceStatusMessage {
     public String toString(){
         return "[Resource status message] " + getResourceUri() + " (URI), " + getExpiry() + " (expiry)";
     }
-
-    public static ResourceStatusMessage create(CoapResponse coapResponse, URI resourceUri) throws Exception{
-
-        Model resourceStatus = ModelFactory.createDefaultModel();;
-
-        //read payload from CoAP response
-        byte[] coapPayload = new byte[coapResponse.getPayload().readableBytes()];
-        coapResponse.getPayload().getBytes(0, coapPayload);
-
-        if(coapResponse.getContentType() == OptionRegistry.MediaType.APP_SHDT){
-            log.debug("SHDT payload in CoAP response.");
-            (new ShdtDeserializer(64)).read_buffer(resourceStatus, coapPayload);
-        }
-        else{
-            Language language = Language.getByCoapMediaType(coapResponse.getContentType());
-            if(language == null){
-                throw new ProxyServiceException(resourceUri, INTERNAL_SERVER_ERROR,
-                        "CoAP response had no semantic content type");
-            }
-
-            try{
-                resourceStatus.read(new ByteArrayInputStream(coapPayload), null, language.lang);
-            }
-            catch(Exception e){
-                log.error("Error while reading resource status from CoAP response!", e);
-                throw new ProxyServiceException(resourceUri, INTERNAL_SERVER_ERROR,
-                        "Error while reading resource status from CoAP response!", e);
-            }
-        }
-
-        //Get expiry of resource
-        Long maxAge = (Long) coapResponse.getOption(OptionRegistry.OptionName.MAX_AGE)
-                .get(0).getDecodedValue();
-
-        log.debug("Max-Age option of CoAP response: {}", maxAge);
-
-        return new ResourceStatusMessage(resourceUri, resourceStatus, getExpiryDate(maxAge));
-    }
-
-    private static Date getExpiryDate(Long secondsFromNow){
-        return new Date(System.currentTimeMillis() + 1000 * secondsFromNow);
-    }
 }

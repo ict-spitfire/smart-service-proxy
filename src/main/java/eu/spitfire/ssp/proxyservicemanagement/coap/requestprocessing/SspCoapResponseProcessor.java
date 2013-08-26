@@ -1,17 +1,20 @@
 package eu.spitfire.ssp.proxyservicemanagement.coap.requestprocessing;
 
 import com.google.common.util.concurrent.SettableFuture;
+import com.hp.hpl.jena.rdf.model.Model;
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import eu.spitfire.ssp.proxyservicemanagement.ProxyServiceException;
+import eu.spitfire.ssp.proxyservicemanagement.coap.CoapToolbox;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.util.Date;
 
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.GATEWAY_TIMEOUT;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
@@ -71,8 +74,10 @@ public class SspCoapResponseProcessor implements CoapResponseProcessor, Retransm
         }
 
         try{
+            Model resourceStatus = CoapToolbox.getModelFromCoapResponse(coapResponse, resourceUri);
+            Date expiry = CoapToolbox.getExpiryFromCoapResponse(coapResponse);
             ResourceStatusMessage resourceStatusMessage =
-                    ResourceStatusMessage.create(coapResponse, resourceUri);
+                    new ResourceStatusMessage(resourceUri, resourceStatus, expiry);
             resourceStatusFuture.set(resourceStatusMessage);
         }
         catch(Exception e){
