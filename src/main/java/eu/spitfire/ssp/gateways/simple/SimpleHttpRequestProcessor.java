@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.proxyservicemanagement.simple;
+package eu.spitfire.ssp.gateways.simple;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
@@ -12,18 +12,27 @@ import java.net.URI;
 import java.util.Date;
 
 /**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 01.07.13
- * Time: 13:29
- * To change this template use File | Settings | File Templates.
+ * The {@link SimpleHttpRequestProcessor} is the {@link SemanticHttpRequestProcessor} instance to handle
+ * incoming HTTP requests for the simple example resource (<code>http://example.org/JohnSmith</code>.
+ *
+ * @author Oliver Kleine
  */
 public class SimpleHttpRequestProcessor implements SemanticHttpRequestProcessor {
+
+    /**
+     * The time in milliseconds a status may be cached after a request.
+     */
+    public static long LIFETIME_MILLIS = 5000;
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     private Model model;
     private URI resourceUri;
 
+    /**
+     * @param model the {@link Model} that represents John Smith
+     *
+     * @throws Exception if some error occurred (this should actually never happen!)
+     */
     public SimpleHttpRequestProcessor(Model model) throws Exception{
         this.model = model;
         resourceUri = new URI(model.listSubjects().next().toString());
@@ -35,8 +44,8 @@ public class SimpleHttpRequestProcessor implements SemanticHttpRequestProcessor 
 
         log.debug("Received request for path {}.", httpRequest.getUri());
 
-        //Send response
-        Date date = new Date(System.currentTimeMillis() + 5000);
+        //Set response
+        Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
         ResourceStatusMessage resourceStatusMessage =
                     new ResourceStatusMessage(resourceUri, model, date);
         responseFuture.set(resourceStatusMessage);

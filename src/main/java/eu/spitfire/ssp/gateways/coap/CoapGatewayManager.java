@@ -22,7 +22,7 @@
 * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-package eu.spitfire.ssp.proxyservicemanagement.coap;
+package eu.spitfire.ssp.gateways.coap;
 
 import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
@@ -30,11 +30,11 @@ import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import eu.spitfire.ssp.proxyservicemanagement.AbstractServiceManager;
-import eu.spitfire.ssp.proxyservicemanagement.coap.noderegistration.CoapNodeRegistrationService;
+import eu.spitfire.ssp.gateways.AbstractGatewayManager;
+import eu.spitfire.ssp.gateways.coap.noderegistration.CoapNodeRegistrationService;
 import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
-import eu.spitfire.ssp.proxyservicemanagement.coap.observation.CoapResourceObserver;
-import eu.spitfire.ssp.proxyservicemanagement.coap.requestprocessing.HttpRequestProcessorForCoapServices;
+import eu.spitfire.ssp.gateways.coap.observation.CoapResourceObserver;
+import eu.spitfire.ssp.gateways.coap.requestprocessing.HttpRequestProcessorForCoapServices;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +43,7 @@ import java.net.URI;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * The {@link CoapServiceManager} provides all functionality to manage CoAP resources, i.e. it provides a
+ * The {@link CoapGatewayManager} provides all functionality to manage CoAP resources, i.e. it provides a
  * {@link CoapServerApplication} with a {@link CoapNodeRegistrationService} to enable CoAP webservers to register
  * at the SSP.
  *
@@ -52,7 +52,7 @@ import java.util.concurrent.ScheduledExecutorService;
  *
  * @author Oliver Kleine
  */
-public class CoapServiceManager extends AbstractServiceManager {
+public class CoapGatewayManager extends AbstractGatewayManager {
 
     public static final int COAP_SERVER_PORT = 5683;
 
@@ -66,7 +66,7 @@ public class CoapServiceManager extends AbstractServiceManager {
      * @param localChannel the {@link LocalServerChannel} to send internal messages, e.g. resource status updates.
      * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
      */
-    public CoapServiceManager(String prefix, LocalServerChannel localChannel,
+    public CoapGatewayManager(String prefix, LocalServerChannel localChannel,
                               ScheduledExecutorService scheduledExecutorService){
         super(prefix, localChannel, scheduledExecutorService);
     }
@@ -91,7 +91,7 @@ public class CoapServiceManager extends AbstractServiceManager {
                         //send observation request
                         coapClientApplication.writeCoapRequest(coapRequest,
                                 new CoapResourceObserver(coapRequest, scheduledExecutorService,
-                                        CoapServiceManager.this.localChannel));
+                                        CoapGatewayManager.this.localChannel));
 
                     }
                 } catch (Exception e) {
@@ -110,7 +110,7 @@ public class CoapServiceManager extends AbstractServiceManager {
 
     @Override
     public void initialize() {
-        //create client for proxyservicemanagement request processing and resource observation
+        //create client for gateways request processing and resource observation
         this.coapClientApplication = new CoapClientApplication();
 
         //create instance of HttpRequestProcessor

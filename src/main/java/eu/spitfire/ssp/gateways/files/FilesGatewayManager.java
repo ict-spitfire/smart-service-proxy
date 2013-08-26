@@ -22,10 +22,10 @@
 * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-package eu.spitfire.ssp.proxyservicemanagement.files;
+package eu.spitfire.ssp.gateways.files;
 
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.proxyservicemanagement.AbstractServiceManager;
+import eu.spitfire.ssp.gateways.AbstractGatewayManager;
 import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
@@ -37,7 +37,7 @@ import java.nio.file.*;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
-* The FilesServiceManager is responsible for the webServices backed by the files (except of *.swp) in the directory given as
+* The FilesGatewayManager is responsible for the webServices backed by the files (except of *.swp) in the directory given as
 * constructor parameter. That means every file gets a URI to be requested via GET request to read its content.
 * There are only GET requests supported. Other methods but GET cause a response
 * with status "method not allowed". GET requests on resources backed by malformed files (i.e. content
@@ -45,16 +45,15 @@ import java.util.concurrent.ScheduledExecutorService;
 *
 * @author Oliver Kleine
 */
-public class FilesServiceManager extends AbstractServiceManager {
+public class FilesGatewayManager extends AbstractGatewayManager {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private HttpRequestProcessorForLocalFiles httpRequestProcessor;
+    private HttpRequestProcessorForFiles httpRequestProcessor;
 
     private Path observedDirectory;
     private FilesObserver filesObserver;
 
-    private HttpRequestProcessor gui;
     private boolean copyExamples;
 
     /**
@@ -63,7 +62,7 @@ public class FilesServiceManager extends AbstractServiceManager {
      *
      * @param directory the paths to the directory where the files are located
      */
-    public FilesServiceManager(String prefix, LocalServerChannel localChannel,
+    public FilesGatewayManager(String prefix, LocalServerChannel localChannel,
                                ScheduledExecutorService scheduledExecutorService, boolean copyExamples,
                                String directory) throws IOException {
         super(prefix, localChannel, scheduledExecutorService);
@@ -75,12 +74,11 @@ public class FilesServiceManager extends AbstractServiceManager {
         if(Files.exists(examplesDirectory))
             deleteRecursicvly(examplesDirectory.toFile());
 
-        httpRequestProcessor = new HttpRequestProcessorForLocalFiles();
+        httpRequestProcessor = new HttpRequestProcessorForFiles();
         this.filesObserver = new FilesObserver(this, observedDirectory, scheduledExecutorService, localChannel);
-        this.gui = new FilesGatewayGui(filesObserver);
     }
 
-    public SettableFuture<URI> registerResource(final URI resourceUri){
+    SettableFuture<URI> registerResource(final URI resourceUri){
         final SettableFuture<URI> resourceRegistrationFuture = registerResource(resourceUri, httpRequestProcessor);
 
         resourceRegistrationFuture.addListener(new Runnable(){
@@ -99,9 +97,13 @@ public class FilesServiceManager extends AbstractServiceManager {
         return resourceRegistrationFuture;
     }
 
+    /**
+     * Returns an {@link HttpRequestProcessor} to provide the GUI in HTML
+     * @return an {@link HttpRequestProcessor} to provide the GUI in HTML
+     */
     @Override
     public HttpRequestProcessor getGui() {
-        return gui;
+        return new FilesServiceManagerGui(filesObserver);
     }
 
     /**
@@ -110,15 +112,15 @@ public class FilesServiceManager extends AbstractServiceManager {
     @Override
     public void initialize() {
         try{
-            //create directory ./examples
-            Path examplesDirectory = observedDirectory.resolve("examples");
-
-            Files.createDirectory(examplesDirectory);
-
+            //start the observation of the directory
             scheduledExecutorService.submit(filesObserver);
 
-            if(copyExamples)
+            //create directory ./examples
+            if(copyExamples){
+                Path examplesDirectory = observedDirectory.resolve("examples");
+                Files.createDirectory(examplesDirectory);
                 copyExampleFiles(examplesDirectory);
+            }
         }
         catch (IOException e) {
             log.error("Exception during initialization!", e);
@@ -161,6 +163,12 @@ public class FilesServiceManager extends AbstractServiceManager {
         }
     }
 
+    /**
+     * Deletes the given file from the file system. If the given file is a directory then all files and
+     * sub-directories are also deleted.
+     *
+     * @param file the {@link File} instance that represents the file (or directory) to be deleted from the file-system
+     */
     private void deleteRecursicvly(File file){
         log.debug("Try to delete {}", file.getAbsolutePath());
         if (file.isDirectory()) {
@@ -180,7 +188,7 @@ public class FilesServiceManager extends AbstractServiceManager {
 
     @Override
     public void shutdown() {
-        //To change body of implemented methods use File | Settings | File Templates.
+
     }
 }
 

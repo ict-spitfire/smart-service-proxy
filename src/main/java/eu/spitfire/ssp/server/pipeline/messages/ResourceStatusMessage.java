@@ -1,20 +1,11 @@
 package eu.spitfire.ssp.server.pipeline.messages;
 
 import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
-import eu.spitfire.ssp.server.payloadserialization.Language;
-import eu.spitfire.ssp.server.payloadserialization.ShdtDeserializer;
-import eu.spitfire.ssp.proxyservicemanagement.ProxyServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.util.Date;
-
-import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
 /**
  * Instances of {@link ResourceStatusMessage} contain the {@link URI} to identify the resource, a {@link Model}

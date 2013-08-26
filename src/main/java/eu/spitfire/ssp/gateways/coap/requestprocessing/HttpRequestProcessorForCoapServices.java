@@ -1,11 +1,11 @@
-package eu.spitfire.ssp.proxyservicemanagement.coap.requestprocessing;
+package eu.spitfire.ssp.gateways.coap.requestprocessing;
 
 import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import eu.spitfire.ssp.proxyservicemanagement.ProxyServiceException;
+import eu.spitfire.ssp.gateways.ProxyServiceException;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import eu.spitfire.ssp.server.webservices.MethodNotAllowedException;
 import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
@@ -49,16 +49,16 @@ public class HttpRequestProcessorForCoapServices implements SemanticHttpRequestP
             if(resourceProxyUri.getQuery() == null || !(resourceProxyUri.getQuery().startsWith("uri=coap://"))){
                 resourceStatusFuture.setException(new ProxyServiceException(resourceProxyUri, BAD_GATEWAY,
                         "Requested URI scheme was either emoty or not coap."));
-                return;
             }
+            else{
+                final URI resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
+                log.debug("CoAP target URI: {}", resourceUri);
 
-            final URI resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
-            log.debug("CoAP target URI: {}", resourceUri);
-
-            //Send CoAP request and wait for response
-            CoapRequest coapRequest = convertToCoapRequest(httpRequest, resourceUri);
-            coapClientApplication.writeCoapRequest(coapRequest,
-                    new SspCoapResponseProcessor(resourceStatusFuture, resourceUri));
+                //Send CoAP request and wait for response
+                CoapRequest coapRequest = convertToCoapRequest(httpRequest, resourceUri);
+                coapClientApplication.writeCoapRequest(coapRequest,
+                        new CoapProxyResponseProcessor(resourceStatusFuture, resourceUri));
+            }
         }
         catch (Exception e) {
             String message = "Exception while converting from HTTP to CoAP request!";

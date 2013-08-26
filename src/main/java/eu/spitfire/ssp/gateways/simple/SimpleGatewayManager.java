@@ -22,13 +22,13 @@
 * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-package eu.spitfire.ssp.proxyservicemanagement.simple;
+package eu.spitfire.ssp.gateways.simple;
 
-import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.vocabulary.VCARD;
-import eu.spitfire.ssp.proxyservicemanagement.AbstractServiceManager;
+import eu.spitfire.ssp.gateways.AbstractGatewayManager;
+import eu.spitfire.ssp.server.pipeline.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
 import org.apache.log4j.Logger;
@@ -36,32 +36,32 @@ import org.jboss.netty.channel.local.LocalServerChannel;
 
 import java.net.URI;
 import java.util.concurrent.ScheduledExecutorService;
-import eu.spitfire.ssp.server.pipeline.handler.HttpRequestDispatcher;
 
 /**
- * A {@link SimpleServiceManager} instance hosts a simple standard model. This backend is basicly to ensure the
+ * A {@link SimpleGatewayManager} instance hosts a simple standard model. This backend is basicly to ensure the
  * functionality of the underlying handler stack. If it's instanciated (by setting
  * <code>enableProxyServiceManager="simple"</code> in the <code>ssp.properties</code> file) it registers its WebService
  * (http://example.org/JohnSmith) at the {@link HttpRequestDispatcher} which causes this WebService to occur on the
  * HTML page (at <code>core://<ssp-ip>:<ssp-port>/) listing the available webServices.
  *
- * It is a very simple example to show how to use the given functionality for further implementaion of other
- * classes inheriting from {@link AbstractServiceManager}.
+ * It is a very simple example to show how to use the given functionality for further implementations of other
+ * classes inheriting from {@link eu.spitfire.ssp.gateways.AbstractGatewayManager}.
  *
  * @author Oliver Kleine
  */
 
-public class SimpleServiceManager extends AbstractServiceManager {
+public class SimpleGatewayManager extends AbstractGatewayManager {
 
-    private static Logger log = Logger.getLogger(SimpleServiceManager.class.getName());
+    private static Logger log = Logger.getLogger(SimpleGatewayManager.class.getName());
 
-    public SimpleServiceManager(String prefix, LocalServerChannel localChannel,
+    public SimpleGatewayManager(String prefix, LocalServerChannel localChannel,
                                 ScheduledExecutorService scheduledExecutorService) throws Exception{
         super(prefix, localChannel, scheduledExecutorService);
     }
 
     @Override
     public HttpRequestProcessor getGui() {
+        //No GUI available
         return null;
     }
 

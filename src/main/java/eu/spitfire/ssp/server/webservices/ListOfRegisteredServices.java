@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.util.Map;
 import java.util.Set;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
@@ -26,26 +27,37 @@ public class ListOfRegisteredServices implements DefaultHttpRequestProcessor{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private Set<URI> services;
+    private Map<URI, HttpRequestProcessor> services;
 
     /**
      * @param services the {@link Set} containing the {@link URI}s to be listed in the HTTP response
      */
-    public ListOfRegisteredServices(Set<URI> services){
+    public ListOfRegisteredServices(Map<URI, HttpRequestProcessor> services){
         this.services = services;
     }
 
     private ChannelBuffer getHtmlListOfServices() {
 
-        StringBuilder buf = new StringBuilder();
-        buf.append("<html><body>\n");
-        buf.append("<h2>Available services</h2>\n");
-        buf.append("<ul>\n");
+        StringBuilder semanticServices = new StringBuilder();
+        StringBuilder otherServices = new StringBuilder();
 
-        for(URI uri : services){
-            buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
+        for(URI uri : services.keySet()){
+            HttpRequestProcessor httpRequestProcessor = services.get(uri);
+            if(httpRequestProcessor instanceof SemanticHttpRequestProcessor)
+                semanticServices.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
+            else
+                otherServices.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
         }
 
+        StringBuilder buf = new StringBuilder();
+        buf.append("<html><body>\n");
+        buf.append("<h2>Info and Administration Services</h2>\n");
+        buf.append("<ul>\n");
+        buf.append(otherServices.toString());
+        buf.append("</ul>\n");
+        buf.append("<h2>Registered Semantic Resources</h2>");
+        buf.append("<ul>\n");
+        buf.append(semanticServices.toString());
         buf.append("</ul>\n");
         buf.append("</body></html>\n");
 

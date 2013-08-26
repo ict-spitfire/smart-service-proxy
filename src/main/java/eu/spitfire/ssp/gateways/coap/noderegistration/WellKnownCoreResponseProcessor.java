@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.proxyservicemanagement.coap.noderegistration;
+package eu.spitfire.ssp.gateways.coap.noderegistration;
 
 import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
@@ -14,19 +14,25 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
-* Created with IntelliJ IDEA.
-* User: olli
-* Date: 12.04.13
-* Time: 15:41
-* To change this template use File | Settings | File Templates.
+ * Instance of {@link CoapResponseProcessor} to process incoming responses from <code>.well-known/core</code> CoAP resources.
+ *
+ * @author Oliver Kleine
 */
 public class WellKnownCoreResponseProcessor implements CoapResponseProcessor, RetransmissionTimeoutProcessor{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     private SettableFuture<Set<String>> serviceDiscoveryFuture;
 
-    public void setServiceDiscoveryFuture(SettableFuture<Set<String>> serviceDiscoveryFuture){
-        this.serviceDiscoveryFuture = serviceDiscoveryFuture;
+    public WellKnownCoreResponseProcessor(){
+        serviceDiscoveryFuture = SettableFuture.create();
+    }
+
+//    public void setServiceDiscoveryFuture(SettableFuture<Set<String>> serviceDiscoveryFuture){
+//        this.serviceDiscoveryFuture = serviceDiscoveryFuture;
+//    }
+
+    public SettableFuture<Set<String>> getServiceDiscoveryFuture(){
+        return this.serviceDiscoveryFuture;
     }
 
     @Override

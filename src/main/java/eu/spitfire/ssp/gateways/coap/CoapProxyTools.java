@@ -1,10 +1,10 @@
-package eu.spitfire.ssp.proxyservicemanagement.coap;
+package eu.spitfire.ssp.gateways.coap;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
-import eu.spitfire.ssp.proxyservicemanagement.ProxyServiceException;
+import eu.spitfire.ssp.gateways.ProxyServiceException;
 import eu.spitfire.ssp.server.payloadserialization.Language;
 import eu.spitfire.ssp.server.payloadserialization.ShdtDeserializer;
 import org.slf4j.Logger;
@@ -17,16 +17,24 @@ import java.util.Date;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
 /**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 26.08.13
- * Time: 13:33
- * To change this template use File | Settings | File Templates.
+ * This is a helper class to provide abstract methods to get proxy relevant information from CoAP responses.
+ *
+ * @author Oliver Kleine
  */
-public abstract class CoapToolbox {
+public abstract class CoapProxyTools {
 
-    private static Logger log = LoggerFactory.getLogger(CoapToolbox.class.getName());
+    private static Logger log = LoggerFactory.getLogger(CoapProxyTools.class.getName());
 
+    /**
+     * Reads the payload of the given {@link CoapResponse} into an instance of {@link Model} and returns that
+     * {@link Model}.
+     *
+     * @param coapResponse the {@link CoapResponse} to read the payload
+     * @param resourceUri the {@link URI} of the resource, i.e. the service that was requested
+     * @return a {@link Model} containing the information from the payload
+     *
+     * @throws ProxyServiceException if an error occurred
+     */
     public static Model getModelFromCoapResponse(CoapResponse coapResponse, URI resourceUri)
             throws ProxyServiceException{
 
@@ -60,6 +68,14 @@ public abstract class CoapToolbox {
         return resourceStatus;
     }
 
+    /**
+     * Converts the max-age option from the given {@link CoapResponse} into a {@link Date}.
+     *
+     * @param coapResponse the {@link CoapResponse} to take its max-age option
+     *
+     * @return the {@link Date} the actual status of the resource expires accoording to the max-age option
+     * of the given {@link CoapResponse}
+     */
     public static Date getExpiryFromCoapResponse(CoapResponse coapResponse){
 
         //Get expiry of resource

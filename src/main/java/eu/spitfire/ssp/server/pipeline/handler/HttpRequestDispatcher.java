@@ -28,7 +28,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.Main;
 import eu.spitfire.ssp.server.pipeline.messages.*;
 import eu.spitfire.ssp.server.webservices.*;
-import eu.spitfire.ssp.proxyservicemanagement.*;
+import eu.spitfire.ssp.gateways.*;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
@@ -277,7 +277,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             URI targetUri = new URI("http", null, Main.SSP_DNS_NAME,
                     Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT , "/", null, null);
 
-            registerResource(targetUri, new ListOfRegisteredServices(proxyServices.keySet()));
+            registerResource(targetUri, new ListOfRegisteredServices(proxyServices));
         } catch (URISyntaxException e) {
             log.error("This should never happen!", e);
         }

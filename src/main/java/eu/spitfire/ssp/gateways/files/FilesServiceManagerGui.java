@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.proxyservicemanagement.files;
+package eu.spitfire.ssp.gateways.files;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.server.webservices.DefaultHttpRequestProcessor;
@@ -14,14 +14,14 @@ import java.nio.file.Path;
  *
  * @author Oliver Kleine
 */
-public class FilesGatewayGui implements DefaultHttpRequestProcessor {
+public class FilesServiceManagerGui implements DefaultHttpRequestProcessor {
 
     private FilesObserver filesObserver;
 
     /**
      * @param filesObserver The instance of {@link FilesObserver} to observe directory
      */
-    public FilesGatewayGui(FilesObserver filesObserver){
+    public FilesServiceManagerGui(FilesObserver filesObserver){
         this.filesObserver = filesObserver;
     }
 

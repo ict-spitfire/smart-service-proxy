@@ -1,8 +1,7 @@
-package eu.spitfire.ssp.proxyservicemanagement.coap.observation;
+package eu.spitfire.ssp.gateways.coap.observation;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
 import de.uniluebeck.itm.ncoap.communication.observe.ObservationTimeoutProcessor;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
@@ -10,24 +9,17 @@ import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.Retransmission
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
-import eu.spitfire.ssp.proxyservicemanagement.AbstractResourceObserver;
-import eu.spitfire.ssp.proxyservicemanagement.ProxyServiceException;
-import eu.spitfire.ssp.proxyservicemanagement.coap.CoapToolbox;
-import eu.spitfire.ssp.server.payloadserialization.Language;
-import eu.spitfire.ssp.server.payloadserialization.ShdtDeserializer;
-import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourceMessage;
+import eu.spitfire.ssp.gateways.AbstractResourceObserver;
+import eu.spitfire.ssp.gateways.coap.CoapProxyTools;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
 
 /**
@@ -72,8 +64,8 @@ public class CoapResourceObserver extends AbstractResourceObserver implements Co
         //create resource status message to update the cache
         try {
             URI resourceUri = coapRequest.getTargetUri();
-            Model resourceStatus = CoapToolbox.getModelFromCoapResponse(coapResponse, coapRequest.getTargetUri());
-            Date expiry = CoapToolbox.getExpiryFromCoapResponse(coapResponse);
+            Model resourceStatus = CoapProxyTools.getModelFromCoapResponse(coapResponse, coapRequest.getTargetUri());
+            Date expiry = CoapProxyTools.getExpiryFromCoapResponse(coapResponse);
             cacheResourceStatus(resourceUri, resourceStatus, expiry);
         } catch (Exception e) {
             log.error("Exception while creating resource status message from CoAP update notification.", e);

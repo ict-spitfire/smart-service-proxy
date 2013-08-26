@@ -25,21 +25,19 @@
 package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import eu.spitfire.ssp.proxyservicemanagement.AbstractServiceManager;
-import eu.spitfire.ssp.proxyservicemanagement.files.FilesServiceManager;
-import eu.spitfire.ssp.proxyservicemanagement.simple.SimpleServiceManager;
+import eu.spitfire.ssp.gateways.AbstractGatewayManager;
+import eu.spitfire.ssp.gateways.coap.CoapGatewayManager;
+import eu.spitfire.ssp.gateways.files.FilesGatewayManager;
+import eu.spitfire.ssp.gateways.simple.SimpleGatewayManager;
 import eu.spitfire.ssp.server.pipeline.SmartServiceProxyPipelineFactory;
 import eu.spitfire.ssp.server.pipeline.handler.cache.AbstractSemanticCache;
 import eu.spitfire.ssp.server.pipeline.handler.cache.P2PSemanticCache;
 import eu.spitfire.ssp.server.pipeline.handler.cache.SimpleSemanticCache;
-import eu.spitfire.ssp.proxyservicemanagement.coap.CoapServiceManager;
-//import eu.spitfire.ssp.proxyservicemanagement.simple.SimpleServiceManager;
+//import eu.spitfire.ssp.gateways.simple.SimpleGatewayManager;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
+import org.apache.log4j.*;
+import org.apache.log4j.xml.DOMConfigurator;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.local.DefaultLocalServerChannelFactory;
 import org.jboss.netty.channel.local.LocalServerChannel;
@@ -104,28 +102,28 @@ public class Main {
         log.debug("Start creating enabled ProxyServiceCreators!");
 
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("Proxy-Service-Mgmt.-Thread #%d").build();
+        int numberOfMgmtThreads = Math.max(Runtime.getRuntime().availableProcessors() * 2, 4);
         ScheduledExecutorService scheduledExecutorService =
-                Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() * 2, threadFactory);
-
+                Executors.newScheduledThreadPool(numberOfMgmtThreads, threadFactory);
 
         String[] enabledProxyServiceManagers = config.getStringArray("enableProxyServiceManager");
 
         for(String proxyServiceManagerName : enabledProxyServiceManagers){
 
-            AbstractServiceManager proxyServiceManager;
+            AbstractGatewayManager proxyServiceManager;
 
             //Simple (John Smith VCARD)
             if(proxyServiceManagerName.equals("simple")){
                 log.info("Create Simple Gateway.");
                 proxyServiceManager =
-                        new SimpleServiceManager("simple", internalChannel, scheduledExecutorService);
+                        new SimpleGatewayManager("simple", internalChannel, scheduledExecutorService);
             }
 
             //CoAP
             else if(proxyServiceManagerName.equals("coap")) {
                 log.info("Create CoAP Gateway.");
                 proxyServiceManager =
-                        new CoapServiceManager("coap", internalChannel, scheduledExecutorService);
+                        new CoapGatewayManager("coap", internalChannel, scheduledExecutorService);
             }
 
             //Local files
@@ -136,11 +134,11 @@ public class Main {
                 }
                 boolean copyExamples = config.getBoolean("files.copyExamples");
                 proxyServiceManager =
-                        new FilesServiceManager("files", internalChannel, scheduledExecutorService, copyExamples,
+                        new FilesGatewayManager("files", internalChannel, scheduledExecutorService, copyExamples,
                                 directory);
             }
 
-            //Unknown AbstractGatewayFactory Type
+            //Unknown AbstractGatewayFactory type
             else {
                 log.error("Config file error: Gateway for '" + proxyServiceManagerName + "' not found!");
                 continue;
@@ -150,19 +148,8 @@ public class Main {
         }
     }
 
-    private static void initializeLogging(){
-        String pattern = "%-23d{yyyy-MM-dd HH:mm:ss,SSS} | %-32.32t | %-30.30c{1} | %-5p | %m%n";
-        PatternLayout patternLayout = new PatternLayout(pattern);
-
-        Logger.getRootLogger().removeAllAppenders();
-        Logger.getRootLogger().addAppender(new ConsoleAppender(patternLayout));
-
-        Logger.getRootLogger().setLevel(Level.DEBUG);
-        Logger.getLogger("eu.spitfire.ssp.proxyservicemanagement.files").setLevel(Level.DEBUG);
-        Logger.getLogger("eu.spitfire.ssp.server.pipeline.handler").setLevel(Level.DEBUG);
-        //Logger.getLogger("eu.spitfire.ssp.server.payloadserialization.ShdtDeserializer").setLevel(Level.ERROR);
-        Logger.getLogger("eu.spitfire.ssp.server.pipeline.handler.SemanticPayloadFormatter").setLevel(Level.ERROR);
-        //Logger.getLogger("de.uniluebeck.itm.ncoap").setLevel(Level.INFO);
+    private static void initializeLogging() {
+        DOMConfigurator.configure("log4j.xml");
     }
 }
 

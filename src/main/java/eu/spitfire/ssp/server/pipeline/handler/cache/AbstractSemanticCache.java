@@ -79,15 +79,15 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
 
         HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
-        URI proxyUri = new URI(httpRequest.getUri());
+        URI resourceProxyUri = new URI(httpRequest.getUri());
         URI resourceUri;
 
-        if(proxyUri.getQuery() != null && proxyUri.getQuery().startsWith("uri="))
-            resourceUri = new URI(proxyUri.getQuery().substring(4));
+        if(resourceProxyUri.getQuery() != null && resourceProxyUri.getQuery().startsWith("uri="))
+            resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
         else
             resourceUri = new URI("http", null, Main.SSP_DNS_NAME,
                                   Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT,
-                                  proxyUri.getPath(), proxyUri.getQuery(), proxyUri.getFragment());
+                                  resourceProxyUri.getPath(), resourceProxyUri.getQuery(), resourceProxyUri.getFragment());
 
         log.debug("Lookup resource with URI: {}", resourceUri);
         ResourceStatusMessage cachedResource = getCachedResource(resourceUri);

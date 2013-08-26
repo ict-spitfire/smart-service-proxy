@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.proxyservicemanagement.files;
+package eu.spitfire.ssp.gateways.files;
 
 import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.server.payloadserialization.Language;
@@ -17,9 +17,9 @@ import java.util.Map;
  *
  * @author Oliver Kleine
  */
-public abstract class SemanticFileTools {
+public abstract class FilesProxyTools {
 
-    private static Logger log = LoggerFactory.getLogger(SemanticFileTools.class.getName());
+    private static Logger log = LoggerFactory.getLogger(FilesProxyTools.class.getName());
 
     /**
      * Reads the file at the given path and returns a {@link Map} containing a {@link Model} instance for each

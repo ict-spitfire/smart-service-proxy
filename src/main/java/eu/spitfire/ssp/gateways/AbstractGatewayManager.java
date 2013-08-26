@@ -22,7 +22,7 @@
 * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-package eu.spitfire.ssp.proxyservicemanagement;
+package eu.spitfire.ssp.gateways;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.server.pipeline.messages.*;
@@ -42,17 +42,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * A {@link AbstractServiceManager} instance is a software component to enable a client that is capable of
+ * A {@link AbstractGatewayManager} instance is a software component to enable a client that is capable of
  * talking HTTP to communicate with an arbitrary server.
  *
- * Classes inheriting from {@link AbstractServiceManager} are responsible to provide the necessary components,
+ * Classes inheriting from {@link AbstractGatewayManager} are responsible to provide the necessary components,
  * i.e. {@link HttpRequestProcessor} instances to translate the incoming
  * {@link HttpRequest} to whatever (potentially proprietary) protocol the actual server talks and to enable the
  * SSP framework to produce a suitable {@link HttpResponse} which is then sent to the client.
  *
  * @author Oliver Kleine
  */
-public abstract class AbstractServiceManager {
+public abstract class AbstractGatewayManager {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -69,7 +69,7 @@ public abstract class AbstractServiceManager {
 
     private String prefix;
 
-    protected AbstractServiceManager(String prefix, LocalServerChannel localChannel,
+    protected AbstractGatewayManager(String prefix, LocalServerChannel localChannel,
                                      final ScheduledExecutorService scheduledExecutorService){
         this.prefix = prefix;
         this.localChannel = localChannel;
@@ -79,7 +79,7 @@ public abstract class AbstractServiceManager {
     public abstract HttpRequestProcessor getGui();
 
     /**
-     * Method to be called by extending classes, i.e. instances of {@link AbstractServiceManager} whenever there is a new
+     * Method to be called by extending classes, i.e. instances of {@link AbstractGatewayManager} whenever there is a new
      * webservice to be created on the smart service proxy, if the network behind this gateway is an IP enabled
      * network.
      *

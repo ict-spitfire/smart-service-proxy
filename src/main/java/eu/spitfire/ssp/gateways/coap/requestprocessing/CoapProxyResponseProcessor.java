@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.proxyservicemanagement.coap.requestprocessing;
+package eu.spitfire.ssp.gateways.coap.requestprocessing;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
@@ -6,8 +6,8 @@ import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import eu.spitfire.ssp.proxyservicemanagement.ProxyServiceException;
-import eu.spitfire.ssp.proxyservicemanagement.coap.CoapToolbox;
+import eu.spitfire.ssp.gateways.ProxyServiceException;
+import eu.spitfire.ssp.gateways.coap.CoapProxyTools;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
@@ -20,14 +20,14 @@ import static org.jboss.netty.handler.codec.http.HttpResponseStatus.GATEWAY_TIME
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
 /**
- * A {@link SspCoapResponseProcessor} provides awaits a {@link CoapResponse} and converts the content
+ * A {@link CoapProxyResponseProcessor} provides awaits a {@link CoapResponse} and converts the content
  * to a proper {@link ResourceStatusMessage}.
  *
  * @author Oliver Kleine
  */
-public class SspCoapResponseProcessor implements CoapResponseProcessor, RetransmissionTimeoutProcessor{
+public class CoapProxyResponseProcessor implements CoapResponseProcessor, RetransmissionTimeoutProcessor{
 
-    private Logger log = LoggerFactory.getLogger(SspCoapResponseProcessor.class.getName());
+    private Logger log = LoggerFactory.getLogger(CoapProxyResponseProcessor.class.getName());
 
     private SettableFuture<ResourceStatusMessage> resourceStatusFuture;
     private URI resourceUri;
@@ -38,7 +38,7 @@ public class SspCoapResponseProcessor implements CoapResponseProcessor, Retransm
      *                             error occured.
      * @param resourceUri the {@link URI} identifying the resource the {@link CoapResponse} comes from
      */
-    public SspCoapResponseProcessor(SettableFuture<ResourceStatusMessage> resourceStatusFuture, URI resourceUri){
+    public CoapProxyResponseProcessor(SettableFuture<ResourceStatusMessage> resourceStatusFuture, URI resourceUri){
         this.resourceStatusFuture = resourceStatusFuture;
         this.resourceUri = resourceUri;
     }
@@ -74,8 +74,8 @@ public class SspCoapResponseProcessor implements CoapResponseProcessor, Retransm
         }
 
         try{
-            Model resourceStatus = CoapToolbox.getModelFromCoapResponse(coapResponse, resourceUri);
-            Date expiry = CoapToolbox.getExpiryFromCoapResponse(coapResponse);
+            Model resourceStatus = CoapProxyTools.getModelFromCoapResponse(coapResponse, resourceUri);
+            Date expiry = CoapProxyTools.getExpiryFromCoapResponse(coapResponse);
             ResourceStatusMessage resourceStatusMessage =
                     new ResourceStatusMessage(resourceUri, resourceStatus, expiry);
             resourceStatusFuture.set(resourceStatusMessage);

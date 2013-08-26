@@ -1,6 +1,5 @@
-package eu.spitfire.ssp.proxyservicemanagement;
+package eu.spitfire.ssp.gateways;
 
-import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourceMessage;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
