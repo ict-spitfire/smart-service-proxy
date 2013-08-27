@@ -142,10 +142,10 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
      * cache to delete the resource status from the cache when its no longer valid.
      *
      * @param resourceUri the {@link URI} identifying the resource to be cached
-     * @param model the {@link Model} representing the resource status to be cached
+     * @param resourceStatus the {@link Model} representing the resource status to be cached
      * @param expiry the expiry of the resource status to be cached
      */
-    public abstract void putResourceToCache(URI resourceUri, Model model, Date expiry);
+    public abstract void putResourceToCache(URI resourceUri, Model resourceStatus, Date expiry);
 
     /**
      * Method to delete a cached resource from the cache.

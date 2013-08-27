@@ -15,7 +15,7 @@ public class P2PSemanticCache extends AbstractSemanticCache{
     }
 
     @Override
-    public void putResourceToCache(URI resourceUri, Model model, Date expiry) {
+    public void putResourceToCache(URI resourceUri, Model resourceStatus, Date expiry) {
         //To change body of implemented methods use File | Settings | File Templates.
     }
 

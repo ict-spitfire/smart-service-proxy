@@ -31,6 +31,7 @@ import eu.spitfire.ssp.gateways.files.FilesGatewayManager;
 import eu.spitfire.ssp.gateways.simple.SimpleGatewayManager;
 import eu.spitfire.ssp.server.pipeline.SmartServiceProxyPipelineFactory;
 import eu.spitfire.ssp.server.pipeline.handler.cache.AbstractSemanticCache;
+import eu.spitfire.ssp.server.pipeline.handler.cache.JenaSdbSemanticCache;
 import eu.spitfire.ssp.server.pipeline.handler.cache.P2PSemanticCache;
 import eu.spitfire.ssp.server.pipeline.handler.cache.SimpleSemanticCache;
 //import eu.spitfire.ssp.gateways.simple.SimpleGatewayManager;
@@ -81,6 +82,22 @@ public class Main {
             cache = new SimpleSemanticCache();
         else if("p2p".equals(cacheType))
             cache = new P2PSemanticCache();
+        else if("jenaSDB".equals(cacheType)){
+            String jdbcUrl = config.getString("cache.jenaSDB.jdbc.url");
+            String user = config.getString("cache.jenaSDB.jdbc.user");
+            String password = config.getString("cache.jenaSDB.jdbc.password");
+
+            if(jdbcUrl == null)
+                throw new NullPointerException("'cache.jenaSDB.jdbc.url' missing in ssp.properties");
+
+            if(user == null)
+                throw new NullPointerException("'cache.jenaSDB.jdbc.user' missing in ssp.properties");
+
+            if(password == null)
+                throw new NullPointerException("'cache.jenaSDB.jdbc.password' missing in ssp.properties");
+
+            cache = new JenaSdbSemanticCache(jdbcUrl, user, password);
+        }
 
         SmartServiceProxyPipelineFactory pipelineFactory = new SmartServiceProxyPipelineFactory(executorService, cache);
         bootstrap.setPipelineFactory(pipelineFactory);
