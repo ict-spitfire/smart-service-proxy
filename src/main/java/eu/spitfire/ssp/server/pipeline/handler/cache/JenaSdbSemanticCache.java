@@ -33,12 +33,11 @@ public class JenaSdbSemanticCache extends AbstractSemanticCache {
 
     public JenaSdbSemanticCache(String jdbcUrl, String user, String password) throws Exception {
         Class.forName("com.mysql.jdbc.Driver");
-        storeDescription = new StoreDesc(LayoutType.LayoutTripleNodesHash,
-                DatabaseType.MySQL);
-
         JDBC.loadDriverMySQL();
 
+        storeDescription = new StoreDesc(LayoutType.LayoutTripleNodesHash, DatabaseType.MySQL);
         sdbConnection = new SDBConnection(jdbcUrl, user, password);
+
         Store store = SDBFactory.connectStore(sdbConnection, storeDescription);
 
         if(!StoreUtils.isFormatted(store))
@@ -53,10 +52,16 @@ public class JenaSdbSemanticCache extends AbstractSemanticCache {
         Model model = SDBFactory.connectNamedModel(store, resourceUri.toString());
 
         store.close();
-        if(model.listSubjects().hasNext())
+        if(model.listSubjects().hasNext()){
+            log.info("Resource {} found in cache.", resourceUri);
             return new ResourceStatusMessage(resourceUri, model, new Date(System.currentTimeMillis() + 100000));
-        else
+        }
+        else{
+            log.info("Resource {} NOT found in cache.", resourceUri);
             return null;
+        }
+
+
     }
 
     @Override
