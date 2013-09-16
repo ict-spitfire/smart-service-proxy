@@ -6,11 +6,14 @@ import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
 import eu.spitfire.ssp.backends.ProxyServiceException;
 import eu.spitfire.ssp.server.payloadserialization.Language;
 import eu.spitfire.ssp.server.payloadserialization.ShdtDeserializer;
+import org.jboss.netty.handler.codec.http.HttpHeaders;
+import org.jboss.netty.handler.codec.http.HttpMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -31,6 +34,33 @@ import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SER
 public abstract class ResourceToolBox {
 
     private static Logger log = LoggerFactory.getLogger(ResourceToolBox.class.getName());
+
+    public static Model getModelFromHttpMessage(HttpMessage httpMessage) throws ProxyServiceException{
+
+        Model resourceStatus = ModelFactory.createDefaultModel();
+
+        //read payload from HTTP message
+        byte[] httpPayload = new byte[httpMessage.getContent().readableBytes()];
+
+        httpMessage.getContent().getBytes(0, httpPayload);
+
+        Language language = Language.getByHttpMimeType(httpMessage.getHeader(HttpHeaders.Names.CONTENT_TYPE));
+        if(language == null){
+            throw new ProxyServiceException(null, INTERNAL_SERVER_ERROR, "Could not process content type: " +
+                    HttpHeaders.Names.CONTENT_TYPE + ": " + httpMessage.getHeader(HttpHeaders.Names.CONTENT_TYPE));
+        }
+
+        try{
+            resourceStatus.read(new ByteArrayInputStream(httpPayload), null, language.lang);
+        }
+        catch(Exception e){
+            log.error("Error while reading resource status from CoAP response!", e);
+            throw new ProxyServiceException(null, INTERNAL_SERVER_ERROR,
+                    "Error while reading resource status from HTTP message paylaod!", e);
+        }
+
+        return resourceStatus;
+    }
 
     /**
      * Reads the payload of the given {@link de.uniluebeck.itm.ncoap.message.CoapResponse} into an instance of {@link Model} and returns that
@@ -92,6 +122,14 @@ public abstract class ResourceToolBox {
         log.debug("Max-Age option of CoAP response: {}", maxAge);
 
         return new Date(System.currentTimeMillis() + 1000 * maxAge);
+    }
+
+    public static Model readModelFromFile(Path filePath) throws FileNotFoundException {
+        BufferedReader fileReader = new BufferedReader(new FileReader(filePath.toString()));
+        Model model = ModelFactory.createDefaultModel();
+        model.read(fileReader, null, Language.RDF_N3.lang);
+
+        return model;
     }
 
     /**

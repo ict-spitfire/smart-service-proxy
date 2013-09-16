@@ -77,7 +77,8 @@ public class FilesBackendManager extends AbstractBackendManager {
             deleteRecursicvly(examplesDirectory.toFile());
 
         httpRequestProcessor = new HttpRequestProcessorForFiles();
-        this.filesObserver = new FilesObserver(this, observedDirectory, scheduledExecutorService, localChannel);
+        this.filesObserver = new FilesObserver(this, observedDirectory, scheduledExecutorService, localChannel,
+                httpRequestProcessor);
     }
 
     SettableFuture<URI> registerResource(final URI resourceUri){

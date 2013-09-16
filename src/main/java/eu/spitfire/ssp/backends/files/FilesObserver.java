@@ -45,6 +45,7 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
     private Multimap<Path, URI> observedResources;
     private FilesBackendManager serviceManager;
     private Path observedDirectory;
+    private HttpRequestProcessorForFiles requestProcessor;
 
     /**
      * @param serviceManager The {@link FilesBackendManager} that is responsible for registration and maintainance of
@@ -58,11 +59,13 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
      */
     public FilesObserver(FilesBackendManager serviceManager, Path directory,
                          ScheduledExecutorService scheduledExecutorService,
-                         LocalServerChannel localChannel) throws IOException {
+                         LocalServerChannel localChannel,
+                         HttpRequestProcessorForFiles requestProcessor) throws IOException {
 
         super(scheduledExecutorService, localChannel);
 
         this.observedDirectory = directory;
+        this.requestProcessor = requestProcessor;
         this.watchService = FileSystems.getDefault().newWatchService();
         this.watchKeys = Collections.synchronizedMap(new HashMap<WatchKey, Path>());
         this.observedResources = Multimaps.synchronizedMultimap(HashMultimap.<Path, URI>create());
@@ -154,6 +157,11 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
 
         Map<URI, Model> resourcesFromFile = ResourceToolBox.readResourcesFromFile(filePath);
 
+        //Add all resources from file to HTTP request processor
+        for(URI resourceURI : resourcesFromFile.keySet()){
+            requestProcessor.addResource(resourceURI, filePath);
+        }
+
         //Detect resources which where included in the previous version of this file but not in the new version
         List<URI> deletedResourceUris = new ArrayList<>();
         for(URI resourceUri : observedResources.get(filePath).toArray(new URI[0])){
@@ -167,6 +175,7 @@ public class FilesObserver extends AbstractResourceObserver implements Runnable{
         for(URI resourceUri : deletedResourceUris){
             removeResourceStatusFromCache(resourceUri);
             observedResources.remove(filePath, resourceUri);
+            requestProcessor.removeResource(resourceUri);
         }
 
         //Register or update resources from file (expiry is in ~1 year)
