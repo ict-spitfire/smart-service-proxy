@@ -3,26 +3,24 @@ package eu.spitfire.ssp.backends.files;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
+import eu.spitfire.ssp.backends.AbstractResourceObserver;
 import eu.spitfire.ssp.backends.ProxyServiceException;
 import eu.spitfire.ssp.backends.coap.ResourceToolBox;
-import eu.spitfire.ssp.server.payloadserialization.Language;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
-import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileWriter;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -44,22 +42,45 @@ public class HttpRequestProcessorForFiles implements SemanticHttpRequestProcesso
                                    HttpRequest httpRequest) {
 
         log.info("Received request for resource {}", httpRequest.getUri());
-        if(httpRequest.getMethod() == HttpMethod.GET){
-            processGET(resourceStatusFuture, httpRequest);
+        try{
+            if(httpRequest.getMethod() == HttpMethod.GET){
+                processGET(resourceStatusFuture, httpRequest);
+            }
+            else if (httpRequest.getMethod() == HttpMethod.POST){
+                processPOST(resourceStatusFuture, httpRequest);
+            }
+            else if (httpRequest.getMethod() == HttpMethod.PUT){
+                processPUT(resourceStatusFuture, httpRequest);
+            }
         }
-        else if (httpRequest.getMethod() == HttpMethod.PUT){
-            processPUT(resourceStatusFuture, httpRequest);
+        catch (Exception e) {
+            resourceStatusFuture.setException(e);
         }
+
+    }
+
+    public void processPOST(SettableFuture<ResourceStatusMessage> resourceStatusFuture,
+                            HttpRequest httpRequest) throws URISyntaxException {
+
+        URI resourceProxyUri = new URI(httpRequest.getUri());
+        URI resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
+
+        ProxyServiceException exception = new ProxyServiceException(resourceUri, HttpResponseStatus.METHOD_NOT_ALLOWED,
+                "Method POST is not supported for resource " + resourceUri);
+
+        resourceStatusFuture.setException(exception);
     }
 
     private void processPUT(SettableFuture<ResourceStatusMessage> resourceStatusFuture,
-                            HttpRequest httpRequest){
-        try{
-            URI resourceProxyUri = new URI(httpRequest.getUri());
-            URI resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
+                            HttpRequest httpRequest) throws URISyntaxException, IOException, ProxyServiceException {
 
-            //Read model from file
-            Path resourceFile = resources.get(resourceUri);
+        URI resourceProxyUri = new URI(httpRequest.getUri());
+        URI resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
+
+        //Read model from file
+        Path resourceFile = resources.get(resourceUri);
+
+        synchronized (resourceFile){
             Model modelFromFile = ResourceToolBox.readModelFromFile(resourceFile);
 
             //Delete the resource from the model
@@ -70,27 +91,10 @@ public class HttpRequestProcessorForFiles implements SemanticHttpRequestProcesso
             //Add the new resource status into the model
             Model newModel = modelFromFile.union(ResourceToolBox.getModelFromHttpMessage(httpRequest));
 
-            //Write new status to the file
-            FileWriter fileWriter = new FileWriter(resourceFile.toFile());
-            newModel.write(fileWriter, Language.RDF_N3.lang);
-            fileWriter.flush();
-            fileWriter.close();
-
-
-            resourceStatusFuture.setException(new ProxyServiceException(resourceUri, HttpResponseStatus.OK,
-                    "File " + resourceFile + " succesfully updated."));
-
-        } catch (URISyntaxException e) {
-            log.error("This should never happen!", e);
-            resourceStatusFuture.setException(new Exception("Something went really wrong!"));
-        } catch (ProxyServiceException e) {
-            log.error("Error while updating status of resource", e.getResourceUri());
-            resourceStatusFuture.setException(e);
-        } catch (IOException e) {
-            log.error("Error while writing new status to file!", e);
-            resourceStatusFuture.setException(e);
+            ResourceToolBox.writeModelToFile(resourceFile, newModel);
+            resourceStatusFuture.set(new ResourceStatusMessage(resourceUri, newModel,
+                    new Date(System.currentTimeMillis() + AbstractResourceObserver.MILLIS_PER_YEAR)));
         }
-
     }
 
     private void processGET(SettableFuture<ResourceStatusMessage> resourceStatusFuture,

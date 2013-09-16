@@ -124,15 +124,27 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
             ResourceStatusMessage updateMessage = (ResourceStatusMessage) me.getMessage();
             log.info("Received new status of {}", updateMessage.getResourceUri());
 
-            //Check if it is only one statement!
-            StmtIterator stmtIterator = updateMessage.getResourceStatus().listStatements();
+            Model updatedModel = updateMessage.getResourceStatus();
+
+            //Check if it is only one statement for property value!
+            StmtIterator stmtIterator = updatedModel.listStatements();
             Statement firstStatement = stmtIterator.next();
 
-            if(stmtIterator.hasNext())
-                putResourceToCache(updateMessage.getResourceUri(), updateMessage.getResourceStatus(),
-                        updateMessage.getExpiry());
-            else
+            if(!stmtIterator.hasNext() &&
+                    "http://spitfire-project.eu/ontology/ns/value".equals(firstStatement.getPredicate().toString())){
                 updateStatement(firstStatement);
+            }
+            else{
+                ResIterator resIterator = updatedModel.listSubjects();
+                while(resIterator.hasNext()){
+                    Resource resource = resIterator.nextResource();
+                    Model model = ModelFactory.createDefaultModel();
+                    model.add(resource.listProperties());
+
+                    putResourceToCache(updateMessage.getResourceUri(), updateMessage.getResourceStatus(),
+                            updateMessage.getExpiry());
+                }
+            }
         }
 
         else if(me.getMessage() instanceof InternalRemoveResourcesMessage){

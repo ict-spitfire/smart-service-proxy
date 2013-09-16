@@ -11,10 +11,7 @@ import org.jboss.netty.handler.codec.http.HttpMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
@@ -37,7 +34,7 @@ public abstract class ResourceToolBox {
 
     public static Model getModelFromHttpMessage(HttpMessage httpMessage) throws ProxyServiceException{
 
-        Model resourceStatus = ModelFactory.createDefaultModel();
+        Model model = ModelFactory.createDefaultModel();
 
         //read payload from HTTP message
         byte[] httpPayload = new byte[httpMessage.getContent().readableBytes()];
@@ -51,7 +48,7 @@ public abstract class ResourceToolBox {
         }
 
         try{
-            resourceStatus.read(new ByteArrayInputStream(httpPayload), null, language.lang);
+            model.read(new ByteArrayInputStream(httpPayload), null, language.lang);
         }
         catch(Exception e){
             log.error("Error while reading resource status from CoAP response!", e);
@@ -59,7 +56,7 @@ public abstract class ResourceToolBox {
                     "Error while reading resource status from HTTP message paylaod!", e);
         }
 
-        return resourceStatus;
+        return model;
     }
 
     /**
@@ -130,6 +127,14 @@ public abstract class ResourceToolBox {
         model.read(fileReader, null, Language.RDF_N3.lang);
 
         return model;
+    }
+
+    public static void writeModelToFile(Path filePath, Model model) throws IOException {
+        //Write new status to the file
+        FileWriter fileWriter = new FileWriter(filePath.toFile());
+        model.write(fileWriter, Language.RDF_N3.lang);
+        fileWriter.flush();
+        fileWriter.close();
     }
 
     /**
