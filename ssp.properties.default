@@ -3,23 +3,30 @@
 #-------------
 #Core settings
 #-------------
+#SSP_DNS_NAME = belladonna.itm.uni-luebeck.de
 SSP_DNS_NAME = localhost
 SSP_HTTP_SERVER_PORT = 8080
+SSP_REQUEST_EXECUTION_THREADS = 16
+SSP_I/O_THREADS = 16
+SSP_MESSAGE_QUEUE_SIZE = 100
+SSP_TCP_NODELAY = true
 
 #--------------
 #Caching
 #--------------
-cache = simple
+#cache = simple
 #cache = p2p
 #cache = jenaSDB
 #cache.jenaSDB.jdbc.url = jdbc:mysql://localhost:3306/JenaSDB
 #cache.jenaSDB.jdbc.user = root
 #cache.jenaSDB.jdbc.password = root
+cache = jenaTDB
+cache.jenaTDB.dbDirectory = /home/<user>/tdb-directory
 
 #--------------
 #Simple Gateway
 #--------------
-enableProxyServiceManager = simple
+#enableProxyServiceManager = simple
 
 
 #------------
@@ -30,6 +37,7 @@ enableProxyServiceManager = coap
 #-------------
 #Files backend
 #-------------
-enableProxyServiceManager = files
-files.directory = home/<username>/files
-files.copyExamples = true
+#enableProxyServiceManager = files
+#files.directory = /home/path/to/n3/files
+#files.copyExamples = true
+#files.numberOfRandomFiles = 5

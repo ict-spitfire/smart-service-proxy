@@ -15,7 +15,7 @@ public class InternalRegisterResourceMessage {
     private HttpRequestProcessor httpRequestProcessor;
 
     /**
-     * @param resourceProxyUri the {@link URI} at which the resource is reachable via the gateways
+     * @param resourceProxyUri the {@link URI} at which the resource is reachable via the backends
      * @param httpRequestProcessor the {@link HttpRequestProcessor} to process incoming requests to the resourceProxyUri
      */
     public InternalRegisterResourceMessage(URI resourceProxyUri, HttpRequestProcessor httpRequestProcessor) {
@@ -24,8 +24,8 @@ public class InternalRegisterResourceMessage {
     }
 
     /**
-     * Returns the {@link URI} at which the resource is reachable via the gateways
-     * @return the {@link URI} at which the resource is reachable via the gateways
+     * Returns the {@link URI} at which the resource is reachable via the backend
+     * @return the {@link URI} at which the resource is reachable via the backend
      */
     public URI getResourceProxyUri() {
         return resourceProxyUri;

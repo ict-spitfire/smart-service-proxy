@@ -26,9 +26,10 @@ package eu.spitfire.ssp.server.pipeline.handler;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.Main;
+import eu.spitfire.ssp.server.pipeline.handler.cache.AbstractSemanticCache;
 import eu.spitfire.ssp.server.pipeline.messages.*;
 import eu.spitfire.ssp.server.webservices.*;
-import eu.spitfire.ssp.gateways.*;
+import eu.spitfire.ssp.backends.*;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
@@ -63,13 +64,28 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
      * @param ioExecutorService the {@link ExecutorService} providing the threads to send the responses
      * @throws Exception if some unexpected error occurs
      */
-    public HttpRequestDispatcher(ExecutorService ioExecutorService) throws Exception {
+    public HttpRequestDispatcher(ExecutorService ioExecutorService, boolean enableSparqlEndpoint,
+                                 AbstractSemanticCache cache) throws Exception {
         this.ioExecutorService = ioExecutorService;
 
         this.proxyServices = Collections.synchronizedMap(new TreeMap<URI, HttpRequestProcessor>());
 
         registerServiceForListOfServices();
         registerFavicon();
+
+        if(enableSparqlEndpoint)
+            registerSparqlEndpoint(cache);
+    }
+
+    private void registerSparqlEndpoint(AbstractSemanticCache cache) {
+        try{
+            URI targetUri = new URI("http", null, Main.SSP_DNS_NAME,
+                    Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT , "/sparql", null, null);
+
+            registerResource(targetUri, new SparqlEndpoint(ioExecutorService, cache));
+        } catch (URISyntaxException e) {
+            log.error("This should never happen!", e);
+        }
     }
 
     /**
@@ -105,7 +121,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             log.info("Received HTTP request for " + resourceProxyUri);
         }
         catch(URISyntaxException e){
-            HttpResponse httpResponse = HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+            HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
                     HttpResponseStatus.BAD_REQUEST, e);
             writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
             return;
@@ -117,7 +133,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         //Send NOT FOUND if there is no proper processor
         if(httpRequestProcessor == null){
             log.warn("No HttpRequestProcessor found for {}. Send error response.", resourceProxyUri);
-            HttpResponse httpResponse = HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+            HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
                     HttpResponseStatus.NOT_FOUND, resourceProxyUri.toString());
             writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
             return;
@@ -136,13 +152,14 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
                     }
                     catch (Exception e) {
                         HttpResponse httpResponse =
-                                HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+                                HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
                                         HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
                         writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
                     }
                 }
             }, ioExecutorService);
 
+            log.info("Http Request Processor: {}", httpRequestProcessor.getClass().getName());
             httpRequestProcessor.processHttpRequest(httpResponseFuture, httpRequest);
         }
 
@@ -159,13 +176,14 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
                     }
                     catch (InterruptedException e) {
                         HttpResponse httpResponse =
-                                HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
+                                HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
                                         HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
                         writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
                     }
                     catch (ExecutionException e) {
                         HttpResponse httpResponse;
                         if(e.getCause() instanceof ProxyServiceException){
+
                             ProxyServiceException exception = (ProxyServiceException) e.getCause();
                             if(exception.getHttpResponseStatus() == HttpResponseStatus.GATEWAY_TIMEOUT){
                                 URI resourceProxyUri = generateResourceProxyUri(exception.getResourceUri());
@@ -173,15 +191,14 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
                                 unregisterResourceProxyUri(resourceProxyUri);
                             }
 
-                            String message = "Could not get status from " + exception.getResourceUri();
                             httpResponse =
-                                    HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
-                                    exception.getHttpResponseStatus(), message);
+                                    HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+                                            exception.getHttpResponseStatus(), exception.getMessage());
                         }
                         else{
                             httpResponse =
-                                    HttpResponseFactory.createHttpErrorResponse(httpRequest.getProtocolVersion(),
-                                    HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+                                    HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+                                            HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
                         }
 
                         writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
@@ -196,7 +213,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     /**
      * This method is invoked by the netty framework for downstream messages. Messages other than
      * {@link InternalRegisterResourceMessage}, {@link eu.spitfire.ssp.server.pipeline.messages.InternalResourceProxyUriRequest} and
-     * {@link InternalRemoveResourceMessage} are just forwarded downstream without doing anything else.
+     * {@link eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourcesMessage} are just forwarded downstream without doing anything else.
      *
      * @param ctx the {@link ChannelHandlerContext} to link the method invokation with a {@link Channel}
      * @param me the {@link MessageEvent} containing the message
@@ -241,8 +258,8 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             me.getFuture().setSuccess();
             return;
         }
-        else if(me.getMessage() instanceof InternalRemoveResourceMessage){
-            InternalRemoveResourceMessage removeResourceMessage = (InternalRemoveResourceMessage) me.getMessage();
+        else if(me.getMessage() instanceof InternalRemoveResourcesMessage){
+            InternalRemoveResourcesMessage removeResourceMessage = (InternalRemoveResourcesMessage) me.getMessage();
             boolean removed = unregisterResourceUri(removeResourceMessage.getResourceUri());
             if(removed)
                 log.info("Removed {} from list of registered resources.", removeResourceMessage.getResourceUri());
@@ -399,7 +416,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         if(ctx.getChannel().isConnected()){
             log.warn("Exception caught! Send Error Response.", e.getCause());
 
-            HttpResponse httpResponse = HttpResponseFactory.createHttpErrorResponse(HttpVersion.HTTP_1_1,
+            HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(HttpVersion.HTTP_1_1,
                     HttpResponseStatus.INTERNAL_SERVER_ERROR, (Exception) e.getCause());
 
             writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) ctx.getChannel().getRemoteAddress());

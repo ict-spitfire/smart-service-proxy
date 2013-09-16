@@ -22,12 +22,12 @@
 * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-package eu.spitfire.ssp.gateways.simple;
+package eu.spitfire.ssp.backends.simple;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.vocabulary.VCARD;
-import eu.spitfire.ssp.gateways.AbstractGatewayManager;
+import eu.spitfire.ssp.backends.AbstractBackendManager;
 import eu.spitfire.ssp.server.pipeline.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
@@ -38,23 +38,23 @@ import java.net.URI;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * A {@link SimpleGatewayManager} instance hosts a simple standard model. This backend is basicly to ensure the
+ * A {@link SimpleBackendManager} instance hosts a simple standard model. This backend is basicly to ensure the
  * functionality of the underlying handler stack. If it's instanciated (by setting
  * <code>enableProxyServiceManager="simple"</code> in the <code>ssp.properties</code> file) it registers its WebService
  * (http://example.org/JohnSmith) at the {@link HttpRequestDispatcher} which causes this WebService to occur on the
  * HTML page (at <code>core://<ssp-ip>:<ssp-port>/) listing the available webServices.
  *
  * It is a very simple example to show how to use the given functionality for further implementations of other
- * classes inheriting from {@link eu.spitfire.ssp.gateways.AbstractGatewayManager}.
+ * classes inheriting from {@link eu.spitfire.ssp.backends.AbstractBackendManager}.
  *
  * @author Oliver Kleine
  */
 
-public class SimpleGatewayManager extends AbstractGatewayManager {
+public class SimpleBackendManager extends AbstractBackendManager {
 
-    private static Logger log = Logger.getLogger(SimpleGatewayManager.class.getName());
+    private static Logger log = Logger.getLogger(SimpleBackendManager.class.getName());
 
-    public SimpleGatewayManager(String prefix, LocalServerChannel localChannel,
+    public SimpleBackendManager(String prefix, LocalServerChannel localChannel,
                                 ScheduledExecutorService scheduledExecutorService) throws Exception{
         super(prefix, localChannel, scheduledExecutorService);
     }

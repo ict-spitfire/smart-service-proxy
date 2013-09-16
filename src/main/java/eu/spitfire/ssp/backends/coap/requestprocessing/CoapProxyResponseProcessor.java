@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.gateways.coap.requestprocessing;
+package eu.spitfire.ssp.backends.coap.requestprocessing;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
@@ -6,8 +6,8 @@ import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import eu.spitfire.ssp.gateways.ProxyServiceException;
-import eu.spitfire.ssp.gateways.coap.CoapProxyTools;
+import eu.spitfire.ssp.backends.ProxyServiceException;
+import eu.spitfire.ssp.backends.coap.ResourceToolBox;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
@@ -15,9 +15,11 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.Date;
+import java.util.Map;
 
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.GATEWAY_TIMEOUT;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static org.jboss.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 
 /**
  * A {@link CoapProxyResponseProcessor} provides awaits a {@link CoapResponse} and converts the content
@@ -61,7 +63,7 @@ public class CoapProxyResponseProcessor implements CoapResponseProcessor, Retran
             return;
         }
 
-        if(coapResponse.getContentType() == null){
+        if(coapResponse.getPayload().readableBytes() > 0 && coapResponse.getContentType() == null){
             resourceStatusFuture.setException(new ProxyServiceException(resourceUri, INTERNAL_SERVER_ERROR,
                     "CoAP response had no content type option."));
             return;
@@ -74,11 +76,28 @@ public class CoapProxyResponseProcessor implements CoapResponseProcessor, Retran
         }
 
         try{
-            Model resourceStatus = CoapProxyTools.getModelFromCoapResponse(coapResponse, resourceUri);
-            Date expiry = CoapProxyTools.getExpiryFromCoapResponse(coapResponse);
-            ResourceStatusMessage resourceStatusMessage =
-                    new ResourceStatusMessage(resourceUri, resourceStatus, expiry);
-            resourceStatusFuture.set(resourceStatusMessage);
+            if(coapResponse.getPayload().readableBytes() > 0){
+                Model model = ResourceToolBox.getModelFromCoapResponse(coapResponse);
+                Map<URI, Model> resources = ResourceToolBox.getModelsPerSubject(model);
+
+                Date expiry = ResourceToolBox.getExpiryFromCoapResponse(coapResponse);
+
+                Model resource = resources.get(resourceUri);
+
+                if(resource == null){
+                    resourceStatusFuture.setException(new ProxyServiceException(resourceUri, NOT_FOUND,
+                            "Requested resource " + resourceUri + " not found!"));
+                }
+                else{
+                    ResourceStatusMessage resourceStatusMessage = new ResourceStatusMessage(resourceUri, resource, expiry);
+                    resourceStatusFuture.set(resourceStatusMessage);
+                }
+            }
+            else{
+                String message = "Operation was successful. New Status is not included in this response";
+                resourceStatusFuture.setException(new ProxyServiceException(resourceUri, HttpResponseStatus.OK,
+                        message));
+            }
         }
         catch(Exception e){
             log.error("Error while creating resource status message from CoAP response.", e);

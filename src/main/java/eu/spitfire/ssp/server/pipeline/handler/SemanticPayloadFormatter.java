@@ -146,6 +146,10 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
             return;
         }
 
+        if(me.getMessage() instanceof HttpResponse){
+            ((HttpResponse) me.getMessage()).setHeader("Access-Control-Allow-Origin", "*");
+            ((HttpResponse) me.getMessage()).setHeader("Access-Control-Allow-Credentials", "true");
+        }
         ctx.sendDownstream(me);
     }
 

@@ -15,7 +15,7 @@ public class HttpResponseFactory {
 
     private static Logger log = LoggerFactory.getLogger(HttpResponseFactory.class.getName());
 
-    public static HttpResponse createHttpErrorResponse(HttpVersion version, HttpResponseStatus status, String content){
+    public static HttpResponse createHttpResponse(HttpVersion version, HttpResponseStatus status, String content){
         HttpResponse response = new DefaultHttpResponse(version, status);
 
         String payload = status.getReasonPhrase() + "\n\n" + content;
@@ -26,14 +26,14 @@ public class HttpResponseFactory {
         return response;
     }
 
-    public static HttpResponse createHttpErrorResponse(HttpVersion version, HttpResponseStatus status,
-                                                       Exception exception){
+    public static HttpResponse createHttpResponse(HttpVersion version, HttpResponseStatus status,
+                                                  Exception exception){
 
         //Write exceptions stack trace as payload for error message
         StringWriter errors = new StringWriter();
         exception.printStackTrace(new PrintWriter(errors));
 
-        return createHttpErrorResponse(version, status, errors.toString());
+        return createHttpResponse(version, status, errors.toString());
     }
 
     public static HttpResponse createHttpResponse(HttpVersion version, HttpResponseStatus status,

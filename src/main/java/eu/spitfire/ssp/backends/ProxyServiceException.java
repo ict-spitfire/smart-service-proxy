@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.gateways;
+package eu.spitfire.ssp.backends;
 
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -9,7 +9,7 @@ import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 import java.net.URI;
 
 /**
- * Exception to be thrown by implementations of {@link AbstractGatewayManager} or its subcomponents whenever
+ * Exception to be thrown by implementations of {@link AbstractBackendManager} or its subcomponents whenever
  * something went wrong during the processing of an incoming {@link HttpRequest}.
  *
  * To be more precise, instances

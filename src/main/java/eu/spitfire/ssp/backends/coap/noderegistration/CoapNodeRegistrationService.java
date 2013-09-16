@@ -1,7 +1,5 @@
-package eu.spitfire.ssp.gateways.coap.noderegistration;
+package eu.spitfire.ssp.backends.coap.noderegistration;
 
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.webservice.NotObservableWebService;
@@ -10,20 +8,19 @@ import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.MessageDoesNotAllowPayloadException;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import eu.spitfire.ssp.gateways.coap.CoapGatewayManager;
-import eu.spitfire.ssp.gateways.coap.requestprocessing.HttpRequestProcessorForCoapServices;
-import eu.spitfire.ssp.server.pipeline.messages.ResourceAlreadyRegisteredException;
+import eu.spitfire.ssp.backends.coap.CoapBackendManager;
+import eu.spitfire.ssp.backends.coap.observation.CoapResourceObserver;
+import eu.spitfire.ssp.backends.coap.requestprocessing.HttpRequestProcessorForCoapServices;
 import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 
+import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.Inet6Address;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 
 /**
  * This is the WebService for new sensor nodes to register. It's path is <code>/here_i_am</code>. It only accepts
@@ -41,26 +38,29 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private CoapGatewayManager coapProxyServiceManager;
+    private CoapBackendManager coapGatewayManager;
 
     //Client application to send the service discovery requests
     private CoapClientApplication coapClientApplication;
     private HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices;
+    private LocalServerChannel localChannel;
 
     /**
-     * @param coapProxyServiceManager the {@link eu.spitfire.ssp.gateways.coap.CoapGatewayManager} to register new resources at the proxy
+     * @param coapGatewayManager the {@link eu.spitfire.ssp.backends.coap.CoapBackendManager} to register new resources at the proxy
      * @param coapClientApplication the {@link CoapClientApplication} to send resource discovery requests
      *                              (to .well-known/core) upon reception of registration request
      * @param httpRequestProcessorForCoapServices the {@link HttpRequestProcessor} to handle incoming HTTP requests
      *                                            for CoAP resources.
      */
-    public CoapNodeRegistrationService(CoapGatewayManager coapProxyServiceManager,
+    public CoapNodeRegistrationService(CoapBackendManager coapGatewayManager,
                                        CoapClientApplication coapClientApplication,
-                                       HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices){
+                                       HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices,
+                                       LocalServerChannel localChannel){
         super("/here_i_am", Boolean.TRUE);
-        this.coapProxyServiceManager = coapProxyServiceManager;
+        this.coapGatewayManager = coapGatewayManager;
         this.coapClientApplication = coapClientApplication;
         this.httpRequestProcessorForCoapServices = httpRequestProcessorForCoapServices;
+        this.localChannel = localChannel;
     }
 
     /**
@@ -78,7 +78,7 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
      *                                      {@link Code#POST}
      *                                  </li>
      *                                  <li>
-     *                                      {@link Code#INTERNAL_SERVER_ERROR_500} if another error occured
+     *                                      {@link Code#INTERNAL_SERVER_ERROR_500} if another error occurred
      *                                  </li>
      *                              </ul>
      * @param registrationRequest the {@link CoapRequest} to be processed
@@ -102,12 +102,12 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
             log.debug("Process registration request from {}.", remoteAddress.getAddress());
 
             String targetURIHost = remoteAddress.getAddress().toString();
-            if(remoteAddress.getAddress() instanceof Inet6Address)
-                targetURIHost = "[" + targetURIHost.substring(1) + "]";
+            if(targetURIHost.startsWith("/"))
+                targetURIHost = targetURIHost.substring(1);
 
             //create request for /.well-known/core and a processor to process the response
-            URI targetURI = new URI("coap://" + targetURIHost + ":" + CoapGatewayManager.COAP_SERVER_PORT +
-                    "/.well-known/core");
+            URI targetURI = new URI("coap", null, targetURIHost, CoapBackendManager.COAP_SERVER_PORT,
+                    "/.well-known/core", null, null);
             CoapRequest serviceDiscoveryRequest = new CoapRequest(MsgType.CON, Code.GET, targetURI);
 
             //Create the processor for the .well-known/core resource and a future to wait for set of services
@@ -119,72 +119,63 @@ public class CoapNodeRegistrationService extends NotObservableWebService<Boolean
                 @Override
                 public void run() {
                     try {
-                        Set<ListenableFuture<URI>> resourceRegistrationFutureSet = new HashSet<>();
+                        //For compatibility with TUBS stuff
+                        if(serviceDiscoveryFuture.get().contains("/rdf")){
 
-                        //register new proxy services
-                        for (String remoteServicePath : serviceDiscoveryFuture.get()) {
+                            URI serviceUri = new URI("coap", null, remoteAddress.getAddress().getHostAddress(), -1,
+                                    "/rdf", null, null);
+                            CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.GET, serviceUri);
 
-                            URI resourceUri = new URI("coap", null, remoteAddress.getAddress().getHostAddress(), -1,
-                                                        remoteServicePath, null, null);
+                            CoapResponseProcessorToRegisterResources coapResponseProcessor =
+                                    new CoapResponseProcessorToRegisterResources(coapGatewayManager, serviceUri,
+                                            httpRequestProcessorForCoapServices, getListeningExecutorService(),
+                                            localChannel);
 
-                            SettableFuture<URI> resourceRegistrationFuture =
-                                    coapProxyServiceManager.registerResource(resourceUri,
-                                                        httpRequestProcessorForCoapServices);
+                            //Send initial request to put resources to cache
+                            log.info("Send request to service {}", serviceUri);
+                            coapClientApplication.writeCoapRequest(coapRequest, coapResponseProcessor);
 
-                             resourceRegistrationFutureSet.add(resourceRegistrationFuture);
-                        }
+                            coapResponseProcessor.getNodeRegistrationFuture().addListener(new Runnable(){
+                                @Override
+                                public void run() {
+                                    try{
+                                        for(String servicePath : serviceDiscoveryFuture.get()){
 
-                        final ListenableFuture<List<URI>> registrationCompletedFuture =
-                                Futures.allAsList(resourceRegistrationFutureSet);
+                                            if(servicePath.endsWith("_minimal")){
+                                                //create observation requests
+                                                URI serviceUri = new URI("coap", null, remoteAddress.getAddress().getHostAddress(), -1,
+                                                        servicePath, null, null);
+                                                CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.GET, serviceUri);
+                                                coapRequest.setObserveOptionRequest();
 
-                        //Send 201 response when the registration was successful or 500 response in case of an error
-                        registrationCompletedFuture.addListener(new Runnable() {
+                                                //send observation request
+                                                log.info("Start observation of service {}", serviceUri);
+                                                coapClientApplication.writeCoapRequest(coapRequest,
+                                                        new CoapResourceObserver(coapRequest, getScheduledExecutorService(),
+                                                                localChannel));
+                                            }
+                                        }
+                                    }
+                                    catch (Exception e){
+                                        log.error("Could not register as observer at node {}",
+                                                remoteAddress.getAddress().getHostAddress());
+                                    }
 
-                            @Override
-                            public void run() {
-                                try {
-                                    for (URI proxyUri : registrationCompletedFuture.get())
-                                        log.info("Registered new service at {}", proxyUri);
-
-                                    nodeRegistrationFuture.set(new CoapResponse(Code.CREATED_201));
                                 }
-                                catch (Exception e) {
-                                    String message = "Error in local service registration process";
-                                    if(e.getCause().getCause() instanceof ResourceAlreadyRegisteredException)
-                                        log.warn(message, e.getMessage());
-                                    else
-                                        log.error(message, e);
-                                    nodeRegistrationFuture.set(createCoapResponse(Code.INTERNAL_SERVER_ERROR_500,
-                                            message + ":\n" + e.getCause()));
-                                }
-                            }
-                        }, CoapNodeRegistrationService.this.getScheduledExecutorService());
+                            }, getScheduledExecutorService());
 
-                    }
-                    catch (Exception e) {
-                        if(e instanceof ExecutionException){
-                            if(e.getCause() instanceof ResourceDiscoveringTimeoutException){
-                                log.error("Timeout during resource discovery of node {}.",
-                                        ((ResourceDiscoveringTimeoutException) e.getCause()).getNodeAddress());
-                            }
-                            log.error("Cause was {}", e.getCause().toString());
                         }
-
-                        String message = "Error in service discovery process.";
-                        log.error(message, e);
-
-                        CoapResponse coapResponse = new CoapResponse(Code.INTERNAL_SERVER_ERROR_500);
-                        try {
-                            coapResponse.setPayload(message.getBytes(Charset.forName("UTF-8")));
+                        else{
+                            //TODO for default (not SPITFIRE)
                         }
-                        catch (MessageDoesNotAllowPayloadException e1) {
-                           log.error("This should never happen!", e1);
-                        }
-
-                        nodeRegistrationFuture.set(coapResponse);
+                    } catch (Exception e) {
+                        log.error("Error while trying to request a CoAP service", e);
                     }
                 }
-            }, this.getScheduledExecutorService());
+            }, getScheduledExecutorService());
+
+            nodeRegistrationFuture.set(new CoapResponse(Code.CREATED_201));
+
 
             //write the CoAP request to the .well-known/core resource
             coapClientApplication.writeCoapRequest(serviceDiscoveryRequest, wellKnownCoreResponseProcessor);

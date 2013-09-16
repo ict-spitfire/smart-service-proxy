@@ -9,11 +9,11 @@ import java.net.URI;
  * Time: 16:34
  * To change this template use File | Settings | File Templates.
  */
-public class InternalRemoveResourceMessage {
+public class InternalRemoveResourcesMessage {
 
     private URI resourceUri;
 
-    public InternalRemoveResourceMessage(URI resourceUri){
+    public InternalRemoveResourcesMessage(URI resourceUri){
 
         this.resourceUri = resourceUri;
     }

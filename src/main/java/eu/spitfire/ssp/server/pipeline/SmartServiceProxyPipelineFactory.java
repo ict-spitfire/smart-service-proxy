@@ -26,6 +26,7 @@ package eu.spitfire.ssp.server.pipeline;
 
 import eu.spitfire.ssp.server.pipeline.handler.*;
 import eu.spitfire.ssp.server.pipeline.handler.cache.AbstractSemanticCache;
+import eu.spitfire.ssp.server.pipeline.handler.cache.JenaSdbSemanticCache;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
@@ -41,8 +42,8 @@ import java.util.concurrent.ExecutorService;
 
 
 /**
- * An {@link SmartServiceProxyPipelineFactory} is a factory to generate pipelines to handle imcoming
- * {@link org.jboss.netty.handler.codec.http.HttpRequest}s.
+ * The {@link SmartServiceProxyPipelineFactory} is a factory to generate pipelines to handle messages (internal
+ * or incoming)
  *
  * @author Oliver Kleine
  *
@@ -62,11 +63,19 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
         executionHandler = new ExecutionHandler(executorService);
         semanticCache = cache;
         log.info("Added instance of {} as cache.", semanticCache.getClass().getName());
-        httpRequestDispatcher = new HttpRequestDispatcher(executorService);
+        httpRequestDispatcher = new HttpRequestDispatcher(executorService, true, cache);
 
         internalPipelineSink = new InternalPipelineSink();
     }
 
+    /**
+     * The internal pipeline contains the handlers to handle internal messages for e.g. resource registration and
+     * resource status updates.
+     *
+     * @return the pipeline (chain of handlers) for internal messages.
+     *
+     * @throws Exception if some unexpected error occurred
+     */
     public ChannelPipeline getInternalPipeline() throws Exception{
         ChannelPipeline pipeline = Channels.pipeline();
 
@@ -77,10 +86,19 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
         return pipeline;
     }
 
+    /**
+     * The pipeline contains the handlers to handle incoming HTTP requests and return a proper HTTP response
+     *
+     * @return the pipeline (chain of handlers) to handle incoming HTTP requests
+     *
+     * @throws Exception if some unexpected error occured
+     */
     @Override
 	public ChannelPipeline getPipeline() throws Exception {
 
 		ChannelPipeline pipeline = Channels.pipeline();
+
+        pipeline.addLast("Execution Handler", executionHandler);
 
         //HTTP protocol handlers
 		pipeline.addLast("HTTP Decoder", new HttpRequestDecoder());
@@ -89,13 +107,8 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 		pipeline.addLast("HTTP Deflater", new HttpContentCompressor());
 
         //SSP specific handlers
-        pipeline.addLast("Execution Handler", executionHandler);
         pipeline.addLast("Payload Formatter", new SemanticPayloadFormatter());
-
-        if(semanticCache != null)
-            pipeline.addLast("Semantic Cache", semanticCache);
-
-
+        pipeline.addLast("Semantic Cache", semanticCache);
         pipeline.addLast("HTTP Request Dispatcher", httpRequestDispatcher);
 
         return pipeline;

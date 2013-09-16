@@ -1,7 +1,7 @@
-package eu.spitfire.ssp.gateways;
+package eu.spitfire.ssp.backends;
 
-import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourceMessage;
+import com.hp.hpl.jena.rdf.model.*;
+import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourcesMessage;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -66,7 +66,7 @@ public abstract class AbstractResourceObserver {
     }
 
     public ChannelFuture removeResourceStatusFromCache(URI resourceUri){
-        final InternalRemoveResourceMessage removeResourceMessage = new InternalRemoveResourceMessage(resourceUri);
+        final InternalRemoveResourcesMessage removeResourceMessage = new InternalRemoveResourcesMessage(resourceUri);
         ChannelFuture channelFuture = Channels.write(localChannel, removeResourceMessage);
 
         channelFuture.addListener(new ChannelFutureListener() {
@@ -82,3 +82,4 @@ public abstract class AbstractResourceObserver {
         return channelFuture;
     }
 }
+

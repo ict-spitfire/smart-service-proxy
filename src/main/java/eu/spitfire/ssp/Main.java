@@ -25,19 +25,16 @@
 package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import eu.spitfire.ssp.gateways.AbstractGatewayManager;
-import eu.spitfire.ssp.gateways.coap.CoapGatewayManager;
-import eu.spitfire.ssp.gateways.files.FilesGatewayManager;
-import eu.spitfire.ssp.gateways.simple.SimpleGatewayManager;
+import eu.spitfire.ssp.backends.AbstractBackendManager;
+import eu.spitfire.ssp.backends.coap.CoapBackendManager;
+import eu.spitfire.ssp.backends.files.FilesBackendManager;
+import eu.spitfire.ssp.backends.simple.SimpleBackendManager;
 import eu.spitfire.ssp.server.pipeline.SmartServiceProxyPipelineFactory;
-import eu.spitfire.ssp.server.pipeline.handler.cache.AbstractSemanticCache;
-import eu.spitfire.ssp.server.pipeline.handler.cache.JenaSdbSemanticCache;
-import eu.spitfire.ssp.server.pipeline.handler.cache.P2PSemanticCache;
-import eu.spitfire.ssp.server.pipeline.handler.cache.SimpleSemanticCache;
-//import eu.spitfire.ssp.gateways.simple.SimpleGatewayManager;
+import eu.spitfire.ssp.server.pipeline.handler.cache.*;
 import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConversionException;
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.log4j.*;
+import org.apache.log4j.Logger;
 import org.apache.log4j.xml.DOMConfigurator;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.local.DefaultLocalServerChannelFactory;
@@ -46,7 +43,14 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
 import java.net.InetSocketAddress;
-import java.util.concurrent.*;
+import java.nio.file.Paths;
+import java.util.NoSuchElementException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+
+//import eu.spitfire.ssp.backends.simple.SimpleBackendManager;
 
 public class Main {
 
@@ -62,18 +66,32 @@ public class Main {
         initializeLogging();
         Configuration config = new PropertiesConfiguration("ssp.properties");
 
-
         SSP_DNS_NAME = config.getString("SSP_DNS_NAME", null);
         SSP_HTTP_PROXY_PORT = config.getInt("SSP_HTTP_PROXY_PORT", 8080);
 
         //create pipeline for server
-        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP-I/O-Thread #%d").build();
+        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP-Execution-Thread #%d").build();
+
+        int executionThreads = getNumberOfExecutionTreads(config);
+        int ioThreads = getNumberOfIoThreads(config);
+        int messageQueueSize = getMessageQueueSize(config);
+
         OrderedMemoryAwareThreadPoolExecutor executorService =
-                new OrderedMemoryAwareThreadPoolExecutor(20, 0, 0, 0, TimeUnit.SECONDS, threadFactory);
+                new OrderedMemoryAwareThreadPoolExecutor(executionThreads, 0, messageQueueSize,
+                        60, TimeUnit.SECONDS, threadFactory);
+
+
         ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
                                                                 Executors.newCachedThreadPool(),
-                                                                Executors.newCachedThreadPool()
+                                                                Executors.newCachedThreadPool(), ioThreads
         ));
+
+//        ServerBootstrap bootstrap = new ServerBootstrap(new OioServerSocketChannelFactory(
+//                Executors.newCachedThreadPool(),
+//                Executors.newCachedThreadPool()
+//        ));
+
+        bootstrap.setOption("tcpNoDelay", getTcpNoDelay(config));
 
         //caching
         AbstractSemanticCache cache = null;
@@ -98,6 +116,13 @@ public class Main {
 
             cache = new JenaSdbSemanticCache(jdbcUrl, user, password);
         }
+        else if("jenaTDB".equals(cacheType)){
+            String dbDirectory = config.getString("cache.jenaTDB.dbDirectory");
+            if(dbDirectory == null)
+                throw new NullPointerException("'cache.jenaSDB.jdbc.url' missing in ssp.properties");
+
+            cache = new JenaTdbSemanticCache(Paths.get(dbDirectory));
+        }
 
         SmartServiceProxyPipelineFactory pipelineFactory = new SmartServiceProxyPipelineFactory(executorService, cache);
         bootstrap.setPipelineFactory(pipelineFactory);
@@ -113,6 +138,8 @@ public class Main {
         startProxyServiceManagers(config, internalChannel);
     }
 
+
+
     //Create the gateway enabled in ssp.properties
     private static void startProxyServiceManagers(Configuration config, LocalServerChannel internalChannel) throws Exception {
 
@@ -127,20 +154,20 @@ public class Main {
 
         for(String proxyServiceManagerName : enabledProxyServiceManagers){
 
-            AbstractGatewayManager proxyServiceManager;
+            AbstractBackendManager proxyServiceManager;
 
             //Simple (John Smith VCARD)
             if(proxyServiceManagerName.equals("simple")){
                 log.info("Create Simple Gateway.");
                 proxyServiceManager =
-                        new SimpleGatewayManager("simple", internalChannel, scheduledExecutorService);
+                        new SimpleBackendManager("simple", internalChannel, scheduledExecutorService);
             }
 
             //CoAP
             else if(proxyServiceManagerName.equals("coap")) {
                 log.info("Create CoAP Gateway.");
                 proxyServiceManager =
-                        new CoapGatewayManager("coap", internalChannel, scheduledExecutorService);
+                        new CoapBackendManager("coap", internalChannel, scheduledExecutorService);
             }
 
             //Local files
@@ -150,9 +177,12 @@ public class Main {
                     throw new Exception("Property 'files.directory' not set.");
                 }
                 boolean copyExamples = config.getBoolean("files.copyExamples");
+                int numberOfRandomFiles = config.getInt("files.numberOfRandomFiles", 0);
                 proxyServiceManager =
-                        new FilesGatewayManager("files", internalChannel, scheduledExecutorService, copyExamples,
-                                directory);
+                        new FilesBackendManager("files", internalChannel, scheduledExecutorService, copyExamples,
+                                numberOfRandomFiles, directory);
+
+
             }
 
             //Unknown AbstractGatewayFactory type
@@ -167,6 +197,71 @@ public class Main {
 
     private static void initializeLogging() {
         DOMConfigurator.configure("log4j.xml");
+    }
+
+
+    public static int getNumberOfExecutionTreads(Configuration config){
+        int executionThreads;
+        try{
+            executionThreads = config.getInt("SSP_REQUEST_EXECUTION_THREADS");
+        }
+        catch (NoSuchElementException e){
+            log.error("Value of SSP_REQUEST_EXECUTION_THREADS undefined in ssp.properties.");
+            throw e;
+        }
+        catch(ConversionException e){
+            log.error("Value of SSP_REQUEST_EXECUTION_THREADS is not an integer in ssp.properties.");
+            throw e;
+        }
+        return executionThreads;
+    }
+
+    public static int getNumberOfIoThreads(Configuration config){
+        int ioThreads;
+        try{
+            ioThreads = config.getInt("SSP_I/O_THREADS");
+        }
+        catch (NoSuchElementException e){
+            log.error("Value of SSP_I/O_THREADS undefined in ssp.properties.");
+            throw e;
+        }
+        catch(ConversionException e){
+            log.error("Value of SSP_I/O_THREADS is not an integer in ssp.properties.");
+            throw e;
+        }
+        return ioThreads;
+    }
+
+    private static int getMessageQueueSize(Configuration config) {
+        int messageQueueSize;
+        try{
+            messageQueueSize = config.getInt("SSP_MESSAGE_QUEUE_SIZE");
+        }
+        catch (NoSuchElementException e){
+            log.error("Value ofSSP_MESSAGE_QUEUE_SIZE undefined in ssp.properties.");
+            throw e;
+        }
+        catch(ConversionException e){
+            log.error("Value of SSP_MESSAGE_QUEUE_SIZE is not an integer in ssp.properties.");
+            throw e;
+        }
+        return messageQueueSize;
+    }
+
+    private static boolean getTcpNoDelay(Configuration config){
+        boolean tcpNoDelay;
+        try{
+            tcpNoDelay = config.getBoolean("SSP_TCP_NODELAY");
+        }
+        catch (NoSuchElementException e){
+            log.error("Value of SSP_TCP_NODELAY undefined in ssp.properties.");
+            throw e;
+        }
+        catch(ConversionException e){
+            log.error("Value of SSP_TCP_NODELAY :is not a boolean in ssp.properties.");
+            throw e;
+        }
+        return tcpNoDelay;
     }
 }
 

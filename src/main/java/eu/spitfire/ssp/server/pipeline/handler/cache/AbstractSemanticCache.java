@@ -24,16 +24,20 @@
 */
 package eu.spitfire.ssp.server.pipeline.handler.cache;
 
-import com.hp.hpl.jena.rdf.model.Model;
+import com.google.common.util.concurrent.SettableFuture;
+import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.Main;
-import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourceMessage;
+import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourcesMessage;
+import eu.spitfire.ssp.server.pipeline.messages.InternalSparqlQueryMessage;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.channel.*;
+import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,13 +54,7 @@ import java.util.Map;
 
 public abstract class AbstractSemanticCache extends SimpleChannelHandler {
 
-    private Logger log = LoggerFactory.getLogger(AbstractSemanticCache.class.getName());
-
-    private static Map<Integer, String> defaultPorts = new HashMap<>();
-    static{
-        defaultPorts.put(80, "http");
-        defaultPorts.put(5683, "coap");
-    }
+    private static Logger log = LoggerFactory.getLogger(AbstractSemanticCache.class.getName());
 
     /**
      * This method is invoked for upstream {@link MessageEvent}s and handles incoming {@link HttpRequest}s.
@@ -79,30 +77,35 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
 
         HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
+        if(httpRequest.getMethod() != HttpMethod.GET){
+            ctx.sendUpstream(me);
+            return;
+        }
+
         URI resourceProxyUri = new URI(httpRequest.getUri());
-        URI resourceUri;
+        if(resourceProxyUri.getQuery() != null && resourceProxyUri.getQuery().startsWith("uri=")){
+            URI resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
 
-        if(resourceProxyUri.getQuery() != null && resourceProxyUri.getQuery().startsWith("uri="))
-            resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
-        else
-            resourceUri = new URI("http", null, Main.SSP_DNS_NAME,
-                                  Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT,
-                                  resourceProxyUri.getPath(), resourceProxyUri.getQuery(), resourceProxyUri.getFragment());
 
-        log.debug("Lookup resource with URI: {}", resourceUri);
-        ResourceStatusMessage cachedResource = getCachedResource(resourceUri);
+            log.debug("Lookup resource with URI: {}", resourceUri);
+            ResourceStatusMessage cachedResource = getCachedResource(resourceUri);
 
-        if(cachedResource != null){
-            log.debug("Cached status for {} found.", resourceUri);
+            if(cachedResource != null){
+                log.debug("Cached status for {} found.", resourceUri);
 
-            ChannelFuture future = Channels.future(ctx.getChannel());
-            Channels.write(ctx, future, cachedResource, me.getRemoteAddress());
-            future.addListener(ChannelFutureListener.CLOSE);
+                ChannelFuture future = Channels.future(ctx.getChannel());
+                Channels.write(ctx, future, cachedResource, me.getRemoteAddress());
+                future.addListener(ChannelFutureListener.CLOSE);
+            }
+            else{
+                log.debug("NO cached status for {} found. Try to get a fresh one.", resourceUri);
+                ctx.sendUpstream(me);
+            }
         }
         else{
-            log.debug("NO cached status for {} found. Try to get a fresh one.", resourceUri);
             ctx.sendUpstream(me);
         }
+
     }
 
     /**
@@ -121,19 +124,29 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
             ResourceStatusMessage updateMessage = (ResourceStatusMessage) me.getMessage();
             log.info("Received new status of {}", updateMessage.getResourceUri());
 
-            //Update Resource
-            putResourceToCache(updateMessage.getResourceUri(), updateMessage.getResourceStatus(),
-                    updateMessage.getExpiry());
+            //Check if it is only one statement!
+            StmtIterator stmtIterator = updateMessage.getResourceStatus().listStatements();
+            Statement firstStatement = stmtIterator.next();
+
+            if(stmtIterator.hasNext())
+                putResourceToCache(updateMessage.getResourceUri(), updateMessage.getResourceStatus(),
+                        updateMessage.getExpiry());
+            else
+                updateStatement(firstStatement);
         }
 
-        if(me.getMessage() instanceof InternalRemoveResourceMessage){
-            InternalRemoveResourceMessage removeResourceMessage =
-                    (InternalRemoveResourceMessage) me.getMessage();
+        else if(me.getMessage() instanceof InternalRemoveResourcesMessage){
+            InternalRemoveResourcesMessage removeResourceMessage =
+                    (InternalRemoveResourcesMessage) me.getMessage();
 
             log.info("Received message to remove resource {}", removeResourceMessage.getResourceUri());
             deleteResource(removeResourceMessage.getResourceUri());
         }
 
+        else if(me.getMessage() instanceof InternalSparqlQueryMessage){
+            InternalSparqlQueryMessage message = (InternalSparqlQueryMessage) me.getMessage();
+            processSparqlQuery(message.getQueryResultFuture(), message.getQuery());
+        }
         ctx.sendDownstream(me);
     }
 
@@ -152,6 +165,19 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
      * @param resourceUri the {@link URI} identifying the cached resource who's status is to be deleted
      */
     public abstract void deleteResource(URI resourceUri);
+
+    public abstract void updateStatement(Statement statement);
+
+    /**
+     * Sets the {@link SettableFuture} with the result of the given SPARQL query
+     * @param queryResultFuture the {@link SettableFuture} to contain the result of the SPARQL query after
+     *                          processing
+     * @param sparqlQuery the SPARQL query to process
+     */
+    public void processSparqlQuery(SettableFuture<String> queryResultFuture, String sparqlQuery){
+        queryResultFuture.setException(new Exception("No SPARQL supported!"));
+    }
+
 
 }
 

@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.gateways.coap.noderegistration;
+package eu.spitfire.ssp.backends.coap.noderegistration;
 
 import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;

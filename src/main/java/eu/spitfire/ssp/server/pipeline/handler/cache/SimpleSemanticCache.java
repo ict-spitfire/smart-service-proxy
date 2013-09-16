@@ -1,6 +1,7 @@
 package eu.spitfire.ssp.server.pipeline.handler.cache;
 
 import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.Statement;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,5 +81,10 @@ public class SimpleSemanticCache extends AbstractSemanticCache {
     public synchronized void deleteResource(URI resourceUri) {
         cache.remove(resourceUri);
         expiries.remove(resourceUri);
+    }
+
+    @Override
+    public void updateStatement(Statement statement) {
+        //To change body of implemented methods use File | Settings | File Templates.
     }
 }

@@ -22,28 +22,22 @@
 * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-package eu.spitfire.ssp.gateways.coap;
+package eu.spitfire.ssp.backends.coap;
 
-import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
-import de.uniluebeck.itm.ncoap.message.CoapRequest;
-import de.uniluebeck.itm.ncoap.message.header.Code;
-import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import eu.spitfire.ssp.gateways.AbstractGatewayManager;
-import eu.spitfire.ssp.gateways.coap.noderegistration.CoapNodeRegistrationService;
+import eu.spitfire.ssp.backends.AbstractBackendManager;
+import eu.spitfire.ssp.backends.coap.noderegistration.CoapNodeRegistrationService;
 import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
-import eu.spitfire.ssp.gateways.coap.observation.CoapResourceObserver;
-import eu.spitfire.ssp.gateways.coap.requestprocessing.HttpRequestProcessorForCoapServices;
+import eu.spitfire.ssp.backends.coap.requestprocessing.HttpRequestProcessorForCoapServices;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URI;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * The {@link CoapGatewayManager} provides all functionality to manage CoAP resources, i.e. it provides a
+ * The {@link CoapBackendManager} provides all functionality to manage CoAP resources, i.e. it provides a
  * {@link CoapServerApplication} with a {@link CoapNodeRegistrationService} to enable CoAP webservers to register
  * at the SSP.
  *
@@ -52,7 +46,7 @@ import java.util.concurrent.ScheduledExecutorService;
  *
  * @author Oliver Kleine
  */
-public class CoapGatewayManager extends AbstractGatewayManager {
+public class CoapBackendManager extends AbstractBackendManager {
 
     public static final int COAP_SERVER_PORT = 5683;
 
@@ -66,42 +60,18 @@ public class CoapGatewayManager extends AbstractGatewayManager {
      * @param localChannel the {@link LocalServerChannel} to send internal messages, e.g. resource status updates.
      * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
      */
-    public CoapGatewayManager(String prefix, LocalServerChannel localChannel,
+    public CoapBackendManager(String prefix, LocalServerChannel localChannel,
                               ScheduledExecutorService scheduledExecutorService){
         super(prefix, localChannel, scheduledExecutorService);
     }
 
-    @Override
-    public SettableFuture<URI> registerResource(final URI resourceUri, final HttpRequestProcessor requestProcessor){
-
-        SettableFuture<URI> resourceRegistrationFuture = super.registerResource(resourceUri, requestProcessor);
-
-        //Start observation of the newly registered resources
-        resourceRegistrationFuture.addListener(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    if ("/light/_minimal".equals(resourceUri.getPath())) {
-                        log.info("Try to start observing {}.", resourceUri);
-
-                        //create observation request
-                        CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.GET, resourceUri);
-                        coapRequest.setObserveOptionRequest();
-
-                        //send observation request
-                        coapClientApplication.writeCoapRequest(coapRequest,
-                                new CoapResourceObserver(coapRequest, scheduledExecutorService,
-                                        CoapGatewayManager.this.localChannel));
-
-                    }
-                } catch (Exception e) {
-                    log.error("Error while starting observation of service {}.", resourceUri);
-                }
-            }
-        }, scheduledExecutorService);
-
-        return resourceRegistrationFuture;
-    }
+//    @Override
+//    public SettableFuture<URI> registerResource(final URI resourceUri, final HttpRequestProcessor requestProcessor){
+//
+//        SettableFuture<URI> resourceRegistrationFuture = super.registerResource(resourceUri, requestProcessor);
+//
+//        return resourceRegistrationFuture;
+//    }
 
     @Override
     public HttpRequestProcessor getGui() {
@@ -110,7 +80,7 @@ public class CoapGatewayManager extends AbstractGatewayManager {
 
     @Override
     public void initialize() {
-        //create client for gateways request processing and resource observation
+        //create client for backends request processing and resource observation
         this.coapClientApplication = new CoapClientApplication();
 
         //create instance of HttpRequestProcessor
@@ -120,7 +90,8 @@ public class CoapGatewayManager extends AbstractGatewayManager {
         //create server and service for node registration
         this.coapServerApplication = new CoapServerApplication();
         CoapNodeRegistrationService coapNodeRegistrationService =
-                new CoapNodeRegistrationService(this, coapClientApplication, httpRequestProcessorForCoapServices);
+                new CoapNodeRegistrationService(this, coapClientApplication,
+                        httpRequestProcessorForCoapServices, localChannel);
         coapServerApplication.registerService(coapNodeRegistrationService);
     }
 

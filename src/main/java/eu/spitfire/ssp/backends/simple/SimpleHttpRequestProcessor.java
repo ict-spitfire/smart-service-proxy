@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.gateways.simple;
+package eu.spitfire.ssp.backends.simple;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
