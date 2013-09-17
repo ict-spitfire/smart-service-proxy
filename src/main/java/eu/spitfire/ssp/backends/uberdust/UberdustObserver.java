@@ -78,44 +78,52 @@ public class UberdustObserver extends AbstractResourceObserver implements Observ
     }
 
 
-    public void update(Observable o, Object arg) {
+    public void update(final Observable o, final Object arg) {
 
-        if (!(o instanceof WSReadingsClient)) {
-            return;
-        }
-        if (arg instanceof Message.NodeReadings) {
-            Message.NodeReadings.Reading reading = ((Message.NodeReadings) arg).getReading(0);
-            log.info("mnode:" + reading.getNode());
-            if (reading.hasDoubleReading()) {
-                try {
-//                    if (!reading.getCapability().contains("urn")) return;
-                    if (!reading.getNode().contains("wisebed")) return;
-                    log.info("mnode2:" + reading.getNode());
-                    String prefix = "";
-                    for (String aprefix : testbeds.keySet()) {
-                        if (reading.getNode().contains(aprefix)) {
-                            prefix = aprefix;
-                        }
-                    }
+        (new Thread() {
+            @Override
+            public void run() {
+                super.run();    //To change body of overridden methods use File | Settings | File Templates.
+                if (!(o instanceof WSReadingsClient)) {
+                    return;
+                }
+                if (arg instanceof Message.NodeReadings) {
+                    Message.NodeReadings.Reading reading = ((Message.NodeReadings) arg).getReading(0);
+//                    log.info("mnode:" + reading.getNode());
+                    if (reading.hasDoubleReading()) {
+                        try {
+                            if (!reading.getCapability().contains("urn")) return;
+                            if (reading.getCapability().contains("parent")) return;
+//                            if (!reading.getNode().contains("u")) return;
+//                            log.info("mnode2:" + reading.getNode());
+                            String prefix = "";
+                            for (String aprefix : testbeds.keySet()) {
+                                if (reading.getNode().contains(aprefix)) {
+                                    prefix = aprefix;
+                                }
+                            }
 
-                    final URI resourceURI = new URI(UberdustNode.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
+                            final URI resourceURI = new URI(UberdustNode.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
 
 //                    if (!allnodes.containsKey(resourceURI)) {
-                    allnodes.put(resourceURI, new UberdustNode(reading.getNode(), testbeds.get(prefix), reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
+                            allnodes.put(resourceURI, new UberdustNode(reading.getNode(), testbeds.get(prefix), reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
 //                    }
-                    final Map<URI, Model> modelsMap = ResourceToolBox.getModelsPerSubject(allnodes.get(resourceURI).getModel());
-                    for (final URI uri : modelsMap.keySet()) {
-                        registerResource(uri,modelsMap.get(uri) );
-                        removeResourceStatusFromCache(uri);
-                        cacheResourceStatus(uri, modelsMap.get(uri));
+                            final Map<URI, Model> modelsMap = ResourceToolBox.getModelsPerSubject(allnodes.get(resourceURI).getModel());
+                            for (final URI uri : modelsMap.keySet()) {
+                                registerResource(uri, modelsMap.get(uri));
+//                                removeResourceStatusFromCache(uri);
+                                cacheResourceStatus(uri, modelsMap.get(uri));
+                            }
+
+
+                        } catch (Exception e) {
+                            log.error(e.getMessage(), e);
+                        }
                     }
-
-
-                } catch (Exception e) {
-                    log.error(e.getMessage(), e);
                 }
             }
-        }
+        }).start();
+
     }
 
     private void registerResource(final URI resourceUri, final Model model) {
