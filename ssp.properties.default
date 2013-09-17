@@ -41,3 +41,12 @@ enableProxyServiceManager = coap
 #files.directory = /home/path/to/n3/files
 #files.copyExamples = true
 #files.numberOfRandomFiles = 5
+
+#-------------
+#Uberdust backend
+#-------------
+#enableProxyServiceManager = uberdust
+#UBERDUST_URL =
+#UBERDUST_URL_WS_PORT =
+#UBERDUST_OBSERVE_NODES =
+#UBERDUST_OBSERVE_CAPABILITIES =

@@ -29,6 +29,7 @@ import eu.spitfire.ssp.backends.AbstractBackendManager;
 import eu.spitfire.ssp.backends.coap.CoapBackendManager;
 import eu.spitfire.ssp.backends.files.FilesBackendManager;
 import eu.spitfire.ssp.backends.simple.SimpleBackendManager;
+import eu.spitfire.ssp.backends.uberdust.UberdustBackendManager;
 import eu.spitfire.ssp.server.pipeline.SmartServiceProxyPipelineFactory;
 import eu.spitfire.ssp.server.pipeline.handler.cache.*;
 import org.apache.commons.configuration.Configuration;
@@ -183,6 +184,10 @@ public class Main {
                                 numberOfRandomFiles, directory);
 
 
+            }else if(proxyServiceManagerName.equals("uberdust")){
+                log.info("Create Uberdust Gateway.");
+                proxyServiceManager =
+                        new UberdustBackendManager("uberdust", internalChannel, scheduledExecutorService);
             }
 
             //Unknown AbstractGatewayFactory type
