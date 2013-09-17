@@ -91,7 +91,6 @@ public class UberdustHttpRequestProcessor implements SemanticHttpRequestProcesso
         try {
 
             UberdustNode node = uberdustObserver.allnodes.get(new URI(httpRequest.getUri().substring(httpRequest.getUri().indexOf("=") + 1)));
-            log.error("here:" + node);
             //Set response
             Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
             ResourceStatusMessage resourceStatusMessage =

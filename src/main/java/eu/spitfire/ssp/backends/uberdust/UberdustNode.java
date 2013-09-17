@@ -5,7 +5,9 @@ import com.hp.hpl.jena.rdf.model.ModelFactory;
 import eu.spitfire.ssp.server.payloadserialization.Language;
 import eu.uberdust.communication.UberdustClient;
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
@@ -53,6 +55,7 @@ public class UberdustNode {
      * Lattitude.
      */
     private final String y;
+    private String room;
 
     /**
      * Constructor for the node reading.
@@ -74,19 +77,14 @@ public class UberdustNode {
         this.time = time;
         this.testbed = testbed;
 
-        try {
-            x1 = UberdustClient.getInstance().getNodeX(testbed, name);
-        } catch (JSONException e) {
-            x1 = "0";
-        }
-        x = x1;
-        try {
-            y1 = UberdustClient.getInstance().getNodeY(testbed, name);
-        } catch (JSONException e) {
-            y1 = "0";
-        }
+        x = UberdustClient.getInstance().getNodeX(testbed, name);
 
-        y = y1;
+        y = UberdustClient.getInstance().getNodeY(testbed, name);
+        try {
+            room = ((JSONObject) ((JSONArray) UberdustClient.getInstance().getLastNodeReading(Integer.parseInt(testbed), name, "room").get("readings")).get(0)).getString("stringReading");
+        } catch (Exception e) {
+            room = "";
+        }
     }
 
     @Override
@@ -136,13 +134,20 @@ public class UberdustNode {
                 "<http://spitfire-project.eu/ontology/ns/obs>\n" +
                 "<" + UberdustNode.getCapabilityResourceURI(this) + ">;\n" +
                 "<http://spitfire-project.eu/ontology/ns/value>\n" +
-                "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n" +
-                "" +
+                "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n";
+        if (room != null) {
+            description += "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>\n" +
+                    "\"" + "Room_" + room + "\";\n";
+        }
+        description += "<http://www.w3.org/2003/01/geo/wgs84_pos#long>\n" +
+                "\"" + y + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
+                "<http://www.w3.org/2003/01/geo/wgs84_pos#lat>\n" +
+                "\"" + x + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n" +
                 "\n" +
                 "\n" +
                 "<" + UberdustNode.getCapabilityResourceURI(this) + ">\n" +
                 "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
-                "<http://purl.oclc.org/NET/ssnx/ssn#Property>;";
+                "<http://purl.oclc.org/NET/ssnx/ssn#Property>.";
         return description;
     }
 
@@ -154,6 +159,7 @@ public class UberdustNode {
     public Model getModel() {
         Model model = ModelFactory.createDefaultModel();
         try {
+//            log.info(toSSP());
             ByteArrayInputStream bin = new ByteArrayInputStream(toSSP().getBytes(Charset.forName("UTF-8")));
             model.read(bin, null, Language.RDF_N3.lang);
         } catch (URISyntaxException e) {

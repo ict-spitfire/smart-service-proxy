@@ -85,9 +85,12 @@ public class UberdustObserver extends AbstractResourceObserver implements Observ
         }
         if (arg instanceof Message.NodeReadings) {
             Message.NodeReadings.Reading reading = ((Message.NodeReadings) arg).getReading(0);
+            log.info("mnode:" + reading.getNode());
             if (reading.hasDoubleReading()) {
                 try {
-                    if (!reading.getCapability().contains("urn")) return;
+//                    if (!reading.getCapability().contains("urn")) return;
+                    if (!reading.getNode().contains("wisebed")) return;
+                    log.info("mnode2:" + reading.getNode());
                     String prefix = "";
                     for (String aprefix : testbeds.keySet()) {
                         if (reading.getNode().contains(aprefix)) {
@@ -97,10 +100,17 @@ public class UberdustObserver extends AbstractResourceObserver implements Observ
 
                     final URI resourceURI = new URI(UberdustNode.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
 
-                    if (!allnodes.containsKey(resourceURI)) {
-                        allnodes.put(resourceURI, new UberdustNode(reading.getNode(), testbeds.get(prefix), reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
-                        registerResource(resourceURI, allnodes.get(resourceURI).getModel());
+//                    if (!allnodes.containsKey(resourceURI)) {
+                    allnodes.put(resourceURI, new UberdustNode(reading.getNode(), testbeds.get(prefix), reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
+//                    }
+                    final Map<URI, Model> modelsMap = ResourceToolBox.getModelsPerSubject(allnodes.get(resourceURI).getModel());
+                    for (final URI uri : modelsMap.keySet()) {
+                        registerResource(uri,modelsMap.get(uri) );
+                        removeResourceStatusFromCache(uri);
+                        cacheResourceStatus(uri, modelsMap.get(uri));
                     }
+
+
                 } catch (Exception e) {
                     log.error(e.getMessage(), e);
                 }
