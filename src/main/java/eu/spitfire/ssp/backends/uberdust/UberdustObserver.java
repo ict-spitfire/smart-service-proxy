@@ -92,8 +92,10 @@ public class UberdustObserver extends AbstractResourceObserver implements Observ
 //                    log.info("mnode:" + reading.getNode());
                     if (reading.hasDoubleReading()) {
                         try {
+                            if (reading.getNode().contains("santander")) return;
                             if (!reading.getCapability().contains("urn")) return;
                             if (reading.getCapability().contains("parent")) return;
+                            if (reading.getCapability().contains("report")) return;
 //                            if (!reading.getNode().contains("u")) return;
 //                            log.info("mnode2:" + reading.getNode());
                             String prefix = "";
@@ -106,9 +108,11 @@ public class UberdustObserver extends AbstractResourceObserver implements Observ
 
                             final URI resourceURI = new URI(UberdustNode.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
 
-//                    if (!allnodes.containsKey(resourceURI)) {
-                            allnodes.put(resourceURI, new UberdustNode(reading.getNode(), testbeds.get(prefix), reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
-//                    }
+                            if (!allnodes.containsKey(resourceURI)) {
+                                allnodes.put(resourceURI, new UberdustNode(reading.getNode(), testbeds.get(prefix), reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
+                            } else {
+                              allnodes.get(resourceURI).update(reading.getDoubleReading(),new Date(reading.getTimestamp()));
+                            }
 
                             final Map<URI, Model> modelsMap = ResourceToolBox.getModelsPerSubject(allnodes.get(resourceURI).getModel());
                             for (final URI uri : modelsMap.keySet()) {

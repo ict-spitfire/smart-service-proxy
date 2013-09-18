@@ -32,6 +32,8 @@ public class UberdustNode {
      * Logger.
      */
     private static Logger log = Logger.getLogger(UberdustNode.class.getName());
+    private final String capabilityResource;
+    private final String workstation;
     /**
      * Node name.
      */
@@ -47,11 +49,11 @@ public class UberdustNode {
     /**
      * Double Reading.
      */
-    private final Double value;
+    private Double value;
     /**
      * Timestamp of the latest reading.
      */
-    private final Date time;
+    private Date time;
     /**
      * Longtitude.
      */
@@ -61,7 +63,6 @@ public class UberdustNode {
      */
     private final String y;
     private String room;
-    private Model model;
 
     /**
      * Constructor for the node reading.
@@ -74,6 +75,8 @@ public class UberdustNode {
      * @throws JSONException
      */
     public UberdustNode(String name, String testbed, String capability, Double value, Date time) {
+        String workstation1;
+        String capabilityResource1;
         String y1;
         String x1;
 
@@ -88,27 +91,34 @@ public class UberdustNode {
         } catch (IOException e) {
             x1 = "0";
         }
-
         x = x1;
+
         try {
             y1 = UberdustClient.getInstance().getNodeY(testbed, name);
         } catch (IOException e) {
             y1 = "0";
         }
         y = y1;
+
         try {
             room = ((JSONObject) ((JSONArray) UberdustClient.getInstance().getLastNodeReading(Integer.parseInt(testbed), name, "room").get("readings")).get(0)).getString("stringReading");
         } catch (Exception e) {
-            room = "";
+            room = null;
         }
 
-        model = ModelFactory.createDefaultModel();
         try {
-            ByteArrayInputStream bin = new ByteArrayInputStream(toSSP().getBytes(Charset.forName("UTF-8")));
-            model.read(bin, null, Language.RDF_N3.lang);
-        } catch (URISyntaxException e) {
-
+            workstation1 = ((JSONObject) ((JSONArray) UberdustClient.getInstance().getLastNodeReading(Integer.parseInt(testbed), name, "workstation").get("readings")).get(0)).getString("stringReading");
+        } catch (Exception e) {
+            workstation1 = null;
         }
+        workstation = workstation1;
+
+        try {
+            capabilityResource1 = getSameAs(UberdustNode.getCapabilityResourceURI(this));
+        } catch (URISyntaxException e) {
+            capabilityResource1 = "null";
+        }
+        capabilityResource = capabilityResource1;
     }
 
     @Override
@@ -152,8 +162,7 @@ public class UberdustNode {
      * @throws URISyntaxException should not happen.
      */
     public String toSSP() throws URISyntaxException {
-        String capabilityResource = getSameAs(UberdustNode.getCapabilityResourceURI(this));
-        SimpleDateFormat dateFormatGmt = new SimpleDateFormat("yy-MM-dd'T'HH:mm'Z'");
+        SimpleDateFormat dateFormatGmt = new SimpleDateFormat("yy-MM-dd'T'HH:mm:ss'Z'");
         dateFormatGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
 
         String description = "" +
@@ -164,7 +173,20 @@ public class UberdustNode {
                 "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n";
         if (room != null) {
             description += "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>\n" +
-                    "\"" + "Room_" + room + "\";\n";
+                    "\"" + "http://uberdust.cti.gr/rest/testbed/1/node/urn:wisebed:ctitestbed:virtual:room:" + room + "/\";\n";
+        }
+        if (workstation != null) {
+            if (workstation.contains(",")) {
+                String[] workstations = workstation.split(",");
+                for (String aworkstation : workstations) {
+                    description += "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>\n" +
+                            "\"" + "http://uberdust.cti.gr/rest/testbed/1/node/urn:wisebed:ctitestbed:virtual:workstation:" + aworkstation + "/\";\n";
+                }
+            } else {
+                description += "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>\n" +
+                        "\"" + "http://uberdust.cti.gr/rest/testbed/1/node/urn:wisebed:ctitestbed:virtual:workstation:" + workstation + "/\";\n";
+
+            }
         }
         description += "<http://www.w3.org/2003/01/geo/wgs84_pos#long>\n" +
                 "\"" + y + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
@@ -209,6 +231,13 @@ public class UberdustNode {
      * @return the jena model describing the node.
      */
     public Model getModel() {
+        Model model = ModelFactory.createDefaultModel();
+        try {
+            ByteArrayInputStream bin = new ByteArrayInputStream(toSSP().getBytes(Charset.forName("UTF-8")));
+            model.read(bin, null, Language.RDF_N3.lang);
+        } catch (URISyntaxException e) {
+
+        }
         return model;
     }
 
@@ -236,5 +265,10 @@ public class UberdustNode {
 
     public String getTestbed() {
         return testbed;
+    }
+
+    public void update(Double doubleReading, Date date) {
+        this.value = doubleReading;
+        this.time = date;
     }
 }
