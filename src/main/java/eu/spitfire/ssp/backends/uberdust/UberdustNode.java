@@ -186,7 +186,9 @@ public class UberdustNode {
                 "<http://www.w3.org/2003/01/geo/wgs84_pos#lat>\n" +
                 "\"" + x + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
                 "<http://purl.org/dc/terms/#date>\n" +
-                "\"" + dateFormatGmt.format(time) + "\"";
+                "\"" + dateFormatGmt.format(time) + "\"\n" +
+                "<http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#hasLocation>\n" +
+                "\"" + prefix + "\"";
         if (lightZone.matcher(capability).find() || relay.matcher(capability).find()) {
 
             description += ";\n" +
