@@ -2,6 +2,8 @@ package eu.spitfire.ssp.backends.uberdust;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.rdf.model.StmtIterator;
 import eu.spitfire.ssp.server.payloadserialization.Language;
 import eu.uberdust.communication.UberdustClient;
 import org.apache.log4j.Logger;
@@ -10,8 +12,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -128,11 +132,14 @@ public class UberdustNode {
      * @throws URISyntaxException should not happen.
      */
     public String toSSP() throws URISyntaxException {
+        String capabilityResource = getSameAs(UberdustNode.getCapabilityResourceURI(this));
+        SimpleDateFormat dateFormatGmt = new SimpleDateFormat("yy-MM-dd'T'HH:mm'Z'");
+        dateFormatGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
 
         String description = "" +
                 "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + ">\n" +
                 "<http://spitfire-project.eu/ontology/ns/obs>\n" +
-                "<" + UberdustNode.getCapabilityResourceURI(this) + ">;\n" +
+                "<" + capabilityResource + ">;\n" +
                 "<http://spitfire-project.eu/ontology/ns/value>\n" +
                 "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n";
         if (room != null) {
@@ -142,13 +149,38 @@ public class UberdustNode {
         description += "<http://www.w3.org/2003/01/geo/wgs84_pos#long>\n" +
                 "\"" + y + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
                 "<http://www.w3.org/2003/01/geo/wgs84_pos#lat>\n" +
-                "\"" + x + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n" +
+                "\"" + x + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
+                "<http://purl.org/dc/terms/#date>\n" +
+                "\"" + dateFormatGmt.format(time) + "\".\n" +
                 "\n" +
                 "\n" +
-                "<" + UberdustNode.getCapabilityResourceURI(this) + ">\n" +
+                "<" + capabilityResource + ">\n" +
                 "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
                 "<http://purl.oclc.org/NET/ssnx/ssn#Property>.";
         return description;
+    }
+
+    private static String getSameAs(String uberdustURL) {
+//        final String uberdustURL = "http://uberdust.cti.gr/rest/testbed/1/capability/urn:wisebed:node:capability:light/rdf";
+        String sameAs = uberdustURL;
+        try {
+            URL url = new URL(uberdustURL);
+            Model m = ModelFactory.createDefaultModel();
+            m.read(uberdustURL);
+            StmtIterator props = m.getResource(uberdustURL).listProperties();
+            while (props.hasNext()) {
+                Statement something = props.next();
+                if ("http://www.w3.org/2002/07/owl#sameAs".equals(something.getPredicate().toString())) {
+                    sameAs = something.getObject().toString();
+                    if (sameAs.contains("null")) {
+                        sameAs = uberdustURL;
+                    }
+                }
+            }
+        } catch (MalformedURLException e) {
+            log.error(e.getMessage(), e);
+        }
+        return sameAs;
     }
 
     /**

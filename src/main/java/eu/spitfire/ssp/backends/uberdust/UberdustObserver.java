@@ -103,18 +103,19 @@ public class UberdustObserver extends AbstractResourceObserver implements Observ
                                 }
                             }
 
+
                             final URI resourceURI = new URI(UberdustNode.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
 
 //                    if (!allnodes.containsKey(resourceURI)) {
                             allnodes.put(resourceURI, new UberdustNode(reading.getNode(), testbeds.get(prefix), reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
 //                    }
+
                             final Map<URI, Model> modelsMap = ResourceToolBox.getModelsPerSubject(allnodes.get(resourceURI).getModel());
                             for (final URI uri : modelsMap.keySet()) {
                                 registerResource(uri, modelsMap.get(uri));
 //                                removeResourceStatusFromCache(uri);
                                 cacheResourceStatus(uri, modelsMap.get(uri));
                             }
-
 
                         } catch (Exception e) {
                             log.error(e.getMessage(), e);
@@ -152,10 +153,12 @@ public class UberdustObserver extends AbstractResourceObserver implements Observ
 
 
                     } catch (Exception e) {
-                        log.error("Exception while creating service to observe a file.", e);
+                        log.warn("Exception while registering resources.", e);
                     }
                 }
             }, getScheduledExecutorService());
         }
     }
+
+
 }
