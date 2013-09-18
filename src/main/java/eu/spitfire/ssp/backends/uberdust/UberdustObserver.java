@@ -67,7 +67,11 @@ public class UberdustObserver extends AbstractResourceObserver implements Observ
             UberdustClient.setUberdustURL("http://" + UBERDUST_URL);
             final String webSocketUrl = "ws://" + UBERDUST_URL + ":" + UBERDUST_URL_WS_PORT + "/readings.ws";
             WSReadingsClient.getInstance().setServerUrl(webSocketUrl);
-            WSReadingsClient.getInstance().subscribe(UBERDUST_OBSERVE_NODES, UBERDUST_OBSERVE_CAPABILITIES);
+            final String[] nodelist = UBERDUST_OBSERVE_NODES.split("\\+");
+            for (String nodes : nodelist) {
+                log.info("Subscribing to : " + nodes);
+                WSReadingsClient.getInstance().subscribe(nodes, UBERDUST_OBSERVE_CAPABILITIES);
+            }
             WSReadingsClient.getInstance().addObserver(this);
 
         } catch (ConfigurationException e) {
@@ -109,9 +113,9 @@ public class UberdustObserver extends AbstractResourceObserver implements Observ
                             final URI resourceURI = new URI(UberdustNode.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
 
                             if (!allnodes.containsKey(resourceURI)) {
-                                allnodes.put(resourceURI, new UberdustNode(reading.getNode(), testbeds.get(prefix), reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
+                                allnodes.put(resourceURI, new UberdustNode(reading.getNode(), testbeds.get(prefix), prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
                             } else {
-                              allnodes.get(resourceURI).update(reading.getDoubleReading(),new Date(reading.getTimestamp()));
+                                allnodes.get(resourceURI).update(reading.getDoubleReading(), new Date(reading.getTimestamp()));
                             }
 
                             final Map<URI, Model> modelsMap = ResourceToolBox.getModelsPerSubject(allnodes.get(resourceURI).getModel());
