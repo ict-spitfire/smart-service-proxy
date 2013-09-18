@@ -12,6 +12,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -60,6 +61,7 @@ public class UberdustNode {
      */
     private final String y;
     private String room;
+    private Model model;
 
     /**
      * Constructor for the node reading.
@@ -81,13 +83,31 @@ public class UberdustNode {
         this.time = time;
         this.testbed = testbed;
 
-        x = UberdustClient.getInstance().getNodeX(testbed, name);
+        try {
+            x1 = UberdustClient.getInstance().getNodeX(testbed, name);
+        } catch (IOException e) {
+            x1 = "0";
+        }
 
-        y = UberdustClient.getInstance().getNodeY(testbed, name);
+        x = x1;
+        try {
+            y1 = UberdustClient.getInstance().getNodeY(testbed, name);
+        } catch (IOException e) {
+            y1 = "0";
+        }
+        y = y1;
         try {
             room = ((JSONObject) ((JSONArray) UberdustClient.getInstance().getLastNodeReading(Integer.parseInt(testbed), name, "room").get("readings")).get(0)).getString("stringReading");
         } catch (Exception e) {
             room = "";
+        }
+
+        model = ModelFactory.createDefaultModel();
+        try {
+            ByteArrayInputStream bin = new ByteArrayInputStream(toSSP().getBytes(Charset.forName("UTF-8")));
+            model.read(bin, null, Language.RDF_N3.lang);
+        } catch (URISyntaxException e) {
+
         }
     }
 
@@ -189,14 +209,6 @@ public class UberdustNode {
      * @return the jena model describing the node.
      */
     public Model getModel() {
-        Model model = ModelFactory.createDefaultModel();
-        try {
-//            log.info(toSSP());
-            ByteArrayInputStream bin = new ByteArrayInputStream(toSSP().getBytes(Charset.forName("UTF-8")));
-            model.read(bin, null, Language.RDF_N3.lang);
-        } catch (URISyntaxException e) {
-
-        }
         return model;
     }
 
