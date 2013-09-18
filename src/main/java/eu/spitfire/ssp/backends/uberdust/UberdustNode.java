@@ -21,6 +21,7 @@ import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
+import java.util.regex.Pattern;
 
 /**
  * Conversion Class for Uberdust Node Readings to their semantic descriptions.
@@ -32,6 +33,11 @@ public class UberdustNode {
      * Logger.
      */
     private static Logger log = Logger.getLogger(UberdustNode.class.getName());
+
+    private static Pattern lightZone = Pattern.compile(":lz[1-9][0-9]*", Pattern.CASE_INSENSITIVE);
+    private static Pattern fan = Pattern.compile(":ac[1-9][0-9]*", Pattern.CASE_INSENSITIVE);
+    private static Pattern relay = Pattern.compile(":[1-9][0-9]*r", Pattern.CASE_INSENSITIVE);
+
     private final String capabilityResource;
     private final String workstation;
     private final String prefix;
@@ -121,6 +127,8 @@ public class UberdustNode {
             capabilityResource1 = "null";
         }
         capabilityResource = capabilityResource1;
+
+
     }
 
     @Override
@@ -178,7 +186,26 @@ public class UberdustNode {
                 "<http://www.w3.org/2003/01/geo/wgs84_pos#lat>\n" +
                 "\"" + x + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
                 "<http://purl.org/dc/terms/#date>\n" +
-                "\"" + dateFormatGmt.format(time) + "\".\n";
+                "\"" + dateFormatGmt.format(time) + "\"";
+        if (lightZone.matcher(capability).find() || relay.matcher(capability).find()) {
+
+            description += ";\n" +
+                    "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>\n" +
+                    "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>.\n" +
+                    "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>\n" +
+                    "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
+                    "<http://purl.oclc.org/NET/ssnx/ssn#switch>.\n";
+
+        } else if (fan.matcher(capability).find()) {
+            description += ";\n" +
+                    "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>\n" +
+                    "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>.\n" +
+                    "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>\n" +
+                    "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
+                    "<http://purl.oclc.org/NET/ssnx/ssn#fan>.\n";
+        } else {
+            description += ".";
+        }
         if (room != null) {
             description += "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + ">\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>\n" +
