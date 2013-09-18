@@ -116,7 +116,14 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
-
+        <repository>
+            <id>repository.ru1</id>
+            <url>http://ru1.cti.gr/maven</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <layout>default</layout>
+        </repository>
 	</repositories>
 
 	<build>
