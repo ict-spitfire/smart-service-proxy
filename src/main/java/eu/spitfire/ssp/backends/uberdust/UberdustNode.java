@@ -6,6 +6,7 @@ import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 import eu.spitfire.ssp.server.payloadserialization.Language;
 import eu.uberdust.communication.UberdustClient;
+import eu.wisebed.wisedb.model.Testbed;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 
@@ -69,6 +70,7 @@ public class UberdustNode {
     private final List<String> rooms;
     private final List<String> workstations;
     private final String prefix;
+    private final String locationName;
 
     /**
      * Constructor for the node reading.
@@ -82,6 +84,7 @@ public class UberdustNode {
      * @throws JSONException
      */
     public UberdustNode(String name, String testbed, String prefix, String capability, Double value, Date time) {
+        String locationName1;
         List<String> rooms1;
         List<String> workstation1;
         String capabilityResource1;
@@ -129,7 +132,14 @@ public class UberdustNode {
         }
         capabilityResource = capabilityResource1;
 
-
+        try {
+            locationName1 = ((Testbed) UberdustClient.getInstance().getTestbedById(Integer.parseInt(testbed))).getName();
+        } catch (IOException e) {
+            locationName1 = prefix;
+        } catch (JSONException e) {
+            locationName1 = prefix;
+        }
+        locationName = locationName1;
     }
 
     @Override
@@ -185,8 +195,8 @@ public class UberdustNode {
                 "<http://purl.org/dc/terms/#date>\n" +
                 "\"" + dateFormatGmt.format(time) + "\";\n" +
                 "<http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#hasLocation>\n" +
-                "\"" + prefix + "\"";
-        if ((lightZone.matcher(capability).find() || relay.matcher(capability).find())&& !name.contains("0x2b0")) {
+                "\"" + locationName + "\"";
+        if ((lightZone.matcher(capability).find() || relay.matcher(capability).find()) && !name.contains("0x2b0")) {
 
             description += ";\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>\n" +
@@ -195,7 +205,7 @@ public class UberdustNode {
                     "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#switch>.\n";
 
-        } else if (fan.matcher(capability).find()||name.contains("0x2b0")) {
+        } else if (fan.matcher(capability).find() || name.contains("0x2b0")) {
             description += ";\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>\n" +
                     "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>.\n" +
