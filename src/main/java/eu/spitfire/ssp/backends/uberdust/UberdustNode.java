@@ -7,9 +7,7 @@ import com.hp.hpl.jena.rdf.model.StmtIterator;
 import eu.spitfire.ssp.server.payloadserialization.Language;
 import eu.uberdust.communication.UberdustClient;
 import org.apache.log4j.Logger;
-import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -20,6 +18,7 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.TimeZone;
 import java.util.regex.Pattern;
 
@@ -38,9 +37,6 @@ public class UberdustNode {
     private static Pattern fan = Pattern.compile(":ac[1-9][0-9]*", Pattern.CASE_INSENSITIVE);
     private static Pattern relay = Pattern.compile(":[1-9][0-9]*r", Pattern.CASE_INSENSITIVE);
 
-    private final String capabilityResource;
-    private final String workstation;
-    private final String prefix;
     /**
      * Node name.
      */
@@ -53,6 +49,7 @@ public class UberdustNode {
      * Uberdust Capability Name.
      */
     private final String capability;
+    private final String capabilityResource;
     /**
      * Double Reading.
      */
@@ -69,7 +66,9 @@ public class UberdustNode {
      * Lattitude.
      */
     private final String y;
-    private String room;
+    private final List<String> rooms;
+    private final List<String> workstations;
+    private final String prefix;
 
     /**
      * Constructor for the node reading.
@@ -83,7 +82,8 @@ public class UberdustNode {
      * @throws JSONException
      */
     public UberdustNode(String name, String testbed, String prefix, String capability, Double value, Date time) {
-        String workstation1;
+        List<String> rooms1;
+        List<String> workstation1;
         String capabilityResource1;
         String y1;
         String x1;
@@ -109,17 +109,18 @@ public class UberdustNode {
         y = y1;
 
         try {
-            room = ((JSONObject) ((JSONArray) UberdustClient.getInstance().getLastNodeReading(Integer.parseInt(testbed), name, "room").get("readings")).get(0)).getString("stringReading");
+            rooms1 = UberdustClient.getInstance().getNodeRooms(Integer.parseInt(testbed), name);
         } catch (Exception e) {
-            room = null;
+            rooms1 = null;
         }
+        rooms = rooms1;
 
         try {
-            workstation1 = ((JSONObject) ((JSONArray) UberdustClient.getInstance().getLastNodeReading(Integer.parseInt(testbed), name, "workstation").get("readings")).get(0)).getString("stringReading");
+            workstation1 = UberdustClient.getInstance().getNodeWorkstations(Integer.parseInt(testbed), name);
         } catch (Exception e) {
             workstation1 = null;
         }
-        workstation = workstation1;
+        workstations = workstation1;
 
         try {
             capabilityResource1 = getSameAs(UberdustNode.getCapabilityResourceURI(this));
@@ -177,10 +178,6 @@ public class UberdustNode {
 
         String description = "" +
                 "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + ">\n" +
-                "<http://spitfire-project.eu/ontology/ns/obs>\n" +
-                "<" + capabilityResource + ">;\n" +
-                "<http://spitfire-project.eu/ontology/ns/value>\n" +
-                "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
                 "<http://www.w3.org/2003/01/geo/wgs84_pos#long>\n" +
                 "\"" + y + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
                 "<http://www.w3.org/2003/01/geo/wgs84_pos#lat>\n" +
@@ -206,23 +203,28 @@ public class UberdustNode {
                     "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#fan>.\n";
         } else {
-            description += ".";
+            description += ";\n" +
+                    "<http://spitfire-project.eu/ontology/ns/obs>\n" +
+                    "<" + capabilityResource + ">;\n" +
+                    "<http://spitfire-project.eu/ontology/ns/value>\n" +
+                    "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n";
         }
-        if (room != null) {
-            description += "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + ">\n" +
-                    "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>\n" +
-                    "<" + "http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:room:" + room + "/>.\n" +
-                    "<" + "http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:room:" + room + "/> \n" +
-                    "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\n" +
-                    "<http://spitfire-project.eu/foi/Room>.";
+        if (rooms != null) {
+            for (String room : rooms) {
+                description += "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + ">\n" +
+                        "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>\n" +
+                        "<" + "http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:room:" + room + "/>.\n" +
+                        "<" + "http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:room:" + room + "/> \n" +
+                        "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\n" +
+                        "<http://spitfire-project.eu/foi/Room>.";
+            }
         }
 
-        if (workstation != null) {
-            String[] workstations = workstation.split(",");
-            for (String aworkstation : workstations) {
+        if (workstations != null) {
+            for (String workstation : workstations) {
                 description += "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + ">\n" +
-                        "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest> <http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:workstation:" + aworkstation + "/>.\n" +
-                        "<" + "http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:workstation:" + aworkstation + "/>\n" +
+                        "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest> <http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:workstation:" + workstation + "/>.\n" +
+                        "<" + "http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:workstation:" + workstation + "/>\n" +
                         "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\n" +
                         "<http://www.freebase.com/m/0v3bzfq>.";
             }
