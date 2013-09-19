@@ -203,7 +203,9 @@ public class UberdustNode {
                     "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>.\n" +
                     "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>\n" +
                     "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
-                    "<http://purl.oclc.org/NET/ssnx/ssn#switch>.\n";
+                    "<http://purl.oclc.org/NET/ssnx/ssn#switch>;\n" +
+                    "<http://spitfire-project.eu/ontology/ns/value>\n" +
+                    "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n";
 
         } else if (fan.matcher(capability).find() || name.contains("0x2b0")) {
             description += ";\n" +
@@ -211,7 +213,9 @@ public class UberdustNode {
                     "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>.\n" +
                     "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>\n" +
                     "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
-                    "<http://purl.oclc.org/NET/ssnx/ssn#fan>.\n";
+                    "<http://purl.oclc.org/NET/ssnx/ssn#fan>;\n" +
+                    "<http://spitfire-project.eu/ontology/ns/value>\n" +
+                    "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n";
         } else {
             description += ";\n" +
                     "<http://spitfire-project.eu/ontology/ns/obs>\n" +
