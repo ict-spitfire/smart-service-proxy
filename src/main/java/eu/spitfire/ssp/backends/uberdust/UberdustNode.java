@@ -186,7 +186,7 @@ public class UberdustNode {
                 "\"" + dateFormatGmt.format(time) + "\";\n" +
                 "<http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#hasLocation>\n" +
                 "\"" + prefix + "\"";
-        if (lightZone.matcher(capability).find() || relay.matcher(capability).find()) {
+        if ((lightZone.matcher(capability).find() || relay.matcher(capability).find())&& !name.contains("0x2b0")) {
 
             description += ";\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>\n" +
@@ -195,7 +195,7 @@ public class UberdustNode {
                     "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#switch>.\n";
 
-        } else if (fan.matcher(capability).find()) {
+        } else if (fan.matcher(capability).find()||name.contains("0x2b0")) {
             description += ";\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>\n" +
                     "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>.\n" +
