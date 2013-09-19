@@ -86,6 +86,11 @@
             <artifactId>json</artifactId>
             <version>20090211</version>
         </dependency>
+        <dependency>
+            <groupId>uberdust</groupId>
+            <artifactId>wisedb</artifactId>
+            <version>1.0</version>
+        </dependency>
     </dependencies>
 
 	<repositories>
