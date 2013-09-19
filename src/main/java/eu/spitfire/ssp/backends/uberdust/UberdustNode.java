@@ -12,6 +12,8 @@ import org.json.JSONException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -150,30 +152,22 @@ public class UberdustNode {
                 '}';
     }
 
-    public String toRdfXML() {
-        String response =
-                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                        "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\n" +
-                        "  xmlns:ns0=\"http://www.w3.org/2000/01/rdf-schema#\"\n" +
-                        "  xmlns:ns1=\"http://purl.oclc.org/NET/ssnx/ssn#\"\n" +
-                        "  xmlns:ns2=\"http://spitfire-project.eu/cc/spitfireCC_n3.owl#\"\n" +
-                        "  xmlns:ns3=\"http://www.loa-cnr.it/ontologies/DUL.owl#\"\n" +
-                        "  xmlns:ns4=\"http://purl.org/dc/terms/\">\n" +
-                        "\n";
-        SimpleDateFormat dateFormatGmt = new SimpleDateFormat("yy-MM-dd'T'HH:mm'Z'");
-        dateFormatGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
+    public String toRdf_XML() {
+        Writer sw = new StringWriter();
+        getModel().write(sw, Language.RDF_XML.lang, null);
+        return sw.toString();
+    }
 
-        response += "  <rdf:Description rdf:about=\"http://spitfire-project.eu/sensor/" + name + "\">\n" +
-                "    <ns0:type rdf:resource=\"http://purl.oclc.org/NET/ssnx/ssn#Sensor\"/>\n" +
-                "    <ns1:observedProperty rdf:resource=\"http://spitfire-project.eu/property/" + capability + "\"/>\n" +
-                "    <ns3:hasValue>" + value + "</ns3:hasValue>\n" +
-                "    <ns4:date>" + dateFormatGmt.format(time) + "</ns4:date>\n" +
-                "  </rdf:Description>\n";
+    public String toRdf_N3() {
+        Writer sw = new StringWriter();
+        getModel().write(sw, Language.RDF_N3.lang, null);
+        return sw.toString();
+    }
 
-        response += "\n" +
-                "</rdf:RDF>";
-
-        return response;
+    public String toRdf_TURTLE() {
+        Writer sw = new StringWriter();
+        getModel().write(sw, Language.RDF_N3.lang, null);
+        return sw.toString();
     }
 
     /**
@@ -182,7 +176,7 @@ public class UberdustNode {
      * @return a string containing the N3 rdf description.
      * @throws URISyntaxException should not happen.
      */
-    public String toSSP() throws URISyntaxException {
+    public String toRDF() throws URISyntaxException {
         SimpleDateFormat dateFormatGmt = new SimpleDateFormat("yy-MM-dd'T'HH:mm:ss'Z'");
         dateFormatGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
 
@@ -194,7 +188,7 @@ public class UberdustNode {
                 "\"" + x + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
                 "<http://purl.org/dc/terms/#date>\n" +
                 "\"" + dateFormatGmt.format(time) + "\";\n" +
-                "<http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#hasLocation>\n" +
+                "<http://www.ontologydesignpatterns.org/ont/dul/DUL.owl/hasLocation>\n" +
                 "\"" + locationName + "\"";
         if ((lightZone.matcher(capability).find() || relay.matcher(capability).find()) && !name.contains("0x2b0")) {
 
@@ -283,7 +277,7 @@ public class UberdustNode {
     public Model getModel() {
         Model model = ModelFactory.createDefaultModel();
         try {
-            ByteArrayInputStream bin = new ByteArrayInputStream(toSSP().getBytes(Charset.forName("UTF-8")));
+            ByteArrayInputStream bin = new ByteArrayInputStream(toRDF().getBytes(Charset.forName("UTF-8")));
             model.read(bin, null, Language.RDF_N3.lang);
         } catch (URISyntaxException e) {
 
@@ -320,5 +314,16 @@ public class UberdustNode {
     public void update(Double doubleReading, Date date) {
         this.value = doubleReading;
         this.time = date;
+    }
+
+    public static void main(String[] args) {
+        UberdustClient.setUberdustURL("http://uberdust.cti.gr");
+        UberdustNode node = new UberdustNode("urn:wisebed:ctitestbed:0x190", "1", "urn:wisebed:ctitestbed:", "urn:wisebed:node:capability:pir", 1.0, new Date());
+        System.out.println("=========================================================================================");
+        System.out.println(node.toRdf_XML());
+        System.out.println("=========================================================================================");
+        System.out.println(node.toRdf_N3());
+        System.out.println("=========================================================================================");
+        System.out.println(node.toRdf_TURTLE());
     }
 }
