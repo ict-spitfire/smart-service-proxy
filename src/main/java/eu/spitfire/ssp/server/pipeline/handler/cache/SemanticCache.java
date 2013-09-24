@@ -26,10 +26,9 @@ package eu.spitfire.ssp.server.pipeline.handler.cache;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
-import eu.spitfire.ssp.Main;
 import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourcesMessage;
 import eu.spitfire.ssp.server.pipeline.messages.InternalSparqlQueryMessage;
-import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
+import eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -37,10 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
 * Checks whether the incoming {@link HttpRequest} can be answered with cached information. This depends on the
@@ -51,10 +47,9 @@ import java.util.Map;
 * @author Oliver Kleine
 *
 */
+public abstract class SemanticCache extends SimpleChannelHandler {
 
-public abstract class AbstractSemanticCache extends SimpleChannelHandler {
-
-    private static Logger log = LoggerFactory.getLogger(AbstractSemanticCache.class.getName());
+    private static Logger log = LoggerFactory.getLogger(SemanticCache.class.getName());
 
     /**
      * This method is invoked for upstream {@link MessageEvent}s and handles incoming {@link HttpRequest}s.
@@ -88,7 +83,7 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
 
 
             log.debug("Lookup resource with URI: {}", resourceUri);
-            ResourceStatusMessage cachedResource = getCachedResource(resourceUri);
+            ResourceResponseMessage cachedResource = getCachedResource(resourceUri);
 
             if(cachedResource != null){
                 log.debug("Cached status for {} found.", resourceUri);
@@ -114,17 +109,17 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
      * @param resourceUri the {@link URI} identifying the wanted resource
      * @return the {@link Model} representing the status of the wanted resource
      */
-    public abstract ResourceStatusMessage getCachedResource(URI resourceUri);
+    public abstract ResourceResponseMessage getCachedResource(URI resourceUri);
 
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me)
             throws Exception {
 
-        if(me.getMessage() instanceof ResourceStatusMessage){
-            ResourceStatusMessage updateMessage = (ResourceStatusMessage) me.getMessage();
+        if(me.getMessage() instanceof ResourceResponseMessage){
+            ResourceResponseMessage updateMessage = (ResourceResponseMessage) me.getMessage();
             log.info("Received new status of {}", updateMessage.getResourceUri());
 
-            Model updatedModel = updateMessage.getResourceStatus();
+            Model updatedModel = updateMessage.getResource().getModel();
 
             //Check if it is only one statement for property value!
             StmtIterator stmtIterator = updatedModel.listStatements();
@@ -141,7 +136,7 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
                     Model model = ModelFactory.createDefaultModel();
                     model.add(resource.listProperties());
 
-                    putResourceToCache(updateMessage.getResourceUri(), updateMessage.getResourceStatus(),
+                    putResourceToCache(updateMessage.getResourceUri(), updateMessage.getResource().getModel(),
                             updateMessage.getExpiry());
                 }
             }
@@ -190,6 +185,7 @@ public abstract class AbstractSemanticCache extends SimpleChannelHandler {
         queryResultFuture.setException(new Exception("No SPARQL supported!"));
     }
 
+    public abstract boolean supportsSPARQL();
 
 }
 

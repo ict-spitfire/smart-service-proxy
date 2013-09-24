@@ -1,7 +1,6 @@
 package eu.spitfire.ssp.server.pipeline.handler.cache;
 
 import com.google.common.util.concurrent.SettableFuture;
-import com.hp.hpl.jena.datatypes.RDFDatatype;
 import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.*;
@@ -12,19 +11,16 @@ import com.hp.hpl.jena.sdb.StoreDesc;
 import com.hp.hpl.jena.sdb.sql.JDBC;
 import com.hp.hpl.jena.sdb.sql.SDBConnection;
 import com.hp.hpl.jena.sdb.store.DatabaseType;
-import com.hp.hpl.jena.sdb.store.DatasetStore;
 import com.hp.hpl.jena.sdb.store.LayoutType;
 import com.hp.hpl.jena.sdb.util.StoreUtils;
-import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
+import eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
-import java.io.StringWriter;
 import java.net.URI;
-import java.nio.charset.Charset;
 import java.util.Date;
-import java.util.Iterator;
 
 /**
  * A semantic cache which is backed by a triple-store based on Jena SDB in a mySQL database. The database
@@ -34,7 +30,7 @@ import java.util.Iterator;
  *
  * @author Oliver Kleine
  */
-public class JenaSdbSemanticCache extends AbstractSemanticCache {
+public class JenaSdbSemanticCache extends SemanticCache {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -60,14 +56,15 @@ public class JenaSdbSemanticCache extends AbstractSemanticCache {
     }
 
     @Override
-    public ResourceStatusMessage getCachedResource(URI resourceUri) {
+    public ResourceResponseMessage getCachedResource(URI resourceUri) {
         Store store = SDBFactory.connectStore(sdbConnection, storeDescription);
         Model model = SDBFactory.connectNamedModel(store, resourceUri.toString());
 
         store.close();
         if(model.listSubjects().hasNext()){
             log.info("Resource {} found in cache.", resourceUri);
-            return new ResourceStatusMessage(resourceUri, model, new Date(System.currentTimeMillis() + 100000));
+            return new ResourceResponseMessage(HttpResponseStatus.OK, model.getResource(resourceUri.toString()),
+                    new Date());
         }
         else{
             log.info("Resource {} NOT found in cache.", resourceUri);
@@ -157,5 +154,10 @@ public class JenaSdbSemanticCache extends AbstractSemanticCache {
             queryExecution.close();
             store.close();
         }
+    }
+
+    @Override
+    public boolean supportsSPARQL() {
+        return true;
     }
 }

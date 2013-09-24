@@ -25,12 +25,11 @@
 package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import eu.spitfire.ssp.backends.AbstractBackendManager;
+import eu.spitfire.ssp.backends.utils.BackendManager;
+import eu.spitfire.ssp.backends.utils.LocalPipelineFactory;
 import eu.spitfire.ssp.backends.coap.CoapBackendManager;
-import eu.spitfire.ssp.backends.files.FilesBackendManager;
-import eu.spitfire.ssp.backends.simple.SimpleBackendManager;
-import eu.spitfire.ssp.backends.uberdust.UberdustBackendManager;
 import eu.spitfire.ssp.server.pipeline.SmartServiceProxyPipelineFactory;
+import eu.spitfire.ssp.server.pipeline.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.pipeline.handler.cache.*;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConversionException;
@@ -38,8 +37,6 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.Logger;
 import org.apache.log4j.xml.DOMConfigurator;
 import org.jboss.netty.bootstrap.ServerBootstrap;
-import org.jboss.netty.channel.local.DefaultLocalServerChannelFactory;
-import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
@@ -95,12 +92,12 @@ public class Main {
         bootstrap.setOption("tcpNoDelay", getTcpNoDelay(config));
 
         //caching
-        AbstractSemanticCache cache = null;
+        SemanticCache semanticCache = null;
         String cacheType = config.getString("cache");
-        if("simple".equals(cacheType))
-            cache = new SimpleSemanticCache();
+        if("dummy".equals(cacheType))
+            semanticCache = new DummySemanticCache();
         else if("p2p".equals(cacheType))
-            cache = new P2PSemanticCache();
+            semanticCache = new P2PSemanticCache();
         else if("jenaSDB".equals(cacheType)){
             String jdbcUrl = config.getString("cache.jenaSDB.jdbc.url");
             String user = config.getString("cache.jenaSDB.jdbc.user");
@@ -115,34 +112,45 @@ public class Main {
             if(password == null)
                 throw new NullPointerException("'cache.jenaSDB.jdbc.password' missing in ssp.properties");
 
-            cache = new JenaSdbSemanticCache(jdbcUrl, user, password);
+            semanticCache = new JenaSdbSemanticCache(jdbcUrl, user, password);
         }
         else if("jenaTDB".equals(cacheType)){
             String dbDirectory = config.getString("cache.jenaTDB.dbDirectory");
             if(dbDirectory == null)
                 throw new NullPointerException("'cache.jenaSDB.jdbc.url' missing in ssp.properties");
 
-            cache = new JenaTdbSemanticCache(Paths.get(dbDirectory));
+            semanticCache = new JenaTdbSemanticCache(Paths.get(dbDirectory));
         }
 
-        SmartServiceProxyPipelineFactory pipelineFactory = new SmartServiceProxyPipelineFactory(executorService, cache);
-        bootstrap.setPipelineFactory(pipelineFactory);
+        assert(semanticCache != null);
+        HttpRequestDispatcher httpRequestDispatcher =
+                new HttpRequestDispatcher(executorService, semanticCache.supportsSPARQL(), semanticCache);
 
+        //Start the HTTP (proxy) server
+        SmartServiceProxyPipelineFactory serverPipelineFactory =
+                new SmartServiceProxyPipelineFactory(executorService, semanticCache, httpRequestDispatcher);
+
+        bootstrap.setPipelineFactory(serverPipelineFactory);
         bootstrap.bind(new InetSocketAddress(SSP_HTTP_PROXY_PORT));
         log.info("HTTP server started. Listening on port " + SSP_HTTP_PROXY_PORT + ".");
 
+
         //Create local channel (for internal messages)
-        DefaultLocalServerChannelFactory internalChannelFactory = new DefaultLocalServerChannelFactory();
-        LocalServerChannel internalChannel = internalChannelFactory.newChannel(pipelineFactory.getInternalPipeline());
+        LocalPipelineFactory localPipelineFactory = new LocalPipelineFactory(httpRequestDispatcher, semanticCache);
+
+//        DefaultLocalServerChannelFactory internalChannelFactory = new DefaultLocalServerChannelFactory();
+//        LocalServerChannel internalChannel = internalChannelFactory.newChannel(pipelineFactory.getInternalPipeline());
 
         //Create enabled gateway
-        startProxyServiceManagers(config, internalChannel);
+
+        startProxyServiceManagers(config, localPipelineFactory);
     }
 
 
 
     //Create the gateway enabled in ssp.properties
-    private static void startProxyServiceManagers(Configuration config, LocalServerChannel internalChannel) throws Exception {
+    private static void startProxyServiceManagers(Configuration config, LocalPipelineFactory localPipelineFactory)
+            throws Exception {
 
         log.debug("Start creating enabled ProxyServiceCreators!");
 
@@ -155,40 +163,40 @@ public class Main {
 
         for(String proxyServiceManagerName : enabledProxyServiceManagers){
 
-            AbstractBackendManager proxyServiceManager;
+            BackendManager proxyServiceManager;
 
             //Simple (John Smith VCARD)
-            if(proxyServiceManagerName.equals("simple")){
-                log.info("Create Simple Gateway.");
-                proxyServiceManager =
-                        new SimpleBackendManager("simple", internalChannel, scheduledExecutorService);
-            }
+//            if(proxyServiceManagerName.equals("simple")){
+//                log.info("Create Simple Gateway.");
+//                proxyServiceManager =
+//                        new SimpleBackendManager("simple", internalChannel, scheduledExecutorService);
+//            }
 
             //CoAP
-            else if(proxyServiceManagerName.equals("coap")) {
+            if(proxyServiceManagerName.equals("coap")) {
                 log.info("Create CoAP Gateway.");
                 proxyServiceManager =
-                        new CoapBackendManager("coap", internalChannel, scheduledExecutorService);
+                        new CoapBackendManager("coap", localPipelineFactory, scheduledExecutorService);
             }
 
             //Local files
-            else if(proxyServiceManagerName.equals("files")){
-                String directory = config.getString("files.directory");
-                if(directory == null){
-                    throw new Exception("Property 'files.directory' not set.");
-                }
-                boolean copyExamples = config.getBoolean("files.copyExamples");
-                int numberOfRandomFiles = config.getInt("files.numberOfRandomFiles", 0);
-                proxyServiceManager =
-                        new FilesBackendManager("files", internalChannel, scheduledExecutorService, copyExamples,
-                                numberOfRandomFiles, directory);
-
-
-            }else if(proxyServiceManagerName.equals("uberdust")){
-                log.info("Create Uberdust Gateway.");
-                proxyServiceManager =
-                        new UberdustBackendManager("uberdust", internalChannel, scheduledExecutorService);
-            }
+//            else if(proxyServiceManagerName.equals("files")){
+//                String directory = config.getString("files.directory");
+//                if(directory == null){
+//                    throw new Exception("Property 'files.directory' not set.");
+//                }
+//                boolean copyExamples = config.getBoolean("files.copyExamples");
+//                int numberOfRandomFiles = config.getInt("files.numberOfRandomFiles", 0);
+//                proxyServiceManager =
+//                        new FilesBackendManager("files", internalChannel, scheduledExecutorService, copyExamples,
+//                                numberOfRandomFiles, directory);
+//
+//
+//            }else if(proxyServiceManagerName.equals("uberdust")){
+//                log.info("Create Uberdust Gateway.");
+//                proxyServiceManager =
+//                        new UberdustBackendManager("uberdust", internalChannel, scheduledExecutorService);
+//            }
 
             //Unknown AbstractGatewayFactory type
             else {
@@ -196,7 +204,7 @@ public class Main {
                 continue;
             }
 
-            proxyServiceManager.registerGuiAndInitialize();
+            proxyServiceManager.initializeBackendComponents();
         }
     }
 

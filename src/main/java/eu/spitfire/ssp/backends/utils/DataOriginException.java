@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends;
+package eu.spitfire.ssp.backends.utils;
 
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -9,7 +9,7 @@ import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 import java.net.URI;
 
 /**
- * Exception to be thrown by implementations of {@link AbstractBackendManager} or its subcomponents whenever
+ * Exception to be thrown by implementations of {@link BackendManager} or its subcomponents whenever
  * something went wrong during the processing of an incoming {@link HttpRequest}.
  *
  * To be more precise, instances
@@ -20,7 +20,7 @@ import java.net.URI;
  *
  * @author Oliver Kleine
  */
-public class ProxyServiceException extends Exception{
+public class DataOriginException extends Exception{
 
     private HttpResponseStatus httpResponseStatus;
     private URI resourceUri;
@@ -29,18 +29,17 @@ public class ProxyServiceException extends Exception{
      * @param resourceUri the {@link URI} of the resource that caused the exception.
      * @param httpResponseStatus the {@link HttpResponseStatus} to be set on the {@link HttpResponse}.
      */
-    public ProxyServiceException(URI resourceUri, HttpResponseStatus httpResponseStatus){
+    public DataOriginException(URI resourceUri, HttpResponseStatus httpResponseStatus){
         this(resourceUri, httpResponseStatus, httpResponseStatus.toString());
     }
-
 
     /**
      * @param resourceUri the {@link URI} of the resource that caused the exception.
      * @param httpResponseStatus the {@link HttpResponseStatus} to be set on the {@link HttpResponse}.
      * @param message a {@łink String} containing additional messages to included in the payload of the response.
      */
-    public ProxyServiceException(URI resourceUri, HttpResponseStatus httpResponseStatus,
-                                 String message){
+    public DataOriginException(URI resourceUri, HttpResponseStatus httpResponseStatus,
+                               String message){
         super(message);
         this.resourceUri = resourceUri;
         this.httpResponseStatus = httpResponseStatus;
@@ -53,8 +52,8 @@ public class ProxyServiceException extends Exception{
      * @param cause the {@link Throwable} that caused this exception. The stacktrace will be included in the
      *              payload of the HTTP response.
      */
-    public ProxyServiceException(URI resourceUri, HttpResponseStatus httpResponseStatus,
-                                 String message, Throwable cause){
+    public DataOriginException(URI resourceUri, HttpResponseStatus httpResponseStatus,
+                               String message, Throwable cause){
         this(resourceUri, httpResponseStatus, message);
         this.initCause(cause);
     }

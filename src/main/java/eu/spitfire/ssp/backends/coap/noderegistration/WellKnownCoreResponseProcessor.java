@@ -27,10 +27,6 @@ public class WellKnownCoreResponseProcessor implements CoapResponseProcessor, Re
         serviceDiscoveryFuture = SettableFuture.create();
     }
 
-//    public void setServiceDiscoveryFuture(SettableFuture<Set<String>> serviceDiscoveryFuture){
-//        this.serviceDiscoveryFuture = serviceDiscoveryFuture;
-//    }
-
     public SettableFuture<Set<String>> getServiceDiscoveryFuture(){
         return this.serviceDiscoveryFuture;
     }

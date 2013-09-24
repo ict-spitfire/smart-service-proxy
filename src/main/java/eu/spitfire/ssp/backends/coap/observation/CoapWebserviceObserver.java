@@ -9,9 +9,11 @@ import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.Retransmission
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
-import eu.spitfire.ssp.backends.AbstractResourceObserver;
-import eu.spitfire.ssp.backends.coap.ResourceToolBox;
-import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
+import eu.spitfire.ssp.backends.coap.CoapResourceToolbox;
+import eu.spitfire.ssp.backends.coap.requestprocessing.CoapWebserviceResponseProcessor;
+import eu.spitfire.ssp.backends.utils.BackendManager;
+import eu.spitfire.ssp.backends.utils.DataOriginObserver;
+import eu.spitfire.ssp.backends.utils.ResourceToolbox;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,32 +26,26 @@ import java.util.concurrent.TimeUnit;
 
 
 /**
- * Instances of {@link CoapResourceObserver} are instances of {@link CoapResponseProcessor} to observe
+ * Instances of {@link CoapWebserviceObserver} are instances of {@link CoapResponseProcessor} to observe
  * CoAP webservices. If an update notification was received for an observed CoAP resource it sends
- * an {@link ResourceStatusMessage} to update the actual resource status in the cache.
+ * an {@link eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage} to update the actual resource status in the cache.
  *
  * @author Oliver Kleine
  */
-public class CoapResourceObserver extends AbstractResourceObserver implements CoapResponseProcessor,
+public class CoapWebserviceObserver extends DataOriginObserver<URI> implements CoapResponseProcessor,
         RetransmissionTimeoutProcessor, ObservationTimeoutProcessor{
 
     private Logger log =  LoggerFactory.getLogger(this.getClass().getName());
 
     private CoapRequest coapRequest;
-    private ScheduledExecutorService scheduledExecutorService;
+
 
     /**
      * @param coapRequest the {@link CoapRequest} to be sent if the observation times out (max-age expiry)
-     * @param scheduledExecutorService the {@link ScheduledExecutorService} to run observation specific tasks
-     * @param localChannel the {@link LocalServerChannel} to send internal messages, e.g. {@link ResourceStatusMessage}s
-     *                     to update the cache.
      */
-    public CoapResourceObserver(CoapRequest coapRequest, ScheduledExecutorService scheduledExecutorService,
-                                LocalServerChannel localChannel){
-        super(scheduledExecutorService, localChannel);
-
+    public CoapWebserviceObserver(BackendManager<URI> backendManager, CoapRequest coapRequest){
+        super(backendManager);
         this.coapRequest = coapRequest;
-        this.scheduledExecutorService = scheduledExecutorService;
     }
 
     @Override
@@ -64,13 +60,21 @@ public class CoapResourceObserver extends AbstractResourceObserver implements Co
 
         //create resource status message to update the cache
         try {
-            Model resourceStatus = ResourceToolBox.getModelFromCoapResponse(coapResponse);
-            Date expiry = ResourceToolBox.getExpiryFromCoapResponse(coapResponse);
+            Model resourceStatus = CoapResourceToolbox.getModelFromCoapResponse(coapResponse);
+            final Date expiry = CoapResourceToolbox.getExpiryFromCoapResponse(coapResponse);
 
-            Map<URI, Model> resources = ResourceToolBox.getModelsPerSubject(resourceStatus);
+            final Map<URI, Model> resources = ResourceToolbox.getModelsPerSubject(resourceStatus);
 
-            for(URI subResourceUri : resources.keySet())
-                cacheResourceStatus(subResourceUri, resources.get(subResourceUri), expiry);
+            for(final URI subResourceUri : resources.keySet()){
+                backendManager.getScheduledExecutorService().schedule(new Runnable(){
+
+                    @Override
+                    public void run() {
+                        cacheResourceStatus(subResourceUri, resources.get(subResourceUri), expiry);
+                    }
+                }, 0, TimeUnit.MILLISECONDS);
+
+            }
 
         } catch (Exception e) {
             log.error("Exception while creating resource status message from CoAP update notification.", e);
@@ -80,7 +84,7 @@ public class CoapResourceObserver extends AbstractResourceObserver implements Co
 
     @Override
     public void processRetransmissionTimeout(InternalRetransmissionTimeoutMessage timeoutMessage) {
-        scheduledExecutorService.schedule(new Runnable(){
+        backendManager.getScheduledExecutorService().schedule(new Runnable(){
             @Override
             public void run() {
                 log.warn("Resource {} is unreachable. Remove from list of registered resoureces.",

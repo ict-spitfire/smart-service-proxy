@@ -26,10 +26,10 @@ package eu.spitfire.ssp.server.pipeline.handler;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.Main;
-import eu.spitfire.ssp.server.pipeline.handler.cache.AbstractSemanticCache;
+import eu.spitfire.ssp.backends.utils.DataOriginException;
+import eu.spitfire.ssp.server.pipeline.handler.cache.SemanticCache;
 import eu.spitfire.ssp.server.pipeline.messages.*;
 import eu.spitfire.ssp.server.webservices.*;
-import eu.spitfire.ssp.backends.*;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
@@ -65,7 +65,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
      * @throws Exception if some unexpected error occurs
      */
     public HttpRequestDispatcher(ExecutorService ioExecutorService, boolean enableSparqlEndpoint,
-                                 AbstractSemanticCache cache) throws Exception {
+                                 SemanticCache cache) throws Exception {
         this.ioExecutorService = ioExecutorService;
 
         this.proxyServices = Collections.synchronizedMap(new TreeMap<URI, HttpRequestProcessor>());
@@ -77,7 +77,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             registerSparqlEndpoint(cache);
     }
 
-    private void registerSparqlEndpoint(AbstractSemanticCache cache) {
+    private void registerSparqlEndpoint(SemanticCache cache) {
         try{
             URI targetUri = new URI("http", null, Main.SSP_DNS_NAME,
                     Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT , "/sparql", null, null);
@@ -118,7 +118,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
                         resourceProxyUri.getQuery(), resourceProxyUri.getFragment());
             }
             resourceProxyUri = resourceProxyUri.normalize();
-            log.info("Received HTTP request for " + resourceProxyUri);
+            log.info("Received HTTP request for {}", resourceProxyUri);
         }
         catch(URISyntaxException e){
             HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
@@ -165,27 +165,25 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
         //For semantic services
         else if(httpRequestProcessor instanceof SemanticHttpRequestProcessor){
-            final SettableFuture<ResourceStatusMessage> resourceStatusFuture = SettableFuture.create();
+            final SettableFuture<ResourceResponseMessage> resourceResponseFuture = SettableFuture.create();
 
-            resourceStatusFuture.addListener(new Runnable(){
+            resourceResponseFuture.addListener(new Runnable() {
                 @Override
                 public void run() {
                     try {
-                        writeResourceStatusMessage(ctx.getChannel(), resourceStatusFuture.get(),
+                        writeResourceResponseMessage(ctx.getChannel(), resourceResponseFuture.get(),
                                 (InetSocketAddress) me.getRemoteAddress());
-                    }
-                    catch (InterruptedException e) {
+                    } catch (InterruptedException e) {
                         HttpResponse httpResponse =
                                 HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
                                         HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
                         writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
-                    }
-                    catch (ExecutionException e) {
+                    } catch (ExecutionException e) {
                         HttpResponse httpResponse;
-                        if(e.getCause() instanceof ProxyServiceException){
+                        if (e.getCause() instanceof DataOriginException) {
 
-                            ProxyServiceException exception = (ProxyServiceException) e.getCause();
-                            if(exception.getHttpResponseStatus() == HttpResponseStatus.GATEWAY_TIMEOUT){
+                            DataOriginException exception = (DataOriginException) e.getCause();
+                            if (exception.getHttpResponseStatus() == HttpResponseStatus.GATEWAY_TIMEOUT) {
                                 URI resourceProxyUri = generateResourceProxyUri(exception.getResourceUri());
                                 log.info("Request for resource {} timed out. Remove!", resourceProxyUri);
                                 unregisterResourceProxyUri(resourceProxyUri);
@@ -194,8 +192,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
                             httpResponse =
                                     HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
                                             exception.getHttpResponseStatus(), exception.getMessage());
-                        }
-                        else{
+                        } else {
                             httpResponse =
                                     HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
                                             HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
@@ -206,7 +203,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
                 }
             }, ioExecutorService);
 
-            httpRequestProcessor.processHttpRequest(resourceStatusFuture, httpRequest);
+            httpRequestProcessor.processHttpRequest(resourceResponseFuture, httpRequest);
         }
     }
 
@@ -320,17 +317,17 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     }
 
     /**
-     * Sends a {@link ResourceStatusMessage} on the given channel which is converted into an HTTP response after
+     * Sends a {@link eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage} on the given channel which is converted into an HTTP response after
      * caching.
      *
      * @param channel the {@link Channel} to send the message over
-     * @param resourceStatusMessage the message containing the information to be sent
+     * @param resourceResponseMessage the message containing the information to be sent
      * @param remoteAddress the recipient of the eventual HTTP response (which is generated from the given
-     *                      {@link ResourceStatusMessage}
+     *                      {@link eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage}
      */
-    private void writeResourceStatusMessage(Channel channel, final ResourceStatusMessage resourceStatusMessage,
-                                            final InetSocketAddress remoteAddress){
-        ChannelFuture future = Channels.write(channel, resourceStatusMessage, remoteAddress);
+    private void writeResourceResponseMessage(Channel channel, final ResourceResponseMessage resourceResponseMessage,
+                                              final InetSocketAddress remoteAddress){
+        ChannelFuture future = Channels.write(channel, resourceResponseMessage, remoteAddress);
         future.addListener(ChannelFutureListener.CLOSE);
         future.addListener(new ChannelFutureListener() {
             @Override

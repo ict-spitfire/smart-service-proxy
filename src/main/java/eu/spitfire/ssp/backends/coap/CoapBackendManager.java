@@ -26,27 +26,29 @@ package eu.spitfire.ssp.backends.coap;
 
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
-import eu.spitfire.ssp.backends.AbstractBackendManager;
-import eu.spitfire.ssp.backends.coap.noderegistration.CoapNodeRegistrationService;
-import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
-import eu.spitfire.ssp.backends.coap.requestprocessing.HttpRequestProcessorForCoapServices;
-import org.jboss.netty.channel.local.LocalServerChannel;
+import eu.spitfire.ssp.backends.utils.*;
+import eu.spitfire.ssp.backends.coap.noderegistration.CoapRegistrationWebservice;
+import eu.spitfire.ssp.backends.coap.noderegistration.CoapSemanticWebserviceRegistry;
+import eu.spitfire.ssp.backends.coap.requestprocessing.HttpRequestProcessorForCoapWebservices;
+import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * The {@link CoapBackendManager} provides all functionality to manage CoAP resources, i.e. it provides a
- * {@link CoapServerApplication} with a {@link CoapNodeRegistrationService} to enable CoAP webservers to register
+ * {@link CoapServerApplication} with a {@link eu.spitfire.ssp.backends.coap.noderegistration.CoapRegistrationWebservice} to enable CoAP webservers to register
  * at the SSP.
  *
- * Furthermore it provides a {@link CoapClientApplication} and a {@link HttpRequestProcessorForCoapServices}
+ * Furthermore it provides a {@link CoapClientApplication} and a {@link eu.spitfire.ssp.backends.coap.requestprocessing.HttpRequestProcessorForCoapWebservices}
  * to forward incoming HTTP requests to the original host.
  *
  * @author Oliver Kleine
  */
-public class CoapBackendManager extends AbstractBackendManager {
+public class CoapBackendManager extends BackendManager<URI> {
 
     public static final int COAP_SERVER_PORT = 5683;
 
@@ -57,42 +59,71 @@ public class CoapBackendManager extends AbstractBackendManager {
 
     /**
      * @param prefix the prefix used for not-absolute resource URIs, e.g. <code>prefix/gui</code>
-     * @param localChannel the {@link LocalServerChannel} to send internal messages, e.g. resource status updates.
+     * @param localPipelineFactory the {@link LocalPipelineFactory} to get the pipeline to send internal messages,
+     *                             e.g. resource status updates.
      * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
      */
-    public CoapBackendManager(String prefix, LocalServerChannel localChannel,
-                              ScheduledExecutorService scheduledExecutorService){
-        super(prefix, localChannel, scheduledExecutorService);
+    public CoapBackendManager(String prefix, LocalPipelineFactory localPipelineFactory,
+                              ScheduledExecutorService scheduledExecutorService) throws Exception{
+        super(prefix, localPipelineFactory, scheduledExecutorService);
+
+        //create instances of CoAP client and server applications
+        this.coapClientApplication = new CoapClientApplication();
+
+        InetSocketAddress coapServerSocketAddress =
+                new InetSocketAddress("2001:638:70a:b157:5eac:4cff:fe65:2aee", 5683);
+        this.coapServerApplication = new CoapServerApplication(coapServerSocketAddress);
     }
 
-//    @Override
-//    public SettableFuture<URI> registerResource(final URI resourceUri, final HttpRequestProcessor requestProcessor){
-//
-//        SettableFuture<URI> resourceRegistrationFuture = super.registerResource(resourceUri, requestProcessor);
-//
-//        return resourceRegistrationFuture;
+    /**
+     * Returns the {@link CoapClientApplication} to send requests and receive responses and update notifications
+     * @return the {@link CoapClientApplication} to send requests and receive responses and update notifications
+     */
+    public CoapClientApplication getCoapClientApplication() {
+        return this.coapClientApplication;
+    }
+
+    /**
+     * Returns the {@link CoapServerApplication} to host CoAP Webservices
+     * @return the {@link CoapServerApplication} to host CoAP Webservices
+     */
+    public CoapServerApplication getCoapServerApplication(){
+        return this.coapServerApplication;
+    }
+
+//    /**
+//     * Returns the {@link eu.spitfire.ssp.backends.coap.requestprocessing.HttpRequestProcessorForCoapWebservices} to retrieve the status of resources backed by
+//     * a CoAP Webservice
+//     * @return the {@link eu.spitfire.ssp.backends.coap.requestprocessing.HttpRequestProcessorForCoapWebservices} to retrieve the status of resources backed by
+//     * a CoAP Webservice
+//     */
+//    public HttpRequestProcessorForCoapWebservices getHttpRequestProcessor(){
+//        return this.httpRequestProcessorForCoapResources;
 //    }
 
     @Override
-    public HttpRequestProcessor getGui() {
+    public ServiceToListResourcesPerDataOrigin<URI> createListOfRegisteredResourcesGui() {
         return null;
     }
 
     @Override
     public void initialize() {
-        //create client for backends request processing and resource observation
-        this.coapClientApplication = new CoapClientApplication();
+        this.coapServerApplication.registerService(new CoapRegistrationWebservice(this));
+    }
 
-        //create instance of HttpRequestProcessor
-        HttpRequestProcessorForCoapServices httpRequestProcessorForCoapServices =
-                new HttpRequestProcessorForCoapServices(coapClientApplication);
+    @Override
+    public DataOriginRegistry<URI> createDataOriginRegistry() {
+        return new CoapSemanticWebserviceRegistry(this);
+    }
 
-        //create server and service for node registration
-        this.coapServerApplication = new CoapServerApplication();
-        CoapNodeRegistrationService coapNodeRegistrationService =
-                new CoapNodeRegistrationService(this, coapClientApplication,
-                        httpRequestProcessorForCoapServices, localChannel);
-        coapServerApplication.registerService(coapNodeRegistrationService);
+    @Override
+    public DataOriginAccessory<URI> createDataOriginReader() {
+        return new CoapWebserviceDataOriginAccessory(this);
+    }
+
+    @Override
+    public SemanticHttpRequestProcessor<URI> createHttpRequestProcessor() {
+        return new HttpRequestProcessorForCoapWebservices(this);
     }
 
     @Override

@@ -4,15 +4,12 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.rdf.model.Statement;
-import com.hp.hpl.jena.sdb.SDB;
-import com.hp.hpl.jena.sdb.SDBFactory;
-import com.hp.hpl.jena.sdb.Store;
 import com.hp.hpl.jena.tdb.TDB;
 import com.hp.hpl.jena.tdb.TDBFactory;
-import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
+import eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +25,7 @@ import java.util.Date;
  * Time: 09:43
  * To change this template use File | Settings | File Templates.
  */
-public class JenaTdbSemanticCache extends AbstractSemanticCache{
+public class JenaTdbSemanticCache extends SemanticCache {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -40,14 +37,15 @@ public class JenaTdbSemanticCache extends AbstractSemanticCache{
     }
 
     @Override
-    public ResourceStatusMessage getCachedResource(URI resourceUri) {
+    public ResourceResponseMessage getCachedResource(URI resourceUri) {
         dataset.begin(ReadWrite.READ) ;
         try {
             Model model = dataset.getNamedModel(resourceUri.toString());
 
             if(model.listStatements().hasNext()){
                 log.info("Status found for resource {}", resourceUri);
-                return new ResourceStatusMessage(resourceUri, model, new Date());
+                return new ResourceResponseMessage(HttpResponseStatus.OK, model.getResource(resourceUri.toString()),
+                        new Date());
             }
             else{
                 log.info("No status found for resource {}", resourceUri);
@@ -145,5 +143,10 @@ public class JenaTdbSemanticCache extends AbstractSemanticCache{
         finally {
             dataset.end();
         }
+    }
+
+    @Override
+    public boolean supportsSPARQL() {
+        return true;
     }
 }

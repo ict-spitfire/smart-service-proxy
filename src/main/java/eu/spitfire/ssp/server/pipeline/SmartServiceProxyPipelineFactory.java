@@ -25,8 +25,7 @@
 package eu.spitfire.ssp.server.pipeline;
 
 import eu.spitfire.ssp.server.pipeline.handler.*;
-import eu.spitfire.ssp.server.pipeline.handler.cache.AbstractSemanticCache;
-import eu.spitfire.ssp.server.pipeline.handler.cache.JenaSdbSemanticCache;
+import eu.spitfire.ssp.server.pipeline.handler.cache.SemanticCache;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
@@ -53,38 +52,37 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
     private static Logger log = LoggerFactory.getLogger(SmartServiceProxyPipelineFactory.class.getName());
 
     private HttpRequestDispatcher httpRequestDispatcher;
-    private AbstractSemanticCache semanticCache            ;
+    private SemanticCache semanticCache            ;
     private ExecutionHandler executionHandler;
 
-    private InternalPipelineSink internalPipelineSink;
+    public SmartServiceProxyPipelineFactory(ExecutorService ioExecutorService, SemanticCache cache,
+                                            HttpRequestDispatcher httpRequestDispatcher) throws Exception {
 
-    public SmartServiceProxyPipelineFactory(ExecutorService executorService, AbstractSemanticCache cache)
-            throws Exception {
-        executionHandler = new ExecutionHandler(executorService);
+        executionHandler = new ExecutionHandler(ioExecutorService);
         semanticCache = cache;
+
         log.info("Added instance of {} as cache.", semanticCache.getClass().getName());
-        httpRequestDispatcher = new HttpRequestDispatcher(executorService, true, cache);
 
-        internalPipelineSink = new InternalPipelineSink();
+        this.httpRequestDispatcher = httpRequestDispatcher;
     }
 
-    /**
-     * The internal pipeline contains the handlers to handle internal messages for e.g. resource registration and
-     * resource status updates.
-     *
-     * @return the pipeline (chain of handlers) for internal messages.
-     *
-     * @throws Exception if some unexpected error occurred
-     */
-    public ChannelPipeline getInternalPipeline() throws Exception{
-        ChannelPipeline pipeline = Channels.pipeline();
-
-        pipeline.addLast("Internal Sink", internalPipelineSink);
-        pipeline.addLast("Semantic Cache", semanticCache);
-        pipeline.addLast("HTTP Request Dispatcher", httpRequestDispatcher);
-
-        return pipeline;
-    }
+//    /**
+//     * The internal pipeline contains the handlers to handle internal messages for e.g. resource registration and
+//     * resource status updates.
+//     *
+//     * @return the pipeline (chain of handlers) for internal messages.
+//     *
+//     * @throws Exception if some unexpected error occurred
+//     */
+//    public ChannelPipeline getInternalPipeline() throws Exception{
+//        ChannelPipeline pipeline = Channels.pipeline();
+//
+//        //pipeline.addLast("Internal Sink", internalPipelineSink);
+//        pipeline.addLast("Semantic Cache", semanticCache);
+//        pipeline.addLast("HTTP Request Dispatcher", httpRequestDispatcher);
+//
+//        return pipeline;
+//    }
 
     /**
      * The pipeline contains the handlers to handle incoming HTTP requests and return a proper HTTP response

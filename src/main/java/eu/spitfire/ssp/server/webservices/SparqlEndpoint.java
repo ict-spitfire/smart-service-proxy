@@ -3,7 +3,7 @@ package eu.spitfire.ssp.server.webservices;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.server.pipeline.handler.cache.AbstractSemanticCache;
+import eu.spitfire.ssp.server.pipeline.handler.cache.SemanticCache;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -26,10 +26,10 @@ public class SparqlEndpoint implements DefaultHttpRequestProcessor {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private ExecutorService executorService;
-    private AbstractSemanticCache cache;
+    private SemanticCache cache;
     private int counter = 0;
 
-    public SparqlEndpoint(ExecutorService executorService, AbstractSemanticCache cache) {
+    public SparqlEndpoint(ExecutorService executorService, SemanticCache cache) {
         this.executorService = executorService;
         this.cache = cache;
     }
