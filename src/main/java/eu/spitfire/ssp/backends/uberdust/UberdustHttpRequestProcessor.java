@@ -1,8 +1,6 @@
 //package eu.spitfire.ssp.backends.uberdust;
 //
 //import com.google.common.util.concurrent.SettableFuture;
-//import eu.spitfire.ssp.backends.utils.DataOriginException;
-//import eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage;
 //import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
 //import org.jboss.netty.handler.codec.http.HttpMethod;
 //import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -55,7 +53,7 @@
 //    }
 //
 //    @Override
-//    public void processHttpRequest(SettableFuture<ResourceResponseMessage> responseFuture,
+//    public void processHttpRequest(SettableFuture<ResourceStatusMessage> responseFuture,
 //                                   HttpRequest httpRequest) {
 //
 //        log.debug("Received request for path {}.", httpRequest.getUri());
@@ -69,9 +67,9 @@
 //            handlePost(responseFuture, httpRequest);
 //        } else {
 //            //handle anything else with method_not_allowed
-//            DataOriginException exception = null;
+//            ProxyServiceException exception = null;
 //            try {
-//                exception = new DataOriginException(new URI(httpRequest.getUri()), HttpResponseStatus.METHOD_NOT_ALLOWED,
+//                exception = new ProxyServiceException(new URI(httpRequest.getUri()), HttpResponseStatus.METHOD_NOT_ALLOWED,
 //                        httpRequest.getMethod().getName() + " Requests are not allowed to " + httpRequest.getUri());
 //            } catch (URISyntaxException e) {
 //                log.error(e.getMessage(), e);
@@ -86,16 +84,15 @@
 //     * @param responseFuture the response to be sent back.
 //     * @param httpRequest    the request from the client.
 //     */
-//    public void handleGet(SettableFuture<ResourceResponseMessage> responseFuture,
+//    public void handleGet(SettableFuture<ResourceStatusMessage> responseFuture,
 //                          HttpRequest httpRequest) {
 //        try {
 //
 //            UberdustNode node = uberdustObserver.allnodes.get(new URI(httpRequest.getUri().substring(httpRequest.getUri().indexOf("=") + 1)));
-//            log.error("here:" + node);
 //            //Set response
 //            Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
-//            ResourceResponseMessage resourceStatusMessage =
-//                    new ResourceResponseMessage(new URI(httpRequest.getUri()), node.getModel(), date);
+//            ResourceStatusMessage resourceStatusMessage =
+//                    new ResourceStatusMessage(new URI(httpRequest.getUri()), node.getModel(), date);
 //            responseFuture.set(resourceStatusMessage);
 //
 //        } catch (URISyntaxException e) {
@@ -109,7 +106,7 @@
 //     * @param responseFuture the response to be sent back.
 //     * @param httpRequest    the request from the client.
 //     */
-//    public void handlePost(SettableFuture<ResourceResponseMessage> responseFuture,
+//    public void handlePost(SettableFuture<ResourceStatusMessage> responseFuture,
 //                           HttpRequest httpRequest) {
 //        URI resourceUri = null;
 //        try {
@@ -127,14 +124,15 @@
 //            log.info("Sending request to " + url.toString());
 //            executor.submit(new UberdustPostRequest(url));
 //
-//            DataOriginException exception = new DataOriginException(resourceUri, HttpResponseStatus.OK,
+//            ProxyServiceException exception = new ProxyServiceException(resourceUri, HttpResponseStatus.OK,
 //                    "Request Forwarded to " + resourceUri);
 //            responseFuture.setException(exception);
 //        } catch (IOException | URISyntaxException e) {
 //            log.error(e.getMessage(), e);
-//            DataOriginException exception = new DataOriginException(resourceUri, HttpResponseStatus.INTERNAL_SERVER_ERROR,
+//            ProxyServiceException exception = new ProxyServiceException(resourceUri, HttpResponseStatus.INTERNAL_SERVER_ERROR,
 //                    e.getMessage());
 //            responseFuture.setException(exception);
 //        }
 //    }
 //}
+//>>>>>>> e722b6415036f34efa4b009fa89997c2e0b7f4fe

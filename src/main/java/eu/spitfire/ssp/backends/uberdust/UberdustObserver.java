@@ -2,8 +2,8 @@
 //
 //import com.google.common.util.concurrent.SettableFuture;
 //import com.hp.hpl.jena.rdf.model.Model;
-//import eu.spitfire.ssp.backends.utils.DataOriginObserver;
-//import eu.spitfire.ssp.backends.utils.ResourceToolbox;
+//import eu.spitfire.ssp.backends.AbstractResourceObserver;
+//import eu.spitfire.ssp.backends.coap.ResourceToolBox;
 //import eu.uberdust.communication.UberdustClient;
 //import eu.uberdust.communication.protobuf.Message;
 //import eu.uberdust.communication.websocket.readings.WSReadingsClient;
@@ -26,7 +26,7 @@
 // *
 // * @author Dimitrios Amaxilatis
 // */
-//public class UberdustObserver extends DataOriginObserver implements Observer {
+//public class UberdustObserver extends AbstractResourceObserver implements Observer {
 //    private static String UBERDUST_URL;
 //    private static String UBERDUST_URL_WS_PORT;
 //    private static String UBERDUST_OBSERVE_NODES;
@@ -40,8 +40,8 @@
 //
 //    public UberdustObserver(UberdustBackendManager serviceManager,
 //                            ScheduledExecutorService scheduledExecutorService,
-//                            LocalServerChannel localServerChannel) throws IOException {
-//        super(scheduledExecutorService, localServerChannel);
+//                            LocalServerChannel localChannel) throws IOException {
+//        super(scheduledExecutorService, localChannel);
 //
 //        this.serviceManager = serviceManager;
 //        allnodes = new HashMap<URI, UberdustNode>();
@@ -67,7 +67,11 @@
 //            UberdustClient.setUberdustURL("http://" + UBERDUST_URL);
 //            final String webSocketUrl = "ws://" + UBERDUST_URL + ":" + UBERDUST_URL_WS_PORT + "/readings.ws";
 //            WSReadingsClient.getInstance().setServerUrl(webSocketUrl);
-//            WSReadingsClient.getInstance().subscribe(UBERDUST_OBSERVE_NODES, UBERDUST_OBSERVE_CAPABILITIES);
+//            final String[] nodelist = UBERDUST_OBSERVE_NODES.split("\\+");
+//            for (String nodes : nodelist) {
+//                log.info("Subscribing to : " + nodes);
+//                WSReadingsClient.getInstance().subscribe(nodes, UBERDUST_OBSERVE_CAPABILITIES);
+//            }
 //            WSReadingsClient.getInstance().addObserver(this);
 //
 //        } catch (ConfigurationException e) {
@@ -78,38 +82,61 @@
 //    }
 //
 //
-//    public void update(Observable o, Object arg) {
+//    public void update(final Observable o, final Object arg) {
 //
-//        if (!(o instanceof WSReadingsClient)) {
-//            return;
-//        }
-//        if (arg instanceof Message.NodeReadings) {
-//            Message.NodeReadings.Reading reading = ((Message.NodeReadings) arg).getReading(0);
-//            if (reading.hasDoubleReading()) {
-//                try {
-//                    if (!reading.getCapability().contains("urn")) return;
-//                    String prefix = "";
-//                    for (String aprefix : testbeds.keySet()) {
-//                        if (reading.getNode().contains(aprefix)) {
-//                            prefix = aprefix;
+//        (new Thread() {
+//            @Override
+//            public void run() {
+//                super.run();    //To change body of overridden methods use File | Settings | File Templates.
+//                if (!(o instanceof WSReadingsClient)) {
+//                    return;
+//                }
+//                if (arg instanceof Message.NodeReadings) {
+//                    Message.NodeReadings.Reading reading = ((Message.NodeReadings) arg).getReading(0);
+////                    log.info("mnode:" + reading.getNode());
+//                    if (reading.hasDoubleReading()) {
+//                        try {
+//                            if (reading.getNode().contains("santander")) return;
+//                            if (!reading.getCapability().contains("urn")) return;
+//                            if (reading.getCapability().contains("parent")) return;
+//                            if (reading.getCapability().contains("report")) return;
+////                            if (!reading.getNode().contains("u")) return;
+////                            log.info("mnode2:" + reading.getNode());
+//                            String prefix = "";
+//                            for (String aprefix : testbeds.keySet()) {
+//                                if (reading.getNode().contains(aprefix)) {
+//                                    prefix = aprefix;
+//                                }
+//                            }
+//
+//
+//                            final URI resourceURI = new URI(UberdustNode.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
+//
+//                            if (!allnodes.containsKey(resourceURI)) {
+//                                allnodes.put(resourceURI, new UberdustNode(reading.getNode(), testbeds.get(prefix), prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
+//                            } else {
+//                                allnodes.get(resourceURI).update(reading.getDoubleReading(), new Date(reading.getTimestamp()));
+//                            }
+//
+//                            final Map<URI, Model> modelsMap = ResourceToolBox.getModelsPerSubject(allnodes.get(resourceURI).getModel());
+//                            for (final URI uri : modelsMap.keySet()) {
+//                                registerResource(uri, modelsMap.get(uri));
+////                                removeResourceStatusFromCache(uri);
+//                                cacheResourceStatus(uri, modelsMap.get(uri));
+//                            }
+//
+//                        } catch (Exception e) {
+//                            log.error(e.getMessage(), e);
 //                        }
 //                    }
-//
-//                    final URI resourceURI = new URI(UberdustNode.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
-//
-//                    if (!allnodes.containsKey(resourceURI)) {
-//                        allnodes.put(resourceURI, new UberdustNode(reading.getNode(), testbeds.get(prefix), reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
-//                        registerResource(resourceURI, allnodes.get(resourceURI).getModel());
-//                    }
-//                } catch (Exception e) {
-//                    log.error(e.getMessage(), e);
 //                }
 //            }
-//        }
+//        }).start();
+//
 //    }
 //
 //    private void registerResource(final URI resourceUri, final Model model) {
-//        final Map<URI, Model> modelsMap = ResourceToolbox.getModelsPerSubject(model);
+//        final Map<URI, Model> modelsMap = ResourceToolBox.getModelsPerSubject(model);
 //        for (final URI uri : modelsMap.keySet()) {
 //
 //            final SettableFuture<URI> resourceRegistrationFuture = serviceManager.registerResource(uri);
@@ -134,10 +161,13 @@
 //
 //
 //                    } catch (Exception e) {
-//                        log.error("Exception while creating service to observe a file.", e);
+//                        log.warn("Exception while registering resources.", e);
 //                    }
 //                }
 //            }, getScheduledExecutorService());
 //        }
 //    }
+//
+//
 //}
+//>>>>>>> e722b6415036f34efa4b009fa89997c2e0b7f4fe

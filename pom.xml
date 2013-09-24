@@ -68,22 +68,13 @@
             <artifactId>commons-configuration</artifactId>
             <version>1.9</version>
         </dependency>
-
-<!--        <dependency>
-            <groupId>uberdust</groupId>
-            <artifactId>WebSocketsLibrary</artifactId>
-            <version>1.0</version>
-        </dependency>
+       <!--
         <dependency>
             <groupId>uberdust</groupId>
-            <artifactId>UberdustInterface</artifactId>
+            <artifactId>wisedb</artifactId>
             <version>1.0</version>
         </dependency>
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>20090211</version>
-        </dependency>-->
+        -->
     </dependencies>
 
 	<repositories>
@@ -114,7 +105,14 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
-
+        <repository>
+            <id>repository.ru1</id>
+            <url>http://ru1.cti.gr/maven</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <layout>default</layout>
+        </repository>
 	</repositories>
 
 	<build>
