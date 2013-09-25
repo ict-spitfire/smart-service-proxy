@@ -28,6 +28,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import eu.spitfire.ssp.backends.utils.BackendManager;
 import eu.spitfire.ssp.backends.utils.LocalPipelineFactory;
 import eu.spitfire.ssp.backends.coap.CoapBackendManager;
+import eu.spitfire.ssp.backends.coap.UberdustBackendManager;
 import eu.spitfire.ssp.server.pipeline.SmartServiceProxyPipelineFactory;
 import eu.spitfire.ssp.server.pipeline.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.pipeline.handler.cache.*;
