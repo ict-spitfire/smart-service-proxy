@@ -181,19 +181,19 @@ public class Main {
             }
 
             //Local files
-            else if(proxyServiceManagerName.equals("files")){
-                String directory = config.getString("files.directory");
-                if(directory == null){
-                    throw new Exception("Property 'files.directory' not set.");
-                }
-                boolean copyExamples = config.getBoolean("files.copyExamples");
-                int numberOfRandomFiles = config.getInt("files.numberOfRandomFiles", 0);
-                proxyServiceManager =
-                        new FilesBackendManager("files", internalChannel, scheduledExecutorService, copyExamples,
-                                numberOfRandomFiles, directory);
-
-
-            }else if(proxyServiceManagerName.equals("uberdust")){
+//            else if(proxyServiceManagerName.equals("files")){
+//                String directory = config.getString("files.directory");
+//                if(directory == null){
+//                    throw new Exception("Property 'files.directory' not set.");
+//                }
+//                boolean copyExamples = config.getBoolean("files.copyExamples");
+//                int numberOfRandomFiles = config.getInt("files.numberOfRandomFiles", 0);
+//                proxyServiceManager =
+//                        new FilesBackendManager("files", internalChannel, scheduledExecutorService, copyExamples,
+//                                numberOfRandomFiles, directory);
+//
+//            }
+            else if(proxyServiceManagerName.equals("uberdust")){
                 log.info("Create Uberdust Gateway.");
                 proxyServiceManager =
                         new UberdustBackendManager("uberdust", internalChannel, scheduledExecutorService);
