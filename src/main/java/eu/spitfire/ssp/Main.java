@@ -186,8 +186,8 @@ public class Main {
 //                        new FilesBackendManager("files", internalChannel, scheduledExecutorService, copyExamples,
 //                                numberOfRandomFiles, directory);
 //
-//
-//            }else if(proxyServiceManagerName.equals("uberdust")){
+//            }
+//            else if(proxyServiceManagerName.equals("uberdust")){
 //                log.info("Create Uberdust Gateway.");
 //                proxyServiceManager =
 //                        new UberdustBackendManager("uberdust", internalChannel, scheduledExecutorService);
