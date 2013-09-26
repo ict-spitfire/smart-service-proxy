@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.coap.requestprocessing;
+package eu.spitfire.ssp.backends.coap;
 
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;

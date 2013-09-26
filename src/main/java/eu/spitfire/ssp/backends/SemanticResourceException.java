@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.utils;
+package eu.spitfire.ssp.backends;
 
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -9,7 +9,7 @@ import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 import java.net.URI;
 
 /**
- * Exception to be thrown by implementations of {@link BackendManager} or its subcomponents whenever
+ * Exception to be thrown by implementations of {@link BackendComponentFactory} or its sub-components whenever
  * something went wrong during the processing of an incoming {@link HttpRequest}.
  *
  * To be more precise, instances
@@ -20,7 +20,7 @@ import java.net.URI;
  *
  * @author Oliver Kleine
  */
-public class DataOriginException extends Exception{
+public class SemanticResourceException extends Exception{
 
     private HttpResponseStatus httpResponseStatus;
     private URI resourceUri;
@@ -29,7 +29,7 @@ public class DataOriginException extends Exception{
      * @param resourceUri the {@link URI} of the resource that caused the exception.
      * @param httpResponseStatus the {@link HttpResponseStatus} to be set on the {@link HttpResponse}.
      */
-    public DataOriginException(URI resourceUri, HttpResponseStatus httpResponseStatus){
+    public SemanticResourceException(URI resourceUri, HttpResponseStatus httpResponseStatus){
         this(resourceUri, httpResponseStatus, httpResponseStatus.toString());
     }
 
@@ -38,8 +38,8 @@ public class DataOriginException extends Exception{
      * @param httpResponseStatus the {@link HttpResponseStatus} to be set on the {@link HttpResponse}.
      * @param message a {@łink String} containing additional messages to included in the payload of the response.
      */
-    public DataOriginException(URI resourceUri, HttpResponseStatus httpResponseStatus,
-                               String message){
+    public SemanticResourceException(URI resourceUri, HttpResponseStatus httpResponseStatus,
+                                     String message){
         super(message);
         this.resourceUri = resourceUri;
         this.httpResponseStatus = httpResponseStatus;
@@ -52,8 +52,8 @@ public class DataOriginException extends Exception{
      * @param cause the {@link Throwable} that caused this exception. The stacktrace will be included in the
      *              payload of the HTTP response.
      */
-    public DataOriginException(URI resourceUri, HttpResponseStatus httpResponseStatus,
-                               String message, Throwable cause){
+    public SemanticResourceException(URI resourceUri, HttpResponseStatus httpResponseStatus,
+                                     String message, Throwable cause){
         this(resourceUri, httpResponseStatus, message);
         this.initCause(cause);
     }

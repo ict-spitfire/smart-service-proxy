@@ -121,7 +121,7 @@
 //                            final Map<URI, Model> modelsMap = ResourceToolBox.getModelsPerSubject(allnodes.get(resourceURI).getModel());
 //                            for (final URI uri : modelsMap.keySet()) {
 //                                registerResource(uri, modelsMap.get(uri));
-////                                removeResourceStatusFromCache(uri);
+////                                removeResource(uri);
 //                                cacheResourceStatus(uri, modelsMap.get(uri));
 //                            }
 //

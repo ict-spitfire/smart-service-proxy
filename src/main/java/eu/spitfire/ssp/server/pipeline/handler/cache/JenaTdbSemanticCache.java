@@ -8,7 +8,7 @@ import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.tdb.TDB;
 import com.hp.hpl.jena.tdb.TDBFactory;
-import eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage;
+import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,14 +37,14 @@ public class JenaTdbSemanticCache extends SemanticCache {
     }
 
     @Override
-    public ResourceResponseMessage getCachedResource(URI resourceUri) {
+    public ResourceStatusMessage getCachedResource(URI resourceUri) {
         dataset.begin(ReadWrite.READ) ;
         try {
             Model model = dataset.getNamedModel(resourceUri.toString());
 
             if(model.listStatements().hasNext()){
                 log.info("Status found for resource {}", resourceUri);
-                return new ResourceResponseMessage(HttpResponseStatus.OK, model.getResource(resourceUri.toString()),
+                return new ResourceStatusMessage(HttpResponseStatus.OK, model.getResource(resourceUri.toString()),
                         new Date());
             }
             else{

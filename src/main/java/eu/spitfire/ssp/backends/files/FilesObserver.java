@@ -5,8 +5,8 @@
 //import com.google.common.collect.Multimaps;
 //import com.google.common.util.concurrent.SettableFuture;
 //import com.hp.hpl.jena.rdf.model.*;
-//import eu.spitfire.ssp.backends.utils.DataOriginObserver;
-//import eu.spitfire.ssp.backends.utils.ResourceToolbox;
+//import eu.spitfire.ssp.backends.DataOriginObserver;
+//import eu.spitfire.ssp.backends.ResourceToolbox;
 //import org.jboss.netty.channel.ChannelFuture;
 //import org.jboss.netty.channel.ChannelFutureListener;
 //import org.jboss.netty.channel.local.LocalServerChannel;
@@ -173,7 +173,7 @@
 //
 //        //Delete resources which where included in the previous version of this file but not in the new version
 //        for(URI resourceUri : deletedResourceUris){
-//            removeResourceStatusFromCache(resourceUri);
+//            removeResource(resourceUri);
 //            observedResources.remove(filePath, resourceUri);
 //            requestProcessor.removeResource(resourceUri);
 //        }
@@ -198,7 +198,7 @@
 //
 //        Collection<URI> deletedResources = observedResources.get(filePath);
 //        for(URI resourceUri : deletedResources){
-//            removeResourceStatusFromCache(resourceUri);
+//            removeResource(resourceUri);
 //        }
 //
 //        observedResources.removeAll(filePath);

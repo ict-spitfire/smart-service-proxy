@@ -25,7 +25,7 @@
 //package eu.spitfire.ssp.backends.uberdust;
 //
 //import com.google.common.util.concurrent.SettableFuture;
-//import eu.spitfire.ssp.backends.utils.BackendManager;
+//import eu.spitfire.ssp.backends.BackendComponentFactory;
 //import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 //import org.apache.log4j.Logger;
 //import org.jboss.netty.channel.local.LocalServerChannel;
@@ -41,12 +41,12 @@
 // * at the {@link eu.spitfire.ssp.server.pipeline.handler.HttpRequestDispatcher} which causes these WebServices to occur on the
 // * HTML page (at <code>core://<ssp-ip>:<ssp-port>/) listing the available webServices.
 // * <p/>
-// * classes inheriting from {@link eu.spitfire.ssp.backends.utils.BackendManager}.
+// * classes inheriting from {@link eu.spitfire.ssp.backends.BackendComponentFactory}.
 // *
 // * @author Dimitrios Amaxilatis
 // */
 //
-//public class UberdustBackendManager extends BackendManager {
+//public class UberdustBackendManager extends BackendComponentFactory {
 //    /**
 //     * Logger.
 //     */

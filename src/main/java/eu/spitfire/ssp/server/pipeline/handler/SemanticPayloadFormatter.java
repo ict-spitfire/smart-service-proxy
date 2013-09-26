@@ -26,12 +26,9 @@ package eu.spitfire.ssp.server.pipeline.handler;
 
 import com.google.common.collect.Multimap;
 import com.google.common.collect.TreeMultimap;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.StmtIterator;
 import eu.spitfire.ssp.server.payloadserialization.Language;
-import eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage;
+import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
@@ -110,10 +107,10 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
 	public void writeRequested(ChannelHandlerContext ctx, final MessageEvent me) throws Exception {
         log.debug("Downstream: {}", me.getMessage());
 
-        if(me.getMessage() instanceof ResourceResponseMessage){
-            final ResourceResponseMessage resourceResponseMessage = (ResourceResponseMessage) me.getMessage();
+        if(me.getMessage() instanceof ResourceStatusMessage){
+            final ResourceStatusMessage resourceStatusMessage = (ResourceStatusMessage) me.getMessage();
 
-            Resource resource = resourceResponseMessage.getResource();
+            Resource resource = resourceStatusMessage.getResource();
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
             //Serialize the model associated with the resource and write on OutputStream
@@ -127,7 +124,7 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
             httpResponse.setHeader(HttpHeaders.Names.CONTENT_TYPE, acceptedLanguage.mimeType);
             httpResponse.setHeader(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
             httpResponse.setHeader(HttpHeaders.Names.EXPIRES,
-                    dateFormat.format(resourceResponseMessage.getExpiry()));
+                    dateFormat.format(resourceStatusMessage.getExpiry()));
 
             httpResponse.setHeader(HttpHeaders.Names.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
 
@@ -141,7 +138,7 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     log.info("Status of {} (encoded in {}) successfully written to {}.",
-                            new Object[]{resourceResponseMessage.getResourceUri(), acceptedLanguage.lang,
+                            new Object[]{resourceStatusMessage.getResourceUri(), acceptedLanguage.lang,
                             me.getRemoteAddress()});
                 }
             });

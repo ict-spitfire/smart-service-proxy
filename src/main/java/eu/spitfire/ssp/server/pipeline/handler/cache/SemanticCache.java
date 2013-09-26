@@ -28,7 +28,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourcesMessage;
 import eu.spitfire.ssp.server.pipeline.messages.InternalSparqlQueryMessage;
-import eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage;
+import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -83,7 +83,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
 
             log.debug("Lookup resource with URI: {}", resourceUri);
-            ResourceResponseMessage cachedResource = getCachedResource(resourceUri);
+            ResourceStatusMessage cachedResource = getCachedResource(resourceUri);
 
             if(cachedResource != null){
                 log.debug("Cached status for {} found.", resourceUri);
@@ -109,14 +109,14 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * @param resourceUri the {@link URI} identifying the wanted resource
      * @return the {@link Model} representing the status of the wanted resource
      */
-    public abstract ResourceResponseMessage getCachedResource(URI resourceUri);
+    public abstract ResourceStatusMessage getCachedResource(URI resourceUri);
 
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me)
             throws Exception {
 
-        if(me.getMessage() instanceof ResourceResponseMessage){
-            ResourceResponseMessage updateMessage = (ResourceResponseMessage) me.getMessage();
+        if(me.getMessage() instanceof ResourceStatusMessage){
+            ResourceStatusMessage updateMessage = (ResourceStatusMessage) me.getMessage();
             log.info("Received new status of {}", updateMessage.getResourceUri());
 
             Model updatedModel = updateMessage.getResource().getModel();

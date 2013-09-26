@@ -22,13 +22,19 @@
 * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-package eu.spitfire.ssp.backends.utils;
+package eu.spitfire.ssp.backends;
 
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
+import com.google.common.util.concurrent.SettableFuture;
+import eu.spitfire.ssp.backends.coap.observation.InternalObservationTimedOutMessage;
+import eu.spitfire.ssp.server.pipeline.messages.InternalRegisterProxyWebserviceMessage;
+import eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourcesMessage;
+import eu.spitfire.ssp.server.pipeline.messages.InternalResourceProxyUriRequest;
 import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
-import org.jboss.netty.channel.SimpleChannelHandler;
+import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.local.DefaultLocalServerChannelFactory;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -37,23 +43,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * A {@link BackendManager} instance is a software component to enable a client that is capable of
+ * A {@link BackendComponentFactory} instance is a software component to enable a client that is capable of
  * talking HTTP to communicate with an arbitrary server.
  *
- * Classes inheriting from {@link BackendManager} are responsible to provide the necessary components,
+ * Classes inheriting from {@link BackendComponentFactory} are responsible to provide the necessary components,
  * i.e. {@link HttpRequestProcessor} instances to translate the incoming
  * {@link HttpRequest} to whatever (potentially proprietary) protocol the actual server talks and to enable the
  * SSP framework to produce a suitable {@link HttpResponse} which is then sent to the client.
  *
  * @author Oliver Kleine
  */
-public abstract class BackendManager<T> extends SimpleChannelHandler{
+public abstract class BackendComponentFactory<T> extends SimpleChannelHandler{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -61,47 +65,57 @@ public abstract class BackendManager<T> extends SimpleChannelHandler{
     private DataOriginAccessory<T> dataOriginReader;
     private SemanticHttpRequestProcessor<T> httpRequestProcessor;
 
-    private Map<URI, T> registeredResources;
+    private Map<URI, T> resourceToDataOriginMap;
+    private Multimap<T, URI> dataOriginToResourcesMultimap;
     private Map<T, DataOriginObserver> observations;
-
-    private ServiceToListResourcesPerDataOrigin<T> gui;
 
     /**
      * The {@link ScheduledExecutorService} to handle resource management specific tasks
      */
-    protected ScheduledExecutorService scheduledExecutorService;
+    private ScheduledExecutorService scheduledExecutorService;
 
     private String prefix;
-    private LocalServerChannel localChannel;
+    private LocalServerChannel localServerChannel;
 
-    protected BackendManager(String prefix, LocalPipelineFactory localPipelineFactory,
-                             final ScheduledExecutorService scheduledExecutorService) throws Exception {
+    protected BackendComponentFactory(String prefix, LocalPipelineFactory localPipelineFactory,
+                                      final ScheduledExecutorService scheduledExecutorService) throws Exception {
         this.prefix = prefix;
 
-        this.registeredResources = Collections.synchronizedMap(new HashMap<URI, T>());
+        //Initialize Maps for semantic resources and observations
+        this.resourceToDataOriginMap = Collections.synchronizedMap(new HashMap<URI, T>());
+        this.dataOriginToResourcesMultimap = Multimaps.synchronizedMultimap(HashMultimap.<T, URI>create());
+        this.observations = Collections.synchronizedMap(new HashMap<T, DataOriginObserver>());
+
         this.scheduledExecutorService = scheduledExecutorService;
 
         //create local channel for internal messages related to this backend
         DefaultLocalServerChannelFactory internalChannelFactory = new DefaultLocalServerChannelFactory();
-        this.localChannel = internalChannelFactory.newChannel(localPipelineFactory.getPipeline());
-        this.localChannel.getPipeline().addLast("Backend Manager", this);
+        this.localServerChannel = internalChannelFactory.newChannel(localPipelineFactory.getPipeline());
+        this.localServerChannel.getPipeline().addLast("Backend Manager", this);
+    }
 
-        //initialize observations
-        this.observations = Collections.synchronizedMap(new HashMap<T, DataOriginObserver>());
+    @Override
+    public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
+        if(me.getMessage() instanceof InternalRemoveResourcesMessage){
+            InternalRemoveResourcesMessage message = (InternalRemoveResourcesMessage) me.getMessage();
 
-        this.gui = createListOfRegisteredResourcesGui();
+            URI resourceUri = message.getResourceUri();
+            T dataOrigin = resourceToDataOriginMap.remove(resourceUri);
+            if(dataOrigin != null){
+                log.info("Removed resource {} from data origin {} from list of registered resources.",
+                        resourceUri, dataOrigin);
+            }
+        }
+
+        ctx.sendDownstream(me);
     }
 
     public final LocalServerChannel getLocalServerChannel(){
-       return this.localChannel;
+       return this.localServerChannel;
     }
 
     public final ScheduledExecutorService getScheduledExecutorService(){
         return this.scheduledExecutorService;
-    }
-
-    public final ListeningExecutorService getListeningExecutorService(){
-        return MoreExecutors.listeningDecorator(this.scheduledExecutorService);
     }
 
     public final DataOriginRegistry<T> getDataOriginRegistry() {
@@ -122,6 +136,9 @@ public abstract class BackendManager<T> extends SimpleChannelHandler{
      * and {@link #initialize()} (in that order).
      */
     public final void initializeBackendComponents(){
+        //create and register service to list the backends resources
+        createListOfRegisteredResourcesGui();
+
         //Create data origin registry
         this.dataOriginRegistry = createDataOriginRegistry();
 
@@ -140,7 +157,8 @@ public abstract class BackendManager<T> extends SimpleChannelHandler{
      * @param dataOrigin the data origin of the resource to be added
      */
     public final void addResource(URI resourceUri, T dataOrigin){
-        registeredResources.put(resourceUri, dataOrigin);
+        resourceToDataOriginMap.put(resourceUri, dataOrigin);
+        dataOriginToResourcesMultimap.put(dataOrigin, resourceUri);
         DataOriginObserver observer = getDataOriginObserver(dataOrigin);
         if(observer != null)
             setDataOriginObserver(dataOrigin, observer);
@@ -171,7 +189,11 @@ public abstract class BackendManager<T> extends SimpleChannelHandler{
      * @return the data origin of the given resource
      */
     public final T getDataOrigin(URI resourceUri){
-        return registeredResources.get(resourceUri);
+        return resourceToDataOriginMap.get(resourceUri);
+    }
+
+    public final Collection<URI> getResources(T dataOrigin){
+        return dataOriginToResourcesMultimap.get(dataOrigin);
     }
 
     /**
@@ -211,7 +233,73 @@ public abstract class BackendManager<T> extends SimpleChannelHandler{
 
     public abstract SemanticHttpRequestProcessor<T> createHttpRequestProcessor();
 
-    public abstract ServiceToListResourcesPerDataOrigin<T> createListOfRegisteredResourcesGui();
+    private void createListOfRegisteredResourcesGui(){
+        try{
+            final WebserviceForResourcesList<T> webservice =
+                    new WebserviceForResourcesList<T>(this.resourceToDataOriginMap) {
+                @Override
+                public void processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest) {
+                    super.processHttpRequest(responseFuture, httpRequest);
+                }
+            };
+
+            final SettableFuture<URI> proxyResourceUriFuture = retrieveProxyUri(new URI("/resources"));
+
+            proxyResourceUriFuture.addListener(new Runnable(){
+                @Override
+                public void run() {
+                    try{
+                        InternalRegisterProxyWebserviceMessage message
+                                = new InternalRegisterProxyWebserviceMessage(proxyResourceUriFuture.get(), webservice);
+
+                        ChannelFuture future = Channels.write(localServerChannel, message);
+                        future.addListener(new ChannelFutureListener() {
+                            @Override
+                            public void operationComplete(ChannelFuture future) throws Exception {
+                                log.info("Registered service to list resources for backend: {}", prefix);
+                            }
+                        });
+                    }
+                    catch (Exception e) {
+                        log.error("This should never happen.", e);
+                    }
+                }
+            }, this.scheduledExecutorService);
+
+
+        }
+        catch(Exception e){
+            log.error("Could not register service to list a backends resources.", e);
+        }
+
+    };
+
+    /**
+     * Retrieves an absolute resource proxy {@link URI} for the given service {@link URI}. The proxy resource URI is
+     * the URI that will be listed in the list of available proxy services.
+     *
+     * The originURI may be either absolute or relative, i.e. only contain path and possibly additionally query and/or
+     * fragment.
+     *
+     * If originURI is absolute the resource proxy URI will be like
+     * <code>http:<ssp-host>:<ssp-port>/?uri=resourceUri</code>. i.e. with the resourceUri in the query part of the
+     * resource proxy URI. If the resourceUri is relative, i.e. without scheme, host and port, the resource proxy URI will
+     * contain the path of the resourceUri in its path extended by a gateway prefix.
+     *
+     * @param resourceUri the {@link URI} of the origin (remote) service to get the resource proxy URI for.
+     */
+    public SettableFuture<URI> retrieveProxyUri(URI resourceUri){
+        //Create future
+        SettableFuture<URI> uriRequestFuture = SettableFuture.create();
+
+        //Send resource proxy URI request
+        InternalResourceProxyUriRequest proxyUriRequest =
+                new InternalResourceProxyUriRequest(uriRequestFuture, this.prefix, resourceUri);
+        Channels.write(this.localServerChannel, proxyUriRequest);
+
+        //return future
+        return uriRequestFuture;
+    }
 
     public abstract void shutdown();
 

@@ -11,28 +11,28 @@ import java.net.URISyntaxException;
 import java.util.Date;
 
 /**
- * Instances of {@link ResourceResponseMessage} contain the {@link URI} to identify the resource, a {@link Model}
+ * Instances of {@link ResourceStatusMessage} contain the {@link URI} to identify the resource, a {@link Model}
  * containing the status of the resource and a {@link Date} to define the expiry of the actual status.
  *
  * @author Oliver Kleine
  */
-public class ResourceResponseMessage {
+public class ResourceStatusMessage {
 
-    private static Logger log = LoggerFactory.getLogger(ResourceResponseMessage.class.getName());
+    private static Logger log = LoggerFactory.getLogger(ResourceStatusMessage.class.getName());
 
     private final HttpResponseStatus httpResponseStatus;
     private final Resource resource;
     private final Date expiry;
 
-    public ResourceResponseMessage(HttpResponseStatus httpResponseStatus){
+    public ResourceStatusMessage(HttpResponseStatus httpResponseStatus){
         this(httpResponseStatus, null, null);
     }
 
-    public ResourceResponseMessage(Resource resource, Date expiry){
+    public ResourceStatusMessage(Resource resource, Date expiry){
         this(null, resource, expiry);
     }
 
-    public ResourceResponseMessage(HttpResponseStatus httpResponseStatus, Resource resource, Date expiry){
+    public ResourceStatusMessage(HttpResponseStatus httpResponseStatus, Resource resource, Date expiry){
         this.httpResponseStatus = httpResponseStatus;
         this.resource = resource;
         this.expiry = expiry;

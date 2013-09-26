@@ -13,7 +13,7 @@ import com.hp.hpl.jena.sdb.sql.SDBConnection;
 import com.hp.hpl.jena.sdb.store.DatabaseType;
 import com.hp.hpl.jena.sdb.store.LayoutType;
 import com.hp.hpl.jena.sdb.util.StoreUtils;
-import eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage;
+import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,14 +56,14 @@ public class JenaSdbSemanticCache extends SemanticCache {
     }
 
     @Override
-    public ResourceResponseMessage getCachedResource(URI resourceUri) {
+    public ResourceStatusMessage getCachedResource(URI resourceUri) {
         Store store = SDBFactory.connectStore(sdbConnection, storeDescription);
         Model model = SDBFactory.connectNamedModel(store, resourceUri.toString());
 
         store.close();
         if(model.listSubjects().hasNext()){
             log.info("Resource {} found in cache.", resourceUri);
-            return new ResourceResponseMessage(HttpResponseStatus.OK, model.getResource(resourceUri.toString()),
+            return new ResourceStatusMessage(HttpResponseStatus.OK, model.getResource(resourceUri.toString()),
                     new Date());
         }
         else{

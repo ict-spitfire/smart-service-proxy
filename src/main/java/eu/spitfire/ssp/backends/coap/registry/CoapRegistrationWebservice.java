@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.coap.noderegistration;
+package eu.spitfire.ssp.backends.coap.registry;
 
 import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.server.webservice.NotObservableWebService;
@@ -6,7 +6,7 @@ import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.MessageDoesNotAllowPayloadException;
 import de.uniluebeck.itm.ncoap.message.header.Code;
-import eu.spitfire.ssp.backends.coap.CoapBackendManager;
+import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,17 +25,16 @@ import java.nio.charset.Charset;
  * code.
  *
  * @author Oliver Kleine
-*/
+ */
 public class CoapRegistrationWebservice extends NotObservableWebService<Boolean>{
 
     private static Logger log = LoggerFactory.getLogger(CoapRegistrationWebservice.class.getName());
 
     private CoapSemanticWebserviceRegistry coapSemanticWebserviceRegistry;
-    //private CoapBackendManager backendManager;
 
-    public CoapRegistrationWebservice(CoapBackendManager backendManager){
+    public CoapRegistrationWebservice(CoapBackendComponentFactory backendManager){
         super("/here_i_am", Boolean.TRUE);
-        //this.backendManager = backendManager;
+        //this.backendComponentFactory = backendComponentFactory;
         this.coapSemanticWebserviceRegistry = (CoapSemanticWebserviceRegistry) backendManager.getDataOriginRegistry();
     }
 
@@ -75,23 +74,7 @@ public class CoapRegistrationWebservice extends NotObservableWebService<Boolean>
 
         //Request was POST, so go ahead
         this.coapSemanticWebserviceRegistry
-            .processRegistrationRequest(registrationResponseFuture, remoteAddress.getAddress());
-
-//        //Wait for internal registration to be processed
-//        internalRegistrationFuture.addListener(new Runnable() {
-//            @Override
-//            public void run() {
-//                CoapResponse coapResponse;
-//                try {
-//                    coapResponse = new CoapResponse(internalRegistrationFuture.get());
-//                }
-//                catch (Exception e) {
-//                    coapResponse = createCoapResponse(Code.INTERNAL_SERVER_ERROR_500, e.getCause().toString());
-//                }
-//
-//                registrationResponseFuture.set(coapResponse);
-//            }
-//        }, this.getListeningExecutorService());
+                .processRegistrationRequest(registrationResponseFuture, remoteAddress.getAddress());
     }
 
 

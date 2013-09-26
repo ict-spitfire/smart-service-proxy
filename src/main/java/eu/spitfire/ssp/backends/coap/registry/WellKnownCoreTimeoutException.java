@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.coap.noderegistration;
+package eu.spitfire.ssp.backends.coap.registry;
 
 import java.net.InetSocketAddress;
 
@@ -7,14 +7,14 @@ import java.net.InetSocketAddress;
  *
  * @author Oliver Kleine
  */
-public class ResourceDiscoveringTimeoutException extends Exception{
+public class WellKnownCoreTimeoutException extends Exception{
 
     private InetSocketAddress nodeAddress;
 
     /**
      * @param nodeAddress The {@link InetSocketAddress} of the node whose services where to be discovered
      */
-    public ResourceDiscoveringTimeoutException(InetSocketAddress nodeAddress){
+    public WellKnownCoreTimeoutException(InetSocketAddress nodeAddress){
         this.nodeAddress = nodeAddress;
     }
 

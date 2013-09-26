@@ -4,9 +4,9 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
-import eu.spitfire.ssp.backends.utils.InvalidSemanticContentException;
-import eu.spitfire.ssp.backends.utils.ResourceToolbox;
-import eu.spitfire.ssp.backends.utils.UnsupportedMediaTypeException;
+import eu.spitfire.ssp.backends.InvalidSemanticContentException;
+import eu.spitfire.ssp.backends.ResourceToolbox;
+import eu.spitfire.ssp.backends.UnsupportedMediaTypeException;
 import eu.spitfire.ssp.server.payloadserialization.Language;
 import eu.spitfire.ssp.server.payloadserialization.ShdtDeserializer;
 import org.slf4j.Logger;
@@ -31,7 +31,7 @@ public abstract class CoapResourceToolbox extends ResourceToolbox {
      * @param coapResponse the {@link de.uniluebeck.itm.ncoap.message.CoapResponse} to read the payload
      * @return a {@link com.hp.hpl.jena.rdf.model.Model} containing the information from the payload
      *
-     * @throws eu.spitfire.ssp.backends.utils.DataOriginException if an error occurred
+     * @throws eu.spitfire.ssp.backends.SemanticResourceException if an error occurred
      */
     public static Model getModelFromCoapResponse(CoapResponse coapResponse)
             throws UnsupportedMediaTypeException, InvalidSemanticContentException {

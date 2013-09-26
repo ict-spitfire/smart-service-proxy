@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.utils;
+package eu.spitfire.ssp.backends;
 
 import eu.spitfire.ssp.server.pipeline.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.pipeline.handler.InternalPipelineSink;

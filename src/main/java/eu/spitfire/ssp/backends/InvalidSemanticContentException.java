@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.utils;
+package eu.spitfire.ssp.backends;
 
 /**
  * Created with IntelliJ IDEA.

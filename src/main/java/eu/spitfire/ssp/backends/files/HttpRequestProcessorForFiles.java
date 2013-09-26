@@ -4,10 +4,10 @@
 //import com.hp.hpl.jena.rdf.model.Model;
 //import com.hp.hpl.jena.rdf.model.Resource;
 //import com.hp.hpl.jena.rdf.model.StmtIterator;
-//import eu.spitfire.ssp.backends.utils.DataOriginObserver;
-//import eu.spitfire.ssp.backends.utils.DataOriginException;
-//import eu.spitfire.ssp.backends.utils.ResourceToolbox;
-//import eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage;
+//import eu.spitfire.ssp.backends.DataOriginObserver;
+//import eu.spitfire.ssp.backends.SemanticResourceException;
+//import eu.spitfire.ssp.backends.ResourceToolbox;
+//import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 //import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
 //import org.jboss.netty.handler.codec.http.HttpMethod;
 //import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -37,7 +37,7 @@
 //    private Map<URI, Path> resources = new HashMap<>();
 //
 //    @Override
-//    public void processHttpRequest(SettableFuture<ResourceResponseMessage> resourceStatusFuture,
+//    public void processHttpRequest(SettableFuture<ResourceStatusMessage> resourceStatusFuture,
 //                                   HttpRequest httpRequest) {
 //
 //        log.info("Received request for resource {}", httpRequest.getUri());
@@ -58,20 +58,20 @@
 //
 //    }
 //
-//    public void processPOST(SettableFuture<ResourceResponseMessage> resourceStatusFuture,
+//    public void processPOST(SettableFuture<ResourceStatusMessage> resourceStatusFuture,
 //                            HttpRequest httpRequest) throws URISyntaxException {
 //
 //        URI resourceProxyUri = new URI(httpRequest.getUri());
 //        URI resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
 //
-//        DataOriginException exception = new DataOriginException(resourceUri, HttpResponseStatus.METHOD_NOT_ALLOWED,
+//        SemanticResourceException exception = new SemanticResourceException(resourceUri, HttpResponseStatus.METHOD_NOT_ALLOWED,
 //                "Method POST is not supported for resource " + resourceUri);
 //
 //        resourceStatusFuture.setException(exception);
 //    }
 //
-//    private void processPUT(SettableFuture<ResourceResponseMessage> resourceStatusFuture,
-//                            HttpRequest httpRequest) throws URISyntaxException, IOException, DataOriginException {
+//    private void processPUT(SettableFuture<ResourceStatusMessage> resourceStatusFuture,
+//                            HttpRequest httpRequest) throws URISyntaxException, IOException, SemanticResourceException {
 //
 //        URI resourceProxyUri = new URI(httpRequest.getUri());
 //        URI resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
@@ -91,12 +91,12 @@
 //            Model newModel = modelFromFile.union(ResourceToolbox.getModelFromHttpMessage(httpRequest));
 //
 //            ResourceToolbox.writeModelToFile(resourceFile, newModel);
-//            resourceStatusFuture.set(new ResourceResponseMessage(resourceUri, newModel,
+//            resourceStatusFuture.set(new ResourceStatusMessage(resourceUri, newModel,
 //                    new Date(System.currentTimeMillis() + DataOriginObserver.MILLIS_PER_YEAR)));
 //        }
 //    }
 //
-//    private void processGET(SettableFuture<ResourceResponseMessage> resourceStatusFuture,
+//    private void processGET(SettableFuture<ResourceStatusMessage> resourceStatusFuture,
 //                            HttpRequest httpRequest){
 //        try{
 //            URI resourceProxyUri = new URI(httpRequest.getUri());
@@ -104,8 +104,8 @@
 //
 //            String message = "The service at " + httpRequest.getUri() + " is backed by a local file and thus" +
 //                    "should be answered from the local cache!";
-//            DataOriginException exception =
-//                    new DataOriginException(resourceUri, HttpResponseStatus.INTERNAL_SERVER_ERROR, message);
+//            SemanticResourceException exception =
+//                    new SemanticResourceException(resourceUri, HttpResponseStatus.INTERNAL_SERVER_ERROR, message);
 //
 //            resourceStatusFuture.setException(exception);
 //        }

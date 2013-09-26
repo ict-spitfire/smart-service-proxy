@@ -5,9 +5,8 @@ import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import eu.spitfire.ssp.backends.coap.requestprocessing.CoapWebserviceResponseProcessor;
-import eu.spitfire.ssp.backends.utils.DataOriginAccessory;
-import eu.spitfire.ssp.backends.utils.DataOriginResponseMessage;
+import eu.spitfire.ssp.backends.DataOriginAccessory;
+import eu.spitfire.ssp.backends.DataOriginResponseMessage;
 import eu.spitfire.ssp.server.webservices.MethodNotAllowedException;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -28,9 +27,9 @@ import static de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType.*
 public class CoapWebserviceDataOriginAccessory implements DataOriginAccessory<URI> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
-    private CoapBackendManager backendManager;
+    private CoapBackendComponentFactory backendManager;
 
-    public CoapWebserviceDataOriginAccessory(CoapBackendManager backendManager){
+    public CoapWebserviceDataOriginAccessory(CoapBackendComponentFactory backendManager){
         this.backendManager = backendManager;
     }
 
@@ -101,7 +100,7 @@ public class CoapWebserviceDataOriginAccessory implements DataOriginAccessory<UR
 //                    new CoapWebserviceResponseProcessor(modelFromDataOriginFuture, serviceUri);
 //
 //            //Write the CoAP request
-//            backendManager.getCoapClientApplication().writeCoapRequest(coapRequest, coapResponseProcessor);
+//            backendComponentFactory.getCoapClientApplication().writeCoapRequest(coapRequest, coapResponseProcessor);
 //        }
 //        catch (Exception e) {
 //            log.error("Could not retrieve model from {}", serviceUri, e);

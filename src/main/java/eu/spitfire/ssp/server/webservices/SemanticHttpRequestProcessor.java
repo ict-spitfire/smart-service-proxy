@@ -2,8 +2,10 @@ package eu.spitfire.ssp.server.webservices;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
-import eu.spitfire.ssp.backends.utils.*;
-import eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage;
+import eu.spitfire.ssp.backends.BackendComponentFactory;
+import eu.spitfire.ssp.backends.DataOriginResponseMessage;
+import eu.spitfire.ssp.backends.ResourceStatusHandler;
+import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,48 +14,45 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 /**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 08.08.13
- * Time: 14:54
- * To change this template use File | Settings | File Templates.
+ *
+ *
+ * @author Oliver Kleine
  */
-public abstract class SemanticHttpRequestProcessor<T> implements HttpRequestProcessor<ResourceResponseMessage> {
+public abstract class SemanticHttpRequestProcessor<T> extends ResourceStatusHandler<T>
+        implements HttpRequestProcessor<ResourceStatusMessage> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
-    private BackendManager<T> backendManager;
 
-    public SemanticHttpRequestProcessor(BackendManager<T> backendManager){
-        this.backendManager = backendManager;
+    public SemanticHttpRequestProcessor(BackendComponentFactory<T> backendComponentFactory){
+        super(backendComponentFactory);
     }
 
     @Override
-    public final void processHttpRequest(final SettableFuture<ResourceResponseMessage> resourceResponseFuture,
+    public final void processHttpRequest(final SettableFuture<ResourceStatusMessage> resourceResponseFuture,
                                    HttpRequest httpRequest){
         try {
             final URI resourceUri = new URI(new URI(httpRequest.getUri()).getQuery().substring(4));
             log.info("Received request for resource {}", resourceUri);
 
             //Retrieve data origin for the requested resource
-            final T dataOrigin = this.backendManager.getDataOrigin(resourceUri);
+            final T dataOrigin = this.backendComponentFactory.getDataOrigin(resourceUri);
 
             //Let data origin accessory perform the operation on the data origin
             final SettableFuture<DataOriginResponseMessage> dataOriginResponseFuture = SettableFuture.create();
-            this.backendManager.getDataOriginAccessory()
+            this.backendComponentFactory.getDataOriginAccessory()
                                .processHttpRequest(dataOriginResponseFuture, httpRequest, dataOrigin);
 
             //Convert data origin response to resource response message
             dataOriginResponseFuture.addListener(new Runnable(){
-
                 @Override
                 public void run() {
-                    ResourceResponseMessage resourceResponseMessage;
+                    ResourceStatusMessage resourceStatusMessage;
                     try {
                         Model modelFromDataOrigin = dataOriginResponseFuture.get().getModel();
 
                         if(modelFromDataOrigin == null){
-                             resourceResponseMessage =
-                                    new ResourceResponseMessage(dataOriginResponseFuture.get().getHttpResponseStatus());
+                             resourceStatusMessage =
+                                    new ResourceStatusMessage(dataOriginResponseFuture.get().getHttpResponseStatus());
                         }
                         else{
                             Resource resource = modelFromDataOrigin.getResource(resourceUri.toString());
@@ -65,20 +64,20 @@ public abstract class SemanticHttpRequestProcessor<T> implements HttpRequestProc
                                 resourceModel.add(statement);
                             }
 
-                            resourceResponseMessage =
-                                    new ResourceResponseMessage(dataOriginResponseFuture.get().getHttpResponseStatus(),
+                            resourceStatusMessage =
+                                    new ResourceStatusMessage(dataOriginResponseFuture.get().getHttpResponseStatus(),
                                                                 resourceModel.getResource(resourceUri.toString()),
                                                                 dataOriginResponseFuture.get().getExpiry());
                         }
 
-                        resourceResponseFuture.set(resourceResponseMessage);
+                        resourceResponseFuture.set(resourceStatusMessage);
                     }
                     catch (Exception e) {
                         log.error("Error while getting response from data origin {}", dataOrigin , e);
                         resourceResponseFuture.setException(e);
                     }
                 }
-            }, backendManager.getScheduledExecutorService());
+            }, backendComponentFactory.getScheduledExecutorService());
         }
         catch (URISyntaxException e){
             log.error("This should never happen.", e);

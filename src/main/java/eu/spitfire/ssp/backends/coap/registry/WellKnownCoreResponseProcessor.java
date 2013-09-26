@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.coap.noderegistration;
+package eu.spitfire.ssp.backends.coap.registry;
 
 import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
@@ -33,43 +33,44 @@ public class WellKnownCoreResponseProcessor implements CoapResponseProcessor, Re
 
     @Override
     public void processCoapResponse(CoapResponse coapResponse) {
-        Set<String> services = processWellKnownCoreResource(coapResponse);
+        Set<String> services = processWellKnownCoreResponse(coapResponse);
         if(services != null){
-            log.info("/.well-known/core resource succesfully processed, found {} services.", services.size());
+            log.info("/.well-known/core service succesfully read. Found {} services.", services.size());
             serviceDiscoveryFuture.set(services);
         }
         else{
-            serviceDiscoveryFuture.setException(new WellKnownCoreResourceInvalidException());
+            serviceDiscoveryFuture.setException(new WellKnownCoreInvalidException());
         }
     }
 
     @Override
     public void processRetransmissionTimeout(InternalRetransmissionTimeoutMessage timeoutMessage) {
-        serviceDiscoveryFuture.setException(new ResourceDiscoveringTimeoutException(timeoutMessage.getRemoteAddress()));
+        serviceDiscoveryFuture.setException(new WellKnownCoreTimeoutException(timeoutMessage.getRemoteAddress()));
     }
 
-    private Set<String> processWellKnownCoreResource(CoapResponse coapResponse){
 
+    private Set<String> processWellKnownCoreResponse(CoapResponse coapResponse){
         ChannelBuffer payload = coapResponse.getPayload();
+        log.debug("Process ./well-known/core resource {}", payload.toString(Charset.forName("UTF-8")));
 
+        //Check if there is content at all
         if(payload.readableBytes() == 0)
             return null;
 
-        Set<String> result = new TreeSet<String>();
-
-        log.debug("Process ./well-known/core resource {}", payload.toString(Charset.forName("UTF-8")));
+        //Process the response from the .well-known/core service
+        Set<String> result = new TreeSet<>();
 
         //add links to the result set
-        String[] links = payload.toString(Charset.forName("UTF-8")).split(",");
+        String[] paths = payload.toString(Charset.forName("UTF-8")).split(",");
 
-        for (String link : links){
-            log.debug("Found service: " + link);
+        for (String path : paths){
+            log.debug("Found service: " + path);
             //Ensure a "/" at the beginning of the path
-            String path = link.substring(link.indexOf("<") + 1, link.indexOf(">"));
-            if (path.indexOf("/") > 0)
-                path = "/" + path;
+            String servicePath = path.substring(path.indexOf("<") + 1, path.indexOf(">"));
+            if (servicePath.indexOf("/") > 0)
+                servicePath = "/" + servicePath;
 
-            result.add(path);
+            result.add(servicePath);
         }
         return result;
     }

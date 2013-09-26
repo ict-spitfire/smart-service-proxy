@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.coap.requestprocessing;
+package eu.spitfire.ssp.backends.coap;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
@@ -6,9 +6,8 @@ import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import eu.spitfire.ssp.backends.coap.CoapResourceToolbox;
-import eu.spitfire.ssp.backends.utils.DataOriginException;
-import eu.spitfire.ssp.backends.utils.DataOriginResponseMessage;
+import eu.spitfire.ssp.backends.SemanticResourceException;
+import eu.spitfire.ssp.backends.DataOriginResponseMessage;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +39,8 @@ public class CoapWebserviceResponseProcessor implements CoapResponseProcessor, R
 
     /**
      * Sets a value to the {@link SettableFuture} given as constructor parameter. This value is either a
-     * {@link eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage} which is generated from the incoming {@link CoapResponse} or an
-     * {@link eu.spitfire.ssp.backends.utils.DataOriginException} if some error occurred.
+     * {@link eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage} which is generated from the incoming {@link CoapResponse} or an
+     * {@link eu.spitfire.ssp.backends.SemanticResourceException} if some error occurred.
      *
      * If there was no content in the response from the CoAP Webservice but the response code indicates success,
      * the {@link SettableFuture} is set with null (for requests with method PUT, POST or DELETE ).
@@ -55,18 +54,18 @@ public class CoapWebserviceResponseProcessor implements CoapResponseProcessor, R
         if(coapResponse.getCode().isErrorMessage()){
             HttpResponseStatus httpResponseStatus =
                     CoapCodeHttpStatusMapper.getHttpResponseStatus(coapResponse.getCode());
-            dataOriginResponseFuture.setException(new DataOriginException(dataOrigin, httpResponseStatus));
+            dataOriginResponseFuture.setException(new SemanticResourceException(dataOrigin, httpResponseStatus));
             return;
         }
 
         if(coapResponse.getPayload().readableBytes() > 0 && coapResponse.getContentType() == null){
-            dataOriginResponseFuture.setException(new DataOriginException(dataOrigin, INTERNAL_SERVER_ERROR,
+            dataOriginResponseFuture.setException(new SemanticResourceException(dataOrigin, INTERNAL_SERVER_ERROR,
                     "CoAP response had no content type option."));
             return;
         }
 
         if(coapResponse.getContentType() != null && coapResponse.getPayload().readableBytes() == 0){
-            dataOriginResponseFuture.setException(new DataOriginException(dataOrigin, INTERNAL_SERVER_ERROR,
+            dataOriginResponseFuture.setException(new SemanticResourceException(dataOrigin, INTERNAL_SERVER_ERROR,
                     "CoAP response had content type option but no content"));
             return;
         }
@@ -97,7 +96,7 @@ public class CoapWebserviceResponseProcessor implements CoapResponseProcessor, R
     }
 
     /**
-     * Sets a {@link eu.spitfire.ssp.backends.utils.DataOriginException} on the {@link SettableFuture} given as constructor parameter
+     * Sets a {@link eu.spitfire.ssp.backends.SemanticResourceException} on the {@link SettableFuture} given as constructor parameter
      *
      * @param timeoutMessage the {@link InternalRetransmissionTimeoutMessage} containing some information
      *                       on the remote host and the sent request.
@@ -106,6 +105,6 @@ public class CoapWebserviceResponseProcessor implements CoapResponseProcessor, R
     public void processRetransmissionTimeout(InternalRetransmissionTimeoutMessage timeoutMessage) {
         String message = "No response received from " + dataOrigin + ".";
         log.warn(message);
-        dataOriginResponseFuture.setException(new DataOriginException(dataOrigin, GATEWAY_TIMEOUT, message));
+        dataOriginResponseFuture.setException(new SemanticResourceException(dataOrigin, GATEWAY_TIMEOUT, message));
     }
 }

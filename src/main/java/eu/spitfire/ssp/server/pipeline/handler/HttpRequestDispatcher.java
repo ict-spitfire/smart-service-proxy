@@ -26,7 +26,7 @@ package eu.spitfire.ssp.server.pipeline.handler;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.Main;
-import eu.spitfire.ssp.backends.utils.DataOriginException;
+import eu.spitfire.ssp.backends.SemanticResourceException;
 import eu.spitfire.ssp.server.pipeline.handler.cache.SemanticCache;
 import eu.spitfire.ssp.server.pipeline.messages.*;
 import eu.spitfire.ssp.server.webservices.*;
@@ -82,7 +82,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             URI targetUri = new URI("http", null, Main.SSP_DNS_NAME,
                     Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT , "/sparql", null, null);
 
-            registerResource(targetUri, new SparqlEndpoint(ioExecutorService, cache));
+            registerProxyWebservice(targetUri, new SparqlEndpoint(ioExecutorService, cache));
         } catch (URISyntaxException e) {
             log.error("This should never happen!", e);
         }
@@ -165,7 +165,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
         //For semantic services
         else if(httpRequestProcessor instanceof SemanticHttpRequestProcessor){
-            final SettableFuture<ResourceResponseMessage> resourceResponseFuture = SettableFuture.create();
+            final SettableFuture<ResourceStatusMessage> resourceResponseFuture = SettableFuture.create();
 
             resourceResponseFuture.addListener(new Runnable() {
                 @Override
@@ -180,9 +180,9 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
                         writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
                     } catch (ExecutionException e) {
                         HttpResponse httpResponse;
-                        if (e.getCause() instanceof DataOriginException) {
+                        if (e.getCause() instanceof SemanticResourceException) {
 
-                            DataOriginException exception = (DataOriginException) e.getCause();
+                            SemanticResourceException exception = (SemanticResourceException) e.getCause();
                             if (exception.getHttpResponseStatus() == HttpResponseStatus.GATEWAY_TIMEOUT) {
                                 URI resourceProxyUri = generateResourceProxyUri(exception.getResourceUri());
                                 log.info("Request for resource {} timed out. Remove!", resourceProxyUri);
@@ -209,7 +209,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
     /**
      * This method is invoked by the netty framework for downstream messages. Messages other than
-     * {@link InternalRegisterResourceMessage}, {@link eu.spitfire.ssp.server.pipeline.messages.InternalResourceProxyUriRequest} and
+     * {@link eu.spitfire.ssp.server.pipeline.messages.InternalRegisterProxyWebserviceMessage}, {@link eu.spitfire.ssp.server.pipeline.messages.InternalResourceProxyUriRequest} and
      * {@link eu.spitfire.ssp.server.pipeline.messages.InternalRemoveResourcesMessage} are just forwarded downstream without doing anything else.
      *
      * @param ctx the {@link ChannelHandlerContext} to link the method invokation with a {@link Channel}
@@ -219,17 +219,17 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
      */
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
-        log.debug("Downstream: {}.", me.getMessage());
+        log.info("Downstream: {}.", me.getMessage());
 
-        if(me.getMessage() instanceof InternalRegisterResourceMessage){
-            InternalRegisterResourceMessage message = (InternalRegisterResourceMessage) me.getMessage();
+        if(me.getMessage() instanceof InternalRegisterProxyWebserviceMessage){
+            InternalRegisterProxyWebserviceMessage message = (InternalRegisterProxyWebserviceMessage) me.getMessage();
 
-            if(proxyServices.containsKey(message.getResourceProxyUri())){
-                me.getFuture().setFailure(new ResourceAlreadyRegisteredException(message.getResourceProxyUri()));
+            if(proxyServices.containsKey(message.getProxyWebserviceUri())){
+                me.getFuture().setFailure(new ResourceAlreadyRegisteredException(message.getProxyWebserviceUri()));
                 return;
             }
 
-            registerResource(message.getResourceProxyUri(), message.getHttpRequestProcessor());
+            registerProxyWebservice(message.getProxyWebserviceUri(), message.getHttpRequestProcessor());
             me.getFuture().setSuccess();
             return;
         }
@@ -272,7 +272,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
      */
     private void registerFavicon(){
         try {
-            registerResource(new URI("http", null, Main.SSP_DNS_NAME, Main.SSP_HTTP_PROXY_PORT, "/favicon.ico", null, null),
+            registerProxyWebservice(new URI("http", null, Main.SSP_DNS_NAME, Main.SSP_HTTP_PROXY_PORT, "/favicon.ico", null, null),
                     new FaviconHttpRequestProcessor());
         } catch (URISyntaxException e) {
             log.error("This should never happen.", e);
@@ -291,7 +291,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             URI targetUri = new URI("http", null, Main.SSP_DNS_NAME,
                     Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT , "/", null, null);
 
-            registerResource(targetUri, new ListOfRegisteredServices(proxyServices));
+            registerProxyWebservice(targetUri, new ProxyMainWebsite(proxyServices));
         } catch (URISyntaxException e) {
             log.error("This should never happen!", e);
         }
@@ -317,17 +317,17 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     }
 
     /**
-     * Sends a {@link eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage} on the given channel which is converted into an HTTP response after
+     * Sends a {@link eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage} on the given channel which is converted into an HTTP response after
      * caching.
      *
      * @param channel the {@link Channel} to send the message over
-     * @param resourceResponseMessage the message containing the information to be sent
+     * @param resourceStatusMessage the message containing the information to be sent
      * @param remoteAddress the recipient of the eventual HTTP response (which is generated from the given
-     *                      {@link eu.spitfire.ssp.server.pipeline.messages.ResourceResponseMessage}
+     *                      {@link eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage}
      */
-    private void writeResourceResponseMessage(Channel channel, final ResourceResponseMessage resourceResponseMessage,
+    private void writeResourceResponseMessage(Channel channel, final ResourceStatusMessage resourceStatusMessage,
                                               final InetSocketAddress remoteAddress){
-        ChannelFuture future = Channels.write(channel, resourceResponseMessage, remoteAddress);
+        ChannelFuture future = Channels.write(channel, resourceStatusMessage, remoteAddress);
         future.addListener(ChannelFutureListener.CLOSE);
         future.addListener(new ChannelFutureListener() {
             @Override
@@ -367,12 +367,12 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
      * Registers a new resource with its appropriate {@link HttpRequestProcessor}. Upon invokation of this method
      * the resource proxy uri is contained in the list of registered services.
      *
-     * @param resourceProxyUri the resource proxy uri to be registered
+     * @param proxyWebserviceUri the resource proxy uri to be registered
      * @param httpRequestProcessor the {@link HttpRequestProcessor} to handle incoming requests for the resource proxy uri
      */
-    private void registerResource(URI resourceProxyUri, HttpRequestProcessor httpRequestProcessor){
-        proxyServices.put(resourceProxyUri, httpRequestProcessor);
-        log.info("Registered new resource: {}", resourceProxyUri);
+    private void registerProxyWebservice(URI proxyWebserviceUri, HttpRequestProcessor httpRequestProcessor){
+        proxyServices.put(proxyWebserviceUri, httpRequestProcessor);
+        log.info("Registered new resource: {}", proxyWebserviceUri);
     }
 
     /**

@@ -23,17 +23,17 @@ import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
  *
  * @author Oliver Kleine
  */
-public class ListOfRegisteredServices implements DefaultHttpRequestProcessor{
+public class ProxyMainWebsite implements DefaultHttpRequestProcessor{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private Map<URI, HttpRequestProcessor> services;
 
     /**
-     * @param services the {@link Set} containing the {@link URI}s to be listed in the HTTP response
+     * @param webservices the {@link Set} containing the {@link URI}s to be listed in the HTTP response
      */
-    public ListOfRegisteredServices(Map<URI, HttpRequestProcessor> services){
-        this.services = services;
+    public ProxyMainWebsite(Map<URI, HttpRequestProcessor> webservices){
+        this.services = webservices;
     }
 
     private ChannelBuffer getHtmlListOfServices() {
@@ -43,10 +43,15 @@ public class ListOfRegisteredServices implements DefaultHttpRequestProcessor{
 
         for(URI uri : services.keySet()){
             HttpRequestProcessor httpRequestProcessor = services.get(uri);
-            if(httpRequestProcessor instanceof SemanticHttpRequestProcessor)
+            if(httpRequestProcessor instanceof SemanticHttpRequestProcessor){
                 semanticServices.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
-            else
-                otherServices.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
+            }
+            else{
+                if(!("/".equals(uri.getPath()) || "/favicon.ico".equals(uri.getPath()) ||
+                        "/sparql".equals(uri.getPath()))){
+                    otherServices.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
+                }
+            }
         }
 
         StringBuilder buf = new StringBuilder();
@@ -55,7 +60,7 @@ public class ListOfRegisteredServices implements DefaultHttpRequestProcessor{
         buf.append("<ul>\n");
         buf.append(otherServices.toString());
         buf.append("</ul>\n");
-        buf.append("<h2>Registered Semantic Resources</h2>");
+        buf.append("<h2>Proxy Service URIs for registered Semantic Resources</h2>");
         buf.append("<ul>\n");
         buf.append(semanticServices.toString());
         buf.append("</ul>\n");

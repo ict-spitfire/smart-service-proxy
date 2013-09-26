@@ -25,9 +25,9 @@
 package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import eu.spitfire.ssp.backends.utils.BackendManager;
-import eu.spitfire.ssp.backends.utils.LocalPipelineFactory;
-import eu.spitfire.ssp.backends.coap.CoapBackendManager;
+import eu.spitfire.ssp.backends.BackendComponentFactory;
+import eu.spitfire.ssp.backends.LocalPipelineFactory;
+import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
 import eu.spitfire.ssp.server.pipeline.SmartServiceProxyPipelineFactory;
 import eu.spitfire.ssp.server.pipeline.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.pipeline.handler.cache.*;
@@ -48,7 +48,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-//import eu.spitfire.ssp.backends.simple.SimpleBackendManager;
+
 
 public class Main {
 
@@ -83,11 +83,6 @@ public class Main {
                                                                 Executors.newCachedThreadPool(),
                                                                 Executors.newCachedThreadPool(), ioThreads
         ));
-
-//        ServerBootstrap bootstrap = new ServerBootstrap(new OioServerSocketChannelFactory(
-//                Executors.newCachedThreadPool(),
-//                Executors.newCachedThreadPool()
-//        ));
 
         bootstrap.setOption("tcpNoDelay", getTcpNoDelay(config));
 
@@ -163,7 +158,7 @@ public class Main {
 
         for(String proxyServiceManagerName : enabledProxyServiceManagers){
 
-            BackendManager proxyServiceManager;
+            BackendComponentFactory proxyServiceManager;
 
             //Simple (John Smith VCARD)
 //            if(proxyServiceManagerName.equals("simple")){
@@ -176,7 +171,7 @@ public class Main {
             if(proxyServiceManagerName.equals("coap")) {
                 log.info("Create CoAP Gateway.");
                 proxyServiceManager =
-                        new CoapBackendManager("coap", localPipelineFactory, scheduledExecutorService);
+                        new CoapBackendComponentFactory("coap", localPipelineFactory, scheduledExecutorService);
             }
 
             //Local files

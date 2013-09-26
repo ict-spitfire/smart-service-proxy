@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.utils;
+package eu.spitfire.ssp.backends;
 
 import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.server.payloadserialization.Language;
@@ -27,7 +27,7 @@ public abstract class ResourceToolbox {
 
     private static Logger log = LoggerFactory.getLogger(ResourceToolbox.class.getName());
 
-    public static Model getModelFromHttpMessage(HttpMessage httpMessage) throws DataOriginException {
+    public static Model getModelFromHttpMessage(HttpMessage httpMessage) throws SemanticResourceException {
 
         Model model = ModelFactory.createDefaultModel();
 
@@ -38,7 +38,7 @@ public abstract class ResourceToolbox {
 
         Language language = Language.getByHttpMimeType(httpMessage.getHeader(HttpHeaders.Names.CONTENT_TYPE));
         if(language == null){
-            throw new DataOriginException(null, INTERNAL_SERVER_ERROR, "Could not process content type: " +
+            throw new SemanticResourceException(null, INTERNAL_SERVER_ERROR, "Could not process content type: " +
                     HttpHeaders.Names.CONTENT_TYPE + ": " + httpMessage.getHeader(HttpHeaders.Names.CONTENT_TYPE));
         }
 
@@ -47,7 +47,7 @@ public abstract class ResourceToolbox {
         }
         catch(Exception e){
             log.error("Error while reading resource status from CoAP response!", e);
-            throw new DataOriginException(null, INTERNAL_SERVER_ERROR,
+            throw new SemanticResourceException(null, INTERNAL_SERVER_ERROR,
                     "Error while reading resource status from HTTP message paylaod!", e);
         }
 

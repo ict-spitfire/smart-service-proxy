@@ -1,11 +1,10 @@
-package eu.spitfire.ssp.backends.utils;
+package eu.spitfire.ssp.backends;
 
 /**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 17.09.13
- * Time: 15:52
- * To change this template use File | Settings | File Templates.
+ * Exception to be thrown if the content type of a message could not be processed, because the media type is either
+ * unknown or not supported.
+ *
+ * @author Oliver Kleine
  */
 public class UnsupportedMediaTypeException extends Exception{
 
@@ -13,6 +12,10 @@ public class UnsupportedMediaTypeException extends Exception{
 
     public UnsupportedMediaTypeException(String mediaType){
         this.mediaType = mediaType;
+    }
+
+    private String getMediaType(){
+        return this.mediaType;
     }
 
     public String toString(){

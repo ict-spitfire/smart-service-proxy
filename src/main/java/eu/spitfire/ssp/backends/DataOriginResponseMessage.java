@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.utils;
+package eu.spitfire.ssp.backends;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;

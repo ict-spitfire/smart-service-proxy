@@ -24,31 +24,37 @@
 */
 package eu.spitfire.ssp.backends.coap;
 
+import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
-import eu.spitfire.ssp.backends.utils.*;
-import eu.spitfire.ssp.backends.coap.noderegistration.CoapRegistrationWebservice;
-import eu.spitfire.ssp.backends.coap.noderegistration.CoapSemanticWebserviceRegistry;
-import eu.spitfire.ssp.backends.coap.requestprocessing.HttpRequestProcessorForCoapWebservices;
+import de.uniluebeck.itm.ncoap.message.CoapResponse;
+import eu.spitfire.ssp.backends.*;
+import eu.spitfire.ssp.backends.coap.observation.InternalObservationTimedOutMessage;
+import eu.spitfire.ssp.backends.coap.registry.CoapRegistrationWebservice;
+import eu.spitfire.ssp.backends.coap.registry.CoapSemanticWebserviceRegistry;
 import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
+import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.MessageEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * The {@link CoapBackendManager} provides all functionality to manage CoAP resources, i.e. it provides a
- * {@link CoapServerApplication} with a {@link eu.spitfire.ssp.backends.coap.noderegistration.CoapRegistrationWebservice} to enable CoAP webservers to register
+ * The {@link CoapBackendComponentFactory} provides all functionality to manage CoAP resources, i.e. it provides a
+ * {@link CoapServerApplication} with a {@link eu.spitfire.ssp.backends.coap.registry.CoapRegistrationWebservice} to enable CoAP webservers to register
  * at the SSP.
  *
- * Furthermore it provides a {@link CoapClientApplication} and a {@link eu.spitfire.ssp.backends.coap.requestprocessing.HttpRequestProcessorForCoapWebservices}
+ * Furthermore it provides a {@link CoapClientApplication} and a {@link HttpRequestProcessorForCoapWebservices}
  * to forward incoming HTTP requests to the original host.
  *
  * @author Oliver Kleine
  */
-public class CoapBackendManager extends BackendManager<URI> {
+public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
 
     public static final int COAP_SERVER_PORT = 5683;
 
@@ -59,12 +65,12 @@ public class CoapBackendManager extends BackendManager<URI> {
 
     /**
      * @param prefix the prefix used for not-absolute resource URIs, e.g. <code>prefix/gui</code>
-     * @param localPipelineFactory the {@link LocalPipelineFactory} to get the pipeline to send internal messages,
+     * @param localPipelineFactory the {@link eu.spitfire.ssp.backends.LocalPipelineFactory} to get the pipeline to send internal messages,
      *                             e.g. resource status updates.
      * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
      */
-    public CoapBackendManager(String prefix, LocalPipelineFactory localPipelineFactory,
-                              ScheduledExecutorService scheduledExecutorService) throws Exception{
+    public CoapBackendComponentFactory(String prefix, LocalPipelineFactory localPipelineFactory,
+                                       ScheduledExecutorService scheduledExecutorService) throws Exception{
         super(prefix, localPipelineFactory, scheduledExecutorService);
 
         //create instances of CoAP client and server applications
@@ -74,6 +80,24 @@ public class CoapBackendManager extends BackendManager<URI> {
                 new InetSocketAddress("2001:638:70a:b157:5eac:4cff:fe65:2aee", 5683);
         this.coapServerApplication = new CoapServerApplication(coapServerSocketAddress);
     }
+
+//    @Override
+//    public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
+//        if(me.getMessage() instanceof InternalObservationTimedOutMessage){
+//            InternalObservationTimedOutMessage message = (InternalObservationTimedOutMessage) me.getMessage();
+//            try {
+//                InetAddress inetAddress = InetAddress.getByName(message.getServiceUri().getHost());
+//                SettableFuture<CoapResponse> settableFuture = SettableFuture.create();
+//                ((CoapSemanticWebserviceRegistry) this.getDataOriginRegistry())
+//                        .processRegistrationRequest(settableFuture, inetAddress);
+//            }
+//            catch (UnknownHostException e) {
+//                log.error("This should never happen.", e);
+//            }
+//        }
+//
+//        super.writeRequested(ctx, me);
+//    }
 
     /**
      * Returns the {@link CoapClientApplication} to send requests and receive responses and update notifications
@@ -89,21 +113,6 @@ public class CoapBackendManager extends BackendManager<URI> {
      */
     public CoapServerApplication getCoapServerApplication(){
         return this.coapServerApplication;
-    }
-
-//    /**
-//     * Returns the {@link eu.spitfire.ssp.backends.coap.requestprocessing.HttpRequestProcessorForCoapWebservices} to retrieve the status of resources backed by
-//     * a CoAP Webservice
-//     * @return the {@link eu.spitfire.ssp.backends.coap.requestprocessing.HttpRequestProcessorForCoapWebservices} to retrieve the status of resources backed by
-//     * a CoAP Webservice
-//     */
-//    public HttpRequestProcessorForCoapWebservices getHttpRequestProcessor(){
-//        return this.httpRequestProcessorForCoapResources;
-//    }
-
-    @Override
-    public ServiceToListResourcesPerDataOrigin<URI> createListOfRegisteredResourcesGui() {
-        return null;
     }
 
     @Override
