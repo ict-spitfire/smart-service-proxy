@@ -6,6 +6,7 @@ import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
+import eu.spitfire.ssp.backends.BackendComponentFactory;
 import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
 import eu.spitfire.ssp.backends.coap.observation.CoapWebserviceObserver;
 import eu.spitfire.ssp.backends.DataOriginRegistry;
@@ -29,7 +30,7 @@ public class CoapSemanticWebserviceRegistry extends DataOriginRegistry<URI> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    public CoapSemanticWebserviceRegistry(CoapBackendComponentFactory backendManager) {
+    public CoapSemanticWebserviceRegistry(BackendComponentFactory<URI> backendManager) {
         super(backendManager);
     }
 

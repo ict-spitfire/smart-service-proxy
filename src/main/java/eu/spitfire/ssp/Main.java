@@ -28,6 +28,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import eu.spitfire.ssp.backends.BackendComponentFactory;
 import eu.spitfire.ssp.backends.LocalPipelineFactory;
 import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
+import eu.spitfire.ssp.backends.uberdust.UberdustBackendManager;
 import eu.spitfire.ssp.server.pipeline.SmartServiceProxyPipelineFactory;
 import eu.spitfire.ssp.server.pipeline.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.pipeline.handler.cache.*;
@@ -187,11 +188,11 @@ public class Main {
 //                                numberOfRandomFiles, directory);
 //
 //            }
-//            else if(proxyServiceManagerName.equals("uberdust")){
-//                log.info("Create Uberdust Gateway.");
-//                proxyServiceManager =
-//                        new UberdustBackendManager("uberdust", internalChannel, scheduledExecutorService);
-//            }
+            else if (proxyServiceManagerName.equals("uberdust")) {
+                log.info("Create Uberdust Gateway.");
+                proxyServiceManager =
+                        new UberdustBackendManager("uberdust", localPipelineFactory, scheduledExecutorService);
+            }
 
             //Unknown AbstractGatewayFactory type
             else {
