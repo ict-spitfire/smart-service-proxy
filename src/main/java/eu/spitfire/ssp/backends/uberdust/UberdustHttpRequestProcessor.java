@@ -2,7 +2,9 @@ package eu.spitfire.ssp.backends.uberdust;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backends.BackendComponentFactory;
+import eu.spitfire.ssp.backends.ResourceStatusHandler;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
+import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -57,20 +59,20 @@ public class UberdustHttpRequestProcessor extends SemanticHttpRequestProcessor<U
         executor = Executors.newCachedThreadPool();
     }
 
-//    @Override
-//    public void processHttpRequest(SettableFuture<ResourceStatusMessage> responseFuture,
-//                                   HttpRequest httpRequest) {
+    @Override
+    public void processHttpRequest(SettableFuture<ResourceStatusMessage> responseFuture,
+                                   HttpRequest httpRequest) {
 //
-//        log.debug("Received request for path {}.", httpRequest.getUri());
-//
-//        if (httpRequest.getMethod() == HttpMethod.GET) {
-//            //handle get
-//            handleGet(responseFuture, httpRequest);
-//
-//        } else if (httpRequest.getMethod() == HttpMethod.POST) {
-//            //handle post
-//            handlePost(responseFuture, httpRequest);
-//        } else {
+        log.info("Received request for path {}.", httpRequest.getUri());
+
+        if (httpRequest.getMethod() == HttpMethod.GET) {
+            //handle get
+            handleGet(responseFuture, httpRequest);
+
+        } else if (httpRequest.getMethod() == HttpMethod.POST) {
+            //handle post
+            handlePost(responseFuture, httpRequest);
+        } else {
 //            //handle anything else with method_not_allowed
 //            ProxyServiceException exception = null;
 //            try {
@@ -80,63 +82,79 @@ public class UberdustHttpRequestProcessor extends SemanticHttpRequestProcessor<U
 //                log.error(e.getMessage(), e);
 //            }
 //            responseFuture.setException(exception);
-//        }
-//    }
+            Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
+            ResourceStatusMessage resourceStatusMessage =
+                    new ResourceStatusMessage(HttpResponseStatus.METHOD_NOT_ALLOWED,
+                            null,
+                            date);
+            responseFuture.set(resourceStatusMessage);
+        }
+    }
 
-//    /**
-//     * Handles an incoming get request.
-//     *
-//     * @param responseFuture the response to be sent back.
-//     * @param httpRequest    the request from the client.
-//     */
-//    public void handleGet(SettableFuture<ResourceStatusMessage> responseFuture,
-//                          HttpRequest httpRequest) {
-//        try {
-//
-//            UberdustNode node = uberdustObserver.allnodes.get(new URI(httpRequest.getUri().substring(httpRequest.getUri().indexOf("=") + 1)));
-//            //Set response
-//            Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
-//            ResourceStatusMessage resourceStatusMessage =
+    /**
+     * Handles an incoming get request.
+     *
+     * @param responseFuture the response to be sent back.
+     * @param httpRequest    the request from the client.
+     */
+    public void handleGet(SettableFuture<ResourceStatusMessage> responseFuture,
+                          HttpRequest httpRequest) {
+        try {
+            UberdustNode node = uberdustObserver.allnodes.get(new URI(httpRequest.getUri().substring(httpRequest.getUri().indexOf("=") + 1)));
+            log.info("handleGet Request " + httpRequest.getMethod());
+            //Set response
+            Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
+            ResourceStatusMessage resourceStatusMessage =
 //                    new ResourceStatusMessage(new URI(httpRequest.getUri()), node.getModel(), date);
-//            responseFuture.set(resourceStatusMessage);
-//
-//        } catch (URISyntaxException e) {
-//            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-//        }
-//    }
+                    new ResourceStatusMessage(HttpResponseStatus.OK,
+                            node.getModel().getResource(httpRequest.getUri()),
+                            date);
 
-//    /**
-//     * Handles an incoming post request.
-//     *
-//     * @param responseFuture the response to be sent back.
-//     * @param httpRequest    the request from the client.
-//     */
-//    public void handlePost(SettableFuture<ResourceStatusMessage> responseFuture,
-//                           HttpRequest httpRequest) {
-//        URI resourceUri = null;
-//        try {
-//            resourceUri = new URI(httpRequest.getUri().substring(httpRequest.getUri().indexOf("=") + 1));
-//
-//            //read payload from HTTP message
-//            byte[] httpPayload = new byte[httpRequest.getContent().readableBytes()];
-//
-//            httpRequest.getContent().getBytes(0, httpPayload);
-//            ByteArrayOutputStream bin = new ByteArrayOutputStream();
-//            bin.write(httpPayload);
-//            bin.toString();
-//
-//            URL url = new URL(resourceUri.toString() + bin.toString() + "/");
-//            log.info("Sending request to " + url.toString());
-//            executor.submit(new UberdustPostRequest(url));
-//
-//            ProxyServiceException exception = new ProxyServiceException(resourceUri, HttpResponseStatus.OK,
-//                    "Request Forwarded to " + resourceUri);
-//            responseFuture.setException(exception);
-//        } catch (IOException | URISyntaxException e) {
-//            log.error(e.getMessage(), e);
-//            ProxyServiceException exception = new ProxyServiceException(resourceUri, HttpResponseStatus.INTERNAL_SERVER_ERROR,
-//                    e.getMessage());
-//            responseFuture.setException(exception);
-//        }
-//    }
+            responseFuture.set(resourceStatusMessage);
+
+        } catch (URISyntaxException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
+    }
+
+    /**
+     * Handles an incoming post request.
+     *
+     * @param responseFuture the response to be sent back.
+     * @param httpRequest    the request from the client.
+     */
+    public void handlePost(SettableFuture<ResourceStatusMessage> responseFuture,
+                           HttpRequest httpRequest) {
+        URI resourceUri = null;
+        try {
+            resourceUri = new URI(httpRequest.getUri().substring(httpRequest.getUri().indexOf("=") + 1));
+
+            //read payload from HTTP message
+            byte[] httpPayload = new byte[httpRequest.getContent().readableBytes()];
+
+            httpRequest.getContent().getBytes(0, httpPayload);
+            ByteArrayOutputStream bin = new ByteArrayOutputStream();
+            bin.write(httpPayload);
+            bin.toString();
+
+            URL url = new URL(resourceUri.toString() + bin.toString() + "/");
+            log.info("Sending request to " + url.toString());
+            executor.submit(new UberdustPostRequest(url));
+
+            Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
+            ResourceStatusMessage resourceStatusMessage =
+                    new ResourceStatusMessage(HttpResponseStatus.OK,
+                            null,
+                            date);
+            responseFuture.set(resourceStatusMessage);
+        } catch (IOException | URISyntaxException e) {
+            log.error(e.getMessage(), e);
+            Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
+            ResourceStatusMessage resourceStatusMessage =
+                    new ResourceStatusMessage(HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                            null,
+                            date);
+            responseFuture.set(resourceStatusMessage);
+        }
+    }
 }

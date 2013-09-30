@@ -28,7 +28,7 @@ public abstract class SemanticHttpRequestProcessor<T> extends ResourceStatusHand
     }
 
     @Override
-    public final void processHttpRequest(final SettableFuture<ResourceStatusMessage> resourceResponseFuture,
+    public void processHttpRequest(final SettableFuture<ResourceStatusMessage> resourceResponseFuture,
                                    HttpRequest httpRequest){
         try {
             final URI resourceUri = new URI(new URI(httpRequest.getUri()).getQuery().substring(4));

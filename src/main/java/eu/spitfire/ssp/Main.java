@@ -57,6 +57,7 @@ public class Main {
 
     public static String SSP_DNS_NAME;
     public static int SSP_HTTP_PROXY_PORT;
+    private static SemanticCache semanticCache;
 
     /**
      * @throws Exception might be everything
@@ -88,7 +89,7 @@ public class Main {
         bootstrap.setOption("tcpNoDelay", getTcpNoDelay(config));
 
         //caching
-        SemanticCache semanticCache = null;
+         semanticCache = null;
         String cacheType = config.getString("cache");
         if("dummy".equals(cacheType))
             semanticCache = new DummySemanticCache();
@@ -189,9 +190,10 @@ public class Main {
 //
 //            }
             else if (proxyServiceManagerName.equals("uberdust")) {
+
                 log.info("Create Uberdust Gateway.");
                 proxyServiceManager =
-                        new UberdustBackendManager("uberdust", localPipelineFactory, scheduledExecutorService);
+                        new UberdustBackendManager("uberdust", localPipelineFactory, scheduledExecutorService,semanticCache);
             }
 
             //Unknown AbstractGatewayFactory type

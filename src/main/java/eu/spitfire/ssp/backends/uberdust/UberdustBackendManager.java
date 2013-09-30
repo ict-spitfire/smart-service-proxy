@@ -29,10 +29,12 @@ import eu.spitfire.ssp.backends.BackendComponentFactory;
 import eu.spitfire.ssp.backends.DataOriginAccessory;
 import eu.spitfire.ssp.backends.DataOriginRegistry;
 import eu.spitfire.ssp.backends.LocalPipelineFactory;
+import eu.spitfire.ssp.server.pipeline.handler.cache.SemanticCache;
 import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
 import org.apache.log4j.Logger;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -59,7 +61,7 @@ public class UberdustBackendManager extends BackendComponentFactory<URI> {
     /**
      * Handler for the incoming requests.
      */
-    private final UberdustHttpRequestProcessor httpRequestProcessor;
+//    private final UberdustHttpRequestProcessor httpRequestProcessor;
 
     /**
      * Constructor Class.
@@ -67,16 +69,16 @@ public class UberdustBackendManager extends BackendComponentFactory<URI> {
      * @param prefix
      * @param localServerChannel
      * @param scheduledExecutorService
+     * @param semanticCache
      * @throws Exception
      */
     public UberdustBackendManager(String prefix, LocalPipelineFactory localServerChannel,
-                                  ScheduledExecutorService scheduledExecutorService) throws Exception {
+                                  ScheduledExecutorService scheduledExecutorService, SemanticCache semanticCache) throws Exception {
         super(prefix, localServerChannel, scheduledExecutorService);
 
         //create a new Uberdsust observer.
-        this.uberdustObserver = new UberdustObserver(this, scheduledExecutorService, localServerChannel);
+        this.uberdustObserver = new UberdustObserver(this, scheduledExecutorService, localServerChannel, semanticCache);
         //create a handler for http requests and associcate with the observer.
-        this.httpRequestProcessor = new UberdustHttpRequestProcessor(this, this.uberdustObserver);
     }
 
     @Override
@@ -96,7 +98,8 @@ public class UberdustBackendManager extends BackendComponentFactory<URI> {
 
     @Override
     public SemanticHttpRequestProcessor createHttpRequestProcessor() {
-        return httpRequestProcessor;
+        log.info("Called SemanticHttpRequestProcessor");
+        return new UberdustHttpRequestProcessor(this, this.uberdustObserver);
     }
 
     @Override
@@ -105,22 +108,27 @@ public class UberdustBackendManager extends BackendComponentFactory<URI> {
     }
 
 
-    SettableFuture<URI> registerResource(final URI resourceUri) {
-        final SettableFuture<URI> resourceRegistrationFuture = registerSemanticResource(resourceUri, httpRequestProcessor);
-
-        resourceRegistrationFuture.addListener(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    URI resourceProxyUri = resourceRegistrationFuture.get();
-                    log.info("Successfully registered resource " + resourceUri + " with proxy Uri " + resourceProxyUri);
-                } catch (Exception e) {
-                    log.error("Exception during registration of services from Uberdust. " + e.getMessage());
-                }
-            }
-        }, scheduledExecutorService);
-
-        return resourceRegistrationFuture;
+    void registerResource(final URI resourceUri) {
+        try {
+            addResource(resourceUri, new URI("http://uberdust.cti.gr/"));
+        } catch (URISyntaxException e) {
+            log.error("This should never happen", e);
+        }
+//        final SettableFuture<URI> resourceRegistrationFuture = registerSemanticResource(resourceUri, httpRequestProcessor);
+//
+//        resourceRegistrationFuture.addListener(new Runnable() {
+//            @Override
+//            public void run() {
+//                try {
+//                    URI resourceProxyUri = resourceRegistrationFuture.get();
+//                    log.info("Successfully registered resource " + resourceUri + " with proxy Uri " + resourceProxyUri);
+//                } catch (Exception e) {
+//                    log.error("Exception during registration of services from Uberdust. " + e.getMessage());
+//                }
+//            }
+//        }, scheduledExecutorService);
+//
+//        return resourceRegistrationFuture;
     }
 
 

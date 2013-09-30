@@ -2,19 +2,26 @@ package eu.spitfire.ssp.backends.uberdust;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.backends.AbstractResourceObserver;
+import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.rdf.model.StmtIterator;
+import de.uniluebeck.itm.ncoap.message.CoapResponse;
+import eu.spitfire.ssp.backends.DataOriginResponseMessage;
 import eu.spitfire.ssp.backends.LocalPipelineFactory;
 import eu.spitfire.ssp.backends.coap.CoapResourceToolbox;
-import eu.spitfire.ssp.backends.coap.ResourceToolBox;
+import eu.spitfire.ssp.server.pipeline.handler.cache.SemanticCache;
+import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
 import eu.uberdust.communication.UberdustClient;
 import eu.uberdust.communication.protobuf.Message;
 import eu.uberdust.communication.websocket.readings.WSReadingsClient;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.jboss.netty.channel.ChannelEvent;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.local.LocalServerChannel;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +41,9 @@ public class UberdustObserver implements Observer {
     private static String UBERDUST_URL_WS_PORT;
     private static String UBERDUST_OBSERVE_NODES;
     private static String UBERDUST_OBSERVE_CAPABILITIES;
+    private final ScheduledExecutorService scheduledExecutorService;
+    private final LocalPipelineFactory localChannel;
+    private final SemanticCache semanticCache;
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private final HashMap<String, String> testbeds;
@@ -43,8 +53,10 @@ public class UberdustObserver implements Observer {
 
     public UberdustObserver(UberdustBackendManager serviceManager,
                             ScheduledExecutorService scheduledExecutorService,
-                            LocalPipelineFactory localChannel) throws IOException {
-
+                            LocalPipelineFactory localChannel, SemanticCache semanticCache) throws IOException {
+        this.semanticCache = semanticCache;
+        this.scheduledExecutorService = scheduledExecutorService;
+        this.localChannel = localChannel;
 
         this.serviceManager = serviceManager;
         allnodes = new HashMap<URI, UberdustNode>();
@@ -120,13 +132,7 @@ public class UberdustObserver implements Observer {
                             } else {
                                 allnodes.get(resourceURI).update(reading.getDoubleReading(), new Date(reading.getTimestamp()));
                             }
-
-                            final Map<URI, Model> modelsMap = CoapResourceToolbox.getModelsPerSubject(allnodes.get(resourceURI).getModel());
-                            for (final URI uri : modelsMap.keySet()) {
-                                registerResource(uri, modelsMap.get(uri));
-//                                removeResource(uri);
-                                cacheResourceStatus(uri, modelsMap.get(uri));
-                            }
+                            registerModel(allnodes.get(resourceURI).getModel());
 
                         } catch (Exception e) {
                             log.error(e.getMessage(), e);
@@ -138,37 +144,23 @@ public class UberdustObserver implements Observer {
 
     }
 
-    private void registerResource(final URI resourceUri, final Model model) throws URISyntaxException {
-        final Map<URI, Model> modelsMap = CoapResourceToolbox.getModelsPerSubject(model);
-        for (final URI uri : modelsMap.keySet()) {
-
-            final SettableFuture<URI> resourceRegistrationFuture = serviceManager.registerResource(uri);
-            resourceRegistrationFuture.addListener(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        //This is just to check if an exception was thrown
-                        resourceRegistrationFuture.get();
-
-                        //If there was no exception finalize registration process
-                        ChannelFuture future = cacheResourceStatus(uri, modelsMap.get(uri));
-                        future.addListener(new ChannelFutureListener() {
-                            @Override
-                            public void operationComplete(ChannelFuture future) throws Exception {
-                                if (future.isSuccess())
-                                    log.debug("Succesfully stored status of {} in cache.", resourceUri);
-                                else
-                                    log.error("Failed to store status of {} in cache.", resourceUri);
-                            }
-                        });
-
-
-                    } catch (Exception e) {
-                        log.warn("Exception while registering resources.", e);
+    private void registerModel(final Model model) throws URISyntaxException {
+//        StmtIterator stmp = model.listStatements();
+        
+        new Thread() {
+            @Override
+            public void run() {
+                try {
+                    final Map<URI, Model> modelsMap = CoapResourceToolbox.getModelsPerSubject(model);
+                    for (final URI uri : modelsMap.keySet()) {
+                        serviceManager.registerResource(uri);
+                        semanticCache.putResourceToCache(uri, modelsMap.get(uri), new Date(System.currentTimeMillis() + 99 * 60 * 60 * 1000));
                     }
+                } catch (URISyntaxException e) {
+                    log.debug("This should never happen", e);
                 }
-            }, getScheduledExecutorService());
-        }
+            }
+        }.start();
     }
 
 
