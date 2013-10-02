@@ -25,7 +25,7 @@
 //package eu.spitfire.ssp.backends.uberdust;
 //
 //import com.google.common.util.concurrent.SettableFuture;
-//import eu.spitfire.ssp.backends.BackendComponentFactory;
+//import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 //import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 //import org.apache.log4j.Logger;
 //import org.jboss.netty.channel.local.LocalServerChannel;
@@ -38,10 +38,10 @@
 // * A {@link UberdustBackendManager} instance hosts a connection to an Uberdust Server. This backend provices information about part of the devices
 // * available in the uberdust server with GET and POST method functionality. If it's instanciated (by setting
 // * <code>enableProxyServiceManager="uberdust"</code> in the <code>ssp.properties</code> file) it registers its WebServices
-// * at the {@link eu.spitfire.ssp.server.pipeline.handler.HttpRequestDispatcher} which causes these WebServices to occur on the
+// * at the {@link eu.spitfire.ssp.server.channels.handler.HttpRequestDispatcher} which causes these WebServices to occur on the
 // * HTML page (at <code>core://<ssp-ip>:<ssp-port>/) listing the available webServices.
 // * <p/>
-// * classes inheriting from {@link eu.spitfire.ssp.backends.BackendComponentFactory}.
+// * classes inheriting from {@link eu.spitfire.ssp.backends.generic.BackendComponentFactory}.
 // *
 // * @author Dimitrios Amaxilatis
 // */

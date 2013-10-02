@@ -1,7 +1,7 @@
 //package eu.spitfire.ssp.backends.uberdust;
 //
 //import com.google.common.util.concurrent.SettableFuture;
-//import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
+//import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
 //import org.jboss.netty.handler.codec.http.HttpMethod;
 //import org.jboss.netty.handler.codec.http.HttpRequest;
 //import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -18,7 +18,7 @@
 //import java.util.concurrent.Executors;
 //
 ///**
-// * The {@link UberdustHttpRequestProcessor} is the {@link eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor} instance to handle
+// * The {@link UberdustHttpRequestProcessor} is the {@link eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor} instance to handle
 // * incoming HTTP requests for the simple example resource (<code>http://example.org/JohnSmith</code>.
 // *
 // * @author Dimitrios Amaxilatis
@@ -53,7 +53,7 @@
 //    }
 //
 //    @Override
-//    public void processHttpRequest(SettableFuture<ResourceStatusMessage> responseFuture,
+//    public void processHttpRequest(SettableFuture<InternalResourceStatusMessage> responseFuture,
 //                                   HttpRequest httpRequest) {
 //
 //        log.debug("Received request for path {}.", httpRequest.getUri());
@@ -84,15 +84,15 @@
 //     * @param responseFuture the response to be sent back.
 //     * @param httpRequest    the request from the client.
 //     */
-//    public void handleGet(SettableFuture<ResourceStatusMessage> responseFuture,
+//    public void handleGet(SettableFuture<InternalResourceStatusMessage> responseFuture,
 //                          HttpRequest httpRequest) {
 //        try {
 //
 //            UberdustNode node = uberdustObserver.allnodes.get(new URI(httpRequest.getUri().substring(httpRequest.getUri().indexOf("=") + 1)));
 //            //Set response
 //            Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
-//            ResourceStatusMessage resourceStatusMessage =
-//                    new ResourceStatusMessage(new URI(httpRequest.getUri()), node.getModel(), date);
+//            InternalResourceStatusMessage resourceStatusMessage =
+//                    new InternalResourceStatusMessage(new URI(httpRequest.getUri()), node.getModel(), date);
 //            responseFuture.set(resourceStatusMessage);
 //
 //        } catch (URISyntaxException e) {
@@ -106,7 +106,7 @@
 //     * @param responseFuture the response to be sent back.
 //     * @param httpRequest    the request from the client.
 //     */
-//    public void handlePost(SettableFuture<ResourceStatusMessage> responseFuture,
+//    public void handlePost(SettableFuture<InternalResourceStatusMessage> responseFuture,
 //                           HttpRequest httpRequest) {
 //        URI resourceUri = null;
 //        try {

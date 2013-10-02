@@ -4,11 +4,11 @@
 //import com.hp.hpl.jena.rdf.model.Model;
 //import com.hp.hpl.jena.rdf.model.Resource;
 //import com.hp.hpl.jena.rdf.model.StmtIterator;
-//import eu.spitfire.ssp.backends.DataOriginObserver;
-//import eu.spitfire.ssp.backends.SemanticResourceException;
-//import eu.spitfire.ssp.backends.ResourceToolbox;
-//import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
-//import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
+//import eu.spitfire.ssp.backends.generic.DataOriginObserver;
+//import eu.spitfire.ssp.backends.generic.exceptions.SemanticResourceException;
+//import eu.spitfire.ssp.backends.generic.ResourceToolbox;
+//import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
+//import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
 //import org.jboss.netty.handler.codec.http.HttpMethod;
 //import org.jboss.netty.handler.codec.http.HttpRequest;
 //import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -37,7 +37,7 @@
 //    private Map<URI, Path> resources = new HashMap<>();
 //
 //    @Override
-//    public void processHttpRequest(SettableFuture<ResourceStatusMessage> resourceStatusFuture,
+//    public void processHttpRequest(SettableFuture<InternalResourceStatusMessage> resourceStatusFuture,
 //                                   HttpRequest httpRequest) {
 //
 //        log.info("Received request for resource {}", httpRequest.getUri());
@@ -58,7 +58,7 @@
 //
 //    }
 //
-//    public void processPOST(SettableFuture<ResourceStatusMessage> resourceStatusFuture,
+//    public void processPOST(SettableFuture<InternalResourceStatusMessage> resourceStatusFuture,
 //                            HttpRequest httpRequest) throws URISyntaxException {
 //
 //        URI resourceProxyUri = new URI(httpRequest.getUri());
@@ -70,7 +70,7 @@
 //        resourceStatusFuture.setException(exception);
 //    }
 //
-//    private void processPUT(SettableFuture<ResourceStatusMessage> resourceStatusFuture,
+//    private void processPUT(SettableFuture<InternalResourceStatusMessage> resourceStatusFuture,
 //                            HttpRequest httpRequest) throws URISyntaxException, IOException, SemanticResourceException {
 //
 //        URI resourceProxyUri = new URI(httpRequest.getUri());
@@ -91,12 +91,12 @@
 //            Model newModel = modelFromFile.union(ResourceToolbox.getModelFromHttpMessage(httpRequest));
 //
 //            ResourceToolbox.writeModelToFile(resourceFile, newModel);
-//            resourceStatusFuture.set(new ResourceStatusMessage(resourceUri, newModel,
+//            resourceStatusFuture.set(new InternalResourceStatusMessage(resourceUri, newModel,
 //                    new Date(System.currentTimeMillis() + DataOriginObserver.MILLIS_PER_YEAR)));
 //        }
 //    }
 //
-//    private void processGET(SettableFuture<ResourceStatusMessage> resourceStatusFuture,
+//    private void processGET(SettableFuture<InternalResourceStatusMessage> resourceStatusFuture,
 //                            HttpRequest httpRequest){
 //        try{
 //            URI resourceProxyUri = new URI(httpRequest.getUri());

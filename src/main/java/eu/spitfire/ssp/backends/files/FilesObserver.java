@@ -5,8 +5,8 @@
 //import com.google.common.collect.Multimaps;
 //import com.google.common.util.concurrent.SettableFuture;
 //import com.hp.hpl.jena.rdf.model.*;
-//import eu.spitfire.ssp.backends.DataOriginObserver;
-//import eu.spitfire.ssp.backends.ResourceToolbox;
+//import eu.spitfire.ssp.backends.generic.DataOriginObserver;
+//import eu.spitfire.ssp.backends.generic.ResourceToolbox;
 //import org.jboss.netty.channel.ChannelFuture;
 //import org.jboss.netty.channel.ChannelFutureListener;
 //import org.jboss.netty.channel.local.LocalServerChannel;
@@ -43,12 +43,12 @@
 //    private WatchService watchService;
 //    private Map<WatchKey, Path> watchKeys;
 //    private Multimap<Path, URI> observedResources;
-//    private FilesBackendManager serviceManager;
+//    private FilesBackendComponentFactory serviceManager;
 //    private Path observedDirectory;
 //    private HttpRequestProcessorForFiles requestProcessor;
 //
 //    /**
-//     * @param serviceManager The {@link FilesBackendManager} that is responsible for registration and maintainance of
+//     * @param serviceManager The {@link FilesBackendComponentFactory} that is responsible for registration and maintainance of
 //     *                       resources backed by local files
 //     * @param directory The {@link Path} representing the root-directory whose files and sub-directories are to be
 //     *                  observed
@@ -57,7 +57,7 @@
 //     *
 //     * @throws IOException if some I/O error occurred during the creation of the observation services
 //     */
-//    public FilesObserver(FilesBackendManager serviceManager, Path directory,
+//    public FilesObserver(FilesBackendComponentFactory serviceManager, Path directory,
 //                         ScheduledExecutorService scheduledExecutorService,
 //                         LocalServerChannel localServerChannel,
 //                         HttpRequestProcessorForFiles requestProcessor) throws IOException {

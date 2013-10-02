@@ -24,24 +24,19 @@
 */
 package eu.spitfire.ssp.backends.coap;
 
-import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
-import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import eu.spitfire.ssp.backends.*;
-import eu.spitfire.ssp.backends.coap.observation.InternalObservationTimedOutMessage;
 import eu.spitfire.ssp.backends.coap.registry.CoapRegistrationWebservice;
-import eu.spitfire.ssp.backends.coap.registry.CoapSemanticWebserviceRegistry;
-import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.MessageEvent;
+import eu.spitfire.ssp.backends.coap.registry.CoapWebserviceRegistry;
+import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
+import eu.spitfire.ssp.backends.generic.DataOriginRegistry;
+import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
+import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -49,7 +44,7 @@ import java.util.concurrent.ScheduledExecutorService;
  * {@link CoapServerApplication} with a {@link eu.spitfire.ssp.backends.coap.registry.CoapRegistrationWebservice} to enable CoAP webservers to register
  * at the SSP.
  *
- * Furthermore it provides a {@link CoapClientApplication} and a {@link HttpRequestProcessorForCoapWebservices}
+ * Furthermore it provides a {@link CoapClientApplication} and a {@link eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor}
  * to forward incoming HTTP requests to the original host.
  *
  * @author Oliver Kleine
@@ -65,7 +60,7 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
 
     /**
      * @param prefix the prefix used for not-absolute resource URIs, e.g. <code>prefix/gui</code>
-     * @param localPipelineFactory the {@link eu.spitfire.ssp.backends.LocalPipelineFactory} to get the pipeline to send internal messages,
+     * @param localPipelineFactory the {@link eu.spitfire.ssp.server.channels.LocalPipelineFactory} to get the channels to send internal messages,
      *                             e.g. resource status updates.
      * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
      */
@@ -81,23 +76,10 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
         this.coapServerApplication = new CoapServerApplication(coapServerSocketAddress);
     }
 
-//    @Override
-//    public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
-//        if(me.getMessage() instanceof InternalObservationTimedOutMessage){
-//            InternalObservationTimedOutMessage message = (InternalObservationTimedOutMessage) me.getMessage();
-//            try {
-//                InetAddress inetAddress = InetAddress.getByName(message.getServiceUri().getHost());
-//                SettableFuture<CoapResponse> settableFuture = SettableFuture.create();
-//                ((CoapSemanticWebserviceRegistry) this.getDataOriginRegistry())
-//                        .processRegistrationRequest(settableFuture, inetAddress);
-//            }
-//            catch (UnknownHostException e) {
-//                log.error("This should never happen.", e);
-//            }
-//        }
-//
-//        super.writeRequested(ctx, me);
-//    }
+    @Override
+    public SemanticHttpRequestProcessor getHttpRequestProcessor() {
+        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
 
     /**
      * Returns the {@link CoapClientApplication} to send requests and receive responses and update notifications
@@ -122,18 +104,10 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
 
     @Override
     public DataOriginRegistry<URI> createDataOriginRegistry() {
-        return new CoapSemanticWebserviceRegistry(this);
+        return new CoapWebserviceRegistry(this);
     }
 
-    @Override
-    public DataOriginAccessory<URI> createDataOriginReader() {
-        return new CoapWebserviceDataOriginAccessory(this);
-    }
 
-    @Override
-    public SemanticHttpRequestProcessor<URI> createHttpRequestProcessor() {
-        return new HttpRequestProcessorForCoapWebservices(this);
-    }
 
     @Override
     public void shutdown() {

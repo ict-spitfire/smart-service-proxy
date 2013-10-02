@@ -25,12 +25,14 @@
 package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import eu.spitfire.ssp.backends.BackendComponentFactory;
-import eu.spitfire.ssp.backends.LocalPipelineFactory;
+import de.uniluebeck.itm.spitfire.ssphttpobserveovermqttlib.HttpObserveOverMqttLib;
+import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
+import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
 import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
-import eu.spitfire.ssp.server.pipeline.SmartServiceProxyPipelineFactory;
-import eu.spitfire.ssp.server.pipeline.handler.HttpRequestDispatcher;
-import eu.spitfire.ssp.server.pipeline.handler.cache.*;
+import eu.spitfire.ssp.server.channels.SmartServiceProxyPipelineFactory;
+import eu.spitfire.ssp.server.channels.handler.HttpRequestDispatcher;
+import eu.spitfire.ssp.server.channels.handler.MqttResourceHandler;
+import eu.spitfire.ssp.server.channels.handler.cache.*;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConversionException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -67,7 +69,7 @@ public class Main {
         SSP_DNS_NAME = config.getString("SSP_DNS_NAME", null);
         SSP_HTTP_PROXY_PORT = config.getInt("SSP_HTTP_PROXY_PORT", 8080);
 
-        //create pipeline for server
+        //create channels for server
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP-Execution-Thread #%d").build();
 
         int executionThreads = getNumberOfExecutionTreads(config);
@@ -85,6 +87,8 @@ public class Main {
         ));
 
         bootstrap.setOption("tcpNoDelay", getTcpNoDelay(config));
+
+
 
         //caching
         SemanticCache semanticCache = null;
@@ -121,9 +125,12 @@ public class Main {
         HttpRequestDispatcher httpRequestDispatcher =
                 new HttpRequestDispatcher(executorService, semanticCache.supportsSPARQL(), semanticCache);
 
+        //MQTT
+        MqttResourceHandler mqttResourceHandler = new MqttResourceHandler();
+
         //Start the HTTP (proxy) server
         SmartServiceProxyPipelineFactory serverPipelineFactory =
-                new SmartServiceProxyPipelineFactory(executorService, semanticCache, httpRequestDispatcher);
+                new SmartServiceProxyPipelineFactory(executorService, semanticCache, httpRequestDispatcher, mqttResourceHandler);
 
         bootstrap.setPipelineFactory(serverPipelineFactory);
         bootstrap.bind(new InetSocketAddress(SSP_HTTP_PROXY_PORT));
@@ -131,7 +138,7 @@ public class Main {
 
 
         //Create local channel (for internal messages)
-        LocalPipelineFactory localPipelineFactory = new LocalPipelineFactory(httpRequestDispatcher, semanticCache);
+        LocalPipelineFactory localPipelineFactory = new LocalPipelineFactory(httpRequestDispatcher, semanticCache, mqttResourceHandler);
 
 //        DefaultLocalServerChannelFactory internalChannelFactory = new DefaultLocalServerChannelFactory();
 //        LocalServerChannel internalChannel = internalChannelFactory.newChannel(pipelineFactory.getInternalPipeline());
@@ -183,7 +190,7 @@ public class Main {
 //                boolean copyExamples = config.getBoolean("files.copyExamples");
 //                int numberOfRandomFiles = config.getInt("files.numberOfRandomFiles", 0);
 //                proxyServiceManager =
-//                        new FilesBackendManager("files", internalChannel, scheduledExecutorService, copyExamples,
+//                        new FilesBackendComponentFactory("files", internalChannel, scheduledExecutorService, copyExamples,
 //                                numberOfRandomFiles, directory);
 //
 //            }

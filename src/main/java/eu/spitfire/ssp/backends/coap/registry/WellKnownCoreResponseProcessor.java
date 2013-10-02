@@ -21,14 +21,10 @@ import java.util.TreeSet;
 public class WellKnownCoreResponseProcessor implements CoapResponseProcessor, RetransmissionTimeoutProcessor{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
-    private SettableFuture<Set<String>> serviceDiscoveryFuture;
+    private SettableFuture<Set<String>> wellKnownCoreFuture;
 
-    public WellKnownCoreResponseProcessor(){
-        serviceDiscoveryFuture = SettableFuture.create();
-    }
-
-    public SettableFuture<Set<String>> getServiceDiscoveryFuture(){
-        return this.serviceDiscoveryFuture;
+    public WellKnownCoreResponseProcessor(SettableFuture<Set<String>> wellKnownCoreFuture){
+        this.wellKnownCoreFuture = wellKnownCoreFuture;
     }
 
     @Override
@@ -36,16 +32,16 @@ public class WellKnownCoreResponseProcessor implements CoapResponseProcessor, Re
         Set<String> services = processWellKnownCoreResponse(coapResponse);
         if(services != null){
             log.info("/.well-known/core service succesfully read. Found {} services.", services.size());
-            serviceDiscoveryFuture.set(services);
+            wellKnownCoreFuture.set(services);
         }
         else{
-            serviceDiscoveryFuture.setException(new WellKnownCoreInvalidException());
+            wellKnownCoreFuture.setException(new WellKnownCoreInvalidException());
         }
     }
 
     @Override
     public void processRetransmissionTimeout(InternalRetransmissionTimeoutMessage timeoutMessage) {
-        serviceDiscoveryFuture.setException(new WellKnownCoreTimeoutException(timeoutMessage.getRemoteAddress()));
+        wellKnownCoreFuture.setException(new WellKnownCoreTimeoutException(timeoutMessage.getRemoteAddress()));
     }
 
 

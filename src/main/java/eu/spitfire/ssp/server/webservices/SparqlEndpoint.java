@@ -3,7 +3,7 @@ package eu.spitfire.ssp.server.webservices;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.server.pipeline.handler.cache.SemanticCache;
+import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
