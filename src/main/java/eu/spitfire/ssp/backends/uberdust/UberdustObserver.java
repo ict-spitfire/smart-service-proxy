@@ -146,7 +146,7 @@ public class UberdustObserver implements Observer {
 
     private void registerModel(final Model model) throws URISyntaxException {
 //        StmtIterator stmp = model.listStatements();
-        
+
         new Thread() {
             @Override
             public void run() {

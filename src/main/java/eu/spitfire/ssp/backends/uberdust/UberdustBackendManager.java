@@ -93,13 +93,13 @@ public class UberdustBackendManager extends BackendComponentFactory<URI> {
 
     @Override
     public DataOriginAccessory createDataOriginReader() {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        return new UberdustHttpRequestProcessor(this, this.uberdustObserver);  //To change body of implemented methods use File | Settings | File Templates.
     }
 
     @Override
     public SemanticHttpRequestProcessor createHttpRequestProcessor() {
         log.info("Called SemanticHttpRequestProcessor");
-        return new UberdustHttpRequestProcessor(this, this.uberdustObserver);
+        return null;
     }
 
     @Override

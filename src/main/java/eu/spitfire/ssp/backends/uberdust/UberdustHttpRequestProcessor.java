@@ -2,10 +2,9 @@ package eu.spitfire.ssp.backends.uberdust;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backends.BackendComponentFactory;
-import eu.spitfire.ssp.backends.ResourceStatusHandler;
+import eu.spitfire.ssp.backends.DataOriginAccessory;
+import eu.spitfire.ssp.backends.DataOriginResponseMessage;
 import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
-import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
-import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -27,7 +26,7 @@ import java.util.concurrent.Executors;
  *
  * @author Dimitrios Amaxilatis
  */
-public class UberdustHttpRequestProcessor extends SemanticHttpRequestProcessor<URI> {
+public class UberdustHttpRequestProcessor implements DataOriginAccessory<URI> {
     /**
      * Logger.
      */
@@ -46,6 +45,7 @@ public class UberdustHttpRequestProcessor extends SemanticHttpRequestProcessor<U
      * Executor used for communicating back to Uberdust.
      */
     private final ExecutorService executor;
+    private final BackendComponentFactory backendComponentFactory;
 
     /**
      * @param backendComponentFactory
@@ -53,25 +53,24 @@ public class UberdustHttpRequestProcessor extends SemanticHttpRequestProcessor<U
      * @throws Exception if some error occurred (this should actually never happen!)
      */
     public UberdustHttpRequestProcessor(BackendComponentFactory backendComponentFactory, UberdustObserver uberdustObserver) {
-        super(backendComponentFactory);
         this.backendComponentFactory = backendComponentFactory;
         this.uberdustObserver = uberdustObserver;
         executor = Executors.newCachedThreadPool();
     }
 
     @Override
-    public void processHttpRequest(SettableFuture<ResourceStatusMessage> responseFuture,
-                                   HttpRequest httpRequest) {
-//
+    public void processHttpRequest(SettableFuture<DataOriginResponseMessage> dataOriginResponseFuture, HttpRequest httpRequest, URI dataOrigin) {
+
+        //
         log.info("Received request for path {}.", httpRequest.getUri());
 
         if (httpRequest.getMethod() == HttpMethod.GET) {
             //handle get
-            handleGet(responseFuture, httpRequest);
+            handleGet(dataOriginResponseFuture, httpRequest);
 
         } else if (httpRequest.getMethod() == HttpMethod.POST) {
             //handle post
-            handlePost(responseFuture, httpRequest);
+            handlePost(dataOriginResponseFuture, httpRequest);
         } else {
 //            //handle anything else with method_not_allowed
 //            ProxyServiceException exception = null;
@@ -82,12 +81,12 @@ public class UberdustHttpRequestProcessor extends SemanticHttpRequestProcessor<U
 //                log.error(e.getMessage(), e);
 //            }
 //            responseFuture.setException(exception);
-            Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
-            ResourceStatusMessage resourceStatusMessage =
-                    new ResourceStatusMessage(HttpResponseStatus.METHOD_NOT_ALLOWED,
-                            null,
-                            date);
-            responseFuture.set(resourceStatusMessage);
+//            Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
+//            ResourceStatusMessage resourceStatusMessage =
+//                    new ResourceStatusMessage(HttpResponseStatus.METHOD_NOT_ALLOWED,
+//                            null,
+//                            date);
+//            dataOriginResponseFuture.set(resourceStatusMessage);
         }
     }
 
@@ -97,20 +96,17 @@ public class UberdustHttpRequestProcessor extends SemanticHttpRequestProcessor<U
      * @param responseFuture the response to be sent back.
      * @param httpRequest    the request from the client.
      */
-    public void handleGet(SettableFuture<ResourceStatusMessage> responseFuture,
+    public void handleGet(SettableFuture<DataOriginResponseMessage> responseFuture,
                           HttpRequest httpRequest) {
         try {
             UberdustNode node = uberdustObserver.allnodes.get(new URI(httpRequest.getUri().substring(httpRequest.getUri().indexOf("=") + 1)));
             log.info("handleGet Request " + httpRequest.getMethod());
             //Set response
             Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
-            ResourceStatusMessage resourceStatusMessage =
-//                    new ResourceStatusMessage(new URI(httpRequest.getUri()), node.getModel(), date);
-                    new ResourceStatusMessage(HttpResponseStatus.OK,
-                            node.getModel().getResource(httpRequest.getUri()),
-                            date);
-
-            responseFuture.set(resourceStatusMessage);
+            DataOriginResponseMessage dataOriginResponseMessage = new DataOriginResponseMessage(HttpResponseStatus.OK,
+                    node.getModel().getResource(httpRequest.getUri()).getModel(),
+                    date);
+            responseFuture.set(dataOriginResponseMessage);
 
         } catch (URISyntaxException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
@@ -123,7 +119,7 @@ public class UberdustHttpRequestProcessor extends SemanticHttpRequestProcessor<U
      * @param responseFuture the response to be sent back.
      * @param httpRequest    the request from the client.
      */
-    public void handlePost(SettableFuture<ResourceStatusMessage> responseFuture,
+    public void handlePost(SettableFuture<DataOriginResponseMessage> responseFuture,
                            HttpRequest httpRequest) {
         URI resourceUri = null;
         try {
@@ -146,7 +142,7 @@ public class UberdustHttpRequestProcessor extends SemanticHttpRequestProcessor<U
                     new ResourceStatusMessage(HttpResponseStatus.OK,
                             null,
                             date);
-            responseFuture.set(resourceStatusMessage);
+//            responseFuture.set(resourceStatusMessage);
         } catch (IOException | URISyntaxException e) {
             log.error(e.getMessage(), e);
             Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
@@ -154,7 +150,8 @@ public class UberdustHttpRequestProcessor extends SemanticHttpRequestProcessor<U
                     new ResourceStatusMessage(HttpResponseStatus.INTERNAL_SERVER_ERROR,
                             null,
                             date);
-            responseFuture.set(resourceStatusMessage);
+//            responseFuture.set(resourceStatusMessage);
         }
     }
+
 }

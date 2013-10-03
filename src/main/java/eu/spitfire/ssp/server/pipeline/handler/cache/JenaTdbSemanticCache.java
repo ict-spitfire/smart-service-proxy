@@ -31,116 +31,107 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
     private Dataset dataset;
 
-    public JenaTdbSemanticCache(Path dbDirectory){
+    public JenaTdbSemanticCache(Path dbDirectory) {
         dataset = TDBFactory.createDataset(dbDirectory.toString());
-        TDB.getContext().set(TDB.symUnionDefaultGraph, true) ;
+        TDB.getContext().set(TDB.symUnionDefaultGraph, true);
     }
 
     @Override
     public ResourceStatusMessage getCachedResource(URI resourceUri) {
-        dataset.begin(ReadWrite.READ) ;
+        dataset.begin(ReadWrite.READ);
         try {
             Model model = dataset.getNamedModel(resourceUri.toString());
 
-            if(model.listStatements().hasNext()){
+            if (model.listStatements().hasNext()) {
                 log.info("Status found for resource {}", resourceUri);
                 return new ResourceStatusMessage(HttpResponseStatus.OK, model.getResource(resourceUri.toString()),
                         new Date());
-            }
-            else{
+            } else {
                 log.info("No status found for resource {}", resourceUri);
                 return null;
             }
-        }
-        finally{
+        } finally {
             dataset.end();
         }
     }
 
     @Override
     public void putResourceToCache(URI resourceUri, Model resourceStatus, Date expiry) {
-        deleteResource(resourceUri);
 
         dataset.begin(ReadWrite.WRITE);
-        try{
+        try {
+            deleteResource(resourceUri);
             dataset.addNamedModel(resourceUri.toString(), resourceStatus);
             dataset.commit();
             log.info("Added status for resource {}", resourceUri);
-        }
-        finally {
+        } finally {
             dataset.end();
         }
     }
 
     @Override
     public void deleteResource(URI resourceUri) {
-        dataset.begin(ReadWrite.WRITE);
-        try{
-            dataset.removeNamedModel(resourceUri.toString());
-            dataset.commit();
-            log.info("Removed status for resource {}", resourceUri);
-        }
-        finally {
-            dataset.end();
-        }
+//        dataset.begin(ReadWrite.WRITE);
+//        try{
+        dataset.removeNamedModel(resourceUri.toString());
+//            dataset.commit();
+        log.info("Removed status for resource {}", resourceUri);
+//        }
+//        finally {
+//            dataset.end();
+//        }
     }
 
     @Override
     public void updateStatement(Statement statement) {
         dataset.begin(ReadWrite.WRITE);
-        try{
+        try {
             Model tdbModel = dataset.getNamedModel(statement.getSubject().toString());
             Statement oldStatement = tdbModel.getProperty(statement.getSubject(), statement.getPredicate());
             Statement updatedStatement;
-            if(oldStatement != null){
-                if("http://spitfire-project.eu/ontology/ns/value".equals(oldStatement.getPredicate().toString())){
+            if (oldStatement != null) {
+                if ("http://spitfire-project.eu/ontology/ns/value".equals(oldStatement.getPredicate().toString())) {
                     RDFNode object =
                             tdbModel.createTypedLiteral(statement.getObject().asLiteral().getFloat(), XSDDatatype.XSDfloat);
                     updatedStatement = oldStatement.changeObject(object);
                     dataset.commit();
 
-                }
-                else{
+                } else {
                     updatedStatement = oldStatement.changeObject(statement.getObject());
                     dataset.commit();
                 }
                 log.info("Updated property {} of resource {} to {}", new Object[]{updatedStatement.getPredicate(),
                         updatedStatement.getSubject(), updatedStatement.getObject()});
-            }
-            else
+            } else
                 log.warn("Resource {} not (yet?) found. Could not update property {}.", statement.getSubject(),
                         statement.getPredicate());
-        }
-        finally {
+        } finally {
             dataset.end();
         }
     }
 
-    public synchronized void processSparqlQuery(SettableFuture<String> queryResultFuture, String sparqlQuery){
+    public synchronized void processSparqlQuery(SettableFuture<String> queryResultFuture, String sparqlQuery) {
 
         dataset.begin(ReadWrite.READ);
-        try{
+        try {
             log.info("Start SPAQRL query processing: {}", sparqlQuery);
 
             Query query = QueryFactory.create(sparqlQuery);
             QueryExecution queryExecution = QueryExecutionFactory.create(query, dataset);
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            try{
+            try {
                 ResultSet resultSet = queryExecution.execSelect();
                 ResultSetFormatter.outputAsXML(baos, resultSet);
-            }
-            finally {
+            } finally {
                 queryExecution.close();
             }
             String result = baos.toString("UTF-8");
 
             queryResultFuture.set(result);
-        }
-        catch (Exception e){
+        } catch (Exception e) {
             queryResultFuture.setException(e);
-        }
-        finally {
+        } finally {
             dataset.end();
         }
     }
