@@ -208,7 +208,16 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             @Override
             public void run() {
                 try {
-                    writeResourceResponseMessage(ctx.getChannel(), resourceResponseFuture.get(), remoteAddress);
+                    InternalResourceStatusMessage message = resourceResponseFuture.get();
+                    if(!message.getModel().isEmpty())
+                        writeResourceResponseMessage(ctx.getChannel(), resourceResponseFuture.get(), remoteAddress);
+                    else{
+                        HttpResponse httpResponse =
+                                HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+                                        HttpResponseStatus.OK, "Status changed.");
+
+                        writeHttpResponse(ctx.getChannel(), httpResponse, remoteAddress);
+                    }
                 }
                 catch (Exception e) {
                     HttpResponseStatus httpResponseStatus;

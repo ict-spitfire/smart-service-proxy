@@ -49,6 +49,7 @@ public class CoapWebserviceRegistry extends DataOriginRegistry<URI> {
 
         CoapRegistrationWebservice registrationWebservice = new CoapRegistrationWebservice(this, executorService);
         coapServerApplication.registerService(registrationWebservice);
+        log.info("Registered CoAP registration Webservice ({})", registrationWebservice.getPath());
     }
 
 

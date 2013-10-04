@@ -20,6 +20,7 @@ import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -94,9 +95,11 @@ public class ComponentFactory {
 
             if(proxyServiceManagerName.equals("coap")) {
                 log.info("Create CoAP Backend");
+                InetAddress registrationServerAddress =
+                        InetAddress.getByName(config.getString("coap.registration.server.ip"));
                 BackendComponentFactory backendComponentFactory =
-                        new CoapBackendComponentFactory("coap", localPipelineFactory, scheduledExecutorService,
-                                sspHostName, sspHttpPort);
+                        new CoapBackendComponentFactory(registrationServerAddress, "coap", localPipelineFactory,
+                                scheduledExecutorService, sspHostName, sspHttpPort);
                 this.backendComponentFactories.add(backendComponentFactory);
                 continue;
             }

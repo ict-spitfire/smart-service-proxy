@@ -35,6 +35,7 @@ import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.concurrent.ScheduledExecutorService;
@@ -65,7 +66,7 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
      *                             e.g. resource status updates.
      * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
      */
-    public CoapBackendComponentFactory(String prefix, LocalPipelineFactory localPipelineFactory,
+    public CoapBackendComponentFactory(InetAddress registrationServerAddress, String prefix, LocalPipelineFactory localPipelineFactory,
                                        ScheduledExecutorService scheduledExecutorService,
                                        String sspHostName, int sspHttpPort) throws Exception{
 
@@ -74,9 +75,10 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
         //create instances of CoAP client and server applications
         this.coapClientApplication = new CoapClientApplication();
 
-        InetSocketAddress coapServerSocketAddress =
-                new InetSocketAddress("2001:638:70a:b157:5eac:4cff:fe65:2aee", 5683);
+        InetSocketAddress coapServerSocketAddress = new InetSocketAddress(registrationServerAddress, COAP_SERVER_PORT);
         this.coapServerApplication = new CoapServerApplication(coapServerSocketAddress);
+        log.info("CoAP server started (listening at {}, port {})", coapServerSocketAddress.getAddress(),
+                coapServerSocketAddress.getPort());
 
         this.httpRequestProcessor = new SemanticHttpRequestProcessorForCoap(this);
     }
