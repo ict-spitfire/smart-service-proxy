@@ -32,14 +32,13 @@ import java.util.Set;
 */
 public class MqttResourceHandler extends SimpleChannelDownstreamHandler{
 
-    private static final String MQTT_BROKER = "tcp://141.83.157.154:1883";
-
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     private HttpObserveOverMqttLib httpObserver;
 
-    public MqttResourceHandler() throws IOException, MqttException {
+    public MqttResourceHandler(String mqttBrokerUri, int mqttBrokerHttpPort) throws IOException, MqttException {
         httpObserver = new HttpObserveOverMqttLib();
-        httpObserver.startServer(8081, MQTT_BROKER);
+        httpObserver.startServer(mqttBrokerHttpPort, mqttBrokerUri);
+        log.info("MQTT Broker started");
     }
 
     @Override

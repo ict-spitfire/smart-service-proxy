@@ -31,10 +31,14 @@ import java.util.NoSuchElementException;
 public abstract class WebserviceForResourcesList<T> implements DefaultHttpRequestProcessor {
 
     private Map<URI, T> resources;
+    private String sspHostName;
+    private int sspHttpPort;
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    public WebserviceForResourcesList(Map<URI, T> resources){
+    public WebserviceForResourcesList(Map<URI, T> resources, String sspHostName, int sspHttpPort){
         this.resources = resources;
+        this.sspHostName = sspHostName;
+        this.sspHttpPort = sspHttpPort;
     }
 
     @Override
@@ -77,8 +81,14 @@ public abstract class WebserviceForResourcesList<T> implements DefaultHttpReques
             for(URI resourceUri : resourcesFromDataOrigin){
                 try{
                     String query = "uri=" + resourceUri;
-                    URI link = new URI("http", null, Main.SSP_DNS_NAME,
-                            Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT , "/", query, null);
+                    URI link = new URI("http",
+                                       null,
+                                       sspHostName,
+                                       sspHttpPort == 80 ? -1 : sspHttpPort,
+                                       "/",
+                                       query,
+                                       null
+                    );
                     buf.append(String.format("<li><a href=\"%s\">%s</a></li>\n", link, resourceUri));
                 } catch (URISyntaxException e) {
                     log.error("This should never happen.", e);

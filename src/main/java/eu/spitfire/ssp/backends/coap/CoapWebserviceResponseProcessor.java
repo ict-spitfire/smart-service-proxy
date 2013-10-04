@@ -10,7 +10,10 @@ import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import eu.spitfire.ssp.backends.generic.exceptions.DataOriginAccessException;
 import eu.spitfire.ssp.backends.generic.exceptions.SemanticResourceException;
+import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
+import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 import java.util.Date;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.GATEWAY_TIMEOUT;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
@@ -30,10 +34,15 @@ public class CoapWebserviceResponseProcessor implements CoapResponseProcessor, R
     private SettableFuture<InternalResourceStatusMessage> resourceStatusFuture;
     private URI dataOrigin;
     private URI resourceUri;
+    private ExecutorService executorService;
+    private LocalServerChannel localServerChannel;
 
-
-    public CoapWebserviceResponseProcessor(SettableFuture<InternalResourceStatusMessage> resourceStatusFuture,
+    public CoapWebserviceResponseProcessor(CoapBackendComponentFactory backendComponentFactory,
+                                           SettableFuture<InternalResourceStatusMessage> resourceStatusFuture,
                                            URI dataOrigin, URI resourceUri){
+
+        this.localServerChannel = backendComponentFactory.getLocalServerChannel();
+        this.executorService = backendComponentFactory.getScheduledExecutorService();
         this.resourceStatusFuture = resourceStatusFuture;
         this.dataOrigin = dataOrigin;
         this.resourceUri = resourceUri;
@@ -50,57 +59,60 @@ public class CoapWebserviceResponseProcessor implements CoapResponseProcessor, R
      * @param coapResponse the response message
      */
     @Override
-    public void processCoapResponse(CoapResponse coapResponse) {
-        log.info("Process CoAP response: {}", coapResponse);
-        try{
-            if(coapResponse.getCode().isErrorMessage()){
-                Code code = coapResponse.getCode();
-                HttpResponseStatus httpResponseStatus = CoapCodeHttpStatusMapper.getHttpResponseStatus(code);
-                String message = "CoAP response code from " + dataOrigin + " was " + code;
-                throw new SemanticResourceException(dataOrigin, httpResponseStatus, message);
-            }
+    public void processCoapResponse(final CoapResponse coapResponse) {
+        executorService.submit(new Runnable(){
+            @Override
+            public void run() {
+                log.info("Process CoAP response: {}", coapResponse);
+                try{
+                    if(coapResponse.getCode().isErrorMessage()){
+                        Code code = coapResponse.getCode();
+                        HttpResponseStatus httpResponseStatus = CoapCodeHttpStatusMapper.getHttpResponseStatus(code);
+                        String message = "CoAP response code from " + dataOrigin + " was " + code;
+                        throw new SemanticResourceException(dataOrigin, httpResponseStatus, message);
+                    }
 
-            if(coapResponse.getPayload().readableBytes() > 0 && coapResponse.getContentType() == null){
-                String message = "CoAP response had no content type option.";
-                throw new SemanticResourceException(dataOrigin, INTERNAL_SERVER_ERROR, message);
-            }
+                    if(coapResponse.getPayload().readableBytes() > 0 && coapResponse.getContentType() == null){
+                        String message = "CoAP response had no content type option.";
+                        throw new SemanticResourceException(dataOrigin, INTERNAL_SERVER_ERROR, message);
+                    }
 
-            if(coapResponse.getContentType() != null && coapResponse.getPayload().readableBytes() == 0){
-                String message = "CoAP response had content type option but no content";
-                throw new SemanticResourceException(dataOrigin, INTERNAL_SERVER_ERROR, message);
-            }
+                    if(coapResponse.getContentType() != null && coapResponse.getPayload().readableBytes() == 0){
+                        String message = "CoAP response had content type option but no content";
+                        throw new SemanticResourceException(dataOrigin, INTERNAL_SERVER_ERROR, message);
+                    }
 
-            if(coapResponse.getPayload().readableBytes() > 0){
-                Model completeModel = CoapResourceToolbox.getModelFromCoapResponse(coapResponse);
-                Date expiry = CoapResourceToolbox.getExpiryFromCoapResponse(coapResponse);
+                    if(coapResponse.getPayload().readableBytes() > 0){
+                        Model completeModel = CoapResourceToolbox.getModelFromCoapResponse(coapResponse);
+                        Date expiry = CoapResourceToolbox.getExpiryFromCoapResponse(coapResponse);
 
-                Map<URI, Model> models = CoapResourceToolbox.getModelsPerSubject(completeModel);
+                        Map<URI, Model> models = CoapResourceToolbox.getModelsPerSubject(completeModel);
 
-                Model model = models.get(resourceUri);
-                if(model == null){
-                    String message = "Resource " + resourceUri + " not found at data origin " + dataOrigin;
-                    throw new DataOriginAccessException(INTERNAL_SERVER_ERROR, message);
+                        Model model = models.get(resourceUri);
+                        if(model == null){
+                            String message = "Resource " + resourceUri + " not found at data origin " + dataOrigin;
+                            throw new DataOriginAccessException(INTERNAL_SERVER_ERROR, message);
+                        }
+
+                        InternalResourceStatusMessage resourceStatusMessage =
+                                new InternalResourceStatusMessage(model, expiry);
+                        resourceStatusFuture.set(resourceStatusMessage);
+                    }
+                    else{
+                        log.info("CoAP response from {} indicates success but has no payload", dataOrigin);
+
+                        Model model = ModelFactory.createDefaultModel();
+
+                        InternalResourceStatusMessage resourceStatusMessage = new InternalResourceStatusMessage(model);
+                        resourceStatusFuture.set(resourceStatusMessage);
+                    }
                 }
-
-                InternalResourceStatusMessage resourceStatusMessage = new InternalResourceStatusMessage(model, expiry);
-                resourceStatusFuture.set(resourceStatusMessage);
+                catch(Exception e){
+                    log.error("Error while creating resource status message from CoAP response.", e);
+                    resourceStatusFuture.setException(e);
+                }
             }
-            else{
-                log.info("CoAP response from {} indicates success but has no payload", dataOrigin);
-                HttpResponseStatus httpResponseStatus =
-                        CoapCodeHttpStatusMapper.getHttpResponseStatus(coapResponse.getCode());
-
-                Model model = ModelFactory.createDefaultModel();
-
-                InternalResourceStatusMessage resourceStatusMessage = new InternalResourceStatusMessage(model);
-                resourceStatusFuture.set(resourceStatusMessage);
-            }
-        }
-        catch(Exception e){
-            log.error("Error while creating resource status message from CoAP response.", e);
-            resourceStatusFuture.setException(e);
-        }
-
+        });
     }
 
     /**
@@ -111,8 +123,11 @@ public class CoapWebserviceResponseProcessor implements CoapResponseProcessor, R
      */
     @Override
     public void processRetransmissionTimeout(InternalRetransmissionTimeoutMessage timeoutMessage) {
-        String message = "No response received from " + dataOrigin + ".";
-        log.warn(message);
-        resourceStatusFuture.setException(new SemanticResourceException(dataOrigin, GATEWAY_TIMEOUT, message));
+        String exMessage = "No response received from " + dataOrigin + ".";
+        log.warn(exMessage);
+        resourceStatusFuture.setException(new DataOriginAccessException(GATEWAY_TIMEOUT, exMessage));
+
+        InternalRemoveResourcesMessage message = new InternalRemoveResourcesMessage(resourceUri);
+        Channels.write(localServerChannel, message);
     }
 }

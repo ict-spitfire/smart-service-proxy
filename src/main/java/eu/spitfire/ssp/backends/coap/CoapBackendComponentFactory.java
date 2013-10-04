@@ -57,6 +57,7 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
 
     private CoapClientApplication coapClientApplication;
     private CoapServerApplication coapServerApplication;
+    private SemanticHttpRequestProcessorForCoap httpRequestProcessor;
 
     /**
      * @param prefix the prefix used for not-absolute resource URIs, e.g. <code>prefix/gui</code>
@@ -65,8 +66,10 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
      * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
      */
     public CoapBackendComponentFactory(String prefix, LocalPipelineFactory localPipelineFactory,
-                                       ScheduledExecutorService scheduledExecutorService) throws Exception{
-        super(prefix, localPipelineFactory, scheduledExecutorService);
+                                       ScheduledExecutorService scheduledExecutorService,
+                                       String sspHostName, int sspHttpPort) throws Exception{
+
+        super(prefix, localPipelineFactory, scheduledExecutorService, sspHostName, sspHttpPort);
 
         //create instances of CoAP client and server applications
         this.coapClientApplication = new CoapClientApplication();
@@ -74,11 +77,13 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
         InetSocketAddress coapServerSocketAddress =
                 new InetSocketAddress("2001:638:70a:b157:5eac:4cff:fe65:2aee", 5683);
         this.coapServerApplication = new CoapServerApplication(coapServerSocketAddress);
+
+        this.httpRequestProcessor = new SemanticHttpRequestProcessorForCoap(this);
     }
 
     @Override
     public SemanticHttpRequestProcessor getHttpRequestProcessor() {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        return this.httpRequestProcessor;
     }
 
     /**
@@ -99,7 +104,7 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
 
     @Override
     public void initialize() {
-        this.coapServerApplication.registerService(new CoapRegistrationWebservice(this));
+        //nothing to do
     }
 
     @Override

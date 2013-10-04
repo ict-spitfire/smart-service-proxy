@@ -25,23 +25,27 @@
 package eu.spitfire.ssp.server.channels.handler;
 
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.Main;
 import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
+import eu.spitfire.ssp.backends.generic.exceptions.ResourceAlreadyRegisteredException;
 import eu.spitfire.ssp.backends.generic.exceptions.SemanticResourceException;
 import eu.spitfire.ssp.backends.generic.messages.InternalRegisterResourceMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalRegisterWebserviceMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
-import eu.spitfire.ssp.backends.generic.exceptions.ResourceAlreadyRegisteredException;
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
 import eu.spitfire.ssp.server.webservices.*;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.*;
+import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.*;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
@@ -63,6 +67,9 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 	//Maps resource proxy uris to request processors
 	private Map<URI, HttpRequestProcessor> proxyServices;
 
+    private String dnsName;
+    private int httpProxyPort;
+    
     private ExecutorService ioExecutorService;
 
     /**
@@ -70,8 +77,10 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
      * @throws Exception if some unexpected error occurs
      */
     public HttpRequestDispatcher(ExecutorService ioExecutorService, boolean enableSparqlEndpoint,
-                                 SemanticCache cache) throws Exception {
+                                 SemanticCache cache, String dnsName, int httpProxyPort) throws Exception {
         this.ioExecutorService = ioExecutorService;
+        this.dnsName = dnsName;
+        this.httpProxyPort = httpProxyPort;
 
         this.proxyServices = Collections.synchronizedMap(new TreeMap<URI, HttpRequestProcessor>());
 
@@ -84,8 +93,8 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
     private void registerSparqlEndpoint(SemanticCache cache) {
         try{
-            URI targetUri = new URI("http", null, Main.SSP_DNS_NAME,
-                    Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT , "/sparql", null, null);
+            URI targetUri = new URI("http", null, this.dnsName,
+                    this.httpProxyPort == 80 ? -1 : this.httpProxyPort , "/sparql", null, null);
 
             registerProxyWebservice(targetUri, new SparqlEndpoint(ioExecutorService, cache));
         } catch (URISyntaxException e) {
@@ -156,7 +165,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
                 return;
             }
 
-            registerProxyWebservice(message.getRelativeUri(), message.getHttpRequestProcessor());
+            registerProxyWebservice(webserviceUri, message.getHttpRequestProcessor());
             me.getFuture().setSuccess();
             return;
         }
@@ -255,7 +264,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
      * Registers the service to provide the favicon.ico
      */
     private void registerFavicon() throws URISyntaxException {
-        URI faviconUri = new URI("http", null, Main.SSP_DNS_NAME, Main.SSP_HTTP_PROXY_PORT, "/favicon.ico",null, null);
+        URI faviconUri = new URI("http", null, this.dnsName, this.httpProxyPort, "/favicon.ico",null, null);
         registerProxyWebservice(faviconUri, new FaviconHttpRequestProcessor());
     }
 
@@ -264,11 +273,11 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
      */
     private void registerMainWebsite() throws URISyntaxException {
         //register service to provide list of available proxyServices
-        if(Main.SSP_DNS_NAME == null)
-            throw new RuntimeException("SSP_DNS_NAME must be defined! SSP_DNS_NAME can also be an IP address!");
+        if(this.dnsName == null)
+            throw new RuntimeException("SSP_HOST_NAME must be defined (DNS name or IP address)!");
 
-        URI websiteUri = new URI("http", null, Main.SSP_DNS_NAME,
-                Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT , "/", null, null);
+        URI websiteUri = new URI("http", null, this.dnsName,
+                this.httpProxyPort == 80 ? -1 : this.httpProxyPort , "/", null, null);
 
         registerProxyWebservice(websiteUri, new ProxyMainWebsite(proxyServices));
     }
@@ -298,19 +307,20 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
     private URI generateProxyWebserviceUri(URI uri) throws URISyntaxException {
         if(uri.isAbsolute())
-            return new URI("http", null, Main.SSP_DNS_NAME,
-                                    Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT, "/",
+            return new URI("http", null, this.dnsName,
+                                    this.httpProxyPort == 80 ? -1 : this.httpProxyPort, "/",
                                     "uri=" + uri.toString(), null);
 
         else
-            return new URI("http", null, Main.SSP_DNS_NAME,
-                                    Main.SSP_HTTP_PROXY_PORT == 80 ? -1 : Main.SSP_HTTP_PROXY_PORT,
+            return new URI("http", null, this.dnsName,
+                                    this.httpProxyPort == 80 ? -1 : this.httpProxyPort,
                                     uri.getPath(), uri.getQuery(), uri.getFragment());
     }
 
 
 
-    private synchronized boolean registerProxyWebservice(URI proxyWebserviceUri, HttpRequestProcessor httpRequestProcessor){
+    private synchronized boolean registerProxyWebservice(URI proxyWebserviceUri,
+                                                         HttpRequestProcessor httpRequestProcessor){
         if(proxyServices.containsKey(proxyWebserviceUri))
             return false;
 

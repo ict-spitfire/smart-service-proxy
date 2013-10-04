@@ -26,6 +26,7 @@ package eu.spitfire.ssp.server.channels;
 
 import eu.spitfire.ssp.server.channels.handler.*;
 import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
+import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
@@ -37,6 +38,8 @@ import org.jboss.netty.handler.execution.ExecutionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.concurrent.ExecutorService;
 
 
@@ -51,40 +54,13 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 
     private static Logger log = LoggerFactory.getLogger(SmartServiceProxyPipelineFactory.class.getName());
 
-    private HttpRequestDispatcher httpRequestDispatcher;
-    private SemanticCache semanticCache            ;
-    private ExecutionHandler executionHandler;
-    private MqttResourceHandler mqttResourceHandler;
+    private LinkedHashSet<ChannelHandler> handler;
 
-    public SmartServiceProxyPipelineFactory(ExecutorService ioExecutorService, SemanticCache cache,
-                                            HttpRequestDispatcher httpRequestDispatcher,
-                                            MqttResourceHandler mqttResourceHandler) throws Exception {
-
-        executionHandler = new ExecutionHandler(ioExecutorService);
-        semanticCache = cache;
-        this.mqttResourceHandler = mqttResourceHandler;
-        log.info("Added instance of {} as cache.", semanticCache.getClass().getName());
-
-        this.httpRequestDispatcher = httpRequestDispatcher;
+    public SmartServiceProxyPipelineFactory(LinkedHashSet<ChannelHandler> handler)
+            throws Exception {
+        this.handler = handler;
     }
 
-//    /**
-//     * The internal channels contains the handlers to handle internal messages for e.g. resource registration and
-//     * resource status updates.
-//     *
-//     * @return the channels (chain of handlers) for internal messages.
-//     *
-//     * @throws Exception if some unexpected error occurred
-//     */
-//    public ChannelPipeline getInternalPipeline() throws Exception{
-//        ChannelPipeline channels = Channels.channels();
-//
-//        //channels.addLast("Internal Sink", internalPipelineSink);
-//        channels.addLast("Semantic Cache", semanticCache);
-//        channels.addLast("HTTP Request Dispatcher", httpRequestDispatcher);
-//
-//        return channels;
-//    }
 
     /**
      * The channels contains the handlers to handle incoming HTTP requests and return a proper HTTP response
@@ -97,8 +73,11 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 	public ChannelPipeline getPipeline() throws Exception {
 
 		ChannelPipeline pipeline = Channels.pipeline();
+        Iterator<ChannelHandler> handlerIterator = handler.iterator();
 
-        pipeline.addLast("Execution Handler", executionHandler);
+        //Execution handler
+        ChannelHandler channelHandler = handlerIterator.next();
+        pipeline.addLast(channelHandler.getClass().getSimpleName(), channelHandler);
 
         //HTTP protocol handlers
 		pipeline.addLast("HTTP Decoder", new HttpRequestDecoder());
@@ -108,9 +87,11 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 
         //SSP specific handlers
         pipeline.addLast("Payload Formatter", new SemanticPayloadFormatter());
-        pipeline.addLast("Semantic Cache", semanticCache);
-        pipeline.addLast("MQTT Handler", mqttResourceHandler);
-        pipeline.addLast("HTTP Request Dispatcher", httpRequestDispatcher);
+        while(handlerIterator.hasNext()){
+            channelHandler = handlerIterator.next();
+            pipeline.addLast(channelHandler.getClass().getSimpleName(), channelHandler);
+            log.debug("Added {} to pipeline.", channelHandler.getClass().getSimpleName());
+        }
 
         return pipeline;
 	}

@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.util.concurrent.ExecutorService;
 
 import static de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType.*;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
@@ -32,16 +33,17 @@ public class SemanticHttpRequestProcessorForCoap implements SemanticHttpRequestP
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
+    private CoapBackendComponentFactory backendComponentFactory;
     private BackendResourceManager<URI> backendResourceManager;
     private CoapClientApplication coapClientApplication;
+    private ExecutorService executorService;
 
-    /**
-     * @param coapClientApplication the {@link CoapClientApplication} to send the {@link CoapRequest}s
-     */
-    public SemanticHttpRequestProcessorForCoap(CoapClientApplication coapClientApplication,
-                                               BackendResourceManager<URI> backendResourceManager){
-        this.coapClientApplication = coapClientApplication;
-        this.backendResourceManager = backendResourceManager;
+
+    public SemanticHttpRequestProcessorForCoap(CoapBackendComponentFactory backendComponentFactory){
+        this.backendComponentFactory = backendComponentFactory;
+        this.coapClientApplication = backendComponentFactory.getCoapClientApplication();
+        this.backendResourceManager = backendComponentFactory.getBackendResourceManager();
+        this.executorService = backendComponentFactory.getScheduledExecutorService();
     }
 
     @Override
@@ -72,7 +74,8 @@ public class SemanticHttpRequestProcessorForCoap implements SemanticHttpRequestP
             coapRequest.setAccept(APP_SHDT, APP_RDF_XML, APP_N3, APP_TURTLE);
 
             coapClientApplication.writeCoapRequest(coapRequest,
-                        new CoapWebserviceResponseProcessor(resourceStatusFuture, dataOrigin, resourceUri));
+                    new CoapWebserviceResponseProcessor(backendComponentFactory, resourceStatusFuture, dataOrigin,
+                            resourceUri));
 
         }
         catch (Exception e) {

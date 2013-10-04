@@ -67,7 +67,9 @@ public abstract class BackendComponentFactory<T>{
     private LocalServerChannel localServerChannel;
 
     protected BackendComponentFactory(String prefix, LocalPipelineFactory localPipelineFactory,
-                                      final ScheduledExecutorService scheduledExecutorService) throws Exception {
+            final ScheduledExecutorService scheduledExecutorService, String sspHostName, int sspHttpPort)
+            throws Exception {
+
         this.prefix = prefix;
         this.scheduledExecutorService = scheduledExecutorService;
 
@@ -75,7 +77,7 @@ public abstract class BackendComponentFactory<T>{
         DefaultLocalServerChannelFactory internalChannelFactory = new DefaultLocalServerChannelFactory();
         this.localServerChannel = internalChannelFactory.newChannel(localPipelineFactory.getPipeline());
 
-        this.backendResourceManager = new BackendResourceManager<T>() {};
+        this.backendResourceManager = new BackendResourceManager<T>(sspHostName, sspHttpPort) {};
         this.localServerChannel.getPipeline().addLast("Backend Resource Manager", backendResourceManager);
     }
 

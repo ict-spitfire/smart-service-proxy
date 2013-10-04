@@ -60,6 +60,9 @@ public abstract class DataOriginRegistry<T> {
             final InternalRegisterResourceMessage<T> registerResourceMessage =
                     new InternalRegisterResourceMessage<T>(httpRequestProcessor, dataOrigin, model, expiry){};
 
+            log.info("Try to register resource {} from data origin {}",
+                    registerResourceMessage.getResourceUri(), dataOrigin);
+
             ChannelFuture channelFuture = Channels.write(localServerChannel, registerResourceMessage);
             channelFuture.addListener(new ChannelFutureListener() {
                 @Override
@@ -83,57 +86,4 @@ public abstract class DataOriginRegistry<T> {
             return resourceRegistrationFuture;
         }
     }
-
-//    /**
-//     * Method to be called by extending classes, i.e. instances of {@link BackendComponentFactory} whenever there is a new
-//     * webservice to be created on the smart service proxy, if the network behind this gateway is an IP enabled
-//     * network.
-//     *
-//     * @param resourceUri the (original/remote) {@link URI} of the new resource to be registered.
-//     * @param requestProcessor the {@link HttpRequestProcessor} instance to handle incoming requests for that resource
-//     *
-//     * @return the {@link com.google.common.util.concurrent.SettableFuture <URI>} containing the absolute {@link URI} for the newly registered
-//     * service or a {@link Throwable} if an error occurred during the registration process.
-//     */
-//    private ListenableFuture<URI> registerSemanticResource(URI resourceUri,
-//                                                          final SemanticHttpRequestProcessor requestProcessor){
-//
-//        final SettableFuture<URI> resourceRegistrationFuture = SettableFuture.create();
-//
-//        //Retrieve the URI the new service is available at on the proxy
-//        final SettableFuture<URI> proxyResourceUriFuture =  this.backendResourceManager.retrieveProxyUri(resourceUri);
-//
-//        proxyResourceUriFuture.addListener(new Runnable() {
-//            @Override
-//            public void run() {
-//                try {
-//                    //Register new service with the retrieved resource proxy URI
-//                    final URI resourceProxyUri = proxyResourceUriFuture.get();
-//                    ChannelFuture registrationFuture = Channels.write(localServerChannel,
-//                                    new InternalRegisterWebserviceMessage(resourceProxyUri, requestProcessor));
-//
-//                    registrationFuture.addListener(new ChannelFutureListener() {
-//                        @Override
-//                        public void operationComplete(ChannelFuture channelFuture) throws Exception {
-//                            if (channelFuture.isSuccess())
-//                                resourceRegistrationFuture.set(resourceProxyUri);
-//                            else
-//                                resourceRegistrationFuture.setException(channelFuture.getCause());
-//                        }
-//                    });
-//
-//                } catch (InterruptedException e) {
-//                    log.error("Exception during service registration process.", e);
-//                    resourceRegistrationFuture.setException(e);
-//
-//                } catch (ExecutionException e) {
-//                    log.warn("Exception during service registration process.", e.getMessage());
-//                    resourceRegistrationFuture.setException(e);
-//                }
-//
-//            }
-//        }, this.scheduledExecutorService);
-//
-//        return resourceRegistrationFuture;
-//    }
 }

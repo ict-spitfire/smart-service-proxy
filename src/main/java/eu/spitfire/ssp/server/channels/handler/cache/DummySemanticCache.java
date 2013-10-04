@@ -24,7 +24,7 @@ public class DummySemanticCache extends SemanticCache {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    protected DummySemanticCache(ScheduledExecutorService scheduledExecutorService) {
+    public DummySemanticCache(ScheduledExecutorService scheduledExecutorService) {
         super(scheduledExecutorService);
     }
 

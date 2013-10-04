@@ -4,7 +4,7 @@ import java.net.URI;
 
 /**
 * Message to be written on the local server channel if a resource is to be removed from the list of registered
-* services and from the cache.
+* services.
 *
 * @author Oliver Kleine
 */

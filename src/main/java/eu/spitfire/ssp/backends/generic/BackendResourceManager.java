@@ -25,8 +25,9 @@ public abstract class BackendResourceManager<T> extends SimpleChannelDownstreamH
 
     private WebserviceForResourcesList<T> resourcesListWebservice;
 
-    public BackendResourceManager(){
-        this.resourcesListWebservice =  new WebserviceForResourcesList<T>(this.resourceToDataOriginMap) {};
+    public BackendResourceManager(String sspHostName, int sspHttpPort){
+        this.resourcesListWebservice =
+                new WebserviceForResourcesList<T>(this.resourceToDataOriginMap, sspHostName, sspHttpPort) {};
     }
 
 
@@ -42,7 +43,7 @@ public abstract class BackendResourceManager<T> extends SimpleChannelDownstreamH
                 me.getFuture().addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
-                        if(!future.isSuccess())
+                        if(!future.isSuccess() && !(future.getCause() instanceof ResourceAlreadyRegisteredException))
                             removeResource(resourceUri);
                     }
                 });

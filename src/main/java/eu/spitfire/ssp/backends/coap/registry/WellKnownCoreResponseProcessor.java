@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.Charset;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Instance of {@link CoapResponseProcessor} to process incoming responses from <code>.well-known/core</code> CoAP resources.
@@ -22,21 +23,29 @@ public class WellKnownCoreResponseProcessor implements CoapResponseProcessor, Re
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     private SettableFuture<Set<String>> wellKnownCoreFuture;
+    private ExecutorService executorService;
 
-    public WellKnownCoreResponseProcessor(SettableFuture<Set<String>> wellKnownCoreFuture){
+    public WellKnownCoreResponseProcessor(SettableFuture<Set<String>> wellKnownCoreFuture,
+                                          ExecutorService executorService){
         this.wellKnownCoreFuture = wellKnownCoreFuture;
+        this.executorService = executorService;
     }
 
     @Override
-    public void processCoapResponse(CoapResponse coapResponse) {
-        Set<String> services = processWellKnownCoreResponse(coapResponse);
-        if(services != null){
-            log.info("/.well-known/core service succesfully read. Found {} services.", services.size());
-            wellKnownCoreFuture.set(services);
-        }
-        else{
-            wellKnownCoreFuture.setException(new WellKnownCoreInvalidException());
-        }
+    public void processCoapResponse(final CoapResponse coapResponse) {
+        executorService.submit(new Runnable() {
+            @Override
+            public void run() {
+                Set<String> services = processWellKnownCoreResponse(coapResponse);
+                if(services != null){
+                    log.info("/.well-known/core service succesfully read. Found {} services.", services.size());
+                    wellKnownCoreFuture.set(services);
+                }
+                else{
+                    wellKnownCoreFuture.setException(new WellKnownCoreInvalidException());
+                }
+            }
+        });
     }
 
     @Override

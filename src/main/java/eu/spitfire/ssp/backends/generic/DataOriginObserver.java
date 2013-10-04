@@ -1,8 +1,11 @@
 package eu.spitfire.ssp.backends.generic;
 
 import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.Statement;
 import eu.spitfire.ssp.backends.generic.exceptions.MultipleSubjectsInModelException;
+import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
+import eu.spitfire.ssp.backends.generic.messages.InternalUpdateResourceStatusMessage;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.local.LocalServerChannel;
@@ -18,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Extending classes are supposed to observe a data origin of type T. Whenever there was an update detected by
- * the extending observer it must call the method {@link #updateResourcesStates(Model, Date)}.
+ * the extending observer it must call the method {@link #cacheResourcesStates(Model, Date)}.
  *
  * @author Oliver Kleine
  */
@@ -42,10 +45,10 @@ public abstract class DataOriginObserver {
      *              data origin
      * @param expiry the {@link Date} indicating the expiry of the new status
      */
-    protected final void updateResourcesStates(Model model, final Date expiry){
+    protected final void cacheResourcesStates(Model model, final Date expiry){
         final Map<URI, Model> models = ResourceToolbox.getModelsPerSubject(model);
         for(final URI resourceUri : models.keySet()){
-            scheduledExecutorService.schedule(new Runnable() {
+            scheduledExecutorService.submit(new Runnable() {
                 @Override
                 public void run() {
                     try {
@@ -56,10 +59,19 @@ public abstract class DataOriginObserver {
                         log.error("This should never happen.", e);
                     }
                 }
-            }, 0, TimeUnit.MILLISECONDS);
+            });
         }
     }
 
+    protected ChannelFuture deleteResource(URI resourceUri){
+        InternalRemoveResourcesMessage message = new InternalRemoveResourcesMessage(resourceUri);
+        return Channels.write(localServerChannel, message);
+    }
+
+    protected final void updateResourceStatus(Statement statement, Date expiry){
+        InternalUpdateResourceStatusMessage message = new InternalUpdateResourceStatusMessage(statement, expiry);
+        Channels.write(localServerChannel, message);
+    }
 
 
     private ChannelFuture updateResourceStatus(final Model model, Date expiry)

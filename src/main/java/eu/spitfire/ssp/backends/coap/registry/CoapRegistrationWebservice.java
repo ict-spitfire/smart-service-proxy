@@ -1,13 +1,11 @@
 package eu.spitfire.ssp.backends.coap.registry;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.server.webservice.NotObservableWebService;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
 import de.uniluebeck.itm.ncoap.message.header.Code;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +13,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * This is the WebService for new sensor nodes to register. It's path is <code>/here_i_am</code>. It only accepts
@@ -56,14 +53,25 @@ public class CoapRegistrationWebservice extends NotObservableWebService<Boolean>
         }
 
         //Request was POST, so go ahead
-        ListenableFuture<Set<URI>> registeredResourcesFuture =
+        final ListenableFuture<Set<URI>> registeredResourcesFuture =
                 coapWebserviceRegistry.processRegistration(remoteAddress.getAddress());
 
         registeredResourcesFuture.addListener(new Runnable(){
             @Override
             public void run() {
-                CoapResponse coapResponse = new CoapResponse(Code.CREATED_201);
-                registrationResponseFuture.set(coapResponse);
+                try{
+                    Set<URI> registeredResources = registeredResourcesFuture.get();
+                    if(log.isInfoEnabled()){
+                        for(URI resourceUri : registeredResources)
+                            log.info("Succesfully registered resource {}", resourceUri);
+                    }
+                    CoapResponse coapResponse = new CoapResponse(Code.CREATED_201);
+                    registrationResponseFuture.set(coapResponse);
+                }
+                catch(Exception e){
+                    CoapResponse coapResponse = new CoapResponse(Code.INTERNAL_SERVER_ERROR_500);
+                    registrationResponseFuture.set(coapResponse);
+                }
             }
         }, executorService);
     }

@@ -1,12 +1,15 @@
 package eu.spitfire.ssp.server.channels;
 
-import eu.spitfire.ssp.server.channels.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.channels.handler.InternalPipelineSink;
-import eu.spitfire.ssp.server.channels.handler.MqttResourceHandler;
-import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
+import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 
 /**
  * Factory class to create the channels for internal messages, e.g. for resource registration or resource status
@@ -16,18 +19,13 @@ import org.jboss.netty.channel.Channels;
  */
 public class LocalPipelineFactory implements ChannelPipelineFactory {
 
-    private final HttpRequestDispatcher httpRequestDispatcher;
-    private final SemanticCache semanticCache;
-    private final InternalPipelineSink internalPipelineSink;
-    private final MqttResourceHandler mqttResourceHandler;
+    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    public LocalPipelineFactory(HttpRequestDispatcher httpRequestDispatcher, SemanticCache semanticCache,
-                                MqttResourceHandler mqttResourceHandler){
+    private LinkedHashSet<ChannelHandler> handler;
+    private InternalPipelineSink internalPipelineSink;
 
-        this.httpRequestDispatcher = httpRequestDispatcher;
-        this.semanticCache = semanticCache;
-        this.mqttResourceHandler = mqttResourceHandler;
-
+    public LocalPipelineFactory(LinkedHashSet<ChannelHandler> handler){
+        this.handler = handler;
         this.internalPipelineSink = new InternalPipelineSink();
     }
 
@@ -35,10 +33,13 @@ public class LocalPipelineFactory implements ChannelPipelineFactory {
     public ChannelPipeline getPipeline() throws Exception {
         ChannelPipeline pipeline = Channels.pipeline();
 
-        pipeline.addLast("Internal Sink", internalPipelineSink);
-        pipeline.addLast("Semantic Cache", semanticCache);
-        pipeline.addLast("MQTT Handler", mqttResourceHandler);
-        pipeline.addLast("HTTP Request Dispatcher", httpRequestDispatcher);
+        pipeline.addLast("Internal Pipeline Sink", internalPipelineSink);
+        Iterator<ChannelHandler> handlerIterator = handler.iterator();
+        while(handlerIterator.hasNext()){
+            ChannelHandler channelHandler = handlerIterator.next();
+            pipeline.addLast(channelHandler.getClass().getSimpleName(), channelHandler);
+            log.info("Added {} to internal pipeline", channelHandler.getClass().getSimpleName());
+        }
 
         return pipeline;
     }
