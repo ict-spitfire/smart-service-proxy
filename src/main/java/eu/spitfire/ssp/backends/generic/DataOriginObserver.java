@@ -63,10 +63,12 @@ public abstract class DataOriginObserver {
         }
     }
 
+
     protected ChannelFuture deleteResource(URI resourceUri){
         InternalRemoveResourcesMessage message = new InternalRemoveResourcesMessage(resourceUri);
         return Channels.write(localServerChannel, message);
     }
+
 
     protected final void updateResourceStatus(Statement statement, Date expiry){
         InternalUpdateResourceStatusMessage message = new InternalUpdateResourceStatusMessage(statement, expiry);
@@ -75,10 +77,11 @@ public abstract class DataOriginObserver {
 
 
     private ChannelFuture updateResourceStatus(final Model model, Date expiry)
-                                                        throws MultipleSubjectsInModelException, URISyntaxException {
+            throws MultipleSubjectsInModelException, URISyntaxException {
 
         InternalResourceStatusMessage internalResourceStatusMessage = new InternalResourceStatusMessage(model, expiry);
         return Channels.write(localServerChannel, internalResourceStatusMessage);
+
     }
 }
 

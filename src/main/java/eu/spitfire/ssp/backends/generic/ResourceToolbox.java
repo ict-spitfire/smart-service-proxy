@@ -55,22 +55,6 @@ public abstract class ResourceToolbox {
         return model;
     }
 
-    public static Model readModelFromFile(Path filePath) throws FileNotFoundException {
-        BufferedReader fileReader = new BufferedReader(new FileReader(filePath.toString()));
-        Model model = ModelFactory.createDefaultModel();
-        model.read(fileReader, null, Language.RDF_N3.lang);
-
-        return model;
-    }
-
-    public static void writeModelToFile(Path filePath, Model model) throws IOException {
-        //Write new status to the file
-        FileWriter fileWriter = new FileWriter(filePath.toFile());
-        model.write(fileWriter, Language.RDF_N3.lang);
-        fileWriter.flush();
-        fileWriter.close();
-    }
-
     /**
      * Splits the given {@link com.hp.hpl.jena.rdf.model.Model} into several {@link com.hp.hpl.jena.rdf.model.Model} instances, one for each subject contained in the
      * given model.

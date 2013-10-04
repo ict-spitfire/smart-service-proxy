@@ -10,18 +10,18 @@
 //import java.nio.file.Path;
 //
 ///**
-// * The GUI is just an HTML page to show which resources states are stored in which local files.
+// * The GUI is just an HTML page to show which resources states are stored in which local files_OLD.
 // *
 // * @author Oliver Kleine
 //*/
 //public class FilesServiceManagerGui implements DefaultHttpRequestProcessor {
 //
-//    private FilesObserver filesObserver;
+//    private FilesObserver____OLD filesObserver;
 //
 //    /**
-//     * @param filesObserver The instance of {@link FilesObserver} to observe directory
+//     * @param filesObserver The instance of {@link FilesObserver____OLD} to observe directory
 //     */
-//    public FilesServiceManagerGui(FilesObserver filesObserver){
+//    public FilesServiceManagerGui(FilesObserver____OLD filesObserver){
 //        this.filesObserver = filesObserver;
 //    }
 //
@@ -45,7 +45,7 @@
 //    private ChannelBuffer getHtmlContent(){
 //        StringBuilder buf = new StringBuilder();
 //        buf.append("<html><body>\n");
-//        buf.append(String.format("<h2>Resources from files in %s</h2>\n", filesObserver.getObservedDirectory()));
+//        buf.append(String.format("<h2>Resources from files_OLD in %s</h2>\n", filesObserver.getObservedDirectory()));
 //
 //        for(Object filePath : filesObserver.getObservedFiles().toArray()){
 //            buf.append(String.format("<h3>%s</h3>\n", filePath));

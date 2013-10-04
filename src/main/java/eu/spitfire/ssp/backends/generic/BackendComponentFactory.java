@@ -59,8 +59,6 @@ public abstract class BackendComponentFactory<T>{
 
     private BackendResourceManager<T> backendResourceManager;
     private DataOriginRegistry<T> dataOriginRegistry;
-//    private DataOriginAccessory<T> dataOriginAccessory;
-//    private SemanticHttpRequestProcessor<T> httpRequestProcessor;
     private ScheduledExecutorService scheduledExecutorService;
 
     private String prefix;
@@ -118,14 +116,6 @@ public abstract class BackendComponentFactory<T>{
         return this.dataOriginRegistry;
     }
 
-//    /**
-//     * Returns the {@link DataOriginAccessory} for this backend
-//     *
-//     * @return the {@link DataOriginAccessory} for this backend
-//     */
-//    public final DataOriginAccessory<T> getDataOriginAccessory(){
-//        return this.dataOriginAccessory;
-//    }
 
     /**
      * Returns the {@link SemanticHttpRequestProcessor} which is responsible to process all incoming HTTP requests
@@ -133,6 +123,7 @@ public abstract class BackendComponentFactory<T>{
      * @return the {@link SemanticHttpRequestProcessor} which is responsible to process all incoming HTTP requests
      */
     public abstract SemanticHttpRequestProcessor getHttpRequestProcessor();
+
 
     /**
      * Returns the {@link BackendResourceManager} which is contains all resources, resp. data origins, this backend is
@@ -144,12 +135,14 @@ public abstract class BackendComponentFactory<T>{
     public final BackendResourceManager<T> getBackendResourceManager(){
         return this.backendResourceManager;
     }
+
+
     /**
      * Initialize the components to run this backend, e.g. the {@link DataOriginRegistry}. This method is
      * automatically invoked by the SSP framework and itself invokes the methods {@link  #createDataOriginRegistry}
      * and {@link #initialize()} (in that order).
      */
-    public final void initializeBackendComponents(){
+    public final void initializeBackendComponents() throws Exception{
 
         //Create data origin registry
         this.dataOriginRegistry = createDataOriginRegistry();
@@ -184,7 +177,7 @@ public abstract class BackendComponentFactory<T>{
      * Method automatically invoked upon construction of the gateway instance. It is considered to contain everything
      * that is necessary to make the gateway instance working properly.
      */
-    public abstract void initialize();
+    public abstract void initialize() throws Exception;
 
     /**
      * Returns the specific prefix of this gateway. If wildcard DNS is enabled, then the prefix is used as the very

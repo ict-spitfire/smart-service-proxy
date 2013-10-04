@@ -66,9 +66,10 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
      *                             e.g. resource status updates.
      * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
      */
-    public CoapBackendComponentFactory(InetAddress registrationServerAddress, String prefix, LocalPipelineFactory localPipelineFactory,
-                                       ScheduledExecutorService scheduledExecutorService,
-                                       String sspHostName, int sspHttpPort) throws Exception{
+    public CoapBackendComponentFactory(String prefix, LocalPipelineFactory localPipelineFactory,
+                                       ScheduledExecutorService scheduledExecutorService, String sspHostName,
+                                       int sspHttpPort, InetAddress registrationServerAddress)
+            throws Exception{
 
         super(prefix, localPipelineFactory, scheduledExecutorService, sspHostName, sspHttpPort);
 

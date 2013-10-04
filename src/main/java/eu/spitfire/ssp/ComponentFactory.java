@@ -2,6 +2,7 @@ package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
+import eu.spitfire.ssp.backends.files.FilesBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
 import eu.spitfire.ssp.server.channels.SmartServiceProxyPipelineFactory;
@@ -13,7 +14,6 @@ import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.ChannelHandler;
-import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.execution.ExecutionHandler;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
@@ -98,25 +98,27 @@ public class ComponentFactory {
                 InetAddress registrationServerAddress =
                         InetAddress.getByName(config.getString("coap.registration.server.ip"));
                 BackendComponentFactory backendComponentFactory =
-                        new CoapBackendComponentFactory(registrationServerAddress, "coap", localPipelineFactory,
-                                scheduledExecutorService, sspHostName, sspHttpPort);
+                        new CoapBackendComponentFactory("coap", localPipelineFactory, scheduledExecutorService,
+                                sspHostName, sspHttpPort, registrationServerAddress);
                 this.backendComponentFactories.add(backendComponentFactory);
                 continue;
             }
 
-            //Local files
-//            else if(proxyServiceManagerName.equals("files")){
-//                String directory = config.getString("files.directory");
-//                if(directory == null){
-//                    throw new Exception("Property 'files.directory' not set.");
-//                }
-//                boolean copyExamples = config.getBoolean("files.copyExamples");
-//                int numberOfRandomFiles = config.getInt("files.numberOfRandomFiles", 0);
-//                proxyServiceManager =
-//                        new FilesBackendComponentFactory("files", internalChannel, resourceMgmtExecutorService, copyExamples,
-//                                numberOfRandomFiles, directory);
-//
-//            }
+            //Local files_OLD
+            else if(proxyServiceManagerName.equals("files")){
+                String directory = config.getString("files.directory");
+                if(directory == null){
+                    throw new Exception("Property 'files.directory' not set.");
+                }
+                boolean copyExamples = config.getBoolean("files.copyExamples");
+                int numberOfRandomFiles = config.getInt("files.numberOfRandomFiles", 0);
+                BackendComponentFactory backendComponentFactory =
+                        new FilesBackendComponentFactory("files",localPipelineFactory, scheduledExecutorService,
+                                sspHostName, sspHttpPort, Paths.get(directory));
+                this.backendComponentFactories.add(backendComponentFactory);
+                continue;
+
+            }
 //            else if(proxyServiceManagerName.equals("uberdust")){
 //                log.info("Create Uberdust Gateway.");
 //                proxyServiceManager =
