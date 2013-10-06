@@ -111,7 +111,7 @@ public class ComponentFactory {
                     throw new Exception("Property 'files.directory' not set.");
                 }
                 boolean copyExamples = config.getBoolean("files.copyExamples");
-                int numberOfRandomFiles = config.getInt("files.numberOfRandomFiles", 0);
+                //int numberOfRandomFiles = config.getInt("files.numberOfRandomFiles", 0);
                 BackendComponentFactory backendComponentFactory =
                         new FilesBackendComponentFactory("files",localPipelineFactory, scheduledExecutorService,
                                 sspHostName, sspHttpPort, Paths.get(directory), copyExamples);

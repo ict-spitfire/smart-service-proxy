@@ -86,7 +86,6 @@ public class FilesBackendComponentFactory extends BackendComponentFactory<Path>{
     private void copyExampleFiles(Path examplesDirectory){
         try{
 
-            //deleteRecursicvly(examplesDirectory.toFile());
             if(!examplesDirectory.toFile().exists())
                 Files.createDirectory(examplesDirectory);
 
@@ -123,6 +122,7 @@ public class FilesBackendComponentFactory extends BackendComponentFactory<Path>{
             log.error("Error while creating, modifying or deleting file or directory.", e);
         }
     }
+
 
     private void deleteRecursicvly(File file){
         log.debug("Try to delete {}", file.getAbsolutePath());
