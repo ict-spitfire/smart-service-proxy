@@ -3,7 +3,7 @@ package eu.spitfire.ssp.backends.files;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import eu.spitfire.ssp.backends.generic.ResourceToolbox;
-import eu.spitfire.ssp.server.payloadserialization.Language;
+import eu.spitfire.ssp.utils.Language;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.server.payloadserialization;
+package eu.spitfire.ssp.utils;
 
 import de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType;
 

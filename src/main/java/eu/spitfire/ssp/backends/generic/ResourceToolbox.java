@@ -2,7 +2,7 @@ package eu.spitfire.ssp.backends.generic;
 
 import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.backends.generic.exceptions.SemanticResourceException;
-import eu.spitfire.ssp.server.payloadserialization.Language;
+import eu.spitfire.ssp.utils.Language;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMessage;
 import org.slf4j.Logger;
@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 

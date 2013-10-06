@@ -1,13 +1,6 @@
 package eu.spitfire.ssp.server.channels.handler;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Multimap;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.Resource;
 import de.uniluebeck.itm.spitfire.ssphttpobserveovermqttlib.HttpObserveOverMqttLib;
-import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
-import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
-import eu.spitfire.ssp.server.payloadserialization.Language;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
@@ -15,13 +8,7 @@ import org.jboss.netty.channel.SimpleChannelDownstreamHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.nio.charset.Charset;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
 
 /**
 * Created with IntelliJ IDEA.

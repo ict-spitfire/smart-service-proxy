@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.server.payloadserialization;
+package eu.spitfire.ssp.backends.coap;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.Statement;
