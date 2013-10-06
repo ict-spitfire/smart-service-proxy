@@ -29,3 +29,4 @@ ssp.properties
 *.dat
 *.idn
 *.info
+HttpObserveMqtt-Server2-tcp*

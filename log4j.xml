@@ -16,9 +16,15 @@
     </appender>
 
     <logger name="eu.spitfire.ssp" additivity="false">
+        <level value="ERROR"/>
+        <appender-ref ref="async"/>
+    </logger>
+
+    <logger name="eu.spitfire.ssp.backends.files" additivity="false">
         <level value="INFO"/>
         <appender-ref ref="async"/>
     </logger>
+
     <logger name="eu.uberdust" additivity="false">
         <level value="ERROR"/>
         <appender-ref ref="async"/>

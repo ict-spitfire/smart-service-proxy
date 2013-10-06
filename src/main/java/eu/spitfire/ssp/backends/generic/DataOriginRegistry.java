@@ -42,6 +42,10 @@ public abstract class DataOriginRegistry<T> {
         this.localServerChannel = backendComponentFactory.getLocalServerChannel();
     }
 
+    protected final ListenableFuture<URI> registerResource(final T dataOrigin, final Model model){
+        return this.registerResource(dataOrigin, model, null);
+    }
+
     /**
      * This method is to be called by implementing classes, i.e. registries for particular data origins,
      * to register the model from that data origin at the SSP.

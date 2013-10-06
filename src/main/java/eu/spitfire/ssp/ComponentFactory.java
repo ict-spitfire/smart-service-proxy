@@ -114,7 +114,7 @@ public class ComponentFactory {
                 int numberOfRandomFiles = config.getInt("files.numberOfRandomFiles", 0);
                 BackendComponentFactory backendComponentFactory =
                         new FilesBackendComponentFactory("files",localPipelineFactory, scheduledExecutorService,
-                                sspHostName, sspHttpPort, Paths.get(directory));
+                                sspHostName, sspHttpPort, Paths.get(directory), copyExamples);
                 this.backendComponentFactories.add(backendComponentFactory);
                 continue;
 

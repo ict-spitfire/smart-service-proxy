@@ -132,9 +132,8 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         try{
             if(me.getMessage() instanceof InternalResourceStatusMessage){
                 InternalResourceStatusMessage message = (InternalResourceStatusMessage) me.getMessage();
-                log.info("Received new status of {}", message.getResourceUri());
 
-                scheduleNewExpiry(message.getResourceUri(), message.getExpiry());
+                scheduleResourceStatusExpiry(message.getResourceUri(), message.getExpiry());
 
                 putResourceToCache(message.getResourceUri(), message.getModel());
             }
@@ -142,9 +141,9 @@ public abstract class SemanticCache extends SimpleChannelHandler {
             else if(me.getMessage() instanceof InternalUpdateResourceStatusMessage){
                 InternalUpdateResourceStatusMessage message = (InternalUpdateResourceStatusMessage) me.getMessage();
                 URI resourceUri = new URI(message.getStatement().getSubject().toString());
-                log.info("Received update for resource {}",resourceUri);
+                log.info("Received update for resource {} (expiry: {})", resourceUri);
 
-                scheduleNewExpiry(resourceUri, message.getExpiry());
+                scheduleResourceStatusExpiry(resourceUri, message.getExpiry());
                 updateStatement(message.getStatement());
             }
 
@@ -162,22 +161,28 @@ public abstract class SemanticCache extends SimpleChannelHandler {
     }
 
 
-    private void scheduleNewExpiry(final URI resourceUri, Date expiry){
+    private void scheduleResourceStatusExpiry(final URI resourceUri, Date expiry){
+        log.info("Received new status of {} (expiry: {})", resourceUri, expiry);
+
+        //Cancel old expiry (if existing)
         ScheduledFuture timeoutFuture = expiryFutures.remove(resourceUri);
         if(timeoutFuture != null)
             timeoutFuture.cancel(false);
 
-        expiryFutures.put(resourceUri, scheduledExecutorService.schedule(new Runnable(){
-            @Override
-            public void run() {
-                try {
-                    deleteResource(resourceUri);
+        //Set new expiry (if not null)
+        if(expiry != null){
+            expiryFutures.put(resourceUri, scheduledExecutorService.schedule(new Runnable(){
+                @Override
+                public void run() {
+                    try {
+                        deleteResource(resourceUri);
+                    }
+                    catch (Exception e) {
+                        log.error("Could not delete resource {} from cache.", resourceUri, e);
+                    }
                 }
-                catch (Exception e) {
-                    log.error("Could not delete resource {} from cache.", resourceUri, e);
-                }
-            }
-        }, expiry.getTime() - System.currentTimeMillis() + DELAY_AFTER_EXPIRY, TimeUnit.MILLISECONDS));
+            }, expiry.getTime() - System.currentTimeMillis() + DELAY_AFTER_EXPIRY, TimeUnit.MILLISECONDS));
+        }
     }
 
 

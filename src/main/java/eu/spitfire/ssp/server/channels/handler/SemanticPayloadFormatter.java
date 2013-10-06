@@ -39,10 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Locale;
-import java.util.TimeZone;
+import java.util.*;
 
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.OK;
 
@@ -58,7 +55,8 @@ import static org.jboss.netty.handler.codec.http.HttpResponseStatus.OK;
  */
 public class SemanticPayloadFormatter extends SimpleChannelHandler {
 
-    public static Language DEFAULT_LANGUAGE = Language.RDF_N3;
+    public static final Language DEFAULT_LANGUAGE = Language.RDF_N3;
+    public static final long MILLIS_PER_YEAR = 31536000730L;
 
     private static Logger log = LoggerFactory.getLogger(SemanticPayloadFormatter.class.getName());
     private static SimpleDateFormat dateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
@@ -124,8 +122,12 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
 
             httpResponse.setHeader(HttpHeaders.Names.CONTENT_TYPE, acceptedLanguage.mimeType);
             httpResponse.setHeader(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
-            httpResponse.setHeader(HttpHeaders.Names.EXPIRES,
-                    dateFormat.format(internalResourceStatusMessage.getExpiry()));
+            if(internalResourceStatusMessage.getExpiry() == null)
+                httpResponse.setHeader(HttpHeaders.Names.EXPIRES,
+                        dateFormat.format(new Date(System.currentTimeMillis() + MILLIS_PER_YEAR)));
+            else
+                httpResponse.setHeader(HttpHeaders.Names.EXPIRES,
+                        dateFormat.format(internalResourceStatusMessage.getExpiry()));
 
             httpResponse.setHeader(HttpHeaders.Names.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
 

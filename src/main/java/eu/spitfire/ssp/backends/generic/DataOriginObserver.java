@@ -17,7 +17,6 @@ import java.net.URISyntaxException;
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Extending classes are supposed to observe a data origin of type T. Whenever there was an update detected by
@@ -25,7 +24,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Oliver Kleine
  */
-public abstract class DataOriginObserver {
+public abstract class DataOriginObserver{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -35,6 +34,11 @@ public abstract class DataOriginObserver {
     protected DataOriginObserver(BackendComponentFactory backendComponentFactory){
         this.localServerChannel = backendComponentFactory.getLocalServerChannel();
         this.scheduledExecutorService = backendComponentFactory.getScheduledExecutorService();
+    }
+
+
+    protected final void cacheResourcesStates(Model model){
+        cacheResourcesStates(model, null);
     }
 
 
@@ -52,7 +56,7 @@ public abstract class DataOriginObserver {
                 @Override
                 public void run() {
                     try {
-                        updateResourceStatus(models.get(resourceUri), expiry);
+                        cacheResourceStatus(models.get(resourceUri), expiry);
                     } catch (MultipleSubjectsInModelException e) {
                         log.error("This should never happen.", e);
                     } catch (URISyntaxException e) {
@@ -61,6 +65,15 @@ public abstract class DataOriginObserver {
                 }
             });
         }
+    }
+
+
+    private ChannelFuture cacheResourceStatus(final Model model, Date expiry)
+            throws MultipleSubjectsInModelException, URISyntaxException {
+
+        InternalResourceStatusMessage internalResourceStatusMessage = new InternalResourceStatusMessage(model, expiry);
+        return Channels.write(localServerChannel, internalResourceStatusMessage);
+
     }
 
 
@@ -76,12 +89,6 @@ public abstract class DataOriginObserver {
     }
 
 
-    private ChannelFuture updateResourceStatus(final Model model, Date expiry)
-            throws MultipleSubjectsInModelException, URISyntaxException {
 
-        InternalResourceStatusMessage internalResourceStatusMessage = new InternalResourceStatusMessage(model, expiry);
-        return Channels.write(localServerChannel, internalResourceStatusMessage);
-
-    }
 }
 

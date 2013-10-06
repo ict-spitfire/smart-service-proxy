@@ -20,14 +20,14 @@ import java.util.Date;
  */
 public class InternalResourceStatusMessage {
 
-    public static final long MILLIS_PER_100_YEARS = 3153600073000L;
+    //public static final long MILLIS_PER_100_YEARS = 3153600073000L;
 
     private URI resourceUri;
     private final Model model;
     private final Date expiry;
 
     public InternalResourceStatusMessage(Model model) throws MultipleSubjectsInModelException, URISyntaxException {
-        this(model, new Date(System.currentTimeMillis() + MILLIS_PER_100_YEARS));
+        this(model, null);
     }
 
     public InternalResourceStatusMessage(Model model, Date expiry) throws MultipleSubjectsInModelException,
