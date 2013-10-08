@@ -72,7 +72,7 @@ public class UberdustNode {
     private final List<String> rooms;
     private final List<String> workstations;
     private final String prefix;
-    private final String locationName;
+    private String locationName;
 
     /**
      * Constructor for the node reading.
@@ -141,7 +141,16 @@ public class UberdustNode {
         } catch (JSONException e) {
             locationName1 = prefix;
         }
-        locationName = locationName1;
+        if (locationName1.equals("Gen6")) {
+            try {
+                locationName1 = UberdustClient.getInstance().getLastNodeReading(Integer.parseInt(testbed), name, "name").getString("stringReading");
+                locationName = locationName1;
+            } catch (Exception e) {
+                log.error(e);
+            }
+        } else {
+            locationName = locationName1;
+        }
     }
 
     @Override
@@ -190,7 +199,7 @@ public class UberdustNode {
                 "\"" + dateFormatGmt.format(time) + "\";\n" +
                 "<http://www.ontologydesignpatterns.org/ont/dul/DUL.owl/hasLocation>\n" +
                 "\"" + locationName + "\"";
-        if ((lightZone.matcher(capability).find() || relay.matcher(capability).find()) && !name.contains("0x2b0")) {
+        if ((lightZone.matcher(capability).find() || relay.matcher(capability).find())) {
 
             description += ";\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>\n" +
@@ -201,7 +210,7 @@ public class UberdustNode {
                     "<http://spitfire-project.eu/ontology/ns/value>\n" +
                     "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n";
 
-        } else if (fan.matcher(capability).find() || name.contains("0x2b0")) {
+        } else if (fan.matcher(capability).find()) {
             description += ";\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>\n" +
                     "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>.\n" +

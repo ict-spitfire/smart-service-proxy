@@ -57,13 +57,13 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
     @Override
     public void putResourceToCache(URI resourceUri, Model resourceStatus, Date expiry) {
-        deleteResource(resourceUri);
 
         dataset.begin(ReadWrite.WRITE);
         try {
+            deleteResource(resourceUri);
             dataset.addNamedModel(resourceUri.toString(), resourceStatus);
             dataset.commit();
-            log.info("Added status for resource {}", resourceUri);
+            log.debug("Added status for resource {}", resourceUri);
         } finally {
             dataset.end();
         }
@@ -71,14 +71,14 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
     @Override
     public void deleteResource(URI resourceUri) {
-        dataset.begin(ReadWrite.WRITE);
-        try {
+//        dataset.begin(ReadWrite.WRITE);
+//        try {
             dataset.removeNamedModel(resourceUri.toString());
-            dataset.commit();
-            log.info("Removed status for resource {}", resourceUri);
-        } finally {
-            dataset.end();
-        }
+//            dataset.commit();
+            log.debug("Removed status for resource {}", resourceUri);
+//        } finally {
+//            dataset.end();
+//        }
     }
 
     @Override
