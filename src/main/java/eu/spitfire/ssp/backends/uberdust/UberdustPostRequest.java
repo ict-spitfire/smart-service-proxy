@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 
 /**
@@ -20,8 +21,8 @@ public class UberdustPostRequest extends Thread {
 
     private final URL url;
 
-    public UberdustPostRequest(final URL url) {
-        this.url = url;
+    public UberdustPostRequest(final String url) throws MalformedURLException {
+        this.url = new URL(url);
     }
 
     @Override

@@ -1,116 +1,127 @@
 package eu.spitfire.ssp.backends.coap.observation;
 
+import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
+import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
 import de.uniluebeck.itm.ncoap.communication.observe.ObservationTimeoutProcessor;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
 import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import de.uniluebeck.itm.ncoap.message.InvalidMessageException;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import de.uniluebeck.itm.ncoap.message.options.InvalidOptionException;
 import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
-import de.uniluebeck.itm.ncoap.message.options.ToManyOptionsException;
 import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
 import eu.spitfire.ssp.backends.coap.CoapResourceToolbox;
-import eu.spitfire.ssp.backends.BackendComponentFactory;
-import eu.spitfire.ssp.backends.DataOriginObserver;
-import eu.spitfire.ssp.backends.ResourceToolbox;
+import eu.spitfire.ssp.backends.generic.DataOriginObserver;
+import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
 import org.jboss.netty.channel.Channels;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Date;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
 
 
 /**
  * Instances of {@link CoapWebserviceObserver} are instances of {@link CoapResponseProcessor} to observe
  * CoAP webservices. If an update notification was received for an observed CoAP resource it sends
- * an {@link eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage} to update the actual resource status
+ * an {@link eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage} to update the actual resource status
  * in the cache.
  *
  * @author Oliver Kleine
  */
-public class CoapWebserviceObserver extends DataOriginObserver<URI> implements CoapResponseProcessor,
-        RetransmissionTimeoutProcessor{
+public class CoapWebserviceObserver extends DataOriginObserver implements CoapResponseProcessor,
+        RetransmissionTimeoutProcessor, ObservationTimeoutProcessor {
 
-    private Logger log =  LoggerFactory.getLogger(this.getClass().getName());
+    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
+    private CoapClientApplication coapClientApplication;
+    private URI dataOrigin;
+    private ExecutorService executorService;
 
-    public CoapWebserviceObserver(BackendComponentFactory<URI> backendComponentFactory, URI serviceUri){
-        super(backendComponentFactory, serviceUri);
+    public CoapWebserviceObserver(CoapBackendComponentFactory backendComponentFactory, URI dataOrigin) {
+        super(backendComponentFactory);
+        this.dataOrigin = dataOrigin;
+        this.coapClientApplication = backendComponentFactory.getCoapClientApplication();
+        this.executorService = backendComponentFactory.getScheduledExecutorService();
+    }
+
+
+    public void startObservation() {
+        try {
+            log.info("Start observation of service {}", dataOrigin);
+            CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.GET, dataOrigin);
+            coapRequest.setObserveOptionRequest();
+            coapRequest.setAccept(OptionRegistry.MediaType.APP_SHDT, OptionRegistry.MediaType.APP_RDF_XML,
+                    OptionRegistry.MediaType.APP_N3, OptionRegistry.MediaType.APP_TURTLE);
+
+            this.coapClientApplication.writeCoapRequest(coapRequest, this);
+
+        } catch (Exception e) {
+            log.error("This should never happen! Could not start observation of data origin {}.", dataOrigin, e);
+        }
     }
 
     @Override
-    public void processCoapResponse(CoapResponse coapResponse) {
-        log.info("Received update notification from service {}.", this.getDataOrigin());
+    public void processCoapResponse(final CoapResponse coapResponse) {
+        executorService.submit(new Runnable() {
+            @Override
+            public void run() {
+                log.info("Received update notification from service {}: {}", dataOrigin, coapResponse);
 
-        if(coapResponse.getOption(OptionRegistry.OptionName.OBSERVE_RESPONSE).isEmpty()
-                    || coapResponse.getCode().isErrorMessage()){
-            log.warn("Observation of {} failed. CoAP response was: {}", this.getDataOrigin(), coapResponse);
-            return;
-        }
+                if (coapResponse.getOption(OptionRegistry.OptionName.OBSERVE_RESPONSE).isEmpty()
+                        || coapResponse.getCode().isErrorMessage()) {
+                    log.warn("Observation of {} failed. CoAP response was: {}", dataOrigin, coapResponse);
+                    return;
+                }
 
-        //create resource status message to update the cache
-        try {
-            Model model = CoapResourceToolbox.getModelFromCoapResponse(coapResponse);
-            final Date expiry = CoapResourceToolbox.getExpiryFromCoapResponse(coapResponse);
+                //create resource status message to update the cache
+                try {
+                    Model model = CoapResourceToolbox.getModelFromCoapResponse(coapResponse);
+                    final Date expiry = CoapResourceToolbox.getExpiryFromCoapResponse(coapResponse);
 
-            //final Map<URI, Model> resources = ResourceToolbox.getModelsPerSubject(model);
-
-            ResIterator iterator = model.listSubjects();
-            while(iterator.hasNext()){
-                final Resource resource = iterator.nextResource();
-
-                backendComponentFactory.getScheduledExecutorService().schedule(new Runnable(){
-                    @Override
-                    public void run() {
-                        //Create new model per resource
-                        Model resourceModel = ModelFactory.createDefaultModel();
-                        StmtIterator stmtIterator = resource.listProperties();
-
-                        while(stmtIterator.hasNext()){
-                            Statement statement = stmtIterator.nextStatement();
-                            resourceModel.add(statement);
-                        }
-
-                        Date expiry2 = new Date(System.currentTimeMillis() + 10000);
-                        //Send resource with new status to cache
-                        cacheResourceStatus(resource, expiry2);
-                    }
-                }, 0, TimeUnit.MILLISECONDS);
+                    if (dataOrigin.getPath().endsWith("_minimal"))
+                        updateResourceStatus(model.listStatements().nextStatement(), expiry);
+                    else
+                        cacheResourcesStates(model, expiry);
+                } catch (Exception e) {
+                    log.error("Exception while creating resource status message from CoAP update notification.", e);
+                    restartObservation();
+                }
             }
-        } catch (Exception e) {
-            log.error("Exception while creating resource status message from CoAP update notification.", e);
-            return;
-        }
+        });
+    }
+
+    private void restartObservation() {
+        this.startObservation();
     }
 
     @Override
     public void processRetransmissionTimeout(InternalRetransmissionTimeoutMessage timeoutMessage) {
-        log.warn("Request for service {} timed out.", this.getDataOrigin());
-        removeAllResources(getDataOrigin());
+        try {
+            log.warn("Request for service {} timed out. Stop observation.", dataOrigin);
+            URI resourceUri;
+            if (dataOrigin.getPath().endsWith("location/_minimal")) {
+                resourceUri = new URI(dataOrigin.getScheme(), null, dataOrigin.getHost(), -1, "/rdf", null, null);
+            } else if (dataOrigin.getPath().endsWith("_minimal")) {
+                String resourcePath = dataOrigin.getPath().substring(0, dataOrigin.getPath().indexOf("/_minimal"));
+                resourceUri = new URI(dataOrigin.getScheme(), null, dataOrigin.getHost(), -1, resourcePath, null, null);
+            } else {
+                resourceUri = dataOrigin;
+            }
+
+            deleteResource(resourceUri);
+        } catch (Exception e) {
+            log.error("This should never happen.", e);
+        }
     }
 
     @Override
-    public void handleObservationTimeout(URI serviceUri){
-        log.warn("Observation for service {} timed out. Try to restart observation.", serviceUri);
-        removeAllResources(getDataOrigin());
-//        try {
-//            CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.GET, serviceUri);
-//            coapRequest.setObserveOptionRequest();
-//
-//            ((CoapBackendComponentFactory) backendComponentFactory).getCoapClientApplication()
-//                    .writeCoapRequest(coapRequest, this);
-//        }
-//        catch (Exception e) {
-//            log.error("Could not try to restart observation of service {}", serviceUri , e);
-//        }
+    public void processObservationTimeout(SettableFuture<CoapRequest> coapRequestSettableFuture) {
+        log.warn("Observation for service {} timed out. Try to restart observation.", dataOrigin);
+        restartObservation();
     }
 }

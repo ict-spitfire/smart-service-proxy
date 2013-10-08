@@ -1,6 +1,7 @@
 package eu.spitfire.ssp.server.webservices;
 
 import com.google.common.util.concurrent.SettableFuture;
+import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;

@@ -1,18 +1,18 @@
 package eu.spitfire.ssp.backends.coap.registry;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.server.webservice.NotObservableWebService;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import de.uniluebeck.itm.ncoap.message.MessageDoesNotAllowPayloadException;
 import de.uniluebeck.itm.ncoap.message.header.Code;
-import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
-import java.nio.charset.Charset;
+import java.net.URI;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 /**
  * This is the WebService for new sensor nodes to register. It's path is <code>/here_i_am</code>. It only accepts
@@ -30,65 +30,50 @@ public class CoapRegistrationWebservice extends NotObservableWebService<Boolean>
 
     private static Logger log = LoggerFactory.getLogger(CoapRegistrationWebservice.class.getName());
 
-    private CoapSemanticWebserviceRegistry coapSemanticWebserviceRegistry;
+    private CoapWebserviceRegistry coapWebserviceRegistry;
+    private ExecutorService executorService;
 
-    public CoapRegistrationWebservice(CoapBackendComponentFactory backendManager){
+    public CoapRegistrationWebservice(CoapWebserviceRegistry coapWebserviceRegistry, ExecutorService executorService){
         super("/here_i_am", Boolean.TRUE);
-        //this.backendComponentFactory = backendComponentFactory;
-        this.coapSemanticWebserviceRegistry = (CoapSemanticWebserviceRegistry) backendManager.getDataOriginRegistry();
+        this.coapWebserviceRegistry = coapWebserviceRegistry;
+        this.executorService = executorService;
     }
 
-    /**
-     * Processes the incoming {@link CoapRequest} to register a new node.
-     * @param registrationResponseFuture this method sets a {@link CoapResponse} with a proper {@link Code} on this
-     *                               {@link SettableFuture} to indicate success or failure of the registration
-     *                               process asynchronously:
-     *                               <ul>
-     *                                  <li>
-     *                                      {@link Code#CREATED_201} if the discovery process to discover the nodes
-     *                                      services was successfully finished.
-     *                                  </li>
-     *                                  <li>
-     *                                      {@link Code#METHOD_NOT_ALLOWED_405} if the request code was not
-     *                                      {@link Code#POST}
-     *                                  </li>
-     *                                  <li>
-     *                                      {@link Code#INTERNAL_SERVER_ERROR_500} if another error occurred
-     *                                  </li>
-     *                              </ul>
-     * @param registrationRequest the {@link CoapRequest} to be processed
-     * @param remoteAddress the address of the sender of the request
-     */
     @Override
     public void processCoapRequest(final SettableFuture<CoapResponse> registrationResponseFuture,
-                                   CoapRequest registrationRequest, final InetSocketAddress remoteAddress) {
+                                   CoapRequest coapRequest, InetSocketAddress remoteAddress) {
 
-        log.info("Received CoAP registration message from {}: {}", remoteAddress.getAddress(), registrationRequest);
+        log.info("Received CoAP registration message from {}: {}", remoteAddress.getAddress(), coapRequest);
 
         //Only POST messages are allowed
-        if(registrationRequest.getCode() != Code.POST){
-            registrationResponseFuture.set(createCoapResponse(Code.METHOD_NOT_ALLOWED_405,
-                    registrationRequest.getCode().toString()));
+        if(coapRequest.getCode() != Code.POST){
+            CoapResponse coapResponse = new CoapResponse(Code.METHOD_NOT_ALLOWED_405);
+            registrationResponseFuture.set(coapResponse);
             return;
         }
 
         //Request was POST, so go ahead
-        this.coapSemanticWebserviceRegistry
-                .processRegistrationRequest(registrationResponseFuture, remoteAddress.getAddress());
-    }
+        final ListenableFuture<Set<URI>> registeredResourcesFuture =
+                coapWebserviceRegistry.processRegistration(remoteAddress.getAddress());
 
-
-    public static CoapResponse createCoapResponse(Code code, String message){
-        CoapResponse coapResponse = new CoapResponse(code);
-
-        try {
-            coapResponse.setPayload(message.getBytes(Charset.forName("UTF-8")));
-        }
-        catch (MessageDoesNotAllowPayloadException e) {
-            log.error("This should never happen!", e);
-        }
-
-        return coapResponse;
+        registeredResourcesFuture.addListener(new Runnable(){
+            @Override
+            public void run() {
+                try{
+                    Set<URI> registeredResources = registeredResourcesFuture.get();
+                    if(log.isInfoEnabled()){
+                        for(URI resourceUri : registeredResources)
+                            log.info("Succesfully registered resource {}", resourceUri);
+                    }
+                    CoapResponse coapResponse = new CoapResponse(Code.CREATED_201);
+                    registrationResponseFuture.set(coapResponse);
+                }
+                catch(Exception e){
+                    CoapResponse coapResponse = new CoapResponse(Code.INTERNAL_SERVER_ERROR_500);
+                    registrationResponseFuture.set(coapResponse);
+                }
+            }
+        }, executorService);
     }
 
     @Override

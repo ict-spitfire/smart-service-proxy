@@ -4,7 +4,7 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
-import eu.spitfire.ssp.server.payloadserialization.Language;
+import eu.spitfire.ssp.utils.Language;
 import eu.uberdust.communication.UberdustClient;
 import eu.wisebed.wisedb.model.Testbed;
 import org.apache.log4j.Logger;

@@ -24,24 +24,20 @@
 */
 package eu.spitfire.ssp.backends.coap;
 
-import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
-import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import eu.spitfire.ssp.backends.*;
-import eu.spitfire.ssp.backends.coap.observation.InternalObservationTimedOutMessage;
 import eu.spitfire.ssp.backends.coap.registry.CoapRegistrationWebservice;
-import eu.spitfire.ssp.backends.coap.registry.CoapSemanticWebserviceRegistry;
-import eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor;
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.MessageEvent;
+import eu.spitfire.ssp.backends.coap.registry.CoapWebserviceRegistry;
+import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
+import eu.spitfire.ssp.backends.generic.DataOriginRegistry;
+import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
+import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -49,7 +45,7 @@ import java.util.concurrent.ScheduledExecutorService;
  * {@link CoapServerApplication} with a {@link eu.spitfire.ssp.backends.coap.registry.CoapRegistrationWebservice} to enable CoAP webservers to register
  * at the SSP.
  *
- * Furthermore it provides a {@link CoapClientApplication} and a {@link HttpRequestProcessorForCoapWebservices}
+ * Furthermore it provides a {@link CoapClientApplication} and a {@link eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor}
  * to forward incoming HTTP requests to the original host.
  *
  * @author Oliver Kleine
@@ -62,42 +58,36 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
 
     private CoapClientApplication coapClientApplication;
     private CoapServerApplication coapServerApplication;
+    private SemanticHttpRequestProcessorForCoap httpRequestProcessor;
 
     /**
      * @param prefix the prefix used for not-absolute resource URIs, e.g. <code>prefix/gui</code>
-     * @param localPipelineFactory the {@link eu.spitfire.ssp.backends.LocalPipelineFactory} to get the pipeline to send internal messages,
+     * @param localPipelineFactory the {@link eu.spitfire.ssp.server.channels.LocalPipelineFactory} to get the channels to send internal messages,
      *                             e.g. resource status updates.
      * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
      */
     public CoapBackendComponentFactory(String prefix, LocalPipelineFactory localPipelineFactory,
-                                       ScheduledExecutorService scheduledExecutorService) throws Exception{
-        super(prefix, localPipelineFactory, scheduledExecutorService);
+                                       ScheduledExecutorService scheduledExecutorService, String sspHostName,
+                                       int sspHttpPort, InetAddress registrationServerAddress)
+            throws Exception{
+
+        super(prefix, localPipelineFactory, scheduledExecutorService, sspHostName, sspHttpPort);
 
         //create instances of CoAP client and server applications
         this.coapClientApplication = new CoapClientApplication();
 
-        InetSocketAddress coapServerSocketAddress =
-                new InetSocketAddress("2001:638:70a:b157:5eac:4cff:fe65:2aee", 5683);
+        InetSocketAddress coapServerSocketAddress = new InetSocketAddress(registrationServerAddress, COAP_SERVER_PORT);
         this.coapServerApplication = new CoapServerApplication(coapServerSocketAddress);
+        log.info("CoAP server started (listening at {}, port {})", coapServerSocketAddress.getAddress(),
+                coapServerSocketAddress.getPort());
+
+        this.httpRequestProcessor = new SemanticHttpRequestProcessorForCoap(this);
     }
 
-//    @Override
-//    public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
-//        if(me.getMessage() instanceof InternalObservationTimedOutMessage){
-//            InternalObservationTimedOutMessage message = (InternalObservationTimedOutMessage) me.getMessage();
-//            try {
-//                InetAddress inetAddress = InetAddress.getByName(message.getServiceUri().getHost());
-//                SettableFuture<CoapResponse> settableFuture = SettableFuture.create();
-//                ((CoapSemanticWebserviceRegistry) this.getDataOriginRegistry())
-//                        .processRegistrationRequest(settableFuture, inetAddress);
-//            }
-//            catch (UnknownHostException e) {
-//                log.error("This should never happen.", e);
-//            }
-//        }
-//
-//        super.writeRequested(ctx, me);
-//    }
+    @Override
+    public SemanticHttpRequestProcessor getHttpRequestProcessor() {
+        return this.httpRequestProcessor;
+    }
 
     /**
      * Returns the {@link CoapClientApplication} to send requests and receive responses and update notifications
@@ -117,23 +107,15 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
 
     @Override
     public void initialize() {
-        this.coapServerApplication.registerService(new CoapRegistrationWebservice(this));
+        //nothing to do
     }
 
     @Override
     public DataOriginRegistry<URI> createDataOriginRegistry() {
-        return new CoapSemanticWebserviceRegistry(this);
+        return new CoapWebserviceRegistry(this);
     }
 
-    @Override
-    public DataOriginAccessory<URI> createDataOriginReader() {
-        return new CoapWebserviceDataOriginAccessory(this);
-    }
 
-    @Override
-    public SemanticHttpRequestProcessor<URI> createHttpRequestProcessor() {
-        return new HttpRequestProcessorForCoapWebservices(this);
-    }
 
     @Override
     public void shutdown() {

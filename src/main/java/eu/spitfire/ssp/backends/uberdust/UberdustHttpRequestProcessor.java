@@ -1,10 +1,11 @@
 package eu.spitfire.ssp.backends.uberdust;
 
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backends.BackendComponentFactory;
-import eu.spitfire.ssp.backends.DataOriginAccessory;
-import eu.spitfire.ssp.backends.DataOriginResponseMessage;
-import eu.spitfire.ssp.server.pipeline.messages.ResourceStatusMessage;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
+import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
+import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
+import eu.spitfire.ssp.backends.generic.exceptions.MultipleSubjectsInModelException;
+import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -26,7 +28,7 @@ import java.util.concurrent.Executors;
  *
  * @author Dimitrios Amaxilatis
  */
-public class UberdustHttpRequestProcessor implements DataOriginAccessory<URI> {
+public class UberdustHttpRequestProcessor implements SemanticHttpRequestProcessor {
     /**
      * Logger.
      */
@@ -58,100 +60,40 @@ public class UberdustHttpRequestProcessor implements DataOriginAccessory<URI> {
         executor = Executors.newCachedThreadPool();
     }
 
-    @Override
-    public void processHttpRequest(SettableFuture<DataOriginResponseMessage> dataOriginResponseFuture, HttpRequest httpRequest, URI dataOrigin) {
 
-        //
+    @Override
+    public void processHttpRequest(SettableFuture<InternalResourceStatusMessage> settableFuture, HttpRequest httpRequest) {
         log.info("Received request for path {}.", httpRequest.getUri());
 
         if (httpRequest.getMethod() == HttpMethod.GET) {
             //handle get
-            handleGet(dataOriginResponseFuture, httpRequest);
+//            handleGet(dataOriginResponseFuture, httpRequest);
 
         } else if (httpRequest.getMethod() == HttpMethod.POST) {
             //handle post
-            handlePost(dataOriginResponseFuture, httpRequest);
+            handlePost(settableFuture, httpRequest);
+//        } else {
+        }
+
+    }
+
+    private void handlePost(SettableFuture<InternalResourceStatusMessage> settableFuture, HttpRequest httpRequest) {
+
+        String uberdustURL = httpRequest.getUri().replaceAll("/\\?uri=", "").replaceAll("attachedSystem", "") + new String(httpRequest.getContent().toByteBuffer().array()) + "/";
+        System.out.println(uberdustURL);
+        if (!uberdustURL.contains("150")) {
+            try {
+                (new UberdustPostRequest(uberdustURL)).start();
+                settableFuture.set(new InternalResourceStatusMessage(ModelFactory.createDefaultModel()));
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            } catch (MultipleSubjectsInModelException e) {
+                e.printStackTrace();
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            }
         } else {
-//            //handle anything else with method_not_allowed
-//            ProxyServiceException exception = null;
-//            try {
-//                exception = new ProxyServiceException(new URI(httpRequest.getUri()), HttpResponseStatus.METHOD_NOT_ALLOWED,
-//                        httpRequest.getMethod().getName() + " Requests are not allowed to " + httpRequest.getUri());
-//            } catch (URISyntaxException e) {
-//                log.error(e.getMessage(), e);
-//            }
-//            responseFuture.setException(exception);
-//            Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
-//            ResourceStatusMessage resourceStatusMessage =
-//                    new ResourceStatusMessage(HttpResponseStatus.METHOD_NOT_ALLOWED,
-//                            null,
-//                            date);
-//            dataOriginResponseFuture.set(resourceStatusMessage);
+            System.out.println("skipping");
         }
     }
-
-    /**
-     * Handles an incoming get request.
-     *
-     * @param responseFuture the response to be sent back.
-     * @param httpRequest    the request from the client.
-     */
-    public void handleGet(SettableFuture<DataOriginResponseMessage> responseFuture,
-                          HttpRequest httpRequest) {
-        try {
-            UberdustNode node = uberdustObserver.allnodes.get(new URI(httpRequest.getUri().substring(httpRequest.getUri().indexOf("=") + 1)));
-            log.info("handleGet Request " + httpRequest.getMethod());
-            //Set response
-            Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
-            DataOriginResponseMessage dataOriginResponseMessage = new DataOriginResponseMessage(HttpResponseStatus.OK,
-                    node.getModel().getResource(httpRequest.getUri()).getModel(),
-                    date);
-            responseFuture.set(dataOriginResponseMessage);
-
-        } catch (URISyntaxException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        }
-    }
-
-    /**
-     * Handles an incoming post request.
-     *
-     * @param responseFuture the response to be sent back.
-     * @param httpRequest    the request from the client.
-     */
-    public void handlePost(SettableFuture<DataOriginResponseMessage> responseFuture,
-                           HttpRequest httpRequest) {
-        URI resourceUri = null;
-        try {
-            resourceUri = new URI(httpRequest.getUri().substring(httpRequest.getUri().indexOf("=") + 1));
-
-            //read payload from HTTP message
-            byte[] httpPayload = new byte[httpRequest.getContent().readableBytes()];
-
-            httpRequest.getContent().getBytes(0, httpPayload);
-            ByteArrayOutputStream bin = new ByteArrayOutputStream();
-            bin.write(httpPayload);
-            bin.toString();
-
-            URL url = new URL(resourceUri.toString() + bin.toString() + "/");
-            log.info("Sending request to " + url.toString());
-            executor.submit(new UberdustPostRequest(url));
-
-            Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
-            ResourceStatusMessage resourceStatusMessage =
-                    new ResourceStatusMessage(HttpResponseStatus.OK,
-                            null,
-                            date);
-//            responseFuture.set(resourceStatusMessage);
-        } catch (IOException | URISyntaxException e) {
-            log.error(e.getMessage(), e);
-            Date date = new Date(System.currentTimeMillis() + LIFETIME_MILLIS);
-            ResourceStatusMessage resourceStatusMessage =
-                    new ResourceStatusMessage(HttpResponseStatus.INTERNAL_SERVER_ERROR,
-                            null,
-                            date);
-//            responseFuture.set(resourceStatusMessage);
-        }
-    }
-
 }
