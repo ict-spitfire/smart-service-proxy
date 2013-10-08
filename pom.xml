@@ -91,20 +91,8 @@
         <dependency>
             <groupId>uberdust</groupId>
             <artifactId>WebSocketsLibrary</artifactId>
-            <version>1.0</version>
+            <version>1.1-SNAPSHOT</version>
         </dependency>
-
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-websocket</artifactId>
-            <version>8.0.4.v20111024</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-servlet</artifactId>
-            <version>8.0.4.v20111024</version>
-        </dependency>
-
 
     </dependencies>
 
