@@ -79,7 +79,15 @@ public class UberdustHttpRequestProcessor implements SemanticHttpRequestProcesso
 
     private void handlePost(SettableFuture<InternalResourceStatusMessage> settableFuture, HttpRequest httpRequest) {
 
-        String uberdustURL = httpRequest.getUri().replaceAll("/\\?uri=", "").replaceAll("attachedSystem", "") + new String(httpRequest.getContent().toByteBuffer().array()) + "/";
+        String uberdustURL = httpRequest.getUri().replaceAll("/\\?uri=", "").replaceAll("attachedSystem", "");
+        String payloadString = new String(httpRequest.getContent().toByteBuffer().array());
+        if ("on".equals(payloadString)) {
+            uberdustURL += "1/";
+        } else if ("off".equals(payloadString)) {
+            uberdustURL += "0/";
+        } else {
+            uberdustURL += payloadString + "/";
+        }
         System.out.println(uberdustURL);
         if (!uberdustURL.contains("150")) {
             try {
