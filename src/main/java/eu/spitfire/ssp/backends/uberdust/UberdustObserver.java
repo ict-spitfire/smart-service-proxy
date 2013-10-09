@@ -1,5 +1,6 @@
 package eu.spitfire.ssp.backends.uberdust;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.Statement;
 import eu.spitfire.ssp.backends.coap.CoapResourceToolbox;
@@ -22,6 +23,7 @@ import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 
 /**
  * Opens a WebSocket connection to Uberdust monitoring all requested sensor reading from it.
@@ -68,7 +70,8 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
         testbeds.put("urn:amaxilat:", "7");
         testbeds.put("urn:gen6:", "8");
 
-        executor = Executors.newSingleThreadExecutor();
+        ThreadFactory tf = new ThreadFactoryBuilder().setNameFormat("UberdustObserver #%d").build();
+        executor = Executors.newSingleThreadExecutor(tf);
 
         Configuration config = null;
         try {
