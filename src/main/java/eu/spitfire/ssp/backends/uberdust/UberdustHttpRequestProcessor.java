@@ -46,8 +46,6 @@ public class UberdustHttpRequestProcessor implements SemanticHttpRequestProcesso
     /**
      * Executor used for communicating back to Uberdust.
      */
-    private final ExecutorService executor;
-    private final BackendComponentFactory backendComponentFactory;
 
     /**
      * @param backendComponentFactory
@@ -55,9 +53,7 @@ public class UberdustHttpRequestProcessor implements SemanticHttpRequestProcesso
      * @throws Exception if some error occurred (this should actually never happen!)
      */
     public UberdustHttpRequestProcessor(BackendComponentFactory backendComponentFactory, UberdustObserver uberdustObserver) {
-        this.backendComponentFactory = backendComponentFactory;
         this.uberdustObserver = uberdustObserver;
-        executor = Executors.newCachedThreadPool();
     }
 
 
