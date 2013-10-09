@@ -119,8 +119,9 @@ public class CoapWebserviceObserver extends DataOriginObserver implements CoapRe
         }
     }
 
+
     @Override
-    public void processObservationTimeout(SettableFuture<CoapRequest> coapRequestSettableFuture) {
+    public void processObservationTimeout(InetSocketAddress remoteAddress) {
         log.warn("Observation for service {} timed out. Try to restart observation.", dataOrigin);
         restartObservation();
     }

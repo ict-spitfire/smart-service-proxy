@@ -175,7 +175,6 @@ public class ComponentFactory {
     private void createIoExecutorService(Configuration config) {
         int executionThreads = config.getInt("SSP_REQUEST_EXECUTION_THREADS");
         int messageQueueSize = config.getInt("SSP_MESSAGE_QUEUE_SIZE");
-        ;
 
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP-I/O-Thread #%d")
                 .build();
