@@ -30,49 +30,15 @@ import java.util.regex.Pattern;
  *
  * @author Dimitrios Amaxilatis
  */
-public class UberdustNode {
+public class UberdustNodeHelper {
     /**
      * Logger.
      */
-    private static Logger log = Logger.getLogger(UberdustNode.class.getName());
+    private static Logger log = Logger.getLogger(UberdustNodeHelper.class.getName());
 
     private static Pattern lightZone = Pattern.compile(":lz[1-9][0-9]*", Pattern.CASE_INSENSITIVE);
     private static Pattern fan = Pattern.compile(":ac[1-9][0-9]*", Pattern.CASE_INSENSITIVE);
     private static Pattern relay = Pattern.compile(":[1-9][0-9]*r", Pattern.CASE_INSENSITIVE);
-
-    /**
-     * Node name.
-     */
-    String name;
-    /**
-     * Testbed ID.
-     */
-    String testbed;
-    /**
-     * Uberdust Capability Name.
-     */
-    private final String capability;
-    private final String capabilityResource;
-    /**
-     * Double Reading.
-     */
-    private Double value;
-    /**
-     * Timestamp of the latest reading.
-     */
-    private Date time;
-    /**
-     * Longtitude.
-     */
-    private final String x;
-    /**
-     * Lattitude.
-     */
-    private final String y;
-    private final List<String> rooms;
-    private final List<String> workstations;
-    private final String prefix;
-    private String locationName;
 
     /**
      * Constructor for the node reading.
@@ -83,9 +49,9 @@ public class UberdustNode {
      * @param capability
      * @param value
      * @param time
-     * @throws JSONException
+     * @throws org.json.JSONException
      */
-    public UberdustNode(String name, String testbed, String prefix, String capability, Double value, Date time) {
+    public static Model generateDescription(String name, String testbed, String prefix, String capability, Double value, Date time) {
         String locationName1;
         List<String> rooms1;
         List<String> workstation1;
@@ -93,46 +59,35 @@ public class UberdustNode {
         String y1;
         String x1;
 
-        this.name = name;
-        this.capability = capability;
-        this.value = value;
-        this.time = time;
-        this.testbed = testbed;
-        this.prefix = prefix;
         try {
             x1 = UberdustClient.getInstance().getNodeX(testbed, name);
         } catch (IOException e) {
             x1 = "0";
         }
-        x = x1;
 
         try {
             y1 = UberdustClient.getInstance().getNodeY(testbed, name);
         } catch (IOException e) {
             y1 = "0";
         }
-        y = y1;
 
         try {
             rooms1 = UberdustClient.getInstance().getNodeRooms(Integer.parseInt(testbed), name);
         } catch (Exception e) {
             rooms1 = null;
         }
-        rooms = rooms1;
 
         try {
             workstation1 = UberdustClient.getInstance().getNodeWorkstations(Integer.parseInt(testbed), name);
         } catch (Exception e) {
             workstation1 = null;
         }
-        workstations = workstation1;
 
         try {
-            capabilityResource1 = getSameAs(UberdustNode.getCapabilityResourceURI(this));
+            capabilityResource1 = getSameAs(getCapabilityResourceURI(testbed, capability));
         } catch (URISyntaxException e) {
             capabilityResource1 = "null";
         }
-        capabilityResource = capabilityResource1;
 
         try {
             locationName1 = ((Testbed) UberdustClient.getInstance().getTestbedById(Integer.parseInt(testbed))).getName();
@@ -144,53 +99,51 @@ public class UberdustNode {
         if (locationName1.equals("Gen6")) {
             try {
                 locationName1 = (UberdustClient.getInstance().getLastNodeReading(Integer.parseInt(testbed), name, "name").getJSONArray("readings").getJSONObject(0)).getString("stringReading");
-                locationName = locationName1;
             } catch (Exception e) {
                 log.error(e);
             }
-        } else {
-            locationName = locationName1;
         }
+
+        return getModel(testbed, prefix, capabilityResource1, x1, y1, time, capability, locationName1, String.valueOf(value), rooms1, workstation1, name);
     }
 
-    @Override
-    public String toString() {
-        return "UberdustNode{" +
-                "name='" + name + '\'' +
-                ", capability='" + capability + '\'' +
-                '}';
-    }
+    public static Statement createUpdateStatement(URI subject, Double value) throws Exception {
+        String statement = "<" + subject + ">" +
+                "<http://spitfire-project.eu/ontology/ns/value>\n" +
+                "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n";
+        Model model = ModelFactory.createDefaultModel();
+        ByteArrayInputStream bin = new ByteArrayInputStream(statement.getBytes(Charset.forName("UTF-8")));
+        model.read(bin, null, Language.RDF_N3.lang);
 
-    public String toRdf_XML() {
-        Writer sw = new StringWriter();
-        getModel().write(sw, Language.RDF_XML.lang, null);
-        return sw.toString();
-    }
-
-    public String toRdf_N3() {
-        Writer sw = new StringWriter();
-        getModel().write(sw, Language.RDF_N3.lang, null);
-        return sw.toString();
-    }
-
-    public String toRdf_TURTLE() {
-        Writer sw = new StringWriter();
-        getModel().write(sw, Language.RDF_N3.lang, null);
-        return sw.toString();
+        return model.listStatements().nextStatement();
     }
 
     /**
      * N3 RDF description of the node.
      *
      * @return a string containing the N3 rdf description.
-     * @throws URISyntaxException should not happen.
+     * @throws java.net.URISyntaxException should not happen.
      */
-    public String toRDF() throws URISyntaxException {
+    public static String toRDF(
+            final String testbed,
+            final String prefix,
+            final String capabilityResource,
+            final String x,
+            final String y,
+            final Date time,
+            final String capability,
+            final String locationName,
+            final String value,
+            final List<String> rooms,
+            final List<String> workstations,
+            final String node
+
+    ) throws URISyntaxException {
         SimpleDateFormat dateFormatGmt = new SimpleDateFormat("yy-MM-dd'T'HH:mm:ss'Z'");
         dateFormatGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
-
+        final URI resourceURI = new URI(getResourceURI(testbed, node, capability));
         String description = "" +
-                "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + ">\n" +
+                "<" + (resourceURI).toString() + ">\n" +
                 "<http://www.w3.org/2003/01/geo/wgs84_pos#long>\n" +
                 "\"" + y + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
                 "<http://www.w3.org/2003/01/geo/wgs84_pos#lat>\n" +
@@ -203,8 +156,8 @@ public class UberdustNode {
 
             description += ";\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>\n" +
-                    "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>.\n" +
-                    "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>\n" +
+                    "<" + (resourceURI).toString() + "attachedSystem>.\n" +
+                    "<" + (resourceURI).toString() + "attachedSystem>\n" +
                     "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#switch>;\n" +
                     "<http://spitfire-project.eu/ontology/ns/value>\n" +
@@ -213,8 +166,8 @@ public class UberdustNode {
         } else if (fan.matcher(capability).find()) {
             description += ";\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>\n" +
-                    "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>.\n" +
-                    "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + "attachedSystem>\n" +
+                    "<" + (resourceURI).toString() + "attachedSystem>.\n" +
+                    "<" + (resourceURI).toString() + "attachedSystem>\n" +
                     "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#fan>;\n" +
                     "<http://spitfire-project.eu/ontology/ns/value>\n" +
@@ -228,7 +181,7 @@ public class UberdustNode {
         }
         if (rooms != null) {
             for (String room : rooms) {
-                description += "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + ">\n" +
+                description += "<" + (resourceURI).toString() + ">\n" +
                         "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>\n" +
                         "<" + "http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:room:" + room + "/>.\n" +
                         "<" + "http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:room:" + room + "/> \n" +
@@ -239,7 +192,7 @@ public class UberdustNode {
 
         if (workstations != null) {
             for (String workstation : workstations) {
-                description += "<" + (new URI(UberdustNode.getResourceURI(this))).toString() + ">\n" +
+                description += "<" + (resourceURI).toString() + ">\n" +
                         "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest> <http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:workstation:" + workstation + "/>.\n" +
                         "<" + "http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:workstation:" + workstation + "/>\n" +
                         "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\n" +
@@ -283,10 +236,34 @@ public class UberdustNode {
      *
      * @return the jena model describing the node.
      */
-    public Model getModel() {
+    public static Model getModel(final String testbed,
+                                 final String prefix,
+                                 final String capabilityResource,
+                                 final String x,
+                                 final String y,
+                                 final Date time,
+                                 final String capability,
+                                 final String locationName,
+                                 final String value,
+                                 final List<String> rooms,
+                                 final List<String> workstations,
+                                 final String name) {
         Model model = ModelFactory.createDefaultModel();
         try {
-            ByteArrayInputStream bin = new ByteArrayInputStream(toRDF().getBytes(Charset.forName("UTF-8")));
+            ByteArrayInputStream bin = new ByteArrayInputStream(toRDF(
+                    testbed,
+                    prefix,
+                    capabilityResource,
+                    x,
+                    y,
+                    time,
+                    capability,
+                    locationName,
+                    value,
+                    rooms,
+                    workstations,
+                    name
+            ).getBytes(Charset.forName("UTF-8")));
             model.read(bin, null, Language.RDF_N3.lang);
         } catch (URISyntaxException e) {
 
@@ -294,45 +271,15 @@ public class UberdustNode {
         return model;
     }
 
-    public static String getResourceURI(final UberdustNode node) throws URISyntaxException {
-        return getResourceURI(node.getTestbed(), node.getName(), node.getCapability());
-    }
 
     public static String getResourceURI(final String testbed, final String node, final String capability) throws URISyntaxException {
 //        return "http://uberdust.cti.gr/rest/testbed/" + node.getTestbed() + "/node/" + node.getName() + "/capability/" + node.getCapability() + "/";
         return new URI("http", null, "uberdust.cti.gr", -1, "/rest/testbed/" + testbed + "/node/" + node + "/capability/" + capability + "/", null, null).toString();
     }
 
-    public static String getCapabilityResourceURI(final UberdustNode node) throws URISyntaxException {
+    public static String getCapabilityResourceURI(final String testbed, final String capability) throws URISyntaxException {
 //        return "http://uberdust.cti.gr/rest/testbed/" + node.getTestbed() + "/capability/" + node.getCapability() + "/rdf";
-        return new URI("http", null, "uberdust.cti.gr", -1, "/rest/testbed/" + node.getTestbed() + "/capability/" + node.getCapability() + "/rdf", null, null).toString();
+        return new URI("http", null, "uberdust.cti.gr", -1, "/rest/testbed/" + testbed + "/capability/" + capability + "/rdf", null, null).toString();
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public String getCapability() {
-        return capability;
-    }
-
-    public String getTestbed() {
-        return testbed;
-    }
-
-    public void update(Double doubleReading, Date date) {
-        this.value = doubleReading;
-        this.time = date;
-    }
-
-    public static void main(String[] args) {
-        UberdustClient.setUberdustURL("http://uberdust.cti.gr");
-        UberdustNode node = new UberdustNode("urn:wisebed:ctitestbed:0x190", "1", "urn:wisebed:ctitestbed:", "urn:wisebed:node:capability:pir", 1.0, new Date());
-        System.out.println("=========================================================================================");
-        System.out.println(node.toRdf_XML());
-        System.out.println("=========================================================================================");
-        System.out.println(node.toRdf_N3());
-        System.out.println("=========================================================================================");
-        System.out.println(node.toRdf_TURTLE());
-    }
 }
