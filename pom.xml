@@ -15,6 +15,12 @@
     <dependencies>
 
         <dependency>
+            <groupId>de.uniluebeck.itm</groupId>
+            <artifactId>ncoap</artifactId>
+            <version>1.0.3-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>14.0</version>
@@ -103,6 +109,7 @@
             <name>jena</name>
             <url>https://repository.apache.org/content/repositories/releases</url>
         </repository>
+
         <repository>
             <id>itm-maven-repository-releases-site</id>
             <url>https://maven.itm.uni-luebeck.de/content/repositories/releases/</url>
@@ -124,6 +131,7 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
+
         <repository>
             <id>repository.ru1</id>
             <url>http://ru1.cti.gr/maven</url>
