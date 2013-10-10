@@ -39,8 +39,9 @@ public class InternalResourceStatusMessage {
             if(subjectIterator.hasNext()){
                 Resource subject = subjectIterator.nextResource();
                 resourceUri = new URI(subject.toString());
-                if(subjectIterator.hasNext())
-                    throw new MultipleSubjectsInModelException(model.listSubjects());
+
+//                if(subjectIterator.hasNext())
+//                    throw new MultipleSubjectsInModelException(model.listSubjects());
             }
         }
 

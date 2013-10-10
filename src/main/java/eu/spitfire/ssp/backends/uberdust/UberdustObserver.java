@@ -19,7 +19,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.*;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Observable;
+import java.util.Observer;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -42,9 +47,10 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private final HashMap<String, String> testbeds;
-//    public Map<URI, UberdustNode> allnodes;
 
     private final Executor executor;
+
+//    private final Map<URI, URI> tinyURIS;
 
     private final UberdustBackendComponentFactory serviceManager;
 
@@ -55,10 +61,10 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
         this.scheduledExecutorService = scheduledExecutorService;
         this.localChannel = localChannel;
 
+//        tinyURIS = new HashMap<>();
         backendResourceManager = backendComponentFactory.getBackendResourceManager();
 
         this.serviceManager = backendComponentFactory;
-//        allnodes = new HashMap<URI, UberdustNode>();
 
         testbeds = new HashMap<String, String>();
         testbeds.put("urn:wisebed:ctitestbed:", "1");
@@ -129,11 +135,12 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
                                     }
 
 
-                                    final URI resourceURI = new URI(UberdustNode.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
+                                    final URI resourceURI = new URI(UberdustNodeHelper.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
 
                                     final Collection<URI> collection = backendResourceManager.getResources(resourceURI);
                                     if (collection.isEmpty()) {
-                                        registerModel(UberdustNodeHelper.generateDescription(reading.getNode(), testbeds.get(prefix), prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
+                                        registerModel(UberdustNodeHelper.generateDescription(reading.getNode(), testbeds.get(prefix), prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())),
+                                                UberdustNodeHelper.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
                                         cacheResourcesStates(UberdustNodeHelper.generateDescription(reading.getNode(), testbeds.get(prefix), prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
                                     } else {
                                         try {
@@ -143,15 +150,6 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
                                             log.error(e.getMessage(), e);
                                         }
                                     }
-
-//                                    if (!allnodes.containsKey(resourceURI)) {
-//                                        allnodes.put(resourceURI, new UberdustNode(reading.getNode(), testbeds.get(prefix), prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
-//                                    } else {
-//                                        allnodes.get(resourceURI).update(reading.getDoubleReading(), new Date(reading.getTimestamp()));
-//                                    }
-//
-//                                    registerModel(allnodes.get(resourceURI).getModel());
-//                                    cacheResourcesStates(allnodes.get(resourceURI).getModel());
                                 } catch (Exception e) {
                                     log.error(e.getMessage(), e);
                                 }
@@ -162,23 +160,18 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
 
     }
 
-    private void registerModel(final Model model) throws URISyntaxException {
-////        StmtIterator stmp = model.listStatements();
-//
-//        new Thread() {
-//            @Override
-//            public void run() {
-//                try {
+    private void registerModel(final Model model, String resourceURI) throws URISyntaxException {
         final Map<URI, Model> modelsMap = CoapResourceToolbox.getModelsPerSubject(model);
+
         for (final URI uri : modelsMap.keySet()) {
+
+            if (uri.toString().contains("attachedSystem")) {
+                final URI tinyURI = new URI("http://uberdust.cti.gr/" + UberdustNodeHelper.tiny(resourceURI));
+//                tinyURIS.put(tinyURI, uri);
+                serviceManager.registerResource(modelsMap.get(uri), tinyURI);
+            }
             serviceManager.registerResource(modelsMap.get(uri), uri);
-            //semanticCache.putResourceToCache(uri, modelsMap.get(uri), new Date(System.currentTimeMillis() + 99 * 60 * 60 * 1000));
         }
-//                } catch (URISyntaxException e) {
-//                    log.debug("This should never happen", e);
-//                }
-//            }
-//        }.start();
     }
 
 

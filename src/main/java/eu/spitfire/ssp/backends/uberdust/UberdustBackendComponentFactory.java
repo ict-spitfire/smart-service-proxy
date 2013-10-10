@@ -35,17 +35,10 @@ import java.net.URI;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * A {@link UberdustBackendComponentFactory} instance hosts a connection to an Uberdust Server. This backend provices information about part of the devices
- * available in the uberdust server with GET and POST method functionality. If it's instanciated (by setting
- * <code>enableProxyServiceManager="uberdust"</code> in the <code>ssp.properties</code> file) it registers its WebServices
- * at the {@link eu.spitfire.ssp.server.pipeline.handler.HttpRequestDispatcher} which causes these WebServices to occur on the
- * HTML page (at <code>core://<ssp-ip>:<ssp-port>/) listing the available webServices.
- * <p/>
- * classes inheriting from {@link eu.spitfire.ssp.backends.BackendComponentFactory}.
- *
+ * Implements the {@link BackendComponentFactory} to enable connecting to Uberdust and displaying the information
+ * from the existing non IPv6 sensors and actuators available from it.
  * @author Dimitrios Amaxilatis
  */
-
 public class UberdustBackendComponentFactory extends BackendComponentFactory<URI> {
     /**
      * Logger.
@@ -55,11 +48,10 @@ public class UberdustBackendComponentFactory extends BackendComponentFactory<URI
      * WebSocket Connection to the Uberdust Server.
      */
     private final UberdustObserver uberdustObserver;
-    private final SemanticHttpRequestProcessor httpRequestProcessor;
     /**
-     * Handler for the incoming requests.
+     * HTTP Request processor used to forward correctly the actuation post requests.
      */
-//    private final UberdustHttpRequestProcessor httpRequestProcessor;
+    private final SemanticHttpRequestProcessor httpRequestProcessor;
 
     /**
      * Constructor Class.
@@ -90,11 +82,6 @@ public class UberdustBackendComponentFactory extends BackendComponentFactory<URI
         return new UberdustDataOriginRegistry(this);  //To change body of implemented methods use File | Settings | File Templates.
     }
 
-//    @Override
-
-    //    }
-//        return new UberdustHttpRequestProcessor(this, this.uberdustObserver);  //To change body of implemented methods use File | Settings | File Templates.
-//    public DataOriginAccessory createDataOriginReader() {
     @Override
     public SemanticHttpRequestProcessor getHttpRequestProcessor() {
         return httpRequestProcessor;
@@ -108,27 +95,5 @@ public class UberdustBackendComponentFactory extends BackendComponentFactory<URI
 
     void registerResource(final Model model, final URI resourceUri) {
         ((UberdustDataOriginRegistry) getDataOriginRegistry()).registerResource(model, resourceUri);
-//        try {
-//            addResource(resourceUri, new URI("http://uberdust.cti.gr/"));
-//        } catch (URISyntaxException e) {
-//            log.error("This should never happen", e);
-//        }
-//        final SettableFuture<URI> resourceRegistrationFuture = registerSemanticResource(resourceUri, httpRequestProcessor);
-//
-//        resourceRegistrationFuture.addListener(new Runnable() {
-//            @Override
-//            public void run() {
-//                try {
-//                    URI resourceProxyUri = resourceRegistrationFuture.get();
-//                    log.info("Successfully registered resource " + resourceUri + " with proxy Uri " + resourceProxyUri);
-//                } catch (Exception e) {
-//                    log.error("Exception during registration of services from Uberdust. " + e.getMessage());
-//                }
-//            }
-//        }, scheduledExecutorService);
-//
-//        return resourceRegistrationFuture;
     }
-
-
 }

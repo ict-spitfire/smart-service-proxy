@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
 
+import com.hp.hpl.jena.rdf.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,10 +21,6 @@ import com.hp.hpl.jena.query.QueryFactory;
 import com.hp.hpl.jena.query.ReadWrite;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.RDFNode;
-import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.tdb.TDB;
 import com.hp.hpl.jena.tdb.TDBFactory;
 
@@ -59,6 +56,15 @@ public class JenaTdbSemanticCache extends SemanticCache {
                 return null;
             }
 
+            StmtIterator statements = model.listStatements();
+            while (statements.hasNext()) {
+                Statement cStatement = statements.nextStatement();
+                System.out.println("S:" + cStatement.getSubject());
+                System.out.println("P:" + cStatement.getPredicate());
+                System.out.println("O:" + cStatement.getObject());
+            }
+
+
             log.info("Cached status found for resource {}", resourceUri);
             return new InternalResourceStatusMessage(model, new Date());
         } finally {
@@ -72,10 +78,10 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
         dataset.begin(ReadWrite.WRITE);
         try {
-        	Model owlFullModel = ModelFactory.createOntologyModel( OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-        	owlFullModel.add(resourceStatus);
+            Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+            owlFullModel.add(resourceStatus);
 //            dataset.addNamedModel(resourceUri.toString(), resourceStatus);
-        	dataset.addNamedModel(resourceUri.toString(), owlFullModel);
+            dataset.addNamedModel(resourceUri.toString(), owlFullModel);
             dataset.commit();
             log.debug("Added status for resource {}", resourceUri);
         } finally {
@@ -100,10 +106,10 @@ public class JenaTdbSemanticCache extends SemanticCache {
         dataset.begin(ReadWrite.WRITE);
         try {
 //            Model tdbModel = dataset.getNamedModel(statement.getSubject().toString());
-        	Model model = dataset.getNamedModel(statement.getSubject().toString());
-            Model tdbModel = ModelFactory.createOntologyModel( OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-        	tdbModel.add(model);
-        	
+            Model model = dataset.getNamedModel(statement.getSubject().toString());
+            Model tdbModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+            tdbModel.add(model);
+
             Statement oldStatement = tdbModel.getProperty(statement.getSubject(), statement.getPredicate());
             Statement updatedStatement;
             if (oldStatement != null) {
