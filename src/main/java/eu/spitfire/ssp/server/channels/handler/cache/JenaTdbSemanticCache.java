@@ -71,9 +71,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
             if (model.isEmpty()) {
                 log.warn("No cached status found for resource {}", resourceUri);
                 return null;
-            }
-            model.add(ontologyBaseModel);
-            
+            } 
             log.info("Cached status found for resource {}", resourceUri);
             return new InternalResourceStatusMessage(model, new Date());
         } finally {
@@ -145,11 +143,13 @@ public class JenaTdbSemanticCache extends SemanticCache {
     public synchronized void processSparqlQuery(SettableFuture<String> queryResultFuture, String sparqlQuery) {
 
         dataset.begin(ReadWrite.READ);
+        Model model = dataset.getNamedModel("DEFAULT");
+        model.add(ontologyBaseModel);
         try {
             log.info("Start SPARQL query processing: {}", sparqlQuery);
 
             Query query = QueryFactory.create(sparqlQuery);
-            QueryExecution queryExecution = QueryExecutionFactory.create(query, dataset);
+            QueryExecution queryExecution = QueryExecutionFactory.create(query, model);
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             try {
