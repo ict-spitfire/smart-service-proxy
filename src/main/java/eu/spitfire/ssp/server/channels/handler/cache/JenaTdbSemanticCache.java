@@ -112,10 +112,10 @@ public class JenaTdbSemanticCache extends SemanticCache {
     public void updateStatement(Statement statement) throws Exception {
         dataset.begin(ReadWrite.WRITE);
         try {
-//            Model tdbModel = dataset.getNamedModel(statement.getSubject().toString());
-            Model model = dataset.getNamedModel(statement.getSubject().toString());
-            Model tdbModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-            tdbModel.add(model);
+            Model tdbModel = dataset.getNamedModel(statement.getSubject().toString());
+//            Model model = dataset.getNamedModel(statement.getSubject().toString());
+//            Model tdbModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+//            tdbModel.add(model);
 
             Statement oldStatement = tdbModel.getProperty(statement.getSubject(), statement.getPredicate());
             Statement updatedStatement;

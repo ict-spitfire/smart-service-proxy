@@ -141,10 +141,19 @@ public abstract class SemanticCache extends SimpleChannelHandler {
             else if(me.getMessage() instanceof InternalUpdateResourceStatusMessage){
                 InternalUpdateResourceStatusMessage message = (InternalUpdateResourceStatusMessage) me.getMessage();
                 URI resourceUri = new URI(message.getStatement().getSubject().toString());
-                log.info("Received update for resource {} (expiry: {})", resourceUri);
+                log.info("Received update for resource {} (expiry: {})", resourceUri, message.getExpiry());
 
                 scheduleResourceStatusExpiry(resourceUri, message.getExpiry());
                 updateStatement(message.getStatement());
+
+                InternalResourceStatusMessage resourceStatusMessage =
+                        new InternalResourceStatusMessage(getCachedResource(resourceUri).getModel(), message.getExpiry());
+
+                if(resourceStatusMessage != null){
+                    Channels.write(ctx, me.getFuture(), resourceStatusMessage);
+                    return;
+                }
+                log.warn("Resource status of {} was null!!!", resourceUri);
             }
 
             else if(me.getMessage() instanceof InternalSparqlQueryMessage){

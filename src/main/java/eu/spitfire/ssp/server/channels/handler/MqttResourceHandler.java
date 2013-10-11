@@ -2,8 +2,7 @@ package eu.spitfire.ssp.server.channels.handler;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Multimap;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.rdf.model.*;
 import de.uniluebeck.itm.spitfire.ssphttpobserveovermqttlib.HttpObserveOverMqttLib;
 import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
@@ -43,8 +42,8 @@ public class MqttResourceHandler extends SimpleChannelDownstreamHandler{
 
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
-        log.info("DO something********************************************************************");
         if(me.getMessage() instanceof InternalResourceStatusMessage){
+            log.info("DO something********************************************************************");
             InternalResourceStatusMessage message = (InternalResourceStatusMessage) me.getMessage();
             final URI resourceUri = message.getResourceUri();
             final Model model = message.getModel();
@@ -94,7 +93,12 @@ public class MqttResourceHandler extends SimpleChannelDownstreamHandler{
                         response.addHeader("max-age", "" + (expiry.getTime() - System.currentTimeMillis())/1000);
                         response.addHeader("Content-Type", acceptedLanguage.mimeType);
 
-                        response.setGraphValue(1000.0);
+                        Property property = model.createProperty("http://spitfire-project.eu/ontology/ns/value");
+                        StmtIterator statementIterator = model.listStatements(null, property, (RDFNode) null);
+
+                        Statement statement = statementIterator.nextStatement();
+                        if(statement != null)
+                            response.setGraphValue(statement.getDouble());
                         return response;
                     }
                 });

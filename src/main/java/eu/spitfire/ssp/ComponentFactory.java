@@ -138,9 +138,10 @@ public class ComponentFactory {
 
     private void createLocalPipelineFactory() {
         LinkedHashSet<ChannelHandler> handler = new LinkedHashSet<>();
-        handler.add(semanticCache);
         if (!(mqttResourceHandler == null))
             handler.add(mqttResourceHandler);
+
+        handler.add(semanticCache);
 
         handler.add(httpRequestDispatcher);
         this.localPipelineFactory = new LocalPipelineFactory(handler);
@@ -162,9 +163,9 @@ public class ComponentFactory {
 
         LinkedHashSet<ChannelHandler> handler = new LinkedHashSet<>();
         handler.add(executionHandler);
-        handler.add(semanticCache);
         if (!(mqttResourceHandler == null))
             handler.add(mqttResourceHandler);
+        handler.add(semanticCache);
 
         handler.add(httpRequestDispatcher);
 
