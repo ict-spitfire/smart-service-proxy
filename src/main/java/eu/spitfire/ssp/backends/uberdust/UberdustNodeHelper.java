@@ -202,7 +202,7 @@ public class UberdustNodeHelper {
             String tinyURI = tiny(getResourceURI(testbed, node, capability));
             tinyURIS.put(tinyURI, fullURI);
             description.append("<" + fullURI + "> ").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + tinyURI + ">.\n");
-            description.append("<" + tinyURI + ">").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + fullURI + ">.\n");
+//            description.append("<" + tinyURI + ">").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + fullURI + ">.\n");
 
             description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ").append("<http://spitfire-project.eu/ontology/ns/sn/Switch>;\n");
         } else if (fan.matcher(capability).find()) {
@@ -210,7 +210,7 @@ public class UberdustNodeHelper {
             String tinyURI = tiny(getResourceURI(testbed, node, capability));
             tinyURIS.put(tinyURI, fullURI);
             description.append("<" + fullURI + "> ").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + tinyURI + ">.\n");
-            description.append("<" + tinyURI + ">").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + fullURI + ">.\n");
+//            description.append("<" + tinyURI + ">").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + fullURI + ">.\n");
 
             description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ").append("<http://spitfire-project.eu/ontology/ns/sn/Fan>;");
         } else {
