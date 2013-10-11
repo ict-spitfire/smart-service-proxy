@@ -58,8 +58,10 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
                             ScheduledExecutorService scheduledExecutorService,
                             LocalPipelineFactory localChannel) throws IOException {
         super(backendComponentFactory);
-        executor = scheduledExecutorService;
-//        executor = Executors.newFixedThreadPool(16);
+//        executor = scheduledExecutorService;
+        ThreadFactory tf = new ThreadFactoryBuilder().setNameFormat("UberdustObserver #%d").build();
+        executor = Executors.newCachedThreadPool(tf);
+
 
         this.localChannel = localChannel;
 
@@ -78,8 +80,6 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
         testbeds.put("urn:amaxilat:", "7");
         testbeds.put("urn:gen6:", "8");
 
-        ThreadFactory tf = new ThreadFactoryBuilder().setNameFormat("UberdustObserver #%d").build();
-//        executor = Executors.newSingleThreadExecutor(tf);
 
         Configuration config = null;
         try {
@@ -121,13 +121,23 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
                         if (arg instanceof Message.NodeReadings) {
                             Message.NodeReadings.Reading reading = ((Message.NodeReadings) arg).getReading(0);
 //                            log.info(reading.toString());
-                            log.error((System.currentTimeMillis() - reading.getTimestamp()) + " Adiff in millis " + reading.getNode() + " " + reading.getCapability());
+//                            log.error((System.currentTimeMillis() - reading.getTimestamp()) + " Adiff in millis " + reading.getNode() + " " + reading.getCapability());
                             if (reading.hasDoubleReading()) {
                                 try {
                                     if (reading.getNode().contains("santander")) return;
                                     if (!reading.getCapability().contains("urn")) return;
                                     if (reading.getCapability().contains("parent")) return;
                                     if (reading.getCapability().contains("report")) return;
+                                    if (!reading.getCapability().startsWith("urn")) return;
+                                    if (
+                                            !reading.getCapability().contains("temperature")
+                                            && !reading.getCapability().contains("light")
+                                            && !reading.getCapability().contains("kwh")
+                                            && !reading.getCapability().contains("lz")
+                                            && !reading.getCapability().endsWith("r")
+                                            && !reading.getCapability().endsWith("s")
+                                            && !reading.getCapability().endsWith("ac")
+                                            ) return;
 //                            if (!reading.getNode().contains("u")) return;
 //                            log.info("mnode2:" + reading.getNode());
                                     String prefix = "";
@@ -155,11 +165,10 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
                                         } catch (Exception e) {
                                             log.error(e.getMessage(), e);
                                         }
-//                                        if (reading.getNode().contains("150") && reading.getNode().contains("64") && reading.getCapability().contains("2s")) {
-                                        log.error((System.currentTimeMillis() - reading.getTimestamp()) + " diff in millis " + reading.getNode() + " " + reading.getCapability());
-                                        log.error(Thread.activeCount() + " Threads Running.");
-//                                        }
                                     }
+                                    log.info((System.currentTimeMillis() - reading.getTimestamp()) + " diff in millis ");
+                                    log.info(Thread.activeCount() + " Threads Running.");
+
                                 } catch (Exception e) {
                                     log.error(e.getMessage(), e);
                                 }
