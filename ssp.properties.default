@@ -15,7 +15,7 @@ SSP_TCP_NODELAY = true
 #--------------
 #cache = dummy
 cache = jenaTDB
-cache.jenaTDB.dbDirectory = /this/path/must/already/exist
+cache.jenaTDB.dbDirectory = /home/iammyr/.ld4s/tdb/LD4SDataset1
 
 #--------------
 #MQTT (allows observation of registered resources via Android)

@@ -8,22 +8,15 @@ import eu.spitfire.ssp.backends.generic.exceptions.MultipleSubjectsInModelExcept
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
-import java.util.Date;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
- * The {@link UberdustHttpRequestProcessor} is the {@link eu.spitfire.ssp.server.webservices.SemanticHttpRequestProcessor} instance to handle
+ * The {@link UberdustHttpRequestProcessor} is the {@link eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor} instance to handle
  * incoming HTTP requests for the simple example resource (<code>http://example.org/JohnSmith</code>.
  *
  * @author Dimitrios Amaxilatis
@@ -33,11 +26,6 @@ public class UberdustHttpRequestProcessor implements SemanticHttpRequestProcesso
      * Logger.
      */
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
-
-    /**
-     * The time in milliseconds a status may be cached after a request.
-     */
-    public static long LIFETIME_MILLIS = 5000;
 
     /**
      * The observer containing the updated information from Uberdust.
@@ -56,7 +44,6 @@ public class UberdustHttpRequestProcessor implements SemanticHttpRequestProcesso
         this.uberdustObserver = uberdustObserver;
     }
 
-
     @Override
     public void processHttpRequest(SettableFuture<InternalResourceStatusMessage> settableFuture, HttpRequest httpRequest) {
         log.info("Received request for path {}.", httpRequest.getUri());
@@ -73,18 +60,39 @@ public class UberdustHttpRequestProcessor implements SemanticHttpRequestProcesso
 
     }
 
+    /**
+     * Handles an incoming post request to an uberdust registered sensor device.
+     *
+     * @param settableFuture
+     * @param httpRequest    the request to be forwarded.
+     */
     private void handlePost(SettableFuture<InternalResourceStatusMessage> settableFuture, HttpRequest httpRequest) {
-
-        String uberdustURL = httpRequest.getUri().replaceAll("/\\?uri=", "").replaceAll("attachedSystem", "");
+        String uberdustURI = null;
+        //contains the url to be used to communicate with Uberdust.
+        String uberdustURL;
+        try {
+//            check for a minified actuator url
+            uberdustURI = UberdustNodeHelper.unWrap(httpRequest.getUri().replaceAll("/\\?uri=", ""));
+        } catch (URISyntaxException e) {
+            log.error(e.getMessage(), e);
+            return;
+        }
+        if (uberdustURI != null) {
+            uberdustURL = uberdustURI.toString();
+        } else {
+            uberdustURL = httpRequest.getUri().replaceAll("/\\?uri=", "");
+        }
+        uberdustURL = uberdustURL.replaceAll("attachedSystem", "");
+        System.out.println(uberdustURL);
         String payloadString = new String(httpRequest.getContent().toByteBuffer().array());
         if ("on".equals(payloadString)) {
             uberdustURL += "1/";
         } else if ("off".equals(payloadString)) {
             uberdustURL += "0/";
         } else {
-            uberdustURL += payloadString + "/";
+            uberdustURL += "" + payloadString + "/";
         }
-        System.out.println(uberdustURL);
+        //disable switching for powerstrips
         if (!uberdustURL.contains("150")) {
             try {
                 (new UberdustPostRequest(uberdustURL)).start();
@@ -96,8 +104,6 @@ public class UberdustHttpRequestProcessor implements SemanticHttpRequestProcesso
             } catch (URISyntaxException e) {
                 e.printStackTrace();
             }
-        } else {
-            System.out.println("skipping");
         }
     }
 }

@@ -1,24 +1,31 @@
 package eu.spitfire.ssp.server.channels.handler.cache;
 
-import com.google.common.util.concurrent.SettableFuture;
-import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
-import com.hp.hpl.jena.query.*;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.RDFNode;
-import com.hp.hpl.jena.rdf.model.ResIterator;
-import com.hp.hpl.jena.rdf.model.Statement;
-import com.hp.hpl.jena.tdb.TDB;
-import com.hp.hpl.jena.tdb.TDBFactory;
-import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
+
+import com.hp.hpl.jena.rdf.model.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.util.concurrent.SettableFuture;
+import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
+import com.hp.hpl.jena.ontology.OntModel;
+import com.hp.hpl.jena.ontology.OntModelSpec;
+import com.hp.hpl.jena.query.Dataset;
+import com.hp.hpl.jena.query.Query;
+import com.hp.hpl.jena.query.QueryExecution;
+import com.hp.hpl.jena.query.QueryExecutionFactory;
+import com.hp.hpl.jena.query.QueryFactory;
+import com.hp.hpl.jena.query.ReadWrite;
+import com.hp.hpl.jena.query.ResultSet;
+import com.hp.hpl.jena.query.ResultSetFormatter;
+import com.hp.hpl.jena.tdb.TDB;
+import com.hp.hpl.jena.tdb.TDBFactory;
+
+import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 
 /**
  * Created with IntelliJ IDEA.
@@ -33,10 +40,23 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
     private Dataset dataset;
 
+    private static final String SPT_SOURCE = "http://spitfire-project.eu/ontology.rdf";
+    private static final String SPTSN_SOURCE = "http://spitfire-project.eu/sn.rdf";
+
+
+    private static OntModel ontologyBaseModel = null;
+
+
     public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory) {
         super(scheduledExecutorService);
         dataset = TDBFactory.createDataset(dbDirectory.toString());
         TDB.getContext().set(TDB.symUnionDefaultGraph, true);
+
+        if (ontologyBaseModel == null) {
+            ontologyBaseModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+            ontologyBaseModel.read(SPT_SOURCE, "RDF/XML");
+            ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
+        }
     }
 
     @Override
@@ -49,12 +69,14 @@ public class JenaTdbSemanticCache extends SemanticCache {
                 log.warn("No cached status found for resource {}", resourceUri);
                 return null;
             }
-
             log.info("Cached status found for resource {}", resourceUri);
             return new InternalResourceStatusMessage(model, new Date());
-        } finally {
+        } finally
+
+        {
             dataset.end();
         }
+
     }
 
     @Override
@@ -63,7 +85,10 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
         dataset.begin(ReadWrite.WRITE);
         try {
-            dataset.addNamedModel(resourceUri.toString(), resourceStatus);
+            Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+            owlFullModel.add(resourceStatus);
+//            dataset.addNamedModel(resourceUri.toString(), resourceStatus);
+            dataset.addNamedModel(resourceUri.toString(), owlFullModel);
             dataset.commit();
             log.debug("Added status for resource {}", resourceUri);
         } finally {
@@ -87,7 +112,11 @@ public class JenaTdbSemanticCache extends SemanticCache {
     public void updateStatement(Statement statement) throws Exception {
         dataset.begin(ReadWrite.WRITE);
         try {
-            Model tdbModel = dataset.getNamedModel(statement.getSubject().toString());
+//            Model tdbModel = dataset.getNamedModel(statement.getSubject().toString());
+            Model model = dataset.getNamedModel(statement.getSubject().toString());
+            Model tdbModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+            tdbModel.add(model);
+
             Statement oldStatement = tdbModel.getProperty(statement.getSubject(), statement.getPredicate());
             Statement updatedStatement;
             if (oldStatement != null) {
@@ -114,11 +143,13 @@ public class JenaTdbSemanticCache extends SemanticCache {
     public synchronized void processSparqlQuery(SettableFuture<String> queryResultFuture, String sparqlQuery) {
 
         dataset.begin(ReadWrite.READ);
+        Model model = dataset.getNamedModel("DEFAULT");
+        model.add(ontologyBaseModel);
         try {
-            log.info("Start SPAQRL query processing: {}", sparqlQuery);
+            log.info("Start SPARQL query processing: {}", sparqlQuery);
 
             Query query = QueryFactory.create(sparqlQuery);
-            QueryExecution queryExecution = QueryExecutionFactory.create(query, dataset);
+            QueryExecution queryExecution = QueryExecutionFactory.create(query, model);
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             try {

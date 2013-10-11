@@ -12,17 +12,13 @@ import org.json.JSONException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.StringWriter;
-import java.io.Writer;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
@@ -35,87 +31,200 @@ public class UberdustNodeHelper {
      * Logger.
      */
     private static Logger log = Logger.getLogger(UberdustNodeHelper.class.getName());
-
+    /**
+     * Pattern used to detect a lightZone actuator.
+     */
     private static Pattern lightZone = Pattern.compile(":lz[1-9][0-9]*", Pattern.CASE_INSENSITIVE);
+    /**
+     * Pattern used to detect a HVAC actuator.
+     */
     private static Pattern fan = Pattern.compile(":ac[1-9][0-9]*", Pattern.CASE_INSENSITIVE);
+    /**
+     * Pattern used to detect a PowerPlug/Relay actuator.
+     */
     private static Pattern relay = Pattern.compile(":[1-9][0-9]*r", Pattern.CASE_INSENSITIVE);
+
+    private static Map<String, Set<String>> attachedSystems = new HashMap<>();
+    private static Map<String, String> tinyURIS = new HashMap<String, String>();
+    private static SimpleDateFormat dateFormatGmt = new SimpleDateFormat("yy-MM-dd'T'HH:mm:ss'Z'");
+
 
     /**
      * Constructor for the node reading.
      *
-     * @param name
-     * @param testbed
-     * @param prefix
-     * @param capability
-     * @param value
-     * @param time
+     * @param name       the name of the device to annotate.
+     * @param testbed    the testbed of the device.
+     * @param prefix     the prefix of the testbed.
+     * @param capability the capability annotated.
+     * @param value      the value of the measurement.
+     * @param time       the timestamp associated by the timestamp.
      * @throws org.json.JSONException
      */
     public static Model generateDescription(String name, String testbed, String prefix, String capability, Double value, Date time) {
-        String locationName1;
-        List<String> rooms1;
-        List<String> workstation1;
-        String capabilityResource1;
-        String y1;
-        String x1;
+        List<String> rooms, workstation;
+        String locationName, capabilityResource, y, x;
 
         try {
-            x1 = UberdustClient.getInstance().getNodeX(testbed, name);
+            x = UberdustClient.getInstance().getNodeX(testbed, name);
         } catch (IOException e) {
-            x1 = "0";
+            x = "0";
         }
 
         try {
-            y1 = UberdustClient.getInstance().getNodeY(testbed, name);
+            y = UberdustClient.getInstance().getNodeY(testbed, name);
         } catch (IOException e) {
-            y1 = "0";
+            y = "0";
         }
 
         try {
-            rooms1 = UberdustClient.getInstance().getNodeRooms(Integer.parseInt(testbed), name);
+            rooms = UberdustClient.getInstance().getNodeRooms(Integer.parseInt(testbed), name);
         } catch (Exception e) {
-            rooms1 = null;
+            rooms = null;
         }
 
         try {
-            workstation1 = UberdustClient.getInstance().getNodeWorkstations(Integer.parseInt(testbed), name);
+            workstation = UberdustClient.getInstance().getNodeWorkstations(Integer.parseInt(testbed), name);
         } catch (Exception e) {
-            workstation1 = null;
+            workstation = null;
         }
 
         try {
-            capabilityResource1 = getSameAs(getCapabilityResourceURI(testbed, capability));
+            capabilityResource = getSameAs(getCapabilityResourceURI(testbed, capability));
         } catch (URISyntaxException e) {
-            capabilityResource1 = "null";
+            capabilityResource = "null";
         }
 
         try {
-            locationName1 = ((Testbed) UberdustClient.getInstance().getTestbedById(Integer.parseInt(testbed))).getName();
+            locationName = ((Testbed) UberdustClient.getInstance().getTestbedById(Integer.parseInt(testbed))).getName();
         } catch (IOException e) {
-            locationName1 = prefix;
+            locationName = prefix;
         } catch (JSONException e) {
-            locationName1 = prefix;
+            locationName = prefix;
         }
-        if (locationName1.equals("Gen6")) {
+        if (locationName.equals("Gen6")) {
             try {
-                locationName1 = (UberdustClient.getInstance().getLastNodeReading(Integer.parseInt(testbed), name, "name").getJSONArray("readings").getJSONObject(0)).getString("stringReading");
+                locationName = (UberdustClient.getInstance().getLastNodeReading(Integer.parseInt(testbed), name, "name").getJSONArray("readings").getJSONObject(0)).getString("stringReading");
             } catch (Exception e) {
                 log.error(e);
             }
         }
 
-        return getModel(testbed, prefix, capabilityResource1, x1, y1, time, capability, locationName1, String.valueOf(value), rooms1, workstation1, name);
+        return getModel(testbed, prefix, capabilityResource, x, y, time, capability, locationName, String.valueOf(value), rooms, workstation, name);
     }
 
-    public static Statement createUpdateStatement(URI subject, Double value) throws Exception {
-        String statement = "<" + subject + ">" +
-                "<http://spitfire-project.eu/ontology/ns/value>\n" +
-                "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n";
+    public static Statement createUpdateValueStatement(URI subject, Double value) throws Exception {
+        dateFormatGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
+        StringBuilder description = new StringBuilder();
+        description.append("<" + subject + "> ").append("<http://spitfire-project.eu/ontology/ns/value> ").append("\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n");
         Model model = ModelFactory.createDefaultModel();
-        ByteArrayInputStream bin = new ByteArrayInputStream(statement.getBytes(Charset.forName("UTF-8")));
+        ByteArrayInputStream bin = new ByteArrayInputStream(description.toString().getBytes(Charset.forName("UTF-8")));
         model.read(bin, null, Language.RDF_N3.lang);
 
         return model.listStatements().nextStatement();
+    }
+
+    public static Statement createUpdateTimestampStatement(URI subject, Date timestamp) throws Exception {
+        dateFormatGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
+        StringBuilder description = new StringBuilder();
+        description.append("<" + subject + "> ").append("<http://purl.org/dc/terms/#date> ").append("\"" + dateFormatGmt.format(timestamp) + "\";\n");
+
+        Model model = ModelFactory.createDefaultModel();
+        ByteArrayInputStream bin = new ByteArrayInputStream(description.toString().getBytes(Charset.forName("UTF-8")));
+        model.read(bin, null, Language.RDF_N3.lang);
+
+        return model.listStatements().nextStatement();
+    }
+
+
+    /**
+     * N3 RDF description of the node.
+     *
+     * @return a string containing the N3 rdf description.
+     * @throws java.net.URISyntaxException should not happen.
+     */
+    public static String toNEWRDF(
+            final String testbed,
+            final String prefix,
+            final String capabilityResource,
+            final String x,
+            final String y,
+            final Date time,
+            final String capability,
+            final String locationName,
+            final String value,
+            final List<String> rooms,
+            final List<String> workstations,
+            final String node
+
+    ) throws URISyntaxException {
+        dateFormatGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
+        final URI resourceURI = new URI(getResourceURI(testbed, node, capability));
+
+        StringBuilder description = new StringBuilder();
+        updateAttachedSystems(node, capability);
+
+        Iterator<String> asi = attachedSystems.get(node).iterator();
+        StringBuilder asObject = new StringBuilder();
+        while (asi.hasNext()) {
+            asObject.append(",").append("<" + getResourceURI(testbed, node, asi.next()) + ">");
+        }
+        description.append("<" + getDeviceURI(testbed, node) + "> ").append("<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem> ").append(asObject.toString().substring(1) + ";\n");
+
+        description.append("<http://www.w3.org/2003/01/geo/wgs84_pos#long> ").append("\"" + y + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n");
+        description.append("<http://www.w3.org/2003/01/geo/wgs84_pos#lat> ").append("\"" + x + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n");
+        description.append("<http://www.ontologydesignpatterns.org/ont/dul/DUL.owl/hasLocation> ").append("\"" + locationName + "\".\n");
+
+        if (rooms != null) {
+            final StringBuilder object = new StringBuilder();
+            for (String room : rooms) {
+                object.append(",<" + "http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:room:" + room + "/>");
+            }
+            description.append("<" + getDeviceURI(testbed, node) + "> ").append("<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest> ").append(object.toString().substring(1) + ". \n");
+            for (String room : rooms) {
+                description.append("<" + "http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:room:" + room + "/> ").append("<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ").append("<http://spitfire-project.eu/foi/Room>. \n");
+            }
+        }
+
+        if (workstations != null) {
+            final StringBuilder object = new StringBuilder();
+            for (String workstation : workstations) {
+                object.append(",<http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:workstation:" + workstation + "/>");
+            }
+            description.append("<" + getDeviceURI(testbed, node) + "> ").append("<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest> ").append(object.toString().substring(1) + ". \n");
+            for (String workstation : workstations) {
+                description.append("<" + "http://uberdust.cti.gr/rest/testbed/" + testbed + "/node/" + prefix + "virtual:workstation:" + workstation + "/> ").append("<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>").append("<http://www.freebase.com/m/0v3bzfq>. \n");
+            }
+        }
+        if ((lightZone.matcher(capability).find() || relay.matcher(capability).find())) {
+            String fullURI = getResourceURI(testbed, node, capability);
+            String tinyURI = tiny(getResourceURI(testbed, node, capability));
+            tinyURIS.put(tinyURI, fullURI);
+            description.append("<" + fullURI + "> ").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + tinyURI + ">.\n");
+            description.append("<" + tinyURI + ">").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + fullURI + ">.\n");
+
+            description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://www.w3.org/2000/01/rdf-schema#type> ").append("<http://spitfire-project.eu/ontology/ns/sn/Switch>;\n");
+        } else if (fan.matcher(capability).find()) {
+            String fullURI = getResourceURI(testbed, node, capability);
+            String tinyURI = tiny(getResourceURI(testbed, node, capability));
+            tinyURIS.put(tinyURI, fullURI);
+            description.append("<" + fullURI + "> ").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + tinyURI + ">.\n");
+            description.append("<" + tinyURI + ">").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + fullURI + ">.\n");
+
+            description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://www.w3.org/2000/01/rdf-schema#type> ").append("<http://spitfire-project.eu/ontology/ns/sn/Fan>;");
+        } else {
+            description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://purl.org/dc/terms/#date> ").append("\"" + dateFormatGmt.format(time) + "\";\n");
+            description.append("<http://spitfire-project.eu/ontology/ns/obs> ").append("<" + capabilityResource + ">;\n");
+        }
+        description.append("<http://spitfire-project.eu/ontology/ns/value> ").append("\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n");
+
+        return description.toString();
+    }
+
+    private static void updateAttachedSystems(String node, String capability) {
+        if (!attachedSystems.containsKey(node)) {
+            attachedSystems.put(node, new HashSet<String>());
+        }
+        attachedSystems.get(node).add(capability);
     }
 
     /**
@@ -124,6 +233,7 @@ public class UberdustNodeHelper {
      * @return a string containing the N3 rdf description.
      * @throws java.net.URISyntaxException should not happen.
      */
+    @Deprecated
     public static String toRDF(
             final String testbed,
             final String prefix,
@@ -161,7 +271,12 @@ public class UberdustNodeHelper {
                     "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#switch>;\n" +
                     "<http://spitfire-project.eu/ontology/ns/value>\n" +
-                    "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n";
+                    "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
+                    "<http://www.w3.org/2002/07/owl#sameAs> " +
+                    "<http://uberdust.cti.gr/" + tiny(resourceURI.toString()) + ">.\n" +
+                    "<http://uberdust.cti.gr/" + tiny(resourceURI.toString()) + "> " +
+                    "<http://www.w3.org/2002/07/owl#sameAs> " +
+                    "<" + (resourceURI).toString() + "attachedSystem>.";
 
         } else if (fan.matcher(capability).find()) {
             description += ";\n" +
@@ -171,7 +286,12 @@ public class UberdustNodeHelper {
                     "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#fan>;\n" +
                     "<http://spitfire-project.eu/ontology/ns/value>\n" +
-                    "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n";
+                    "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
+                    "<http://www.w3.org/2002/07/owl#sameAs> " +
+                    "<http://uberdust.cti.gr/" + tiny(resourceURI.toString()) + ">.\n" +
+                    "<http://uberdust.cti.gr/" + tiny(resourceURI.toString()) + "> " +
+                    "<http://www.w3.org/2002/07/owl#sameAs> " +
+                    "<" + (resourceURI).toString() + "attachedSystem>.\n";
         } else {
             description += ";\n" +
                     "<http://spitfire-project.eu/ontology/ns/obs>\n" +
@@ -208,8 +328,13 @@ public class UberdustNodeHelper {
         return description;
     }
 
+    /**
+     * Get the URI of the resource associated to the Uberdust Capability.
+     *
+     * @param uberdustURL the Uberdust Capability URI.
+     * @return the URI of the Capability using the Spitfire ontologies.
+     */
     private static String getSameAs(String uberdustURL) {
-//        final String uberdustURL = "http://uberdust.cti.gr/rest/testbed/1/capability/urn:wisebed:node:capability:light/rdf";
         String sameAs = uberdustURL;
         try {
             URL url = new URL(uberdustURL);
@@ -231,6 +356,10 @@ public class UberdustNodeHelper {
         return sameAs;
     }
 
+    public static String tiny(String resourceURI) {
+        return "http://uberdust.cti.gr/" + String.valueOf(resourceURI.hashCode()).replaceAll("-", "");
+    }
+
     /**
      * Returns a Jena Model of the Node.
      *
@@ -250,7 +379,7 @@ public class UberdustNodeHelper {
                                  final String name) {
         Model model = ModelFactory.createDefaultModel();
         try {
-            ByteArrayInputStream bin = new ByteArrayInputStream(toRDF(
+            ByteArrayInputStream bin = new ByteArrayInputStream(toNEWRDF(
                     testbed,
                     prefix,
                     capabilityResource,
@@ -271,15 +400,51 @@ public class UberdustNodeHelper {
         return model;
     }
 
-
+    /**
+     * Generate the resource uri for the Uberdust Node Capability.
+     *
+     * @param testbed
+     * @param node
+     * @param capability
+     * @return
+     * @throws URISyntaxException
+     */
     public static String getResourceURI(final String testbed, final String node, final String capability) throws URISyntaxException {
-//        return "http://uberdust.cti.gr/rest/testbed/" + node.getTestbed() + "/node/" + node.getName() + "/capability/" + node.getCapability() + "/";
         return new URI("http", null, "uberdust.cti.gr", -1, "/rest/testbed/" + testbed + "/node/" + node + "/capability/" + capability + "/", null, null).toString();
     }
 
+    public static String getDeviceURI(final String testbed, final String node) throws URISyntaxException {
+        return new URI("http", null, "uberdust.cti.gr", -1, "/rest/testbed/" + testbed + "/node/" + node + "/rdf", null, null).toString();
+    }
+
+    /**
+     * Generate the resource uri for the Uberdust Capability.
+     *
+     * @param testbed
+     * @param capability
+     * @return
+     * @throws URISyntaxException
+     */
     public static String getCapabilityResourceURI(final String testbed, final String capability) throws URISyntaxException {
-//        return "http://uberdust.cti.gr/rest/testbed/" + node.getTestbed() + "/capability/" + node.getCapability() + "/rdf";
         return new URI("http", null, "uberdust.cti.gr", -1, "/rest/testbed/" + testbed + "/capability/" + capability + "/rdf", null, null).toString();
     }
 
+    /**
+     * Convert a tiny url to a full URI.
+     *
+     * @param uri
+     * @return
+     * @throws URISyntaxException
+     */
+    public static String unWrap(String uri) throws URISyntaxException {
+        for (String uri1 : tinyURIS.keySet()) {
+            System.out.println("TINY:" + uri1 + "@" + tinyURIS.get(uri1));
+        }
+        if (tinyURIS.containsKey(uri)) {
+            System.out.println("unwrapping:");
+            return tinyURIS.get(uri);
+        } else {
+            return null;
+        }
+    }
 }
