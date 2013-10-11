@@ -31,12 +31,14 @@ import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
 import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * Implements the {@link BackendComponentFactory} to enable connecting to Uberdust and displaying the information
  * from the existing non IPv6 sensors and actuators available from it.
+ *
  * @author Dimitrios Amaxilatis
  */
 public class UberdustBackendComponentFactory extends BackendComponentFactory<URI> {
@@ -47,11 +49,13 @@ public class UberdustBackendComponentFactory extends BackendComponentFactory<URI
     /**
      * WebSocket Connection to the Uberdust Server.
      */
-    private final UberdustObserver uberdustObserver;
+    private UberdustObserver uberdustObserver;
     /**
      * HTTP Request processor used to forward correctly the actuation post requests.
      */
-    private final SemanticHttpRequestProcessor httpRequestProcessor;
+    private SemanticHttpRequestProcessor httpRequestProcessor;
+    private final ScheduledExecutorService scheduleExecutorService;
+    private final LocalPipelineFactory localServerChannel;
 
     /**
      * Constructor Class.
@@ -65,16 +69,20 @@ public class UberdustBackendComponentFactory extends BackendComponentFactory<URI
                                            ScheduledExecutorService scheduledExecutorService, String sspHostName,
                                            int sspHttpPort) throws Exception {
         super(prefix, localServerChannel, scheduledExecutorService, sspHostName, sspHttpPort);
-
-        //create a new Uberdsust observer.
-        this.uberdustObserver = new UberdustObserver(this, scheduledExecutorService, localServerChannel);
-        //create a handler for http requests and associcate with the observer.
-        httpRequestProcessor = new UberdustHttpRequestProcessor(this, this.uberdustObserver);
+        this.scheduleExecutorService = scheduledExecutorService;
+        this.localServerChannel = localServerChannel;
     }
 
     @Override
     public void initialize() {
-        //Nothing to do here...
+        //create a new Uberdsust observer.
+        try {
+            this.uberdustObserver = new UberdustObserver(this, scheduleExecutorService, localServerChannel);
+        } catch (IOException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
+        //create a handler for http requests and associcate with the observer.
+        this.httpRequestProcessor = new UberdustHttpRequestProcessor(this, this.uberdustObserver);
     }
 
     @Override
