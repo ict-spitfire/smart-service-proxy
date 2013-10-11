@@ -41,7 +41,7 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         initializeLogging();
-        log.info("START!");
+        log.info("START SSP!");
 
         Configuration config = new PropertiesConfiguration("ssp.properties");
         ComponentFactory componentFactory = new ComponentFactory(config);
@@ -50,13 +50,15 @@ public class Main {
         int port = config.getInt("SSP_HTTP_SERVER_PORT", 8080);
         ServerBootstrap serverBootstrap = componentFactory.getServerBootstrap();
         serverBootstrap.bind(new InetSocketAddress(port));
-        log.info("SSP started (listening on port {})", port);
+        log.info("HTTP proxy started (listening on port {})", port);
 
 
         //Start the backends
         for (BackendComponentFactory backendComponentFactory : componentFactory.getBackendComponentFactories()) {
             backendComponentFactory.initializeBackendComponents();
         }
+
+        log.info("SSP succesfully started!");
     }
 
 

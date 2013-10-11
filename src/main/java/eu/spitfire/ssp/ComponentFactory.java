@@ -94,19 +94,8 @@ public class ComponentFactory {
 
         for (String proxyServiceManagerName : enabledBackends) {
 
-            if (proxyServiceManagerName.equals("coap")) {
-                log.info("Create CoAP Backend");
-                InetAddress registrationServerAddress =
-                        InetAddress.getByName(config.getString("coap.registration.server.ip"));
-                BackendComponentFactory backendComponentFactory =
-                        new CoapBackendComponentFactory("coap", localPipelineFactory, scheduledExecutorService,
-                                sspHostName, sspHttpPort, registrationServerAddress);
-                this.backendComponentFactories.add(backendComponentFactory);
-                continue;
-            }
-
-            //Local files_OLD
-            else if (proxyServiceManagerName.equals("files")) {
+            //Local files
+            if (proxyServiceManagerName.equals("files")) {
                 String directory = config.getString("files.directory");
                 if (directory == null) {
                     throw new Exception("Property 'files.directory' not set.");
@@ -118,13 +107,23 @@ public class ComponentFactory {
                                 sspHostName, sspHttpPort, Paths.get(directory), copyExamples);
                 this.backendComponentFactories.add(backendComponentFactory);
                 continue;
+            }
 
-            } else if (proxyServiceManagerName.equals("uberdust")) {
-                log.info("Create Uberdust Gateway.");
+            else if (proxyServiceManagerName.equals("coap")) {
+                log.info("Create CoAP Backend");
+                InetAddress registrationServerAddress =
+                        InetAddress.getByName(config.getString("coap.registration.server.ip"));
+                BackendComponentFactory backendComponentFactory =
+                        new CoapBackendComponentFactory("coap", localPipelineFactory, scheduledExecutorService,
+                                sspHostName, sspHttpPort, registrationServerAddress);
+                this.backendComponentFactories.add(backendComponentFactory);
+                continue;
+            }
 
-
-                this.backendComponentFactories.add(new UberdustBackendComponentFactory("uberdust", localPipelineFactory, scheduledExecutorService,
-                        sspHostName, sspHttpPort));
+            else if (proxyServiceManagerName.equals("uberdust")) {
+                log.info("Create Uberdust Backend");
+                this.backendComponentFactories.add(new UberdustBackendComponentFactory("uberdust",
+                        localPipelineFactory, scheduledExecutorService, sspHostName, sspHttpPort));
             }
 
             //Unknown AbstractGatewayFactory type
@@ -156,17 +155,19 @@ public class ComponentFactory {
         //create the bootstrap
         this.serverBootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
                 Executors.newCachedThreadPool(),
-                Executors.newCachedThreadPool(), ioThreads
+                Executors.newCachedThreadPool()
         ));
 
-        this.serverBootstrap.setOption("tcpNoDelay", tcpNoDelay);
+        this.serverBootstrap.setOption("tcpNoDelay", false);
 
         LinkedHashSet<ChannelHandler> handler = new LinkedHashSet<>();
+
         handler.add(executionHandler);
+
         if (!(mqttResourceHandler == null))
             handler.add(mqttResourceHandler);
-        handler.add(semanticCache);
 
+        handler.add(semanticCache);
         handler.add(httpRequestDispatcher);
 
         this.serverBootstrap.setPipelineFactory(new SmartServiceProxyPipelineFactory(handler));
@@ -177,13 +178,13 @@ public class ComponentFactory {
         int executionThreads = config.getInt("SSP_REQUEST_EXECUTION_THREADS");
         int messageQueueSize = config.getInt("SSP_MESSAGE_QUEUE_SIZE");
 
-        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP-I/O-Thread #%d")
+        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP-REQUEST-EXECUTION-Thread #%d")
                 .build();
 
         this.ioExecutorService = new OrderedMemoryAwareThreadPoolExecutor(executionThreads, 0, messageQueueSize,
                 60, TimeUnit.SECONDS, threadFactory);
 
-        log.debug("I/O Executor Service created.");
+        log.debug("Request-Executor-Service created.");
     }
 
 

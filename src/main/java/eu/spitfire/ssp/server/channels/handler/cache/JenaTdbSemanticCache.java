@@ -54,8 +54,8 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
         if (ontologyBaseModel == null) {
             ontologyBaseModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-            ontologyBaseModel.read(SPT_SOURCE, "RDF/XML");
-            ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
+//            ontologyBaseModel.read(SPT_SOURCE, "RDF/XML");
+//            ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
         }
     }
 

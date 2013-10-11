@@ -25,7 +25,8 @@
 package eu.spitfire.ssp.server.channels;
 
 import eu.spitfire.ssp.server.channels.handler.*;
-import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
+import eu.spitfire.ssp.server.channels.handler.DummyHandler;
+import org.apache.commons.logging.impl.SLF4JLogFactory;
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
@@ -34,13 +35,14 @@ import org.jboss.netty.handler.codec.http.HttpChunkAggregator;
 import org.jboss.netty.handler.codec.http.HttpContentCompressor;
 import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
-import org.jboss.netty.handler.execution.ExecutionHandler;
+import org.jboss.netty.handler.logging.LoggingHandler;
+import org.jboss.netty.logging.InternalLoggerFactory;
+import org.jboss.netty.logging.Log4JLoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.LinkedHashSet;
-import java.util.concurrent.ExecutorService;
 
 
 /**
@@ -59,6 +61,7 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
     public SmartServiceProxyPipelineFactory(LinkedHashSet<ChannelHandler> handler)
             throws Exception {
         this.handler = handler;
+        InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory());
     }
 
 
@@ -75,9 +78,7 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 		ChannelPipeline pipeline = Channels.pipeline();
         Iterator<ChannelHandler> handlerIterator = handler.iterator();
 
-        //Execution handler
-        ChannelHandler channelHandler = handlerIterator.next();
-        pipeline.addLast(channelHandler.getClass().getSimpleName(), channelHandler);
+        pipeline.addLast("Logging Handler", new LoggingHandler());
 
         //HTTP protocol handlers
 		pipeline.addLast("HTTP Decoder", new HttpRequestDecoder());
@@ -87,6 +88,11 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 
         //SSP specific handlers
         pipeline.addLast("Payload Formatter", new SemanticPayloadFormatter());
+
+        //Execution handler
+        ChannelHandler channelHandler = handlerIterator.next();
+        pipeline.addLast(channelHandler.getClass().getSimpleName(), channelHandler);
+
         while(handlerIterator.hasNext()){
             channelHandler = handlerIterator.next();
             pipeline.addLast(channelHandler.getClass().getSimpleName(), channelHandler);
