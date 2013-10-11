@@ -46,6 +46,8 @@ public class UberdustNodeHelper {
 
     private static Map<String, Set<String>> attachedSystems = new HashMap<>();
     private static Map<String, String> tinyURIS = new HashMap<String, String>();
+    private static SimpleDateFormat dateFormatGmt = new SimpleDateFormat("yy-MM-dd'T'HH:mm:ss'Z'");
+
 
     /**
      * Constructor for the node reading.
@@ -110,9 +112,22 @@ public class UberdustNodeHelper {
         return getModel(testbed, prefix, capabilityResource, x, y, time, capability, locationName, String.valueOf(value), rooms, workstation, name);
     }
 
-    public static Statement createUpdateStatement(URI subject, Double value) throws Exception {
+    public static Statement createUpdateValueStatement(URI subject, Double value) throws Exception {
+        dateFormatGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
         StringBuilder description = new StringBuilder();
         description.append("<" + subject + "> ").append("<http://spitfire-project.eu/ontology/ns/value> ").append("\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n");
+        Model model = ModelFactory.createDefaultModel();
+        ByteArrayInputStream bin = new ByteArrayInputStream(description.toString().getBytes(Charset.forName("UTF-8")));
+        model.read(bin, null, Language.RDF_N3.lang);
+
+        return model.listStatements().nextStatement();
+    }
+
+    public static Statement createUpdateTimestampStatement(URI subject, Date timestamp) throws Exception {
+        dateFormatGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
+        StringBuilder description = new StringBuilder();
+        description.append("<" + subject + "> ").append("<http://purl.org/dc/terms/#date> ").append("\"" + dateFormatGmt.format(timestamp) + "\";\n");
+
         Model model = ModelFactory.createDefaultModel();
         ByteArrayInputStream bin = new ByteArrayInputStream(description.toString().getBytes(Charset.forName("UTF-8")));
         model.read(bin, null, Language.RDF_N3.lang);
@@ -142,7 +157,6 @@ public class UberdustNodeHelper {
             final String node
 
     ) throws URISyntaxException {
-        SimpleDateFormat dateFormatGmt = new SimpleDateFormat("yy-MM-dd'T'HH:mm:ss'Z'");
         dateFormatGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
         final URI resourceURI = new URI(getResourceURI(testbed, node, capability));
 

@@ -40,7 +40,7 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
     private static String UBERDUST_URL_WS_PORT;
     private static String UBERDUST_OBSERVE_NODES;
     private static String UBERDUST_OBSERVE_CAPABILITIES;
-    private final ScheduledExecutorService scheduledExecutorService;
+    //    private final ScheduledExecutorService scheduledExecutorService;
     private final LocalPipelineFactory localChannel;
     private final BackendResourceManager<URI> backendResourceManager;
 
@@ -58,7 +58,9 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
                             ScheduledExecutorService scheduledExecutorService,
                             LocalPipelineFactory localChannel) throws IOException {
         super(backendComponentFactory);
-        this.scheduledExecutorService = scheduledExecutorService;
+        executor = scheduledExecutorService;
+//        executor = Executors.newFixedThreadPool(16);
+
         this.localChannel = localChannel;
 
 //        tinyURIS = new HashMap<>();
@@ -77,7 +79,7 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
         testbeds.put("urn:gen6:", "8");
 
         ThreadFactory tf = new ThreadFactoryBuilder().setNameFormat("UberdustObserver #%d").build();
-        executor = Executors.newSingleThreadExecutor(tf);
+//        executor = Executors.newSingleThreadExecutor(tf);
 
         Configuration config = null;
         try {
@@ -143,11 +145,17 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
                                                 UberdustNodeHelper.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
                                         cacheResourcesStates(UberdustNodeHelper.generateDescription(reading.getNode(), testbeds.get(prefix), prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
                                     } else {
+//                                        cacheResourcesStates(UberdustNodeHelper.generateDescription(reading.getNode(), testbeds.get(prefix), prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
                                         try {
-                                            Statement statement = UberdustNodeHelper.createUpdateStatement(resourceURI, reading.getDoubleReading());
-                                            updateResourceStatus(statement, null);
+                                            final Statement valueStatement = UberdustNodeHelper.createUpdateValueStatement(resourceURI, reading.getDoubleReading());
+                                            final Statement timeStatement = UberdustNodeHelper.createUpdateTimestampStatement(resourceURI, new Date(reading.getTimestamp()));
+                                            updateResourceStatus(valueStatement, null);
+                                            updateResourceStatus(timeStatement, null);
                                         } catch (Exception e) {
                                             log.error(e.getMessage(), e);
+                                        }
+                                        if (reading.getNode().contains("150") && reading.getNode().contains("64")) {
+                                            System.out.println(reading);
                                         }
                                     }
                                 } catch (Exception e) {
