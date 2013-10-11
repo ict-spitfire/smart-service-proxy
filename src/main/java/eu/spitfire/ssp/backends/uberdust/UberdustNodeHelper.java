@@ -19,6 +19,8 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 
 /**
@@ -44,8 +46,8 @@ public class UberdustNodeHelper {
      */
     private static Pattern relay = Pattern.compile(":[1-9][0-9]*r", Pattern.CASE_INSENSITIVE);
 
-    private static Map<String, Set<String>> attachedSystems = new HashMap<>();
-    private static Map<String, String> tinyURIS = new HashMap<String, String>();
+    private static ConcurrentMap<String, Set<String>> attachedSystems = new ConcurrentHashMap<>();
+    private static ConcurrentMap<String, String> tinyURIS = new ConcurrentHashMap<String, String>();
     private static SimpleDateFormat dateFormatGmt = new SimpleDateFormat("yy-MM-dd'T'HH:mm:ss'Z'");
 
 
