@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
+import com.hp.hpl.jena.ontology.OntModel;
 import com.hp.hpl.jena.ontology.OntModelSpec;
 import com.hp.hpl.jena.query.Dataset;
 import com.hp.hpl.jena.query.Query;
@@ -41,11 +42,24 @@ public class JenaTdbSemanticCache extends SemanticCache {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private Dataset dataset;
+    
+    private static final String SPT_SOURCE = "http://spitfire-project.eu/ontology.rdf";
+    private static final String SPTSN_SOURCE = "http://spitfire-project.eu/sn.rdf";
+    
+    
+    private static OntModel ontologyBaseModel = null;
+
 
     public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory) {
         super(scheduledExecutorService);
         dataset = TDBFactory.createDataset(dbDirectory.toString());
         TDB.getContext().set(TDB.symUnionDefaultGraph, true);
+        
+        if (ontologyBaseModel == null){
+        	ontologyBaseModel = ModelFactory.createOntologyModel( OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+        	ontologyBaseModel.read(SPT_SOURCE, "RDF/XML" );
+        	ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML" );
+        }
     }
 
     @Override
@@ -58,7 +72,8 @@ public class JenaTdbSemanticCache extends SemanticCache {
                 log.warn("No cached status found for resource {}", resourceUri);
                 return null;
             }
-
+            model.add(ontologyBaseModel);
+            
             log.info("Cached status found for resource {}", resourceUri);
             return new InternalResourceStatusMessage(model, new Date());
         } finally {
