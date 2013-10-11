@@ -60,7 +60,7 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
         super(backendComponentFactory);
 //        executor = scheduledExecutorService;
         ThreadFactory tf = new ThreadFactoryBuilder().setNameFormat("UberdustObserver #%d").build();
-        executor = Executors.newCachedThreadPool(tf);
+        executor = Executors.newSingleThreadExecutor(tf);
 
 
         this.localChannel = localChannel;
