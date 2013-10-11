@@ -16,7 +16,7 @@
     </appender>
 
     <logger name="eu.spitfire.ssp" additivity="false">
-        <level value="ERROR"/>
+        <level value="DEBUG"/>
         <appender-ref ref="async"/>
     </logger>
 

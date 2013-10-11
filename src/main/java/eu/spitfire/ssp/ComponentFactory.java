@@ -154,8 +154,8 @@ public class ComponentFactory {
 
         //create the bootstrap
         this.serverBootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
-                Executors.newCachedThreadPool(),
-                Executors.newCachedThreadPool()
+                Executors.newSingleThreadExecutor(),
+                Executors.newFixedThreadPool(16)
         ));
 
         this.serverBootstrap.setOption("tcpNoDelay", false);

@@ -78,7 +78,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * @throws Exception in case of an error
      */
     @Override
-    public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
+    public void messageReceived(ChannelHandlerContext ctx, final MessageEvent me) throws Exception {
 
         if (!(me.getMessage() instanceof HttpRequest)) {
             ctx.sendUpstream(me);
@@ -103,9 +103,22 @@ public abstract class SemanticCache extends SimpleChannelHandler {
             if(cachedResource != null){
                 log.debug("Cached status for {} found.", resourceUri);
 
-                ChannelFuture future = Channels.future(ctx.getChannel());
-                Channels.write(ctx, future, cachedResource, me.getRemoteAddress());
+                //me.getFuture().setSuccess();
+
+                ChannelFuture future = me.getFuture();
+                DownstreamMessageEvent dme = new DownstreamMessageEvent(ctx.getChannel(), future, cachedResource, me.getRemoteAddress());
+                ctx.sendDownstream(dme);
+                //Channels.write(ctx, future, cachedResource, me.getRemoteAddress());
                 future.addListener(ChannelFutureListener.CLOSE);
+                future.addListener(new ChannelFutureListener(){
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        if(future.isSuccess())
+                            log.info("Succesfully sent message to {}", me.getRemoteAddress());
+                        else
+                            log.error("Something went wrong", future.getCause());
+                    }
+                });
             }
             else{
                 log.debug("NO cached status for {} found. Try to get a fresh one.", resourceUri);

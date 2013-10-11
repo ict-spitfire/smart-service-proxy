@@ -106,9 +106,8 @@ public class JenaTdbSemanticCache extends SemanticCache {
 			}
 			log.info("Cached status found for resource {}", resourceUri);
 			return new InternalResourceStatusMessage(model, new Date());
-		} finally
-
-		{
+		}
+        finally{
 			dataset.end();
 		}
 
@@ -127,7 +126,8 @@ public class JenaTdbSemanticCache extends SemanticCache {
 			dataset.addNamedModel(resourceUri.toString(), owlFullModel);
 			dataset.commit();
 			log.debug("Added status for resource {}", resourceUri);
-		} finally {
+		}
+        finally {
 			dataset.end();
 		}
 	}

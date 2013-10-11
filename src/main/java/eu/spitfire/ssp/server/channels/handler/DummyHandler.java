@@ -1,6 +1,7 @@
 package eu.spitfire.ssp.server.channels.handler;
 
 import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
 import org.slf4j.Logger;
@@ -27,6 +28,11 @@ public class DummyHandler extends SimpleChannelHandler {
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
         log.info("Message to be sent to {}", me.getRemoteAddress());
         ctx.sendDownstream(me);
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent event){
+        log.error("Exception caught: {}", event.getCause());
     }
 
 }

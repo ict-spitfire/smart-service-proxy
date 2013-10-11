@@ -54,7 +54,7 @@ import static org.jboss.netty.handler.codec.http.HttpResponseStatus.OK;
  */
 public class SemanticPayloadFormatter extends SimpleChannelHandler {
 
-    public static final Language DEFAULT_LANGUAGE = Language.RDF_N3;
+    public static final Language DEFAULT_LANGUAGE = Language.RDF_XML;
     public static final long MILLIS_PER_YEAR = 31536000730L;
 
     private static Logger log = LoggerFactory.getLogger(SemanticPayloadFormatter.class.getName());
