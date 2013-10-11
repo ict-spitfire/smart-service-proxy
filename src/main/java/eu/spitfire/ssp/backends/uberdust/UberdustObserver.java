@@ -121,6 +121,7 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
                         if (arg instanceof Message.NodeReadings) {
                             Message.NodeReadings.Reading reading = ((Message.NodeReadings) arg).getReading(0);
 //                            log.info(reading.toString());
+                            log.error((System.currentTimeMillis() - reading.getTimestamp()) + " Adiff in millis " + reading.getNode() + " " + reading.getCapability());
                             if (reading.hasDoubleReading()) {
                                 try {
                                     if (reading.getNode().contains("santander")) return;
@@ -154,9 +155,10 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
                                         } catch (Exception e) {
                                             log.error(e.getMessage(), e);
                                         }
-                                        if (reading.getNode().contains("150") && reading.getNode().contains("64")) {
-                                            System.out.println(reading);
-                                        }
+//                                        if (reading.getNode().contains("150") && reading.getNode().contains("64") && reading.getCapability().contains("2s")) {
+                                        log.error((System.currentTimeMillis() - reading.getTimestamp()) + " diff in millis " + reading.getNode() + " " + reading.getCapability());
+                                        log.error(Thread.activeCount() + " Threads Running.");
+//                                        }
                                     }
                                 } catch (Exception e) {
                                     log.error(e.getMessage(), e);

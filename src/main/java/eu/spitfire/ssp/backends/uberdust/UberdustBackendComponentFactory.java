@@ -71,6 +71,8 @@ public class UberdustBackendComponentFactory extends BackendComponentFactory<URI
         super(prefix, localServerChannel, scheduledExecutorService, sspHostName, sspHttpPort);
         this.scheduleExecutorService = scheduledExecutorService;
         this.localServerChannel = localServerChannel;
+        //create a handler for http requests and associcate with the observer.
+        this.httpRequestProcessor = new UberdustHttpRequestProcessor(this);
     }
 
     @Override
@@ -81,8 +83,6 @@ public class UberdustBackendComponentFactory extends BackendComponentFactory<URI
         } catch (IOException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
-        //create a handler for http requests and associcate with the observer.
-        this.httpRequestProcessor = new UberdustHttpRequestProcessor(this, this.uberdustObserver);
     }
 
     @Override
