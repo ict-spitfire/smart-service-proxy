@@ -62,82 +62,37 @@ public class JenaTdbSemanticCache extends SemanticCache {
 		//Collect the SPITFIRE vocabularies
 		if (ontologyBaseModel == null) {
 			ontologyBaseModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);
-//			if (isUriAccessible(SPT_SOURCE)){
-//				ontologyBaseModel.read(SPT_SOURCE, "RDF/XML");
-//			}
-//			if (isUriAccessible(SPTSN_SOURCE)){
-//				ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
-//			}
-
-			//            =======TEST=======
-			//            printModel(ontologyBaseModel);
-			//            URI spturi;
-			//            String SPT_NS = "http://spitfire-project.eu/ontology/ns/";
-			//            String SPT_NS_SN = "http://spitfire-project.eu/ontology/ns/sn/";
-			//            ontologyBaseModel.add(ontologyBaseModel.createResource(SPT_NS+"desk_a"), 
-			//            		ontologyBaseModel.getProperty(SPT_NS+"containedIn"), 
-			//            		ontologyBaseModel.createResource(SPT_NS+"floor3"));
-			//            ontologyBaseModel.add(ontologyBaseModel.createResource(SPT_NS+"floor3"), 
-			//            		ontologyBaseModel.getProperty(SPT_NS+"containedIn"), 
-			//            		ontologyBaseModel.createResource(SPT_NS+"cti"));
-			//            String uri = SPT_NS;
-			//			try {
-			//				OntModel modelReasoner = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-			//				modelReasoner.add(ontologyBaseModel);
-			//				uri= SPT_NS+"fan123";
-			//				modelReasoner.add(modelReasoner.createResource(uri), RDF.type, 
-			//						modelReasoner.createResource(SPT_NS_SN+"Fan"));
-			//				spturi = new URI(uri);
-			//				printModel(ontologyBaseModel);
-			//				putResourceToCache(spturi, modelReasoner);
-			//				
-			//			} catch (URISyntaxException e) {
-			//				System.err.println("Unable to create a URI for the ontology " + SPT_NS);
-			//				e.printStackTrace();
-			//			} catch (Exception e) {
-			//				System.err.println("Unable to store the ontology " + SPT_NS);
-			//				e.printStackTrace();
-			//			}
+			if (isUriAccessible(SPT_SOURCE)){
+				ontologyBaseModel.read(SPT_SOURCE, "RDF/XML");
+			}
+			if (isUriAccessible(SPTSN_SOURCE)){
+				ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
+			}
 
 		}
 	}
 
-	private boolean isUriAccessible(String uri){
+	private static boolean isUriAccessible(String uri){
 		HttpURLConnection connection = null;
-
+		int code = -1;
 		URL myurl;
 		try {
 			myurl = new URL(uri);
 
 			connection = (HttpURLConnection) myurl.openConnection();        
 			connection.setRequestMethod("GET");         
-			connection.setReadTimeout(1000);
-			int code = connection.getResponseCode();
+			connection.setConnectTimeout(1000);
+			code = connection.getResponseCode();
 		} catch (MalformedURLException e){
 			System.err.println(uri+" is not accessible.");
-			return false;
 		} catch (ProtocolException e) {
 			System.err.println(uri+" is not accessible.");
-			return false;
 		} catch (IOException e) {
 			System.err.println(uri+" is not accessible.");
-			return false;
 		}
-		return true;
+		return (code==200)?true:false;
 	}
 
-	//    private static void printModel(OntModel model) {
-	//		StmtIterator stit = model.listStatements();
-	//		Statement st = null;
-	//		System.out.println("\n\n\n********MODEL START*********\n\n\n");
-	//		while (stit.hasNext()){
-	//			st = stit.next();
-	//			System.out.println("S: "+st.getSubject());
-	//			System.out.println("P: "+st.getPredicate());
-	//			System.out.println("O: "+st.getObject());
-	//		}
-	//		System.out.println("\n\n\n********MODEL END*********\n\n\n");
-	//	}
 
 	@Override
 	public InternalResourceStatusMessage getCachedResource(URI resourceUri) throws Exception {
@@ -249,3 +204,4 @@ public class JenaTdbSemanticCache extends SemanticCache {
 		return true;
 	}
 }
+
