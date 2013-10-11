@@ -162,8 +162,8 @@ public class UberdustNodeHelper {
 
         StringBuilder description = new StringBuilder();
         updateAttachedSystems(node, capability);
-
-        Iterator<String> asi = attachedSystems.get(node).iterator();
+        Set<String> availableAttachedSystems = new HashSet<String>(attachedSystems.get(node));
+        Iterator<String> asi = availableAttachedSystems.iterator();
         StringBuilder asObject = new StringBuilder();
         while (asi.hasNext()) {
             asObject.append(",").append("<" + getResourceURI(testbed, node, asi.next()) + ">");
