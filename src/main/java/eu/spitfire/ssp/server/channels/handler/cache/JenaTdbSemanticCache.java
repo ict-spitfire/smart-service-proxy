@@ -2,12 +2,9 @@ package eu.spitfire.ssp.server.channels.handler.cache;
 
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
-
-import com.hp.hpl.jena.rdf.model.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,9 +21,12 @@ import com.hp.hpl.jena.query.QueryFactory;
 import com.hp.hpl.jena.query.ReadWrite;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.RDFNode;
+import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.tdb.TDB;
 import com.hp.hpl.jena.tdb.TDBFactory;
-import com.hp.hpl.jena.vocabulary.RDF;
 
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 
@@ -39,17 +39,14 @@ import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
  */
 public class JenaTdbSemanticCache extends SemanticCache {
 
-    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
+	private static final String SPT_SOURCE = "http://spitfire-project.eu/ontology.rdf";
+    private static final String SPTSN_SOURCE = "http://spitfire-project.eu/sn.rdf";
+    
+    private static OntModel ontologyBaseModel = null;
+	
+	private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private Dataset dataset;
-
-    private static final String SPT_SOURCE = "http://spitfire-project.eu/ontology.rdf";
-    private static final String SPTSN_SOURCE = "http://spitfire-project.eu/sn.rdf";
-    private static final String SPT_NS = "http://spitfire-project.eu/ontology/ns/";
-    private static final String SPT_NS_SN = "http://spitfire-project.eu/ontology/ns/sn/";
-
-
-    private static OntModel ontologyBaseModel = null;
 
 
     public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory)  {
@@ -65,6 +62,8 @@ public class JenaTdbSemanticCache extends SemanticCache {
 //            =======TEST=======
 //            printModel(ontologyBaseModel);
 //            URI spturi;
+//            String SPT_NS = "http://spitfire-project.eu/ontology/ns/";
+//            String SPT_NS_SN = "http://spitfire-project.eu/ontology/ns/sn/";
 //            String uri = SPT_NS;
 //			try {
 //				OntModel modelReasoner = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
@@ -87,18 +86,18 @@ public class JenaTdbSemanticCache extends SemanticCache {
         }
     }
     
-    private static void printModel(OntModel model) {
-		StmtIterator stit = model.listStatements();
-		Statement st = null;
-		System.out.println("\n\n\n********MODEL START*********\n\n\n");
-		while (stit.hasNext()){
-			st = stit.next();
-			System.out.println("S: "+st.getSubject());
-			System.out.println("P: "+st.getPredicate());
-			System.out.println("O: "+st.getObject());
-		}
-		System.out.println("\n\n\n********MODEL END*********\n\n\n");
-	}
+//    private static void printModel(OntModel model) {
+//		StmtIterator stit = model.listStatements();
+//		Statement st = null;
+//		System.out.println("\n\n\n********MODEL START*********\n\n\n");
+//		while (stit.hasNext()){
+//			st = stit.next();
+//			System.out.println("S: "+st.getSubject());
+//			System.out.println("P: "+st.getPredicate());
+//			System.out.println("O: "+st.getObject());
+//		}
+//		System.out.println("\n\n\n********MODEL END*********\n\n\n");
+//	}
 
     @Override
     public InternalResourceStatusMessage getCachedResource(URI resourceUri) throws Exception {
