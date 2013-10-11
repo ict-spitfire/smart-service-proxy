@@ -2,11 +2,13 @@ package eu.spitfire.ssp.server.channels.handler.cache;
 
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
 
 import com.hp.hpl.jena.rdf.model.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +26,7 @@ import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.hp.hpl.jena.tdb.TDB;
 import com.hp.hpl.jena.tdb.TDBFactory;
+import com.hp.hpl.jena.vocabulary.RDF;
 
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 
@@ -42,22 +45,60 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
     private static final String SPT_SOURCE = "http://spitfire-project.eu/ontology.rdf";
     private static final String SPTSN_SOURCE = "http://spitfire-project.eu/sn.rdf";
+    private static final String SPT_NS = "http://spitfire-project.eu/ontology/ns/";
+    private static final String SPT_NS_SN = "http://spitfire-project.eu/ontology/ns/sn/";
 
 
     private static OntModel ontologyBaseModel = null;
 
 
-    public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory) {
+    public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory)  {
         super(scheduledExecutorService);
         dataset = TDBFactory.createDataset(dbDirectory.toString());
         TDB.getContext().set(TDB.symUnionDefaultGraph, true);
 
+        //Collect the SPITFIRE vocabularies
         if (ontologyBaseModel == null) {
-            ontologyBaseModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+            ontologyBaseModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);
             ontologyBaseModel.read(SPT_SOURCE, "RDF/XML");
             ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
+//            =======TEST=======
+//            printModel(ontologyBaseModel);
+//            URI spturi;
+//            String uri = SPT_NS;
+//			try {
+//				OntModel modelReasoner = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+//				modelReasoner.add(ontologyBaseModel);
+//				uri= SPT_NS+"fan123";
+//				modelReasoner.add(modelReasoner.createResource(uri), RDF.type, 
+//						modelReasoner.createResource(SPT_NS_SN+"Fan"));
+//				spturi = new URI(uri);
+//				printModel(ontologyBaseModel);
+//				putResourceToCache(spturi, modelReasoner);
+//				
+//			} catch (URISyntaxException e) {
+//				System.err.println("Unable to create a URI for the ontology " + SPT_NS);
+//				e.printStackTrace();
+//			} catch (Exception e) {
+//				System.err.println("Unable to store the ontology " + SPT_NS);
+//				e.printStackTrace();
+//			}
+
         }
     }
+    
+    private static void printModel(OntModel model) {
+		StmtIterator stit = model.listStatements();
+		Statement st = null;
+		System.out.println("\n\n\n********MODEL START*********\n\n\n");
+		while (stit.hasNext()){
+			st = stit.next();
+			System.out.println("S: "+st.getSubject());
+			System.out.println("P: "+st.getPredicate());
+			System.out.println("O: "+st.getObject());
+		}
+		System.out.println("\n\n\n********MODEL END*********\n\n\n");
+	}
 
     @Override
     public InternalResourceStatusMessage getCachedResource(URI resourceUri) throws Exception {
@@ -86,6 +127,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
         dataset.begin(ReadWrite.WRITE);
         try {
             Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+            owlFullModel.add(ontologyBaseModel);
             owlFullModel.add(resourceStatus);
 //            dataset.addNamedModel(resourceUri.toString(), resourceStatus);
             dataset.addNamedModel(resourceUri.toString(), owlFullModel);
@@ -142,14 +184,12 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
     public synchronized void processSparqlQuery(SettableFuture<String> queryResultFuture, String sparqlQuery) {
 
-        dataset.begin(ReadWrite.READ);
-        Model model = dataset.getNamedModel("DEFAULT");
-        model.add(ontologyBaseModel);
+        dataset.begin(ReadWrite.READ);        
         try {
             log.info("Start SPARQL query processing: {}", sparqlQuery);
 
             Query query = QueryFactory.create(sparqlQuery);
-            QueryExecution queryExecution = QueryExecutionFactory.create(query, model);
+            QueryExecution queryExecution = QueryExecutionFactory.create(query, dataset);
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             try {
