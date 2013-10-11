@@ -202,7 +202,7 @@ public class UberdustNodeHelper {
             description.append("<" + fullURI + "> ").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + tinyURI + ">.\n");
             description.append("<" + tinyURI + ">").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + fullURI + ">.\n");
 
-            description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://www.w3.org/2000/01/rdf-schema#type> ").append("<http://spitfire-project.eu/ontology/ns/sn/Switch>;\n");
+            description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ").append("<http://spitfire-project.eu/ontology/ns/sn/Switch>;\n");
         } else if (fan.matcher(capability).find()) {
             String fullURI = getResourceURI(testbed, node, capability);
             String tinyURI = tiny(getResourceURI(testbed, node, capability));
@@ -210,7 +210,7 @@ public class UberdustNodeHelper {
             description.append("<" + fullURI + "> ").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + tinyURI + ">.\n");
             description.append("<" + tinyURI + ">").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + fullURI + ">.\n");
 
-            description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://www.w3.org/2000/01/rdf-schema#type> ").append("<http://spitfire-project.eu/ontology/ns/sn/Fan>;");
+            description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ").append("<http://spitfire-project.eu/ontology/ns/sn/Fan>;");
         } else {
             description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://purl.org/dc/terms/#date> ").append("\"" + dateFormatGmt.format(time) + "\";\n");
             description.append("<http://spitfire-project.eu/ontology/ns/obs> ").append("<" + capabilityResource + ">;\n");
@@ -268,7 +268,7 @@ public class UberdustNodeHelper {
                     "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>\n" +
                     "<" + (resourceURI).toString() + "attachedSystem>.\n" +
                     "<" + (resourceURI).toString() + "attachedSystem>\n" +
-                    "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
+                    "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#switch>;\n" +
                     "<http://spitfire-project.eu/ontology/ns/value>\n" +
                     "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
@@ -283,7 +283,7 @@ public class UberdustNodeHelper {
                     "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>\n" +
                     "<" + (resourceURI).toString() + "attachedSystem>.\n" +
                     "<" + (resourceURI).toString() + "attachedSystem>\n" +
-                    "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
+                    "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\n" +
                     "<http://purl.oclc.org/NET/ssnx/ssn#fan>;\n" +
                     "<http://spitfire-project.eu/ontology/ns/value>\n" +
                     "\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
@@ -323,7 +323,7 @@ public class UberdustNodeHelper {
         description += "\n" +
                 "\n" +
                 "<" + capabilityResource + ">\n" +
-                "<http://www.w3.org/2000/01/rdf-schema#type>\n" +
+                "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\n" +
                 "<http://purl.oclc.org/NET/ssnx/ssn#Property>.";
         return description;
     }
