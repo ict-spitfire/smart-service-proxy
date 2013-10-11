@@ -1,7 +1,12 @@
 package eu.spitfire.ssp.server.channels.handler.cache;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URI;
+import java.net.URL;
 import java.nio.file.Path;
 import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
@@ -40,175 +45,207 @@ import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 public class JenaTdbSemanticCache extends SemanticCache {
 
 	private static final String SPT_SOURCE = "http://spitfire-project.eu/ontology.rdf";
-    private static final String SPTSN_SOURCE = "http://spitfire-project.eu/sn.rdf";
-    
-    private static OntModel ontologyBaseModel = null;
-	
+	private static final String SPTSN_SOURCE = "http://spitfire-project.eu/sn.rdf";
+
+	private static OntModel ontologyBaseModel = null;
+
 	private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private Dataset dataset;
+	private Dataset dataset;
 
 
-    public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory)  {
-        super(scheduledExecutorService);
-        dataset = TDBFactory.createDataset(dbDirectory.toString());
-        TDB.getContext().set(TDB.symUnionDefaultGraph, true);
+	public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory)  {
+		super(scheduledExecutorService);
+		dataset = TDBFactory.createDataset(dbDirectory.toString());
+		TDB.getContext().set(TDB.symUnionDefaultGraph, true);
 
-        //Collect the SPITFIRE vocabularies
-        if (ontologyBaseModel == null) {
-            ontologyBaseModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);
-            ontologyBaseModel.read(SPT_SOURCE, "RDF/XML");
-            ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
-//            =======TEST=======
-//            printModel(ontologyBaseModel);
-//            URI spturi;
-//            String SPT_NS = "http://spitfire-project.eu/ontology/ns/";
-//            String SPT_NS_SN = "http://spitfire-project.eu/ontology/ns/sn/";
-//            String uri = SPT_NS;
-//			try {
-//				OntModel modelReasoner = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-//				modelReasoner.add(ontologyBaseModel);
-//				uri= SPT_NS+"fan123";
-//				modelReasoner.add(modelReasoner.createResource(uri), RDF.type, 
-//						modelReasoner.createResource(SPT_NS_SN+"Fan"));
-//				spturi = new URI(uri);
-//				printModel(ontologyBaseModel);
-//				putResourceToCache(spturi, modelReasoner);
-//				
-//			} catch (URISyntaxException e) {
-//				System.err.println("Unable to create a URI for the ontology " + SPT_NS);
-//				e.printStackTrace();
-//			} catch (Exception e) {
-//				System.err.println("Unable to store the ontology " + SPT_NS);
-//				e.printStackTrace();
+		//Collect the SPITFIRE vocabularies
+		if (ontologyBaseModel == null) {
+			ontologyBaseModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);
+//			if (isUriAccessible(SPT_SOURCE)){
+//				ontologyBaseModel.read(SPT_SOURCE, "RDF/XML");
+//			}
+//			if (isUriAccessible(SPTSN_SOURCE)){
+//				ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
 //			}
 
-        }
-    }
-    
-//    private static void printModel(OntModel model) {
-//		StmtIterator stit = model.listStatements();
-//		Statement st = null;
-//		System.out.println("\n\n\n********MODEL START*********\n\n\n");
-//		while (stit.hasNext()){
-//			st = stit.next();
-//			System.out.println("S: "+st.getSubject());
-//			System.out.println("P: "+st.getPredicate());
-//			System.out.println("O: "+st.getObject());
-//		}
-//		System.out.println("\n\n\n********MODEL END*********\n\n\n");
-//	}
+			//            =======TEST=======
+			//            printModel(ontologyBaseModel);
+			//            URI spturi;
+			//            String SPT_NS = "http://spitfire-project.eu/ontology/ns/";
+			//            String SPT_NS_SN = "http://spitfire-project.eu/ontology/ns/sn/";
+			//            ontologyBaseModel.add(ontologyBaseModel.createResource(SPT_NS+"desk_a"), 
+			//            		ontologyBaseModel.getProperty(SPT_NS+"containedIn"), 
+			//            		ontologyBaseModel.createResource(SPT_NS+"floor3"));
+			//            ontologyBaseModel.add(ontologyBaseModel.createResource(SPT_NS+"floor3"), 
+			//            		ontologyBaseModel.getProperty(SPT_NS+"containedIn"), 
+			//            		ontologyBaseModel.createResource(SPT_NS+"cti"));
+			//            String uri = SPT_NS;
+			//			try {
+			//				OntModel modelReasoner = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+			//				modelReasoner.add(ontologyBaseModel);
+			//				uri= SPT_NS+"fan123";
+			//				modelReasoner.add(modelReasoner.createResource(uri), RDF.type, 
+			//						modelReasoner.createResource(SPT_NS_SN+"Fan"));
+			//				spturi = new URI(uri);
+			//				printModel(ontologyBaseModel);
+			//				putResourceToCache(spturi, modelReasoner);
+			//				
+			//			} catch (URISyntaxException e) {
+			//				System.err.println("Unable to create a URI for the ontology " + SPT_NS);
+			//				e.printStackTrace();
+			//			} catch (Exception e) {
+			//				System.err.println("Unable to store the ontology " + SPT_NS);
+			//				e.printStackTrace();
+			//			}
 
-    @Override
-    public InternalResourceStatusMessage getCachedResource(URI resourceUri) throws Exception {
-        dataset.begin(ReadWrite.READ);
-        try {
-            Model model = dataset.getNamedModel(resourceUri.toString());
+		}
+	}
 
-            if (model.isEmpty()) {
-                log.warn("No cached status found for resource {}", resourceUri);
-                return null;
-            }
-            log.info("Cached status found for resource {}", resourceUri);
-            return new InternalResourceStatusMessage(model, new Date());
-        } finally
+	private boolean isUriAccessible(String uri){
+		HttpURLConnection connection = null;
 
-        {
-            dataset.end();
-        }
+		URL myurl;
+		try {
+			myurl = new URL(uri);
 
-    }
+			connection = (HttpURLConnection) myurl.openConnection();        
+			connection.setRequestMethod("GET");         
+			connection.setReadTimeout(1000);
+			int code = connection.getResponseCode();
+		} catch (MalformedURLException e){
+			System.err.println(uri+" is not accessible.");
+			return false;
+		} catch (ProtocolException e) {
+			System.err.println(uri+" is not accessible.");
+			return false;
+		} catch (IOException e) {
+			System.err.println(uri+" is not accessible.");
+			return false;
+		}
+		return true;
+	}
 
-    @Override
-    public void putResourceToCache(URI resourceUri, Model resourceStatus) throws Exception {
-        deleteResource(resourceUri);
+	//    private static void printModel(OntModel model) {
+	//		StmtIterator stit = model.listStatements();
+	//		Statement st = null;
+	//		System.out.println("\n\n\n********MODEL START*********\n\n\n");
+	//		while (stit.hasNext()){
+	//			st = stit.next();
+	//			System.out.println("S: "+st.getSubject());
+	//			System.out.println("P: "+st.getPredicate());
+	//			System.out.println("O: "+st.getObject());
+	//		}
+	//		System.out.println("\n\n\n********MODEL END*********\n\n\n");
+	//	}
 
-        dataset.begin(ReadWrite.WRITE);
-        try {
-            Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-            owlFullModel.add(ontologyBaseModel);
-            owlFullModel.add(resourceStatus);
-//            dataset.addNamedModel(resourceUri.toString(), resourceStatus);
-            dataset.addNamedModel(resourceUri.toString(), owlFullModel);
-            dataset.commit();
-            log.debug("Added status for resource {}", resourceUri);
-        } finally {
-            dataset.end();
-        }
-    }
+	@Override
+	public InternalResourceStatusMessage getCachedResource(URI resourceUri) throws Exception {
+		dataset.begin(ReadWrite.READ);
+		try {
+			Model model = dataset.getNamedModel(resourceUri.toString());
 
-    @Override
-    public void deleteResource(URI resourceUri) throws Exception {
-        dataset.begin(ReadWrite.WRITE);
-        try {
-            dataset.removeNamedModel(resourceUri.toString());
-            dataset.commit();
-            log.debug("Removed status for resource {}", resourceUri);
-        } finally {
-            dataset.end();
-        }
-    }
+			if (model.isEmpty()) {
+				log.warn("No cached status found for resource {}", resourceUri);
+				return null;
+			}
+			log.info("Cached status found for resource {}", resourceUri);
+			return new InternalResourceStatusMessage(model, new Date());
+		} finally
 
-    @Override
-    public void updateStatement(Statement statement) throws Exception {
-        dataset.begin(ReadWrite.WRITE);
-        try {
-            Model tdbModel = dataset.getNamedModel(statement.getSubject().toString());
-//            Model model = dataset.getNamedModel(statement.getSubject().toString());
-//            Model tdbModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-//            tdbModel.add(model);
+		{
+			dataset.end();
+		}
 
-            Statement oldStatement = tdbModel.getProperty(statement.getSubject(), statement.getPredicate());
-            Statement updatedStatement;
-            if (oldStatement != null) {
-                if ("http://spitfire-project.eu/ontology/ns/value".equals(oldStatement.getPredicate().toString())) {
-                    RDFNode object =
-                            tdbModel.createTypedLiteral(statement.getObject().asLiteral().getFloat(), XSDDatatype.XSDfloat);
-                    updatedStatement = oldStatement.changeObject(object);
-                    dataset.commit();
+	}
 
-                } else {
-                    updatedStatement = oldStatement.changeObject(statement.getObject());
-                    dataset.commit();
-                }
-                log.info("Updated property {} of resource {} to {}", new Object[]{updatedStatement.getPredicate(),
-                        updatedStatement.getSubject(), updatedStatement.getObject()});
-            } else
-                log.warn("Resource {} not (yet?) found. Could not update property {}.", statement.getSubject(),
-                        statement.getPredicate());
-        } finally {
-            dataset.end();
-        }
-    }
+	@Override
+	public void putResourceToCache(URI resourceUri, Model resourceStatus) throws Exception {
+		deleteResource(resourceUri);
 
-    public synchronized void processSparqlQuery(SettableFuture<String> queryResultFuture, String sparqlQuery) {
+		dataset.begin(ReadWrite.WRITE);
+		try {
+			Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+			owlFullModel.add(ontologyBaseModel);
+			owlFullModel.add(resourceStatus);
+			//            dataset.addNamedModel(resourceUri.toString(), resourceStatus);
+			dataset.addNamedModel(resourceUri.toString(), owlFullModel);
+			dataset.commit();
+			log.debug("Added status for resource {}", resourceUri);
+		} finally {
+			dataset.end();
+		}
+	}
 
-        dataset.begin(ReadWrite.READ);        
-        try {
-            log.info("Start SPARQL query processing: {}", sparqlQuery);
+	@Override
+	public void deleteResource(URI resourceUri) throws Exception {
+		dataset.begin(ReadWrite.WRITE);
+		try {
+			dataset.removeNamedModel(resourceUri.toString());
+			dataset.commit();
+			log.debug("Removed status for resource {}", resourceUri);
+		} finally {
+			dataset.end();
+		}
+	}
 
-            Query query = QueryFactory.create(sparqlQuery);
-            QueryExecution queryExecution = QueryExecutionFactory.create(query, dataset);
+	@Override
+	public void updateStatement(Statement statement) throws Exception {
+		dataset.begin(ReadWrite.WRITE);
+		try {
+			Model tdbModel = dataset.getNamedModel(statement.getSubject().toString());
+	
+			Statement oldStatement = tdbModel.getProperty(statement.getSubject(), statement.getPredicate());
+			Statement updatedStatement;
+			if (oldStatement != null) {
+				if ("http://spitfire-project.eu/ontology/ns/value".equals(oldStatement.getPredicate().toString())) {
+					RDFNode object =
+							tdbModel.createTypedLiteral(statement.getObject().asLiteral().getFloat(), XSDDatatype.XSDfloat);
+					updatedStatement = oldStatement.changeObject(object);
+					dataset.commit();
 
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            try {
-                ResultSet resultSet = queryExecution.execSelect();
-                ResultSetFormatter.outputAsXML(baos, resultSet);
-            } finally {
-                queryExecution.close();
-            }
-            String result = baos.toString("UTF-8");
+				} else {
+					updatedStatement = oldStatement.changeObject(statement.getObject());
+					dataset.commit();
+				}
+				log.info("Updated property {} of resource {} to {}", new Object[]{updatedStatement.getPredicate(),
+						updatedStatement.getSubject(), updatedStatement.getObject()});
+			} else
+				log.warn("Resource {} not (yet?) found. Could not update property {}.", statement.getSubject(),
+						statement.getPredicate());
+		} finally {
+			dataset.end();
+		}
+	}
 
-            queryResultFuture.set(result);
-        } catch (Exception e) {
-            queryResultFuture.setException(e);
-        } finally {
-            dataset.end();
-        }
-    }
+	public synchronized void processSparqlQuery(SettableFuture<String> queryResultFuture, String sparqlQuery) {
 
-    @Override
-    public boolean supportsSPARQL() {
-        return true;
-    }
+		dataset.begin(ReadWrite.READ);        
+		try {
+			log.info("Start SPARQL query processing: {}", sparqlQuery);
+
+			Query query = QueryFactory.create(sparqlQuery);
+			QueryExecution queryExecution = QueryExecutionFactory.create(query, dataset);
+
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			try {
+				ResultSet resultSet = queryExecution.execSelect();
+				ResultSetFormatter.outputAsXML(baos, resultSet);
+			} finally {
+				queryExecution.close();
+			}
+			String result = baos.toString("UTF-8");
+
+			queryResultFuture.set(result);
+		} catch (Exception e) {
+			queryResultFuture.setException(e);
+		} finally {
+			dataset.end();
+		}
+	}
+
+	@Override
+	public boolean supportsSPARQL() {
+		return true;
+	}
 }
