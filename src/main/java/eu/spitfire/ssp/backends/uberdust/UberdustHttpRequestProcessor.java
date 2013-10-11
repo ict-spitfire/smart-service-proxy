@@ -37,27 +37,19 @@ public class UberdustHttpRequestProcessor implements SemanticHttpRequestProcesso
 
     /**
      * @param backendComponentFactory
-     * @param uberdustObserver        an instance of an {@link eu.spitfire.ssp.backends.uberdust.UberdustObserver} that retrieves updated measurements.
      * @throws Exception if some error occurred (this should actually never happen!)
      */
-    public UberdustHttpRequestProcessor(BackendComponentFactory backendComponentFactory, UberdustObserver uberdustObserver) {
-        this.uberdustObserver = uberdustObserver;
+    public UberdustHttpRequestProcessor(BackendComponentFactory backendComponentFactory) {
     }
 
     @Override
     public void processHttpRequest(SettableFuture<InternalResourceStatusMessage> settableFuture, HttpRequest httpRequest) {
         log.info("Received request for path {}.", httpRequest.getUri());
 
-        if (httpRequest.getMethod() == HttpMethod.GET) {
-            //handle get
-//            handleGet(dataOriginResponseFuture, httpRequest);
-
-        } else if (httpRequest.getMethod() == HttpMethod.POST) {
+        if (httpRequest.getMethod() == HttpMethod.POST) {
             //handle post
             handlePost(settableFuture, httpRequest);
-//        } else {
         }
-
     }
 
     /**
