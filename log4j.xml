@@ -9,6 +9,14 @@
             <param name="ConversionPattern" value="[%-23d{yyyy-MM-dd HH:mm:ss,SSS} | %-32.32t | %-30.30c{1} | %-5p | %m%n"/>
         </layout>
     </appender>
+    <appender name="file" class="org.apache.log4j.RollingFileAppender">
+        <param name="file" value="ssp.log"/>
+        <param name="MaxFileSize" value="1000KB"/>
+        <param name="MaxBackupIndex" value="1"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="[%-23d{yyyy-MM-dd HH:mm:ss,SSS} | %-32.32t | %-30.30c{1} | %-5p | %m%n"/>
+        </layout>
+    </appender>
 
     <appender name="async" class="org.apache.log4j.AsyncAppender">
         <param name="BufferSize" value="500"/>
