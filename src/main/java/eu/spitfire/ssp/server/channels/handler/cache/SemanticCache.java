@@ -1,27 +1,27 @@
 /**
-* Copyright (c) 2012, all partners of project SPITFIRE (core://www.spitfire-project.eu)
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
-* following conditions are met:
-*
-*  - Redistributions of source code must retain the above copyright notice, this list of conditions and the following
-*    disclaimer.
-*
-*  - Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
-*    following disclaimer in the documentation and/or other materials provided with the distribution.
-*
-*  - Neither the name of the University of Luebeck nor the names of its contributors may be used to endorse or promote
-*    products derived from this software without specific prior written permission.
-*
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-* ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-* INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-* LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+ * Copyright (c) 2012, all partners of project SPITFIRE (core://www.spitfire-project.eu)
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+ * following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+ *    disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+ *    following disclaimer in the documentation and/or other materials provided with the distribution.
+ *
+ *  - Neither the name of the University of Luebeck nor the names of its contributors may be used to endorse or promote
+ *    products derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 package eu.spitfire.ssp.server.channels.handler.cache;
 
 import com.google.common.util.concurrent.SettableFuture;
@@ -45,14 +45,13 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
-* Checks whether the incoming {@link HttpRequest} can be answered with cached information. This depends on the
-* existence of cached information and its age. If there is suitable information available, the request will be
-* answered by sending a corresponding Object of type @link{Model} to the downstream. Otherwise the request will
-* be send to the upstream unchanged to be processed by the {@link eu.spitfire.ssp.server.channels.handler.HttpRequestDispatcher}.
-*
-* @author Oliver Kleine
-*
-*/
+ * Checks whether the incoming {@link HttpRequest} can be answered with cached information. This depends on the
+ * existence of cached information and its age. If there is suitable information available, the request will be
+ * answered by sending a corresponding Object of type @link{Model} to the downstream. Otherwise the request will
+ * be send to the upstream unchanged to be processed by the {@link eu.spitfire.ssp.server.channels.handler.HttpRequestDispatcher}.
+ *
+ * @author Oliver Kleine
+ */
 public abstract class SemanticCache extends SimpleChannelHandler {
 
     public static final int DELAY_AFTER_EXPIRY = 10000;
@@ -62,7 +61,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
     private ScheduledExecutorService scheduledExecutorService;
 
-    protected SemanticCache(ScheduledExecutorService scheduledExecutorService){
+    protected SemanticCache(ScheduledExecutorService scheduledExecutorService) {
         this.scheduledExecutorService = scheduledExecutorService;
     }
 
@@ -73,8 +72,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * downstream to the {@link eu.spitfire.ssp.server.channels.handler.SemanticPayloadFormatter}.
      *
      * @param ctx The {@link ChannelHandlerContext} to relate this handler with its current {@link Channel}
-     * @param me The {@link MessageEvent} potentially containing the {@link HttpRequest}
-     *
+     * @param me  The {@link MessageEvent} potentially containing the {@link HttpRequest}
      * @throws Exception in case of an error
      */
     @Override
@@ -87,32 +85,30 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
         HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
-        if(httpRequest.getMethod() != HttpMethod.GET){
+        if (httpRequest.getMethod() != HttpMethod.GET) {
             ctx.sendUpstream(me);
             return;
         }
 
         URI resourceProxyUri = new URI(httpRequest.getUri());
-        if(resourceProxyUri.getQuery() != null && resourceProxyUri.getQuery().startsWith("uri=")){
+        if (resourceProxyUri.getQuery() != null && resourceProxyUri.getQuery().startsWith("uri=")) {
             URI resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
 
 
             log.debug("Lookup resource with URI: {}", resourceUri);
             InternalResourceStatusMessage cachedResource = getCachedResource(resourceUri);
 
-            if(cachedResource != null){
+            if (cachedResource != null) {
                 log.debug("Cached status for {} found.", resourceUri);
 
                 ChannelFuture future = Channels.future(ctx.getChannel());
                 Channels.write(ctx, future, cachedResource, me.getRemoteAddress());
                 future.addListener(ChannelFutureListener.CLOSE);
-            }
-            else{
+            } else {
                 log.debug("NO cached status for {} found. Try to get a fresh one.", resourceUri);
                 ctx.sendUpstream(me);
             }
-        }
-        else{
+        } else {
             ctx.sendUpstream(me);
         }
 
@@ -128,65 +124,71 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
 
     @Override
-    public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
-        try{
-            if(me.getMessage() instanceof InternalResourceStatusMessage){
+    public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) {
+        URI resourceUri = null;
+        try {
+            if (me.getMessage() instanceof InternalResourceStatusMessage) {
                 InternalResourceStatusMessage message = (InternalResourceStatusMessage) me.getMessage();
 
                 scheduleResourceStatusExpiry(message.getResourceUri(), message.getExpiry());
 
                 putResourceToCache(message.getResourceUri(), message.getModel());
-            }
-
-            else if(me.getMessage() instanceof InternalUpdateResourceStatusMessage){
+            } else if (me.getMessage() instanceof InternalUpdateResourceStatusMessage) {
                 InternalUpdateResourceStatusMessage message = (InternalUpdateResourceStatusMessage) me.getMessage();
-                URI resourceUri = new URI(message.getStatement().getSubject().toString());
+                resourceUri = new URI(message.getStatement().getSubject().toString());
                 log.info("Received update for resource {} (expiry: {})", resourceUri, message.getExpiry());
 
                 scheduleResourceStatusExpiry(resourceUri, message.getExpiry());
                 updateStatement(message.getStatement());
 
-                InternalResourceStatusMessage resourceStatusMessage =
-                        new InternalResourceStatusMessage(getCachedResource(resourceUri).getModel(), message.getExpiry());
+                InternalResourceStatusMessage cachedResource = getCachedResource(resourceUri);
+                if (cachedResource != null) {
+                    InternalResourceStatusMessage resourceStatusMessage =
+                            new InternalResourceStatusMessage(cachedResource.getModel(), message.getExpiry());
 
-                if(resourceStatusMessage != null){
-                    Channels.write(ctx, me.getFuture(), resourceStatusMessage);
+                    if (resourceStatusMessage != null) {
+                        Channels.write(ctx, me.getFuture(), resourceStatusMessage);
+                        return;
+                    }
+                    log.warn("Resource status of {} was null!!!", resourceUri);
+                } else {
+                    log.warn("Resource {} was null!!!", resourceUri);
                     return;
                 }
-                log.warn("Resource status of {} was null!!!", resourceUri);
-            }
-
-            else if(me.getMessage() instanceof InternalSparqlQueryMessage){
+            } else if (me.getMessage() instanceof InternalSparqlQueryMessage) {
                 InternalSparqlQueryMessage message = (InternalSparqlQueryMessage) me.getMessage();
                 processSparqlQuery(message.getQueryResultFuture(), message.getQuery());
             }
 
             ctx.sendDownstream(me);
-        }
-        catch (Exception e){
-            log.error("Caching error!", e);
+        } catch (Exception e) {
+            try {
+                log.error("Caching error! " + getCachedResource(resourceUri), e);
+            } catch (Exception e1) {
+                e1.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            }
+
             me.getFuture().setFailure(e);
         }
     }
 
 
-    private void scheduleResourceStatusExpiry(final URI resourceUri, Date expiry){
+    private void scheduleResourceStatusExpiry(final URI resourceUri, Date expiry) {
         log.info("Received new status of {} (expiry: {})", resourceUri, expiry);
 
         //Cancel old expiry (if existing)
         ScheduledFuture timeoutFuture = expiryFutures.remove(resourceUri);
-        if(timeoutFuture != null)
+        if (timeoutFuture != null)
             timeoutFuture.cancel(false);
 
         //Set new expiry (if not null)
-        if(expiry != null){
-            expiryFutures.put(resourceUri, scheduledExecutorService.schedule(new Runnable(){
+        if (expiry != null) {
+            expiryFutures.put(resourceUri, scheduledExecutorService.schedule(new Runnable() {
                 @Override
                 public void run() {
                     try {
                         deleteResource(resourceUri);
-                    }
-                    catch (Exception e) {
+                    } catch (Exception e) {
                         log.error("Could not delete resource {} from cache.", resourceUri, e);
                     }
                 }
@@ -199,30 +201,33 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * Insert a new resource into the cache or updated an already cached one. The expiry is given to enable the
      * cache to delete the resource status from the cache when its no longer valid.
      *
-     * @param resourceUri the {@link URI} identifying the resource to be cached
+     * @param resourceUri    the {@link URI} identifying the resource to be cached
      * @param resourceStatus the {@link Model} representing the resource status to be cached
      */
     public abstract void putResourceToCache(URI resourceUri, Model resourceStatus) throws Exception;
 
     /**
      * Method to delete a cached resource from the cache.
+     *
      * @param resourceUri the {@link URI} identifying the cached resource who's status is to be deleted
      */
     public abstract void deleteResource(URI resourceUri) throws Exception;
 
     /**
      * Method to update a property of a resource given as the subject of the given statement
+     *
      * @param statement the {@link Statement} to be cached
      */
     public abstract void updateStatement(Statement statement) throws Exception;
 
     /**
      * Sets the {@link SettableFuture} with the result of the given SPARQL query
+     *
      * @param queryResultFuture the {@link SettableFuture} to contain the result of the SPARQL query after
      *                          processing
-     * @param sparqlQuery the SPARQL query to process
+     * @param sparqlQuery       the SPARQL query to process
      */
-    public void processSparqlQuery(SettableFuture<String> queryResultFuture, String sparqlQuery){
+    public void processSparqlQuery(SettableFuture<String> queryResultFuture, String sparqlQuery) {
         queryResultFuture.setException(new Exception("No SPARQL supported!"));
     }
 
