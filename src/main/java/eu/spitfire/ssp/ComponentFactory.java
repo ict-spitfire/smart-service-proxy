@@ -122,7 +122,7 @@ public class ComponentFactory {
 
             else if (proxyServiceManagerName.equals("uberdust")) {
                 log.info("Create Uberdust Backend");
-                final int insertThreadCount = config.getInt("UBERDUST_INSERT_THREAD_COUNT");
+                final int insertThreadCount = config.getInt("UBERDUST_INSERT_THREAD_COUNT",1);
                 this.backendComponentFactories.add(new UberdustBackendComponentFactory("uberdust",
                         localPipelineFactory, scheduledExecutorService, sspHostName, sspHttpPort,insertThreadCount));
             }
