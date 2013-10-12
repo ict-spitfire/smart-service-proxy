@@ -29,4 +29,5 @@ ssp.properties
 *.dat
 *.idn
 *.info
+log4j.xml
 HttpObserveMqtt-Server2-tcp*

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
 
+<!--Copy this file to log4j.xml and change it to satisfy your needs-->
+
 <log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/"
                      debug="false">
 
@@ -24,17 +26,7 @@
     </appender>
 
     <logger name="eu.spitfire.ssp" additivity="false">
-        <level value="ERROR"/>
-        <appender-ref ref="async"/>
-    </logger>
-
-    <logger name="eu.spitfire.ssp.server.channels.handler.DummyHandler" additivity="false">
-        <level value="INFO"/>
-        <appender-ref ref="async"/>
-    </logger>
-
-    <logger name="eu.uberdust" additivity="false">
-        <level value="ERROR"/>
+        <level value="DEBUG"/>
         <appender-ref ref="async"/>
     </logger>
 

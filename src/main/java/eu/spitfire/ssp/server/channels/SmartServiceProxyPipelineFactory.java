@@ -78,7 +78,7 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 		ChannelPipeline pipeline = Channels.pipeline();
         Iterator<ChannelHandler> handlerIterator = handler.iterator();
 
-        pipeline.addLast("Logging Handler", new LoggingHandler());
+        //pipeline.addLast("Logging Handler", new DummyHandler());
 
         //HTTP protocol handlers
 		pipeline.addLast("HTTP Decoder", new HttpRequestDecoder());
@@ -92,6 +92,7 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
         //Execution handler
         ChannelHandler channelHandler = handlerIterator.next();
         pipeline.addLast(channelHandler.getClass().getSimpleName(), channelHandler);
+        log.debug("Added {} to pipeline.", channelHandler.getClass().getSimpleName());
 
         while(handlerIterator.hasNext()){
             channelHandler = handlerIterator.next();

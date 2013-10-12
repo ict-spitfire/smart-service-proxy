@@ -155,10 +155,11 @@ public class ComponentFactory {
 
         //create the bootstrap
         this.serverBootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
-                Executors.newCachedThreadPool(),
-                Executors.newCachedThreadPool()
+                Executors.newSingleThreadExecutor(),
+                Executors.newFixedThreadPool(16)
         ));
 
+        this.serverBootstrap.setOption("reuseAddress", true);
         this.serverBootstrap.setOption("tcpNoDelay", false);
 
         LinkedHashSet<ChannelHandler> handler = new LinkedHashSet<>();
