@@ -122,8 +122,9 @@ public class ComponentFactory {
 
             else if (proxyServiceManagerName.equals("uberdust")) {
                 log.info("Create Uberdust Backend");
+                final int insertThreadCount = config.getInt("UBERDUST_INSERT_THREAD_COUNT");
                 this.backendComponentFactories.add(new UberdustBackendComponentFactory("uberdust",
-                        localPipelineFactory, scheduledExecutorService, sspHostName, sspHttpPort));
+                        localPipelineFactory, scheduledExecutorService, sspHostName, sspHttpPort,insertThreadCount));
             }
 
             //Unknown AbstractGatewayFactory type

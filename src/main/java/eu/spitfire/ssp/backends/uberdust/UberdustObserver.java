@@ -58,12 +58,12 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
 
     public UberdustObserver(UberdustBackendComponentFactory backendComponentFactory,
                             ScheduledExecutorService scheduledExecutorService,
-                            LocalPipelineFactory localChannel) throws IOException {
+                            LocalPipelineFactory localChannel, int observerInsetThreadCount) throws IOException {
         super(backendComponentFactory);
 //        executor = scheduledExecutorService;
         ThreadFactory insertTf = new ThreadFactoryBuilder().setNameFormat("UberdustInsert #%d").build();
         ThreadFactory updateTf = new ThreadFactoryBuilder().setNameFormat("UberdustUpdate #%d").build();
-        insertExecutor = Executors.newFixedThreadPool(10, insertTf);
+        insertExecutor = Executors.newFixedThreadPool(observerInsetThreadCount, insertTf);
         updateExecutor = Executors.newSingleThreadExecutor(updateTf);
 
 

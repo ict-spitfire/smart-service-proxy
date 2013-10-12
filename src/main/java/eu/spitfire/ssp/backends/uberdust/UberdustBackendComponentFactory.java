@@ -46,6 +46,7 @@ public class UberdustBackendComponentFactory extends BackendComponentFactory<URI
      * Logger.
      */
     private static Logger log = Logger.getLogger(UberdustBackendComponentFactory.class.getName());
+    private final int observerInsetThreadCount;
     /**
      * WebSocket Connection to the Uberdust Server.
      */
@@ -67,8 +68,9 @@ public class UberdustBackendComponentFactory extends BackendComponentFactory<URI
      */
     public UberdustBackendComponentFactory(String prefix, LocalPipelineFactory localServerChannel,
                                            ScheduledExecutorService scheduledExecutorService, String sspHostName,
-                                           int sspHttpPort) throws Exception {
+                                           int sspHttpPort, int observerInsetThreadCount) throws Exception {
         super(prefix, localServerChannel, scheduledExecutorService, sspHostName, sspHttpPort);
+        this.observerInsetThreadCount = observerInsetThreadCount;
         this.scheduleExecutorService = scheduledExecutorService;
         this.localServerChannel = localServerChannel;
         //create a handler for http requests and associcate with the observer.
@@ -79,7 +81,7 @@ public class UberdustBackendComponentFactory extends BackendComponentFactory<URI
     public void initialize() {
         //create a new Uberdsust observer.
         try {
-            this.uberdustObserver = new UberdustObserver(this, scheduleExecutorService, localServerChannel);
+            this.uberdustObserver = new UberdustObserver(this, scheduleExecutorService, localServerChannel,observerInsetThreadCount);
         } catch (IOException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
