@@ -32,6 +32,9 @@ import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.tdb.TDB;
 import com.hp.hpl.jena.tdb.TDBFactory;
+import com.hp.hpl.jena.vocabulary.OWL;
+import com.hp.hpl.jena.vocabulary.RDF;
+import com.hp.hpl.jena.vocabulary.RDFS;
 
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 
@@ -45,6 +48,7 @@ import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 public class JenaTdbSemanticCache extends SemanticCache {
 
 	private static final String SPT_SOURCE = "http://spitfire-project.eu/ontology.rdf";
+	private static final String SPT_NS = "http://spitfire-project.eu/ontology/ns/";
 	private static final String SPTSN_SOURCE = "http://spitfire-project.eu/sn.rdf";
 
 	private static OntModel ontologyBaseModel = null;
@@ -68,7 +72,6 @@ public class JenaTdbSemanticCache extends SemanticCache {
 			if (isUriAccessible(SPTSN_SOURCE)){
 				ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
 			}
-
 		}
 	}
 
@@ -123,8 +126,9 @@ public class JenaTdbSemanticCache extends SemanticCache {
 			Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
 			owlFullModel.add(ontologyBaseModel);
 			owlFullModel.add(resourceStatus);
-			//            dataset.addNamedModel(resourceUri.toString(), resourceStatus);
-			dataset.addNamedModel(resourceUri.toString(), owlFullModel);
+			//dataset.addNamedModel(resourceUri.toString(), resourceStatus);
+			dataset.addNamedModel(SPT_NS, owlFullModel);
+			dataset.addNamedModel(resourceUri.toString(), resourceStatus);
 			dataset.commit();
 			log.debug("Added status for resource {}", resourceUri);
 		} finally {
