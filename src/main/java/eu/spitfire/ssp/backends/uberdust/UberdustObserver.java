@@ -6,6 +6,8 @@ import com.hp.hpl.jena.rdf.model.Statement;
 import eu.spitfire.ssp.backends.coap.CoapResourceToolbox;
 import eu.spitfire.ssp.backends.generic.BackendResourceManager;
 import eu.spitfire.ssp.backends.generic.DataOriginObserver;
+import eu.spitfire.ssp.backends.uberdust.job.InsertJob;
+import eu.spitfire.ssp.backends.uberdust.job.UpdateJob;
 import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
 import eu.uberdust.communication.UberdustClient;
 import eu.uberdust.communication.protobuf.Message;
@@ -20,7 +22,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Observable;
@@ -48,7 +49,8 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
 
     private final HashMap<String, String> testbeds;
 
-    private final Executor executor;
+    private final Executor insertExecutor;
+    private final Executor updateExecutor;
 
 //    private final Map<URI, URI> tinyURIS;
 
@@ -59,8 +61,10 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
                             LocalPipelineFactory localChannel) throws IOException {
         super(backendComponentFactory);
 //        executor = scheduledExecutorService;
-        ThreadFactory tf = new ThreadFactoryBuilder().setNameFormat("UberdustObserver #%d").build();
-        executor = Executors.newSingleThreadExecutor(tf);
+        ThreadFactory insertTf = new ThreadFactoryBuilder().setNameFormat("UberdustInsert #%d").build();
+        ThreadFactory updateTf = new ThreadFactoryBuilder().setNameFormat("UberdustUpdate #%d").build();
+        insertExecutor = Executors.newFixedThreadPool(10, insertTf);
+        updateExecutor = Executors.newSingleThreadExecutor(updateTf);
 
 
         this.localChannel = localChannel;
@@ -109,77 +113,71 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
 
     public void update(final Observable o, final Object arg) {
         log.info("Running thread count: " + Thread.activeCount());
-        executor.execute(
-
-                new Thread() {
-                    @Override
-                    public void run() {
-                        super.run();    //To change body of overridden methods use File | Settings | File Templates.
-                        if (!(o instanceof WSReadingsClient)) {
-                            return;
-                        }
-                        if (arg instanceof Message.NodeReadings) {
-                            Message.NodeReadings.Reading reading = ((Message.NodeReadings) arg).getReading(0);
+        if (!(o instanceof WSReadingsClient)) {
+            return;
+        }
+        if (arg instanceof Message.NodeReadings) {
+            final Message.NodeReadings.Reading reading = ((Message.NodeReadings) arg).getReading(0);
 //                            log.info(reading.toString());
 //                            log.error((System.currentTimeMillis() - reading.getTimestamp()) + " Adiff in millis " + reading.getNode() + " " + reading.getCapability());
-                            if (reading.hasDoubleReading()) {
-                                try {
-                                    if (reading.getNode().contains("santander")) return;
-                                    if (!reading.getCapability().contains("urn")) return;
-                                    if (reading.getCapability().contains("parent")) return;
-                                    if (reading.getCapability().contains("report")) return;
-                                    if (!reading.getCapability().startsWith("urn")) return;
-                                    if (
-                                            !reading.getCapability().contains("temperature")
-                                            && !reading.getCapability().contains("light")
-                                            && !reading.getCapability().contains("kwh")
-                                            && !reading.getCapability().contains("lz")
-                                            && !reading.getCapability().endsWith("r")
-                                            && !reading.getCapability().endsWith("s")
-                                            && !reading.getCapability().endsWith("ac")
-                                            ) return;
+            if (reading.hasDoubleReading()) {
+                if (reading.getNode().contains("santander")) return;
+                if (!reading.getCapability().contains("urn")) return;
+                if (reading.getCapability().contains("parent")) return;
+                if (reading.getCapability().contains("report")) return;
+                if (!reading.getCapability().startsWith("urn")) return;
+                if (
+                        !reading.getCapability().contains("temperature")
+                                && !reading.getCapability().contains("light")
+                                && !reading.getCapability().contains("kwh")
+                                && !reading.getCapability().contains("lz")
+                                && !reading.getCapability().endsWith("r")
+                                && !reading.getCapability().endsWith("s")
+                                && !reading.getCapability().endsWith("ac")
+                        ) return;
 //                            if (!reading.getNode().contains("u")) return;
 //                            log.info("mnode2:" + reading.getNode());
-                                    String prefix = "";
-                                    for (String aprefix : testbeds.keySet()) {
-                                        if (reading.getNode().contains(aprefix)) {
-                                            prefix = aprefix;
-                                        }
-                                    }
 
 
-                                    final URI resourceURI = new URI(UberdustNodeHelper.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
-
-                                    final Collection<URI> collection = backendResourceManager.getResources(resourceURI);
-                                    if (collection.isEmpty()) {
-                                        registerModel(UberdustNodeHelper.generateDescription(reading.getNode(), testbeds.get(prefix), prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())),
-                                                UberdustNodeHelper.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
-                                        cacheResourcesStates(UberdustNodeHelper.generateDescription(reading.getNode(), testbeds.get(prefix), prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
-                                    } else {
-//                                        cacheResourcesStates(UberdustNodeHelper.generateDescription(reading.getNode(), testbeds.get(prefix), prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
-                                        try {
-                                            final Statement valueStatement = UberdustNodeHelper.createUpdateValueStatement(resourceURI, reading.getDoubleReading());
-                                            final Statement timeStatement = UberdustNodeHelper.createUpdateTimestampStatement(resourceURI, new Date(reading.getTimestamp()));
-                                            updateResourceStatus(valueStatement, null);
-                                            updateResourceStatus(timeStatement, null);
-                                        } catch (Exception e) {
-                                            log.error(e.getMessage(), e);
-                                        }
-                                    }
-                                    log.info((System.currentTimeMillis() - reading.getTimestamp()) + " diff in millis ");
-                                    log.info(Thread.activeCount() + " Threads Running.");
-
-                                } catch (Exception e) {
-                                    log.error(e.getMessage(), e);
-                                }
-                            }
-                        }
+                String currentPrefix = null;
+                for (String aprefix : testbeds.keySet()) {
+                    if (reading.getNode().contains(aprefix)) {
+                        currentPrefix = aprefix;
                     }
-                });
+                }
+                final String prefix = currentPrefix;
+
+                try {
+
+                    final URI resourceURI = new URI(UberdustNodeHelper.getResourceURI(testbeds.get(prefix), reading.getNode(), reading.getCapability()));
+
+                    final Collection<URI> collection = backendResourceManager.getResources(resourceURI);
+                    if (collection.isEmpty()) {
+                        insertExecutor.execute(new InsertJob(this, reading, testbeds.get(prefix), prefix));
+                    } else {
+                        updateExecutor.execute(new UpdateJob(this, reading, resourceURI));
+                    }
+
+                } catch (Exception e) {
+                    log.error(e.getMessage(), e);
+                }
+
+            }
+        }
+
 
     }
 
-    private void registerModel(final Model model, String resourceURI) throws URISyntaxException {
+    public final void doCacheResourcesStates(Model model) {
+        cacheResourcesStates(model);
+    }
+
+    public final void updateResourceStatus(Statement statement) {
+        updateResourceStatus(statement, null);
+    }
+
+
+    public void registerModel(final Model model, String resourceURI) throws URISyntaxException {
         final Map<URI, Model> modelsMap = CoapResourceToolbox.getModelsPerSubject(model);
 
         for (final URI uri : modelsMap.keySet()) {
