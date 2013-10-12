@@ -16,7 +16,7 @@ import java.util.Date;
  * Time: 1:26 PM
  * To change this template use File | Settings | File Templates.
  */
-public class InsertJob extends Thread {
+public class InsertJob implements Runnable {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private final String prefix;
