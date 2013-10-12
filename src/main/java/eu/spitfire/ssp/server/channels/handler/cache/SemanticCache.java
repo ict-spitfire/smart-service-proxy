@@ -109,7 +109,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                 DownstreamMessageEvent dme = new DownstreamMessageEvent(ctx.getChannel(), future, cachedResource, me.getRemoteAddress());
                 ctx.sendDownstream(dme);
                 //Channels.write(ctx, future, cachedResource, me.getRemoteAddress());
-                future.addListener(ChannelFutureListener.CLOSE);
+                //future.addListener(ChannelFutureListener.CLOSE);
                 future.addListener(new ChannelFutureListener(){
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {

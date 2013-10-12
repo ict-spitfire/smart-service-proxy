@@ -62,7 +62,7 @@ public class CoapWebserviceRegistry extends DataOriginRegistry<URI> {
      */
     public ListenableFuture<Set<URI>> processRegistration(final InetAddress remoteAddress){
 
-        log.info("Process registration request from {}.", remoteAddress.getAddress());
+        log.info("Process registration request from {}.", remoteAddress.getHostAddress());
         final SettableFuture<Set<URI>> registeredResourcesFuture = SettableFuture.create();
         final String host = remoteAddress.getHostAddress();
 

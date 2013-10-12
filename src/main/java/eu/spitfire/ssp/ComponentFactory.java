@@ -158,6 +158,7 @@ public class ComponentFactory {
                 Executors.newFixedThreadPool(16)
         ));
 
+        this.serverBootstrap.setOption("reuseAddress", true);
         this.serverBootstrap.setOption("tcpNoDelay", false);
 
         LinkedHashSet<ChannelHandler> handler = new LinkedHashSet<>();

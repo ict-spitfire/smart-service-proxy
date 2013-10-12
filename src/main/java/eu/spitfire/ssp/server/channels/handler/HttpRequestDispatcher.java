@@ -301,7 +301,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     private void writeHttpResponse(Channel channel, final HttpResponse httpResponse,
                                    final InetSocketAddress remoteAddress){
         ChannelFuture future = Channels.write(channel, httpResponse, remoteAddress);
-        future.addListener(ChannelFutureListener.CLOSE);
+        //future.addListener(ChannelFutureListener.CLOSE);
     }
 
 
@@ -309,7 +309,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     private void writeResourceResponseMessage(Channel channel, final InternalResourceStatusMessage internalResourceStatusMessage,
                                               final InetSocketAddress remoteAddress){
         ChannelFuture future = Channels.write(channel, internalResourceStatusMessage, remoteAddress);
-        future.addListener(ChannelFutureListener.CLOSE);
+        //future.addListener(ChannelFutureListener.CLOSE);
     }
 
 

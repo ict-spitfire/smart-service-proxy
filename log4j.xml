@@ -25,6 +25,11 @@
         <appender-ref ref="async"/>
     </logger>
 
+    <logger name="de.uniluebeck.itm.ncoap" additivity="false">
+        <level value="DEBUG"/>
+        <appender-ref ref="async"/>
+    </logger>
+
     <logger name="eu.uberdust" additivity="false">
         <level value="ERROR"/>
         <appender-ref ref="async"/>
