@@ -214,10 +214,10 @@ public class UberdustNodeHelper {
 
             description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ").append("<http://spitfire-project.eu/ontology/ns/sn/Fan>;");
         } else {
-            description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://purl.org/dc/terms/#date> ").append("\"" + dateFormatGmt.format(time) + "\";\n");
-            description.append("<http://spitfire-project.eu/ontology/ns/obs> ").append("<" + capabilityResource + ">;\n");
+            description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://spitfire-project.eu/ontology/ns/obs> ").append("<" + capabilityResource + ">;\n");
         }
         description.append("<http://spitfire-project.eu/ontology/ns/value> ").append("\"" + value + "\"^^<http://www.w3.org/2001/XMLSchema#float>.\n");
+        description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://purl.org/dc/terms/#date> ").append("\"" + dateFormatGmt.format(time) + "\".\n");
 
         return description.toString();
     }
