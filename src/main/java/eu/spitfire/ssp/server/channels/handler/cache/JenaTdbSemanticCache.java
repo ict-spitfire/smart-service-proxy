@@ -58,7 +58,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	private Dataset dataset;
 
 
-	public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory)  {
+	public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory) {
 		super(scheduledExecutorService);
 		dataset = TDBFactory.createDataset(dbDirectory.toString());
 		TDB.getContext().set(TDB.symUnionDefaultGraph, true);
@@ -66,34 +66,39 @@ public class JenaTdbSemanticCache extends SemanticCache {
 		//Collect the SPITFIRE vocabularies
 		if (ontologyBaseModel == null) {
 			ontologyBaseModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);
-			if (isUriAccessible(SPT_SOURCE)){
+			if (isUriAccessible(SPT_SOURCE)) {
 				ontologyBaseModel.read(SPT_SOURCE, "RDF/XML");
 			}
-			if (isUriAccessible(SPTSN_SOURCE)){
+			if (isUriAccessible(SPTSN_SOURCE)) {
 				ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
 			}
 		}
+
+		Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+		owlFullModel.add(ontologyBaseModel);
+		dataset.addNamedModel(SPT_NS, owlFullModel);
+
 	}
 
-	private static boolean isUriAccessible(String uri){
+	private static boolean isUriAccessible(String uri) {
 		HttpURLConnection connection = null;
 		int code = -1;
 		URL myurl;
 		try {
 			myurl = new URL(uri);
 
-			connection = (HttpURLConnection) myurl.openConnection();        
-			connection.setRequestMethod("GET");         
+			connection = (HttpURLConnection) myurl.openConnection();
+			connection.setRequestMethod("GET");
 			connection.setConnectTimeout(1000);
 			code = connection.getResponseCode();
-		} catch (MalformedURLException e){
-			System.err.println(uri+" is not accessible.");
+		} catch (MalformedURLException e) {
+			System.err.println(uri + " is not accessible.");
 		} catch (ProtocolException e) {
-			System.err.println(uri+" is not accessible.");
+			System.err.println(uri + " is not accessible.");
 		} catch (IOException e) {
-			System.err.println(uri+" is not accessible.");
+			System.err.println(uri + " is not accessible.");
 		}
-		return (code==200)?true:false;
+		return (code == 200) ? true : false;
 	}
 
 
@@ -109,8 +114,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
 			}
 			log.info("Cached status found for resource {}", resourceUri);
 			return new InternalResourceStatusMessage(model, new Date());
-		}
-        finally{
+		} finally {
 			dataset.end();
 		}
 
@@ -120,18 +124,19 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	public void putResourceToCache(URI resourceUri, Model resourceStatus) throws Exception {
 		deleteResource(resourceUri);
 
+//        Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+//        owlFullModel.add(ontologyBaseModel);
+//        owlFullModel.add(resourceStatus);
+		//dataset.addNamedModel(resourceUri.toString(), resourceStatus);
+
+
 		dataset.begin(ReadWrite.WRITE);
 		try {
-			Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-			owlFullModel.add(ontologyBaseModel);
-			owlFullModel.add(resourceStatus);
-			//dataset.addNamedModel(resourceUri.toString(), resourceStatus);
-			dataset.addNamedModel(SPT_NS, owlFullModel);
+//            dataset.addNamedModel(SPT_NS, owlFullModel);
 			dataset.addNamedModel(resourceUri.toString(), resourceStatus);
 			dataset.commit();
 			log.debug("Added status for resource {}", resourceUri);
-		}
-        finally {
+		} finally {
 			dataset.end();
 		}
 	}
@@ -150,10 +155,11 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
 	@Override
 	public void updateStatement(Statement statement) throws Exception {
+
 		dataset.begin(ReadWrite.WRITE);
 		try {
 			Model tdbModel = dataset.getNamedModel(statement.getSubject().toString());
-	
+
 			Statement oldStatement = tdbModel.getProperty(statement.getSubject(), statement.getPredicate());
 			Statement updatedStatement;
 			if (oldStatement != null) {
@@ -175,11 +181,12 @@ public class JenaTdbSemanticCache extends SemanticCache {
 		} finally {
 			dataset.end();
 		}
+
 	}
 
 	public synchronized void processSparqlQuery(SettableFuture<String> queryResultFuture, String sparqlQuery) {
 
-		dataset.begin(ReadWrite.READ);        
+		dataset.begin(ReadWrite.READ);
 		try {
 			log.info("Start SPARQL query processing: {}", sparqlQuery);
 
