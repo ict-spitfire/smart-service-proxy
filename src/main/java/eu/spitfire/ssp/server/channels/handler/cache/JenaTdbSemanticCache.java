@@ -89,7 +89,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
 			}
 		}
 
-        reasoner = ReasonerRegistry.getOWLReasoner().bindSchema(ontologyBaseModel);
+        reasoner = ReasonerRegistry.getRDFSSimpleReasoner().bindSchema(ontologyBaseModel);
 	}
 
 	private static boolean isUriAccessible(String uri) {
