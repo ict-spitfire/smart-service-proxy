@@ -89,11 +89,13 @@ public class ComponentFactory {
     }
 
     private void createBackendComponentFactories(Configuration config) throws Exception {
+        int threadsPerBackand = config.getInt("SSP_THREADS_PER_BACKEND", 16);
         String[] enabledBackends = config.getStringArray("ENABLE_BACKEND");
 
         this.backendComponentFactories = new ArrayList<>(enabledBackends.length);
 
         for (String proxyServiceManagerName : enabledBackends) {
+            ScheduledExecutorService executorService = Executors.newScheduledThreadPool(threadsPerBackand);
 
             //Local files
             if (proxyServiceManagerName.equals("files")) {
@@ -103,8 +105,9 @@ public class ComponentFactory {
                 }
                 boolean copyExamples = config.getBoolean("files.copyExamples");
                 //int numberOfRandomFiles = config.getInt("files.numberOfRandomFiles", 0);
+
                 BackendComponentFactory backendComponentFactory =
-                        new FilesBackendComponentFactory("files", localPipelineFactory, scheduledExecutorService,
+                        new FilesBackendComponentFactory("files", localPipelineFactory, executorService,
                                 sspHostName, sspHttpPort, Paths.get(directory), copyExamples);
                 this.backendComponentFactories.add(backendComponentFactory);
                 continue;
@@ -115,7 +118,7 @@ public class ComponentFactory {
                 InetAddress registrationServerAddress =
                         InetAddress.getByName(config.getString("coap.registration.server.ip"));
                 BackendComponentFactory backendComponentFactory =
-                        new CoapBackendComponentFactory("coap", localPipelineFactory, scheduledExecutorService,
+                        new CoapBackendComponentFactory("coap", localPipelineFactory, executorService,
                                 sspHostName, sspHttpPort, registrationServerAddress);
                 this.backendComponentFactories.add(backendComponentFactory);
                 continue;
@@ -125,7 +128,7 @@ public class ComponentFactory {
                 log.info("Create Uberdust Backend");
                 final int insertThreadCount = config.getInt("UBERDUST_INSERT_THREAD_COUNT",1);
                 this.backendComponentFactories.add(new UberdustBackendComponentFactory("uberdust",
-                        localPipelineFactory, scheduledExecutorService, sspHostName, sspHttpPort,insertThreadCount));
+                        localPipelineFactory, executorService, sspHostName, sspHttpPort,insertThreadCount));
             }
 
             //Unknown AbstractGatewayFactory type
@@ -156,9 +159,9 @@ public class ComponentFactory {
 
         //create the bootstrap
         this.serverBootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
-                Executors.newSingleThreadExecutor(),
-                Executors.newFixedThreadPool(16)
-        ));
+                Executors.newCachedThreadPool(),
+                Executors.newCachedThreadPool(), ioThreads)
+        );
 
         this.serverBootstrap.setOption("reuseAddress", true);
         this.serverBootstrap.setOption("tcpNoDelay", false);

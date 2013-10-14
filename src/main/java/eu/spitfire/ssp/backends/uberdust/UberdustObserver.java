@@ -64,7 +64,7 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
         ThreadFactory insertTf = new ThreadFactoryBuilder().setNameFormat("UberdustInsert #%d").build();
         ThreadFactory updateTf = new ThreadFactoryBuilder().setNameFormat("UberdustUpdate #%d").build();
         insertExecutor = Executors.newFixedThreadPool(observerInsetThreadCount, insertTf);
-        updateExecutor = Executors.newSingleThreadExecutor(updateTf);
+        updateExecutor = Executors.newFixedThreadPool(observerInsetThreadCount,updateTf);
 
 
         this.localChannel = localChannel;

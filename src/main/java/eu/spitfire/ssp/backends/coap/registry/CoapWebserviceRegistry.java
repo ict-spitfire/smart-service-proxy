@@ -149,16 +149,26 @@ public class CoapWebserviceRegistry extends DataOriginRegistry<URI> {
                     @Override
                     public void run() {
                         try{
-                            resourceStatusFuture.get();
-                            CoapWebserviceObserver observer =
-                                    new CoapWebserviceObserver(backendComponentFactory, webserviceUri);
-                            observer.startObservation();
+                            InternalResourceStatusMessage message = resourceStatusFuture.get();
+                            ListenableFuture<URI> registrationFuture =
+                                    registerResource(webserviceUri, message.getModel(), message.getExpiry());
+
+                            registrationFuture.addListener(new Runnable(){
+                                @Override
+                                public void run() {
+                                    log.info("Start observation of {}", webserviceUri);
+                                    CoapWebserviceObserver observer =
+                                            new CoapWebserviceObserver(backendComponentFactory, webserviceUri);
+                                    observer.startObservation();
+                                }
+                            }, backendComponentFactory.getScheduledExecutorService());
+
 
                             registeredResources.put(webserviceUri, true);
 
                         }
                         catch(Exception e){
-                            log.error("Failed to register CoAP webservice {}", webserviceUri);
+                            log.error("Failed to register CoAP webservice {}", webserviceUri, e);
                             registeredResources.put(webserviceUri, false);
                         }
                         finally {
