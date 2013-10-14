@@ -1,5 +1,6 @@
 package eu.spitfire.ssp.backends.uberdust.job;
 
+import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.backends.uberdust.UberdustNodeHelper;
 import eu.spitfire.ssp.backends.uberdust.UberdustObserver;
 import eu.uberdust.communication.protobuf.Message;
@@ -33,14 +34,20 @@ public class InsertJob implements Runnable {
 
     @Override
     public void run() {
-        log.debug("Received Insert with " + (System.currentTimeMillis() - reading.getTimestamp()) + " millis drift. " + Thread.activeCount() + " Threads Running.");
+        long start = 0;
+        log.warn("Received Insert with " + (System.currentTimeMillis() - reading.getTimestamp()) + " millis drift. " + Thread.activeCount() + " Threads Running.");
         try {
-            observer.registerModel(UberdustNodeHelper.generateDescription(reading.getNode(), testbed, prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())),
-                    UberdustNodeHelper.getResourceURI(testbed, reading.getNode(), reading.getCapability()));
-            observer.doCacheResourcesStates(UberdustNodeHelper.generateDescription(reading.getNode(), testbed, prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp())));
+            start = System.currentTimeMillis();
+            Model description = UberdustNodeHelper.generateDescription(reading.getNode(), testbed, prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp()));
+            String resourceURI = UberdustNodeHelper.getResourceURI(testbed, reading.getNode(), reading.getCapability());
+            log.warn("uberdustCreate " + (System.currentTimeMillis() - start) + " millis " + resourceURI.hashCode());
+            start = System.currentTimeMillis();
+            observer.registerModel(description, resourceURI);
+            observer.doCacheResourcesStates(description);
+            log.warn("jenaInsert " + (System.currentTimeMillis() - start) + " millis " + resourceURI.hashCode());
         } catch (URISyntaxException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
-        log.warn("Processed Insert with " + (System.currentTimeMillis() - reading.getTimestamp()) + " millis drift.");
+        log.warn("Processed Insert with " + (System.currentTimeMillis() - reading.getTimestamp()) + " millis drift. " + Thread.activeCount() + " Threads Running.");
     }
 }

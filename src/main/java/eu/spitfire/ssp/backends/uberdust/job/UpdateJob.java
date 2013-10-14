@@ -33,12 +33,19 @@ public class UpdateJob implements Runnable {
 
     @Override
     public void run() {
-        log.debug("Received  Update with " + (System.currentTimeMillis() - reading.getTimestamp()) + " millis drift. " + Thread.activeCount() + " Threads Running.");
+        long start = 0;
+        log.warn("Received Update with " + (System.currentTimeMillis() - reading.getTimestamp()) + " millis drift. " + Thread.activeCount() + " Threads Running.");
         try {
+            start = System.currentTimeMillis();
             final Statement valueStatement = UberdustNodeHelper.createUpdateValueStatement(resourceURI, reading.getDoubleReading());
             final Statement timeStatement = UberdustNodeHelper.createUpdateTimestampStatement(resourceURI, new Date(reading.getTimestamp()));
+            log.warn("uberdustUpdate " + (System.currentTimeMillis() - start) + " millis " + resourceURI.hashCode());
+            start = System.currentTimeMillis();
             observer.updateResourceStatus(valueStatement);
+            log.warn("jenaUpdate " + (System.currentTimeMillis() - start) + " millis " + resourceURI.hashCode());
+            start = System.currentTimeMillis();
             observer.updateResourceStatus(timeStatement);
+            log.warn("jenaUpdate " + (System.currentTimeMillis() - start) + " millis " + resourceURI.hashCode());
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
