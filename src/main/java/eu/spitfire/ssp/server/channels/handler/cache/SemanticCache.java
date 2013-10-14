@@ -182,6 +182,11 @@ public abstract class SemanticCache extends SimpleChannelHandler {
             else if(me.getMessage() instanceof InternalRemoveResourcesMessage){
                 InternalRemoveResourcesMessage message = (InternalRemoveResourcesMessage) me.getMessage();
                 deleteResource(message.getResourceUri());
+                ScheduledFuture timeoutFuture = expiryFutures.remove(resourceUri);
+                if (timeoutFuture != null){
+                    timeoutFuture.cancel(false);
+                    log.info("Resource status timeout for {} canceled.", resourceUri);
+                }
             }
 
             ctx.sendDownstream(me);
@@ -202,7 +207,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         if (timeoutFuture != null)
             timeoutFuture.cancel(false);
 
-        log.debug("Cacnceled timeout after {} millis for resource {}", System.currentTimeMillis() - startTime,
+        log.debug("Canceled timeout after {} millis for resource {}", System.currentTimeMillis() - startTime,
                 resourceUri);
 
         //Set new expiry (if not null)
