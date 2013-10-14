@@ -126,6 +126,8 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
                 if (reading.getCapability().contains("parent")) return;
                 if (reading.getCapability().contains("report")) return;
                 if (!reading.getCapability().startsWith("urn")) return;
+                if (reading.getCapability().contains("tasks")) return;
+                if (reading.getCapability().contains("status")) return;
                 if (
                         !reading.getCapability().contains("temperature")
                                 && !reading.getCapability().contains("light")
