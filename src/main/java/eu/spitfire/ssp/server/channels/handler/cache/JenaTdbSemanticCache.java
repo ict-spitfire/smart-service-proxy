@@ -1,7 +1,9 @@
 package eu.spitfire.ssp.server.channels.handler.cache;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
@@ -9,6 +11,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.Date;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.slf4j.Logger;
@@ -60,6 +63,16 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
 	public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory) {
 		super(scheduledExecutorService);
+
+		File fin = dbDirectory.toFile();
+		File[] filesInList = fin.listFiles();
+		for (int n = 0; n < filesInList.length; n++) {
+			if (filesInList[n].isFile()) {
+				System.gc();
+				filesInList[n].delete();
+			}
+		}
+
 		dataset = TDBFactory.createDataset(dbDirectory.toString());
 		TDB.getContext().set(TDB.symUnionDefaultGraph, true);
 
@@ -73,11 +86,6 @@ public class JenaTdbSemanticCache extends SemanticCache {
 				ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
 			}
 		}
-
-		Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-		owlFullModel.add(ontologyBaseModel);
-		dataset.addNamedModel(SPT_NS, owlFullModel);
-
 	}
 
 	private static boolean isUriAccessible(String uri) {
@@ -114,6 +122,8 @@ public class JenaTdbSemanticCache extends SemanticCache {
 			}
 			log.info("Cached status found for resource {}", resourceUri);
 			return new InternalResourceStatusMessage(model, new Date());
+		} catch (NullPointerException npe) {
+			return new InternalResourceStatusMessage(ModelFactory.createDefaultModel(), new Date());
 		} finally {
 			dataset.end();
 		}
@@ -121,18 +131,17 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	}
 
 	@Override
-	public void putResourceToCache(URI resourceUri, Model resourceStatus) throws Exception {
+	public void putResourceToCache(final URI resourceUri, final Model resourceStatus) throws Exception {
 		deleteResource(resourceUri);
 
-//        Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-//        owlFullModel.add(ontologyBaseModel);
-//        owlFullModel.add(resourceStatus);
-		//dataset.addNamedModel(resourceUri.toString(), resourceStatus);
-
+//		Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+//		owlFullModel.add(ontologyBaseModel);
+//		owlFullModel.add(resourceStatus);
+//		dataset.addNamedModel(resourceUri.toString(), resourceStatus);
 
 		dataset.begin(ReadWrite.WRITE);
 		try {
-//            dataset.addNamedModel(SPT_NS, owlFullModel);
+//			dataset.addNamedModel(SPT_NS, owlFullModel);
 			dataset.addNamedModel(resourceUri.toString(), resourceStatus);
 			dataset.commit();
 			log.debug("Added status for resource {}", resourceUri);
