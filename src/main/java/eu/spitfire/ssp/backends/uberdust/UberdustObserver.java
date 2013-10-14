@@ -112,7 +112,7 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
 
 
     public void update(final Observable o, final Object arg) {
-        log.info("Running thread count: " + Thread.activeCount());
+        //log.info("Running thread count: " + Thread.activeCount());
         if (!(o instanceof WSReadingsClient)) {
             return;
         }

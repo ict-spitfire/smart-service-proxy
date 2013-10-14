@@ -117,6 +117,8 @@ public class CoapWebserviceRegistry extends DataOriginRegistry<URI> {
         return wellKnownCoreFuture;
     }
 
+    private void registerResources(){}
+
     private void registerTubsResources(final SettableFuture<Set<URI>> registeredResourcesFuture,
                                        final Set<String> webservices, final String host){
         try{

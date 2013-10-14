@@ -10,6 +10,7 @@ import eu.spitfire.ssp.server.channels.SmartServiceProxyPipelineFactory;
 import eu.spitfire.ssp.server.channels.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.channels.handler.MqttResourceHandler;
 import eu.spitfire.ssp.server.channels.handler.cache.DummySemanticCache;
+import eu.spitfire.ssp.server.channels.handler.cache.JenaSdbSemanticCache;
 import eu.spitfire.ssp.server.channels.handler.cache.JenaTdbSemanticCache;
 import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
 import org.apache.commons.configuration.Configuration;
@@ -216,7 +217,7 @@ public class ComponentFactory {
     }
 
 
-    private void createSemanticCache(Configuration config) {
+    private void createSemanticCache(Configuration config) throws Exception{
         String cacheType = config.getString("cache");
 
         if ("dummy".equals(cacheType)) {
@@ -231,6 +232,15 @@ public class ComponentFactory {
                 throw new RuntimeException("'cache.jenaSDB.jdbc.url' missing in ssp.properties");
 
             this.semanticCache = new JenaTdbSemanticCache(scheduledExecutorService, Paths.get(dbDirectory));
+            return;
+        }
+
+        if("jenaSDB".equals(cacheType)){
+            String jdbcUri = config.getString("cache.jenaSDB.jdbc.url");
+            String jdbcUser = config.getString("cache.jenaSDB.jdbc.user");
+            String jdbcPassword = config.getString("cache.jenaSDB.jdbc.password");
+
+            this.semanticCache = new JenaSdbSemanticCache(scheduledExecutorService, jdbcUri, jdbcUser, jdbcPassword);
             return;
         }
 

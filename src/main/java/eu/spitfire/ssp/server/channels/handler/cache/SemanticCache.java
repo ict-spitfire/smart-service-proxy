@@ -144,8 +144,14 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
                 scheduleResourceStatusExpiry(message.getResourceUri(), message.getExpiry());
 
+                Long startTime = System.currentTimeMillis();
+                log.debug("Start putting resource {} to cache.", message.getResourceUri());
+
                 putResourceToCache(message.getResourceUri(), message.getModel());
-            } else if (me.getMessage() instanceof InternalUpdateResourceStatusMessage) {
+                log.debug("Successfully put resource {} to cache after {} millis.", message.getResourceUri(),
+                        System.currentTimeMillis() - startTime);
+            }
+            else if (me.getMessage() instanceof InternalUpdateResourceStatusMessage) {
                 InternalUpdateResourceStatusMessage message = (InternalUpdateResourceStatusMessage) me.getMessage();
                 resourceUri = new URI(message.getStatement().getSubject().toString());
                 log.info("Received update for resource {} (expiry: {})", resourceUri, message.getExpiry());
@@ -173,25 +179,25 @@ public abstract class SemanticCache extends SimpleChannelHandler {
             }
 
             ctx.sendDownstream(me);
-        } catch (Exception e) {
-            try {
-                log.error("Caching error! " + getCachedResource(resourceUri), e);
-            } catch (Exception e1) {
-                e1.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            }
-
-            me.getFuture().setFailure(e);
+        }
+        catch (Exception e) {
+          log.error("Caching error! " + resourceUri, e);
+          me.getFuture().setFailure(e);
         }
     }
 
 
     private void scheduleResourceStatusExpiry(final URI resourceUri, Date expiry) {
         log.info("Received new status of {} (expiry: {})", resourceUri, expiry);
-
+        Long startTime = System.currentTimeMillis();
+        log.debug("Schedule timeout for resource {}.", resourceUri);
         //Cancel old expiry (if existing)
         ScheduledFuture timeoutFuture = expiryFutures.remove(resourceUri);
         if (timeoutFuture != null)
             timeoutFuture.cancel(false);
+
+        log.debug("Cacnceled timeout after {} millis for resource {}", System.currentTimeMillis() - startTime,
+                resourceUri);
 
         //Set new expiry (if not null)
         if (expiry != null) {
@@ -206,6 +212,8 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                 }
             }, expiry.getTime() - System.currentTimeMillis() + DELAY_AFTER_EXPIRY, TimeUnit.MILLISECONDS));
         }
+
+        log.debug("New timeout scheduled after {} millis", System.currentTimeMillis() - startTime);
     }
 
 

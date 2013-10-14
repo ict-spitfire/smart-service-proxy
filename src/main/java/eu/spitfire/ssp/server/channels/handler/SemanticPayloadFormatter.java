@@ -111,6 +111,8 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
             Model model = internalResourceStatusMessage.getModel();
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
+            log.info("Model to be serialized{}", model);
+
             //Serialize the model associated with the resource and write on OutputStream
             model.write(byteArrayOutputStream, acceptedLanguage.lang);
 

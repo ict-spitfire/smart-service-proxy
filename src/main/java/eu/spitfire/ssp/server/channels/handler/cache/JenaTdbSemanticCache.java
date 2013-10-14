@@ -14,6 +14,8 @@ import java.util.Date;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 
+import com.hp.hpl.jena.reasoner.Reasoner;
+import com.hp.hpl.jena.reasoner.ReasonerRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +61,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
 	private Dataset dataset;
-
+    private Reasoner reasoner;
 
 	public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory) {
 		super(scheduledExecutorService);
@@ -86,6 +88,8 @@ public class JenaTdbSemanticCache extends SemanticCache {
 				ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
 			}
 		}
+
+        reasoner = ReasonerRegistry.getRDFSSimpleReasoner().bindSchema(ontologyBaseModel);
 	}
 
 	private static boolean isUriAccessible(String uri) {
@@ -114,6 +118,9 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	public InternalResourceStatusMessage getCachedResource(URI resourceUri) throws Exception {
 		dataset.begin(ReadWrite.READ);
 		try {
+            if(resourceUri == null)
+                log.error("Resource URI was NULL!");
+
 			Model model = dataset.getNamedModel(resourceUri.toString());
 
 			if (model.isEmpty()) {
@@ -131,18 +138,13 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	}
 
 	@Override
-	public void putResourceToCache(final URI resourceUri, final Model resourceStatus) throws Exception {
-		deleteResource(resourceUri);
+	public void putResourceToCache(URI resourceUri, Model resourceStatus) throws Exception {
 
-//		Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-//		owlFullModel.add(ontologyBaseModel);
-//		owlFullModel.add(resourceStatus);
-//		dataset.addNamedModel(resourceUri.toString(), resourceStatus);
-
-		dataset.begin(ReadWrite.WRITE);
+    	dataset.begin(ReadWrite.WRITE);
 		try {
-//			dataset.addNamedModel(SPT_NS, owlFullModel);
-			dataset.addNamedModel(resourceUri.toString(), resourceStatus);
+            Model model = dataset.getNamedModel(resourceUri.toString());
+            model.removeAll();
+            model.add(ModelFactory.createInfModel(reasoner, resourceStatus));
 			dataset.commit();
 			log.debug("Added status for resource {}", resourceUri);
 		} finally {
@@ -218,6 +220,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
 			dataset.end();
 		}
 	}
+
 
 	@Override
 	public boolean supportsSPARQL() {
