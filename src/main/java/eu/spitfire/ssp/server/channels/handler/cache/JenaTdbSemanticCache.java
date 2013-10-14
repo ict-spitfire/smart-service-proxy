@@ -3,6 +3,7 @@ package eu.spitfire.ssp.server.channels.handler.cache;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
@@ -10,6 +11,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.Date;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 
 import com.hp.hpl.jena.reasoner.Reasoner;
@@ -64,16 +66,16 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory) {
 		super(scheduledExecutorService);
 
-        File fin = dbDirectory.toFile();
-        File[] filesInList = fin.listFiles();
-        for (int n = 0; n < filesInList.length; n++) {
-            if (filesInList[n].isFile()) {
-                System.gc();
-                filesInList[n].delete();
-            }
-        }
+		File fin = dbDirectory.toFile();
+		File[] filesInList = fin.listFiles();
+		for (int n = 0; n < filesInList.length; n++) {
+			if (filesInList[n].isFile()) {
+				System.gc();
+				filesInList[n].delete();
+			}
+		}
 
-        dataset = TDBFactory.createDataset(dbDirectory.toString());
+		dataset = TDBFactory.createDataset(dbDirectory.toString());
 		TDB.getContext().set(TDB.symUnionDefaultGraph, true);
 
 		//Collect the SPITFIRE vocabularies
@@ -87,14 +89,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
 			}
 		}
 
-//		Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-//		owlFullModel.add(ontologyBaseModel);
-//        reasoner = ReasonerRegistry.getOWLReasoner().bindSchema(owlFullModel);
-
         reasoner = ReasonerRegistry.getOWLReasoner().bindSchema(ontologyBaseModel);
-
-		//dataset.addNamedModel(SPT_NS, owlFullModel);
-
 	}
 
 	private static boolean isUriAccessible(String uri) {
@@ -134,6 +129,8 @@ public class JenaTdbSemanticCache extends SemanticCache {
 			}
 			log.info("Cached status found for resource {}", resourceUri);
 			return new InternalResourceStatusMessage(model, new Date());
+		} catch (NullPointerException npe) {
+			return new InternalResourceStatusMessage(ModelFactory.createDefaultModel(), new Date());
 		} finally {
 			dataset.end();
 		}
@@ -142,24 +139,12 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
 	@Override
 	public void putResourceToCache(URI resourceUri, Model resourceStatus) throws Exception {
-		//deleteResource(resourceUri);
 
-//        Model owlFullModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
-//        owlFullModel.add(ontologyBaseModel);
-//        owlFullModel.add(resourceStatus);
-		//dataset.addNamedModel(resourceUri.toString(), resourceStatus);
-
-
-		dataset.begin(ReadWrite.WRITE);
+    	dataset.begin(ReadWrite.WRITE);
 		try {
-//            dataset.addNamedModel(SPT_NS, owlFullModel);
-
             Model model = dataset.getNamedModel(resourceUri.toString());
             model.removeAll();
-            //model.add(resourceStatus);
             model.add(ModelFactory.createInfModel(reasoner, resourceStatus));
-
-			//dataset.addNamedModel(resourceUri.toString(), resourceStatus);
 			dataset.commit();
 			log.debug("Added status for resource {}", resourceUri);
 		} finally {
