@@ -9,16 +9,21 @@ import de.uniluebeck.itm.ncoap.message.CoapRequest;
 import de.uniluebeck.itm.ncoap.message.header.Code;
 import de.uniluebeck.itm.ncoap.message.header.MsgType;
 import de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType;
+import edu.emory.mathcs.backport.java.util.Collections;
 import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
+import eu.spitfire.ssp.backends.coap.CoapWebserviceResponseProcessor;
 import eu.spitfire.ssp.backends.coap.observation.CoapWebserviceObserver;
 import eu.spitfire.ssp.backends.generic.DataOriginRegistry;
 import eu.spitfire.ssp.backends.generic.ExpiringModel;
 import eu.spitfire.ssp.backends.generic.ResourceToolbox;
+import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -78,8 +83,11 @@ public class CoapWebserviceRegistry extends DataOriginRegistry<URI> {
 
                     if(webservices.contains("/rdf"))
                         registerTubsResources(registeredResourcesFuture, webservices, host);
-                    else
-                        registeredResourcesFuture.setException(new Exception("No /rdf webservice!"));
+                    else{
+                        //registeredResourcesFuture.setException(new Exception("No /rdf webservice!"));
+                        registerResources(registeredResourcesFuture, webservices, host);
+                    }
+
                 }
                 catch (Exception e) {
                     log.error("This should never happen.", e);
@@ -117,7 +125,57 @@ public class CoapWebserviceRegistry extends DataOriginRegistry<URI> {
         return wellKnownCoreFuture;
     }
 
-    private void registerResources(){}
+    private void registerResources(final SettableFuture<Set<URI>> registeredResourcesFuture,
+                                    final Set<String> webservices, final String host){
+
+        final Map<URI, Boolean> registeredResources = Collections.synchronizedMap(new HashMap<URI, Boolean>());
+
+        for(String path : webservices){
+            try{
+                final URI webserviceUri = new URI("coap", null, host, -1, path, null, null);
+
+                final SettableFuture<InternalResourceStatusMessage> resourceStatusFuture = SettableFuture.create();
+
+                CoapWebserviceResponseProcessor coapResponseProcessor =
+                        new CoapWebserviceResponseProcessor(backendComponentFactory, resourceStatusFuture,
+                                webserviceUri, webserviceUri);
+
+                CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.GET, webserviceUri);
+                coapRequest.setAccept(MediaType.APP_SHDT, MediaType.APP_RDF_XML, MediaType.APP_N3, MediaType.APP_TURTLE);
+
+                coapClientApplication.writeCoapRequest(coapRequest, coapResponseProcessor);
+
+                resourceStatusFuture.addListener(new Runnable(){
+                    @Override
+                    public void run() {
+                        try{
+                            resourceStatusFuture.get();
+                            CoapWebserviceObserver observer =
+                                    new CoapWebserviceObserver(backendComponentFactory, webserviceUri);
+                            observer.startObservation();
+
+                            registeredResources.put(webserviceUri, true);
+
+                        }
+                        catch(Exception e){
+                            log.error("Failed to register CoAP webservice {}", webserviceUri);
+                            registeredResources.put(webserviceUri, false);
+                        }
+                        finally {
+                            if(registeredResources.size() == webservices.size()){
+                                log.info("Finished registration of {} resources from {}", webservices.size(), host);
+                                registeredResourcesFuture.set(registeredResources.keySet());
+                            }
+                        }
+                    }
+                }, backendComponentFactory.getScheduledExecutorService());
+            }
+            catch (Exception e) {
+                log.error("Error during CoAP Webservice registration.", e);
+            }
+        }
+    }
+
 
     private void registerTubsResources(final SettableFuture<Set<URI>> registeredResourcesFuture,
                                        final Set<String> webservices, final String host){
