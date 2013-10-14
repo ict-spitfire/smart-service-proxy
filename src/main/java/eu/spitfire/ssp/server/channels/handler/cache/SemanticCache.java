@@ -26,6 +26,7 @@ package eu.spitfire.ssp.server.channels.handler.cache;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
+import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalSparqlQueryMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalUpdateResourceStatusMessage;
@@ -173,9 +174,14 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                     log.warn("Resource {} was null!!!", resourceUri);
                     return;
                 }
-            } else if (me.getMessage() instanceof InternalSparqlQueryMessage) {
+            }
+            else if (me.getMessage() instanceof InternalSparqlQueryMessage) {
                 InternalSparqlQueryMessage message = (InternalSparqlQueryMessage) me.getMessage();
                 processSparqlQuery(message.getQueryResultFuture(), message.getQuery());
+            }
+            else if(me.getMessage() instanceof InternalRemoveResourcesMessage){
+                InternalRemoveResourcesMessage message = (InternalRemoveResourcesMessage) me.getMessage();
+                deleteResource(message.getResourceUri());
             }
 
             ctx.sendDownstream(me);
