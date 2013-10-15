@@ -174,7 +174,7 @@ public class UberdustNodeHelper {
 
         description.append("<http://www.w3.org/2003/01/geo/wgs84_pos#long> ").append("\"" + y + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n");
         description.append("<http://www.w3.org/2003/01/geo/wgs84_pos#lat> ").append("\"" + x + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n");
-        description.append("<http://www.ontologydesignpatterns.org/ont/dul/DUL.owl/hasLocation> ").append("\"" + locationName + "\".\n");
+        description.append("<http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#hasLocation> ").append("\"" + locationName + "\".\n");
 
         if (rooms != null) {
             final StringBuilder object = new StringBuilder();
@@ -205,7 +205,7 @@ public class UberdustNodeHelper {
             description.append("<" + tinyURI + ">").append("<http://www.w3.org/2002/07/owl#sameAs> ").append("<" + fullURI + ">.\n");
 
             description.append("<" + getResourceURI(testbed, node, capability) + "> ").append("<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ").append("<http://spitfire-project.eu/ontology/ns/sn/Switch>;\n");
-        } else if (fan.matcher(capability).find()) {
+        } else if (capability.endsWith("ac1")||capability.endsWith("ac2")) {
             String fullURI = getResourceURI(testbed, node, capability);
             String tinyURI = tiny(getResourceURI(testbed, node, capability));
             tinyURIS.put(tinyURI, fullURI);
@@ -262,7 +262,7 @@ public class UberdustNodeHelper {
                 "\"" + x + "\"^^<http://www.w3.org/2001/XMLSchema#float>;\n" +
                 "<http://purl.org/dc/terms/#date>\n" +
                 "\"" + dateFormatGmt.format(time) + "\";\n" +
-                "<http://www.ontologydesignpatterns.org/ont/dul/DUL.owl/hasLocation>\n" +
+                "<http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#hasLocation>\n" +
                 "\"" + locationName + "\"";
         if ((lightZone.matcher(capability).find() || relay.matcher(capability).find())) {
 
