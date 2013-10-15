@@ -64,7 +64,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
 	private Dataset dataset;
-    private Reasoner reasoner;
+//    private Reasoner reasoner;
 
     
 	public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory) {
@@ -92,19 +92,13 @@ public class JenaTdbSemanticCache extends SemanticCache {
 				ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
 			}
 		}
-//		ontologyBaseModel.add(ontologyBaseModel.createResource("http://example.com/node3084"), 
-//				ontologyBaseModel.createProperty("http://purl.oclc.org/NET/ssnx/ssn#featureofinterest"), 
-//				ontologyBaseModel.createResource("http://example.com/room55"));
-//		ontologyBaseModel.add(ontologyBaseModel.createResource("http://example.com/node3084"), 
-//				ontologyBaseModel.createProperty("http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#hasLocation"), 
-//				ontologyBaseModel.createResource("http://example.com/patras"));
 		
 //        reasoner = ReasonerRegistry.getRDFSSimpleReasoner().bindSchema(ontologyBaseModel);
 		
 		if (ruleFile == null){
 			ruleFile = getRuleFilePath();
 		}		
-		reasoner = getCustomReasoner();
+//		reasoner = getCustomReasoner();		
 	}
 	
 	private static String getRuleFilePath(){
@@ -190,7 +184,8 @@ public class JenaTdbSemanticCache extends SemanticCache {
 		try {
             Model model = dataset.getNamedModel(resourceUri.toString());
             model.removeAll();
-            InfModel im = ModelFactory.createInfModel(reasoner, resourceStatus);
+//            InfModel im = ModelFactory.createInfModel(reasoner, resourceStatus);
+            InfModel im = ModelFactory.createInfModel(getCustomReasoner(), resourceStatus);
             // force starting the rule execution
             im.prepare();
             model.add(im);
