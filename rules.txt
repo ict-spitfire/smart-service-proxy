@@ -6,7 +6,7 @@
 @prefix ssn: <http://purl.oclc.org/NET/ssnx/ssn#>.
 @prefix wgs: <http://www.w3.org/2003/01/geo/wgs84_pos#>.
 	
-[rule1:   (?x dul:hasLocation ?y), (?x ssn:featureofinterest ?c) -> (?c dul:hasLocation ?y)]
-[rule2:   (?x wgs:lat ?y), (?x ssn:featureofinterest ?c) -> (?c wgs:lat ?y)]
-[rule3:   (?x wgs:long ?y), (?x ssn:featureofinterest ?c) -> (?c wgs:long ?y)]
+[rule1:   (?x dul:hasLocation ?y), (?x ssn:featureOfInterest ?c) -> (?c dul:hasLocation ?y)]
+[rule2:   (?x wgs:lat ?y), (?x ssn:featureOfInterest ?c) -> (?c wgs:lat ?y)]
+[rule3:   (?x wgs:long ?y), (?x ssn:featureOfInterest ?c) -> (?c wgs:long ?y)]
 
