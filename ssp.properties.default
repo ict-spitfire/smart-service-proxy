@@ -48,3 +48,5 @@ files.copyExamples = true
 #UBERDUST_OBSERVE_NODES =
 #UBERDUST_OBSERVE_CAPABILITIES =
 #UBERDUST_INSERT_THREAD_COUNT = 1
+
+#RULE_FILE = /this/file/must/already/exist
