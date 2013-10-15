@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
 
+import com.hp.hpl.jena.reasoner.ReasonerRegistry;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -55,18 +56,18 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
 	private static final String SPT_SOURCE = "http://spitfire-project.eu/ontology.rdf";
 	private static final String SPTSN_SOURCE = "http://spitfire-project.eu/sn.rdf";
-	private static final String RULE_FILE_PROPERTY_KEY = "RULE_FILE";	
+	private static final String RULE_FILE_PROPERTY_KEY = "RULE_FILE";
 
 	private static String ruleFile = null;
-	
+
 	private static OntModel ontologyBaseModel = null;
 
 	private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
 	private Dataset dataset;
-//    private Reasoner reasoner;
+	private Reasoner reasoner;
 
-    
+
 	public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory) {
 		super(scheduledExecutorService);
 
@@ -84,7 +85,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
 		//Collect the SPITFIRE vocabularies
 		if (ontologyBaseModel == null) {
-			ontologyBaseModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
+			ontologyBaseModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);
 			if (isUriAccessible(SPT_SOURCE)) {
 				ontologyBaseModel.read(SPT_SOURCE, "RDF/XML");
 			}
@@ -92,44 +93,46 @@ public class JenaTdbSemanticCache extends SemanticCache {
 				ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
 			}
 		}
-		
-//        reasoner = ReasonerRegistry.getRDFSSimpleReasoner().bindSchema(ontologyBaseModel);
-		
-		if (ruleFile == null){
+
+//		reasoner = ReasonerRegistry.getRDFSSimpleReasoner().bindSchema(ontologyBaseModel);
+
+
+		if (ruleFile == null) {
 			ruleFile = getRuleFilePath();
-		}		
-//		reasoner = getCustomReasoner();		
+		}
+
+		Model m = ModelFactory.createDefaultModel();
+		Resource configuration = m.createResource();
+		configuration.addProperty(ReasonerVocabulary.PROPruleMode, "hybrid");
+		if (ruleFile != null) {
+			configuration.addProperty(ReasonerVocabulary.PROPruleSet, ruleFile);
+		}
+
+		reasoner= GenericRuleReasonerFactory.theInstance().create(configuration).bindSchema(ontologyBaseModel);
+
+
 	}
-	
-	private static String getRuleFilePath(){
+
+	private static String getRuleFilePath() {
 		String ret = null;
-		 Configuration config;
+		Configuration config;
 		try {
 			config = new PropertiesConfiguration("ssp.properties");
 
-	        ret = config.getString(RULE_FILE_PROPERTY_KEY);
-	        
+			ret = config.getString(RULE_FILE_PROPERTY_KEY);
+
 		} catch (ConfigurationException e) {
 			e.printStackTrace();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
-	        
+
 		return ret;
 	}
-	
-	private static Reasoner getCustomReasoner(){
-		Model m = ModelFactory.createDefaultModel();
-        Resource configuration = m.createResource();
-        configuration.addProperty(ReasonerVocabulary.PROPruleMode, "hybrid");
-        if (ruleFile != null){
-        	configuration.addProperty(ReasonerVocabulary.PROPruleSet, ruleFile);
-        }
 
-        Reasoner ret = GenericRuleReasonerFactory.theInstance().create(configuration).bindSchema(ontologyBaseModel);
-        
-		return ret;
+	private Reasoner getCustomReasoner() {
+		return reasoner;
 	}
 
 	private static boolean isUriAccessible(String uri) {
@@ -158,8 +161,8 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	public InternalResourceStatusMessage getCachedResource(URI resourceUri) throws Exception {
 		dataset.begin(ReadWrite.READ);
 		try {
-            if(resourceUri == null)
-                log.error("Resource URI was NULL!");
+			if (resourceUri == null)
+				log.error("Resource URI was NULL!");
 
 			Model model = dataset.getNamedModel(resourceUri.toString());
 
@@ -180,15 +183,16 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	@Override
 	public void putResourceToCache(URI resourceUri, Model resourceStatus) throws Exception {
 
-    	dataset.begin(ReadWrite.WRITE);
+		dataset.begin(ReadWrite.WRITE);
 		try {
-            Model model = dataset.getNamedModel(resourceUri.toString());
-            model.removeAll();
+			Model model = dataset.getNamedModel(resourceUri.toString());
+			model.removeAll();
+			model.add(ModelFactory.createInfModel(reasoner, resourceStatus));
 //            InfModel im = ModelFactory.createInfModel(reasoner, resourceStatus);
-            InfModel im = ModelFactory.createInfModel(getCustomReasoner(), resourceStatus);
-            // force starting the rule execution
-            im.prepare();
-            model.add(im);
+//			InfModel im = ModelFactory.createInfModel(reasoner, resourceStatus);
+			// force starting the rule execution
+//			im.prepare();
+//			model.add(im);
 			dataset.commit();
 			log.debug("Added status for resource {}", resourceUri);
 		} finally {
