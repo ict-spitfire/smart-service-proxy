@@ -3,7 +3,6 @@ package eu.spitfire.ssp.server.channels.handler.cache;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
@@ -11,11 +10,11 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.Date;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 
-import com.hp.hpl.jena.reasoner.Reasoner;
-import com.hp.hpl.jena.reasoner.ReasonerRegistry;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,15 +30,17 @@ import com.hp.hpl.jena.query.QueryFactory;
 import com.hp.hpl.jena.query.ReadWrite;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
+import com.hp.hpl.jena.rdf.model.InfModel;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.RDFNode;
+import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.reasoner.Reasoner;
+import com.hp.hpl.jena.reasoner.rulesys.GenericRuleReasonerFactory;
 import com.hp.hpl.jena.tdb.TDB;
 import com.hp.hpl.jena.tdb.TDBFactory;
-import com.hp.hpl.jena.vocabulary.OWL;
-import com.hp.hpl.jena.vocabulary.RDF;
-import com.hp.hpl.jena.vocabulary.RDFS;
+import com.hp.hpl.jena.vocabulary.ReasonerVocabulary;
 
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 
@@ -53,9 +54,11 @@ import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 public class JenaTdbSemanticCache extends SemanticCache {
 
 	private static final String SPT_SOURCE = "http://spitfire-project.eu/ontology.rdf";
-	private static final String SPT_NS = "http://spitfire-project.eu/ontology/ns/";
 	private static final String SPTSN_SOURCE = "http://spitfire-project.eu/sn.rdf";
+	private static final String RULE_FILE_PROPERTY_KEY = "RULE_FILE";	
 
+	private static String ruleFile = null;
+	
 	private static OntModel ontologyBaseModel = null;
 
 	private Logger log = LoggerFactory.getLogger(this.getClass().getName());
@@ -63,6 +66,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	private Dataset dataset;
     private Reasoner reasoner;
 
+    
 	public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory) {
 		super(scheduledExecutorService);
 
@@ -80,7 +84,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
 		//Collect the SPITFIRE vocabularies
 		if (ontologyBaseModel == null) {
-			ontologyBaseModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);
+			ontologyBaseModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MICRO_RULE_INF);
 			if (isUriAccessible(SPT_SOURCE)) {
 				ontologyBaseModel.read(SPT_SOURCE, "RDF/XML");
 			}
@@ -88,8 +92,50 @@ public class JenaTdbSemanticCache extends SemanticCache {
 				ontologyBaseModel.read(SPTSN_SOURCE, "RDF/XML");
 			}
 		}
+//		ontologyBaseModel.add(ontologyBaseModel.createResource("http://example.com/node3084"), 
+//				ontologyBaseModel.createProperty("http://purl.oclc.org/NET/ssnx/ssn#featureofinterest"), 
+//				ontologyBaseModel.createResource("http://example.com/room55"));
+//		ontologyBaseModel.add(ontologyBaseModel.createResource("http://example.com/node3084"), 
+//				ontologyBaseModel.createProperty("http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#hasLocation"), 
+//				ontologyBaseModel.createResource("http://example.com/patras"));
+		
+//        reasoner = ReasonerRegistry.getRDFSSimpleReasoner().bindSchema(ontologyBaseModel);
+		
+		if (ruleFile == null){
+			ruleFile = getRuleFilePath();
+		}		
+		reasoner = getCustomReasoner();
+	}
+	
+	private static String getRuleFilePath(){
+		String ret = null;
+		 Configuration config;
+		try {
+			config = new PropertiesConfiguration("ssp.properties");
 
-        reasoner = ReasonerRegistry.getRDFSSimpleReasoner().bindSchema(ontologyBaseModel);
+	        ret = config.getString(RULE_FILE_PROPERTY_KEY);
+	        
+		} catch (ConfigurationException e) {
+			e.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+	        
+		return ret;
+	}
+	
+	private static Reasoner getCustomReasoner(){
+		Model m = ModelFactory.createDefaultModel();
+        Resource configuration = m.createResource();
+        configuration.addProperty(ReasonerVocabulary.PROPruleMode, "hybrid");
+        if (ruleFile != null){
+        	configuration.addProperty(ReasonerVocabulary.PROPruleSet, ruleFile);
+        }
+
+        Reasoner ret = GenericRuleReasonerFactory.theInstance().create(configuration).bindSchema(ontologyBaseModel);
+        
+		return ret;
 	}
 
 	private static boolean isUriAccessible(String uri) {
@@ -144,7 +190,10 @@ public class JenaTdbSemanticCache extends SemanticCache {
 		try {
             Model model = dataset.getNamedModel(resourceUri.toString());
             model.removeAll();
-            model.add(ModelFactory.createInfModel(reasoner, resourceStatus));
+            InfModel im = ModelFactory.createInfModel(reasoner, resourceStatus);
+            // force starting the rule execution
+            im.prepare();
+            model.add(im);
 			dataset.commit();
 			log.debug("Added status for resource {}", resourceUri);
 		} finally {
