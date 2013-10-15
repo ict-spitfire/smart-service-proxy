@@ -16,6 +16,7 @@ import eu.spitfire.ssp.backends.coap.observation.CoapWebserviceObserver;
 import eu.spitfire.ssp.backends.generic.DataOriginRegistry;
 import eu.spitfire.ssp.backends.generic.ExpiringModel;
 import eu.spitfire.ssp.backends.generic.ResourceToolbox;
+import eu.spitfire.ssp.backends.generic.exceptions.ResourceAlreadyRegisteredException;
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -215,7 +217,7 @@ public class CoapWebserviceRegistry extends DataOriginRegistry<URI> {
                                 registeredResources.add(resourceUri);
 
                                 final ListenableFuture<URI> resourceRegistrationFuture =
-                                        registerResource(resourceUri, model, expiringModel.getExpiry());
+                                        registerResource(resourceUri, model);
 
                                 resourceRegistrationFuture.addListener(new Runnable(){
                                     @Override
@@ -225,7 +227,14 @@ public class CoapWebserviceRegistry extends DataOriginRegistry<URI> {
                                             log.info("Successfully registered resource at {}", resourceProxyUri);
                                             startTubsObservation(resourceUri);
                                         }
+                                        catch(ExecutionException e){
+                                            if (e.getCause() instanceof ResourceAlreadyRegisteredException){
+                                                log.info("Re-registration of resource {}", resourceUri);
+                                                startTubsObservation(resourceUri);
+                                            }
+                                        }
                                         catch (Exception e) {
+                                            if(e.getCause() instanceof ResourceAlreadyRegisteredException)
                                             log.error("Error during registration of resource {}.", resourceUri, e);
                                             registeredResourcesFuture.setException(e);
                                         }
