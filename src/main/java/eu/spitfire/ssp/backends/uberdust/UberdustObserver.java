@@ -64,7 +64,7 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
         ThreadFactory insertTf = new ThreadFactoryBuilder().setNameFormat("UberdustInsert #%d").build();
         ThreadFactory updateTf = new ThreadFactoryBuilder().setNameFormat("UberdustUpdate #%d").build();
         insertExecutor = Executors.newFixedThreadPool(observerInsetThreadCount, insertTf);
-        updateExecutor = Executors.newFixedThreadPool(observerInsetThreadCount,updateTf);
+        updateExecutor = Executors.newFixedThreadPool(observerInsetThreadCount, updateTf);
 
 
         this.localChannel = localChannel;
@@ -155,8 +155,10 @@ public class UberdustObserver extends DataOriginObserver implements Observer {
 
                     final Collection<URI> collection = backendResourceManager.getResources(resourceURI);
                     if (collection.isEmpty()) {
+                        log.warn("Received Insert with " + (System.currentTimeMillis() - reading.getTimestamp()) + " millis drift. " + Thread.activeCount() + " Threads Running.");
                         insertExecutor.execute(new InsertJob(this, reading, testbeds.get(prefix), prefix));
                     } else {
+                        log.warn("Received Update with " + (System.currentTimeMillis() - reading.getTimestamp()) + " millis drift. " + Thread.activeCount() + " Threads Running.");
                         updateExecutor.execute(new UpdateJob(this, reading, resourceURI));
                     }
 

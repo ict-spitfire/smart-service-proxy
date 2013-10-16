@@ -11,11 +11,9 @@ import java.net.URISyntaxException;
 import java.util.Date;
 
 /**
- * Created with IntelliJ IDEA.
- * User: amaxilatis
- * Date: 10/12/13
- * Time: 1:26 PM
- * To change this template use File | Settings | File Templates.
+ * Asynchronous Job used to construct and inset the sensor description in the Jena TDB.
+ *
+ * @author Dimitrios Amaxilatis
  */
 public class InsertJob implements Runnable {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
@@ -35,7 +33,6 @@ public class InsertJob implements Runnable {
     @Override
     public void run() {
         long start = 0;
-        log.warn("Received Insert with " + (System.currentTimeMillis() - reading.getTimestamp()) + " millis drift. " + Thread.activeCount() + " Threads Running.");
         try {
             start = System.currentTimeMillis();
             Model description = UberdustNodeHelper.generateDescription(reading.getNode(), testbed, prefix, reading.getCapability(), reading.getDoubleReading(), new Date(reading.getTimestamp()));

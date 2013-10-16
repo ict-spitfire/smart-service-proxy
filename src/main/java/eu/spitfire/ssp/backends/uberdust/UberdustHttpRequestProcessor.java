@@ -74,7 +74,6 @@ public class UberdustHttpRequestProcessor implements SemanticHttpRequestProcesso
         } else {
             uberdustURL = httpRequest.getUri().replaceAll("/\\?uri=", "");
         }
-        uberdustURL = uberdustURL.replaceAll("attachedSystem", "");
         System.out.println(uberdustURL);
         String payloadString = new String(httpRequest.getContent().toByteBuffer().array());
         if ("on".equals(payloadString)) {

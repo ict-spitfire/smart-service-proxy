@@ -12,11 +12,9 @@ import java.net.URISyntaxException;
 import java.util.Date;
 
 /**
- * Created with IntelliJ IDEA.
- * User: amaxilatis
- * Date: 10/12/13
- * Time: 1:26 PM
- * To change this template use File | Settings | File Templates.
+ * Asynchronous Job used to update the sensor value and timestamp triples in the Jena TDB.
+ *
+ * @author Dimitrios Amaxilatis
  */
 public class UpdateJob implements Runnable {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
@@ -34,7 +32,6 @@ public class UpdateJob implements Runnable {
     @Override
     public void run() {
         long start = 0;
-        log.warn("Received Update with " + (System.currentTimeMillis() - reading.getTimestamp()) + " millis drift. " + Thread.activeCount() + " Threads Running.");
         try {
             start = System.currentTimeMillis();
             final Statement valueStatement = UberdustNodeHelper.createUpdateValueStatement(resourceURI, reading.getDoubleReading());
