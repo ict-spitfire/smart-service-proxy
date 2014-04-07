@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.utils;
 
-import de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType;
+import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
 
 /**
  * Created with IntelliJ IDEA.
@@ -34,13 +34,13 @@ public enum Language{
         return null;
     }
 
-    public static Language getByCoapMediaType(MediaType mediaType){
+    public static Language getByCoapContentFormat(long contentFormat){
 
-        if(mediaType == MediaType.APP_RDF_XML)
+        if(contentFormat == ContentFormat.APP_RDF_XML)
             return RDF_XML;
-        if(mediaType == MediaType.APP_N3)
+        if(contentFormat == ContentFormat.APP_N3)
             return RDF_N3;
-        if(mediaType == MediaType.APP_TURTLE)
+        if(contentFormat == ContentFormat.APP_TURTLE)
             return RDF_TURTLE;
 
         return null;

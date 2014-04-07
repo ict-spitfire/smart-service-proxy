@@ -4,7 +4,6 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 
 import java.net.URI;
 
@@ -14,7 +13,7 @@ import java.net.URI;
  *
  * To be more precise, instances
  * of this exception must be set on the given {@link SettableFuture} on method invocation of
- * {@link HttpRequestProcessor#processHttpRequest(SettableFuture, HttpRequest)}.
+ * {@link eu.spitfire.ssp.server.webservices.HttpWebservice#processHttpRequest(SettableFuture, HttpRequest)}.
  *
  * Upon setting such an exception, the SSP will send a proper {@link HttpResponse} to the client
  *

@@ -1,7 +1,6 @@
 package eu.spitfire.ssp.backends.generic.messages;
 
-import eu.spitfire.ssp.server.webservices.DefaultHttpRequestProcessor;
-import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
+import eu.spitfire.ssp.server.webservices.HttpWebservice;
 
 import java.net.URI;
 
@@ -13,36 +12,36 @@ import java.net.URI;
  */
 public class InternalRegisterWebserviceMessage {
 
-    private URI relativeUri;
-    private DefaultHttpRequestProcessor httpRequestProcessor;
+    private URI localUri;
+    private HttpWebservice httpWebservice;
 
     /**
-     * @param relativeUri the {@link URI} at which the resource is reachable via the backends
-     * @param httpRequestProcessor the {@link DefaultHttpRequestProcessor} to process incoming HTTP requests
+     * @param localUri the {@link URI} of the resource, e.g. the path
+     * @param httpWebservice the {@link eu.spitfire.ssp.server.webservices.HttpWebservice} to process incoming HTTP requests
      */
-    public InternalRegisterWebserviceMessage(URI relativeUri, DefaultHttpRequestProcessor httpRequestProcessor) {
-        this.relativeUri = relativeUri;
-        this.httpRequestProcessor = httpRequestProcessor;
+    public InternalRegisterWebserviceMessage(URI localUri, HttpWebservice httpWebservice) {
+        this.localUri = localUri;
+        this.httpWebservice = httpWebservice;
     }
 
     /**
      * Returns the {@link URI} at which the resource is reachable via the backend
      * @return the {@link URI} at which the resource is reachable via the backend
      */
-    public URI getRelativeUri() {
-        return relativeUri;
+    public URI getLocalUri() {
+        return localUri;
     }
 
     /**
-     * Returns the {@link HttpRequestProcessor} responsible to process incoming requests to the relativeUri
-     * @return the {@link HttpRequestProcessor} responsible to process incoming requests to the relativeUri
+     * Returns the {@link eu.spitfire.ssp.server.webservices.HttpWebservice} responsible to process incoming requests to the localUri
+     * @return the {@link eu.spitfire.ssp.server.webservices.HttpWebservice} responsible to process incoming requests to the localUri
      */
-    public DefaultHttpRequestProcessor getHttpRequestProcessor() {
-        return httpRequestProcessor;
+    public HttpWebservice getHttpWebservice() {
+        return httpWebservice;
     }
 
     @Override
     public String toString(){
-        return "[Proxy Webservice registration] " + relativeUri + " (proxy webservice uri)";
+        return "[Proxy Webservice registration] " + localUri + " (proxy webservice uri)";
     }
 }

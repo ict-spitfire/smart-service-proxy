@@ -1,24 +1,25 @@
 package eu.spitfire.ssp.backends.coap;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
-import de.uniluebeck.itm.ncoap.message.header.Code;
-import de.uniluebeck.itm.ncoap.message.header.MsgType;
+import de.uniluebeck.itm.ncoap.message.MessageCode;
+import de.uniluebeck.itm.ncoap.message.MessageType;
+import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
 import eu.spitfire.ssp.backends.generic.BackendResourceManager;
-import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
+import eu.spitfire.ssp.backends.generic.HttpSemanticWebservice;
 import eu.spitfire.ssp.backends.generic.exceptions.DataOriginAccessException;
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
-import eu.spitfire.ssp.server.webservices.MethodNotAllowedException;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.concurrent.ExecutorService;
 
-import static de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType.*;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
@@ -29,7 +30,7 @@ import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SER
  * Time: 23:18
  * To change this template use File | Settings | File Templates.
  */
-public class SemanticHttpRequestProcessorForCoap implements SemanticHttpRequestProcessor{
+public class HttpSemanticWebserviceForCoap implements HttpSemanticWebservice {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -39,16 +40,17 @@ public class SemanticHttpRequestProcessorForCoap implements SemanticHttpRequestP
     private ExecutorService executorService;
 
 
-    public SemanticHttpRequestProcessorForCoap(CoapBackendComponentFactory backendComponentFactory){
+    public HttpSemanticWebserviceForCoap(CoapBackendComponentFactory backendComponentFactory){
         this.backendComponentFactory = backendComponentFactory;
         this.coapClientApplication = backendComponentFactory.getCoapClientApplication();
         this.backendResourceManager = backendComponentFactory.getBackendResourceManager();
-        this.executorService = backendComponentFactory.getScheduledExecutorService();
+        this.executorService = backendComponentFactory.getExecutorService();
     }
 
+
     @Override
-    public void processHttpRequest(final SettableFuture<InternalResourceStatusMessage> resourceStatusFuture,
-                                   final HttpRequest httpRequest) {
+    public ListenableFuture<InternalResourceStatusMessage> processHttpRequest(final HttpRequest httpRequest) {
+
         try{
             URI resourceProxyUri = new URI(httpRequest.getUri());
 
@@ -71,47 +73,62 @@ public class SemanticHttpRequestProcessorForCoap implements SemanticHttpRequestP
 
             //Create CoAP request
             CoapRequest coapRequest = convertToCoapRequest(httpRequest, dataOrigin);
-            coapRequest.setAccept(APP_SHDT, APP_RDF_XML, APP_N3, APP_TURTLE);
+            coapRequest.setAccept(ContentFormat.APP_RDF_XML, ContentFormat.APP_N3, ContentFormat.APP_TURTLE);
 
-            coapClientApplication.writeCoapRequest(coapRequest,
-                    new CoapWebserviceResponseProcessor(backendComponentFactory, resourceStatusFuture, dataOrigin,
-                            resourceUri));
+            CoapWebserviceResponseProcessor responseProcessor = new CoapWebserviceResponseProcessor(
+                    this.backendComponentFactory, dataOrigin, resourceUri);
+
+            InetSocketAddress coapServerAddress = new InetSocketAddress(resourceUri.getHost(), resourceUri.getPort());
+
+            coapClientApplication.sendCoapRequest(coapRequest, responseProcessor, coapServerAddress);
+
+            return responseProcessor.getResourceStatusFuture();
 
         }
+
         catch (Exception e) {
             String message = "Exception while converting from HTTP to CoAP request!";
             log.error(message, e);
-            resourceStatusFuture.setException(new DataOriginAccessException(INTERNAL_SERVER_ERROR, message));
+
+            SettableFuture<InternalResourceStatusMessage> result = SettableFuture.create();
+            result.setException(new DataOriginAccessException(INTERNAL_SERVER_ERROR, message));
+
+            return result;
         }
     }
 
-    private static CoapRequest convertToCoapRequest(HttpRequest httpRequest, URI dataOrigin) throws Exception{
+    private static CoapRequest convertToCoapRequest(HttpRequest httpRequest, URI dataOrigin)
+            throws IllegalArgumentException{
+
         //convert method
-        Code code;
+        MessageCode.Name messageCode;
         HttpMethod method = httpRequest.getMethod();
 
         if (method.equals(HttpMethod.GET))
-            code = Code.GET;
+            messageCode = MessageCode.Name.GET;
+
         else if(method.equals(HttpMethod.DELETE))
-            code = Code.DELETE;
+            messageCode = MessageCode.Name.DELETE;
+
         else if(method.equals(HttpMethod.PUT))
-            code = Code.PUT;
+            messageCode = MessageCode.Name.PUT;
+
         else if(method.equals(HttpMethod.POST))
-            code = Code.POST;
+            messageCode = MessageCode.Name.POST;
+
         else
-            throw new MethodNotAllowedException(httpRequest.getMethod());
+            throw new IllegalArgumentException("HTTP method " + method + " is not available in CoAP!");
 
-        CoapRequest coapRequest = new CoapRequest(MsgType.CON, code, dataOrigin);
+        CoapRequest coapRequest = new CoapRequest(MessageType.Name.CON, messageCode, dataOrigin);
 
-        if(code == Code.POST || code == Code.PUT){
+        if(messageCode == MessageCode.Name.POST || messageCode == MessageCode.Name.PUT){
             if(httpRequest.getContent().readableBytes() > 0)
-                coapRequest.setPayload(httpRequest.getContent());
+                coapRequest.setContent(httpRequest.getContent());
         }
 
-        coapRequest.setAccept(APP_SHDT);
-        coapRequest.setAccept(APP_RDF_XML);
-        coapRequest.setAccept(APP_N3);
-        coapRequest.setAccept(APP_TURTLE);
+        coapRequest.setAccept(ContentFormat.APP_RDF_XML);
+        coapRequest.setAccept(ContentFormat.APP_N3);
+        coapRequest.setAccept(ContentFormat.APP_TURTLE);
 
         return coapRequest;
     }

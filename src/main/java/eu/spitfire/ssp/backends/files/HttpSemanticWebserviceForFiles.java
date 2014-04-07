@@ -3,7 +3,7 @@ package eu.spitfire.ssp.backends.files;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.backends.generic.BackendResourceManager;
-import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
+import eu.spitfire.ssp.backends.generic.HttpSemanticWebservice;
 import eu.spitfire.ssp.backends.generic.exceptions.DataOriginAccessException;
 import eu.spitfire.ssp.backends.generic.exceptions.SemanticResourceException;
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
@@ -15,17 +15,16 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 
 
-public class HttpRequestProcessorForFiles implements SemanticHttpRequestProcessor {
+public class HttpSemanticWebserviceForFiles implements HttpSemanticWebservice {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private BackendResourceManager<Path> backendResourceManager;
 
-    public HttpRequestProcessorForFiles(FilesBackendComponentFactory backendComponentFactory){
+    public HttpSemanticWebserviceForFiles(FilesBackendComponentFactory backendComponentFactory){
         this.backendResourceManager = backendComponentFactory.getBackendResourceManager();
     }
 

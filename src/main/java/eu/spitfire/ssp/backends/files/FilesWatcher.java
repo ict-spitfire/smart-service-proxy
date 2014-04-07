@@ -1,6 +1,5 @@
 package eu.spitfire.ssp.backends.files;
 
-import com.google.common.collect.HashBasedTable;
 import eu.spitfire.ssp.backends.generic.BackendResourceManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +42,7 @@ public class FilesWatcher {
         this.backendResourceManager = backendComponentFactory.getBackendResourceManager();
         this.watchService = backendComponentFactory.getWatchService();
         this.filesObserver = backendComponentFactory.getFilesObserver();
-        this.scheduledExecutorService = backendComponentFactory.getScheduledExecutorService();
+        this.scheduledExecutorService = backendComponentFactory.getExecutorService();
         this.watchKeys = Collections.synchronizedMap(new HashMap<WatchKey, Path>());
     }
 

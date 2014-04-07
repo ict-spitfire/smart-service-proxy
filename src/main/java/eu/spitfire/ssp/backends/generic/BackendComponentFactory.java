@@ -26,12 +26,10 @@ package eu.spitfire.ssp.backends.generic;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
 import eu.spitfire.ssp.backends.generic.messages.InternalRegisterWebserviceMessage;
-import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
+import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.channel.local.DefaultLocalServerChannelFactory;
+import org.jboss.netty.channel.local.LocalChannel;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
@@ -47,7 +45,7 @@ import java.util.concurrent.ScheduledExecutorService;
  * talking HTTP to communicate with an arbitrary server.
  *
  * Classes inheriting from {@link BackendComponentFactory} are responsible to provide the necessary components,
- * i.e. {@link HttpRequestProcessor} instances to translate the incoming
+ * i.e. {@link eu.spitfire.ssp.server.webservices.HttpWebservice} instances to translate the incoming
  * {@link HttpRequest} to whatever (potentially proprietary) protocol the actual server talks and to enable the
  * SSP framework to produce a suitable {@link HttpResponse} which is then sent to the client.
  *
@@ -59,33 +57,45 @@ public abstract class BackendComponentFactory<T>{
 
     private BackendResourceManager<T> backendResourceManager;
     private DataOriginRegistry<T> dataOriginRegistry;
-    private ScheduledExecutorService scheduledExecutorService;
+    private ScheduledExecutorService executorService;
 
-    private String prefix;
-    private LocalServerChannel localServerChannel;
+    private String name;
+    private LocalServerChannel localChannel;
 
-    protected BackendComponentFactory(String prefix, LocalPipelineFactory localPipelineFactory,
-            final ScheduledExecutorService scheduledExecutorService, String sspHostName, int sspHttpPort)
-            throws Exception {
+    /**
+     * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.BackendComponentFactory}.
+     *
+     * @param prefix the prefix of the backend in the given config (without the ".")
+     * @param config the SSP config
+     * @param executorService the {@link java.util.concurrent.ScheduledExecutorService} for backend tasks, e.g.
+     *                        translating and forwarding requests to data origins
+     *
+     * @throws Exception if something went terribly wrong
+     */
+    protected BackendComponentFactory(String prefix, Configuration config, ScheduledExecutorService executorService)
+        throws Exception {
 
-        this.prefix = prefix;
-        this.scheduledExecutorService = scheduledExecutorService;
+        this.name = config.getString(prefix + ".name");
+        this.executorService = executorService;
 
-        //create local channel for internal messages related to this backend
-        DefaultLocalServerChannelFactory internalChannelFactory = new DefaultLocalServerChannelFactory();
-        this.localServerChannel = internalChannelFactory.newChannel(localPipelineFactory.getPipeline());
+        this.backendResourceManager = new BackendResourceManager<T>(
+                config.getString("SSP_HOST_NAME"),
+                config.getInt("SSP_HTTP_PORT", 8080)
+        ) {};
+    }
 
-        this.backendResourceManager = new BackendResourceManager<T>(sspHostName, sspHttpPort) {};
-        this.localServerChannel.getPipeline().addLast("Backend Resource Manager", backendResourceManager);
+
+    public void setLocalChannel(LocalServerChannel localChannel){
+        this.localChannel = localChannel;
     }
 
     /**
-     * Returns the (backend specific) {@link LocalServerChannel} to send internal messages
+     * Returns the (backend specific) {@link org.jboss.netty.channel.local.LocalChannel} to send internal messages
      *
-     * @return the (backend specific) {@link LocalServerChannel} to send internal messages
+     * @return the (backend specific) {@link org.jboss.netty.channel.local.LocalChannel} to send internal messages
      */
-    public final LocalServerChannel getLocalServerChannel(){
-       return this.localServerChannel;
+    public final LocalServerChannel getLocalChannel(){
+       return this.localChannel;
     }
 
     /**
@@ -93,8 +103,8 @@ public abstract class BackendComponentFactory<T>{
      *
      * @return the {@link ScheduledExecutorService} to schedule tasks
      */
-    public final ScheduledExecutorService getScheduledExecutorService(){
-        return this.scheduledExecutorService;
+    public final ScheduledExecutorService getExecutorService(){
+        return this.executorService;
     }
 
     /**
@@ -103,7 +113,7 @@ public abstract class BackendComponentFactory<T>{
      * @return the {@link ListeningExecutorService} to execute tasks
      */
     public final ListeningExecutorService getListeningExecutorService(){
-        return MoreExecutors.listeningDecorator(this.scheduledExecutorService);
+        return MoreExecutors.listeningDecorator(this.executorService);
     }
 
     /**
@@ -118,11 +128,11 @@ public abstract class BackendComponentFactory<T>{
 
 
     /**
-     * Returns the {@link SemanticHttpRequestProcessor} which is responsible to process all incoming HTTP requests
+     * Returns the {@link HttpSemanticWebservice} which is responsible to process all incoming HTTP requests
      *
-     * @return the {@link SemanticHttpRequestProcessor} which is responsible to process all incoming HTTP requests
+     * @return the {@link HttpSemanticWebservice} which is responsible to process all incoming HTTP requests
      */
-    public abstract SemanticHttpRequestProcessor getHttpRequestProcessor();
+    public abstract HttpSemanticWebservice getHttpRequestProcessor();
 
 
     /**
@@ -150,18 +160,20 @@ public abstract class BackendComponentFactory<T>{
         //Register Webservice to list registered resources per data origin
         try{
             InternalRegisterWebserviceMessage registerWebserviceMessage =
-                    new InternalRegisterWebserviceMessage(new URI("/" + prefix + "/resources"),
+                    new InternalRegisterWebserviceMessage(new URI("/" + this.name + "/resources"),
                             backendResourceManager.getResourcesListWebservice());
 
-            ChannelFuture future = Channels.write(localServerChannel, registerWebserviceMessage);
+            ChannelFuture future = Channels.write(localChannel, registerWebserviceMessage);
 
             future.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     if(future.isSuccess())
-                        log.info("Registered service to list resources for backend: {}", prefix);
+                        log.info("Registered service to list resources for backend: {}",
+                                BackendComponentFactory.this.name);
                     else
-                        log.error("Could not register service to list resources for backend {}", prefix);
+                        log.error("Could not register service to list resources for backend {}",
+                                BackendComponentFactory.this.name);
                 }
             });
         }
@@ -179,16 +191,16 @@ public abstract class BackendComponentFactory<T>{
      */
     public abstract void initialize() throws Exception;
 
-    /**
-     * Returns the specific prefix of this gateway. If wildcard DNS is enabled, then the prefix is used as the very
-     * first element of the host part of all gateway specific service URIs. If wildcard DNS is disabled, then the
-     * prefix is used as the very first path element of all gatew specific service URIs.
-     *
-     * @return the specific prefix of this gateway
-     */
-    public String getPrefix() {
-        return prefix;
-    }
+//    /**
+//     * Returns the specific prefix of this gateway. If wildcard DNS is enabled, then the prefix is used as the very
+//     * first element of the host part of all gateway specific service URIs. If wildcard DNS is disabled, then the
+//     * prefix is used as the very first path element of all gatew specific service URIs.
+//     *
+//     * @return the specific prefix of this gateway
+//     */
+//    public String getPrefix() {
+//        return prefix;
+//    }
 
     /**
      * Inheriting classes must return an instance of {@link DataOriginRegistry} capable to perform the

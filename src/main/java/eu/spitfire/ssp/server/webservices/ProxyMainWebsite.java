@@ -1,7 +1,7 @@
 package eu.spitfire.ssp.server.webservices;
 
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
+import eu.spitfire.ssp.backends.generic.HttpSemanticWebservice;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
@@ -24,16 +24,16 @@ import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
  *
  * @author Oliver Kleine
  */
-public class ProxyMainWebsite implements DefaultHttpRequestProcessor{
+public class ProxyMainWebsite implements HttpNonSemanticWebservice{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private Map<URI, HttpRequestProcessor> services;
+    private Map<URI, HttpWebservice> services;
 
     /**
      * @param webservices the {@link Set} containing the {@link URI}s to be listed in the HTTP response
      */
-    public ProxyMainWebsite(Map<URI, HttpRequestProcessor> webservices){
+    public ProxyMainWebsite(Map<URI, HttpWebservice> webservices){
         this.services = webservices;
     }
 
@@ -43,8 +43,8 @@ public class ProxyMainWebsite implements DefaultHttpRequestProcessor{
         StringBuilder otherServices = new StringBuilder();
 
         for(URI uri : services.keySet()){
-            HttpRequestProcessor httpRequestProcessor = services.get(uri);
-            if(httpRequestProcessor instanceof SemanticHttpRequestProcessor){
+            HttpWebservice httpWebservice = services.get(uri);
+            if(httpWebservice instanceof HttpSemanticWebservice){
                 semanticServices.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
             }
             else{

@@ -25,7 +25,7 @@
 package eu.spitfire.ssp.server.channels.handler;
 
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
+import eu.spitfire.ssp.backends.generic.HttpSemanticWebservice;
 import eu.spitfire.ssp.backends.generic.exceptions.ResourceAlreadyRegisteredException;
 import eu.spitfire.ssp.backends.generic.exceptions.SemanticResourceException;
 import eu.spitfire.ssp.backends.generic.messages.InternalRegisterResourceMessage;
@@ -35,6 +35,7 @@ import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
 import eu.spitfire.ssp.server.webservices.*;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
+import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
@@ -47,15 +48,15 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 
 /**
  * The {@link HttpRequestDispatcher} is the topmost handler of the netty stack to receive incoming
- * HTTP requests. It contains a mapping from {@link URI} to {@link HttpRequestProcessor} instances to
+ * HTTP requests. It contains a mapping from {@link URI} to {@link eu.spitfire.ssp.server.webservices.HttpWebservice} instances to
  * forward the request to the proper processor. *
  *
  * @author Oliver Kleine
@@ -65,7 +66,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
 	//Maps resource proxy uris to request processors
-	private Map<URI, HttpRequestProcessor> proxyServices;
+	private Map<URI, HttpWebservice> proxyServices;
 
     private String dnsName;
     private int httpProxyPort;
@@ -76,20 +77,22 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
      * @param ioExecutorService the {@link ExecutorService} providing the threads to send the responses
      * @throws Exception if some unexpected error occurs
      */
-    public HttpRequestDispatcher(ExecutorService ioExecutorService, boolean enableSparqlEndpoint,
-                                 SemanticCache cache, String dnsName, int httpProxyPort) throws Exception {
-        this.ioExecutorService = ioExecutorService;
-        this.dnsName = dnsName;
-        this.httpProxyPort = httpProxyPort;
+    public HttpRequestDispatcher(ExecutorService ioExecutorService, SemanticCache cache, Configuration config)
+            throws Exception {
 
-        this.proxyServices = Collections.synchronizedMap(new TreeMap<URI, HttpRequestProcessor>());
+        this.ioExecutorService = ioExecutorService;
+        this.dnsName = config.getString("SSP_HOST_NAME");
+        this.httpProxyPort = config.getInt("SSP_HTTP_PORT");
+
+        this.proxyServices = Collections.synchronizedMap(new HashMap<URI, HttpWebservice>());
 
         registerMainWebsite();
         registerFavicon();
 
-        if(enableSparqlEndpoint)
+        if(cache.supportsSPARQL())
             registerSparqlEndpoint(cache);
     }
+
 
     private void registerSparqlEndpoint(SemanticCache cache) {
         try{
@@ -97,15 +100,18 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
                     this.httpProxyPort == 80 ? -1 : this.httpProxyPort , "/sparql", null, null);
 
             registerProxyWebservice(targetUri, new SparqlEndpoint(ioExecutorService, cache));
-        } catch (URISyntaxException e) {
+        }
+
+        catch (URISyntaxException e) {
             log.error("This should never happen!", e);
         }
     }
 
+
     /**
      * This method is invoked by the netty framework for incoming messages from remote peers. It forwards
      * the incoming {@link HttpRequest} contained in the {@link MessageEvent} to the proper instance of
-     * {@link HttpRequestProcessor}, awaits its result asynchronously and sends the response to the client.
+     * {@link eu.spitfire.ssp.server.webservices.HttpWebservice}, awaits its result asynchronously and sends the response to the client.
      *
      * @param ctx the {@link ChannelHandlerContext} to link actual task to a {@link Channel}
      * @param me the {@link MessageEvent} containing the {@link HttpRequest}
@@ -127,29 +133,29 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         log.info("Received HTTP request for proxy Webservice {}", resourceProxyUri);
 
         //Lookup proper http request processor
-        HttpRequestProcessor httpRequestProcessor = proxyServices.get(resourceProxyUri);
+        HttpWebservice httpWebservice = proxyServices.get(resourceProxyUri);
 
         //Send NOT FOUND if there is no proper processor
-        if(httpRequestProcessor == null){
-            log.warn("No HttpRequestProcessor found for {}. Send error response.", resourceProxyUri);
+        if(httpWebservice == null){
+            log.warn("No HttpWebservice found for {}. Send error response.", resourceProxyUri);
             HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
                     HttpResponseStatus.NOT_FOUND, resourceProxyUri.toString());
             writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
-            return;
-        }
-
-        //For non-semantic services, e.g. GUIs
-        if(httpRequestProcessor instanceof DefaultHttpRequestProcessor){
-            processRequestForDefaultWebservice(ctx, (InetSocketAddress) me.getRemoteAddress(), httpRequest,
-                    (DefaultHttpRequestProcessor) httpRequestProcessor);
         }
 
         //For semantic services
-        else if(httpRequestProcessor instanceof SemanticHttpRequestProcessor){
+        else if(httpWebservice instanceof HttpSemanticWebservice){
             processRequestForRegisteredResource(ctx, (InetSocketAddress) me.getRemoteAddress(), httpRequest,
-                    (SemanticHttpRequestProcessor) httpRequestProcessor);
+                    (HttpSemanticWebservice) httpWebservice);
+        }
+
+        //For non-semantic services, e.g. GUIs
+        else{
+            processRequestForDefaultWebservice(ctx, (InetSocketAddress) me.getRemoteAddress(), httpRequest,
+                    (HttpWebservice) httpWebservice);
         }
     }
+
 
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
@@ -158,14 +164,14 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         if(me.getMessage() instanceof InternalRegisterWebserviceMessage){
             InternalRegisterWebserviceMessage message = (InternalRegisterWebserviceMessage) me.getMessage();
 
-            URI webserviceUri = generateProxyWebserviceUri(message.getRelativeUri());
+            URI webserviceUri = generateProxyWebserviceUri(message.getLocalUri());
 
             if(proxyServices.containsKey(webserviceUri)){
-                me.getFuture().setFailure(new ResourceAlreadyRegisteredException(message.getRelativeUri()));
+                me.getFuture().setFailure(new ResourceAlreadyRegisteredException(message.getLocalUri()));
                 return;
             }
 
-            registerProxyWebservice(webserviceUri, message.getHttpRequestProcessor());
+            registerProxyWebservice(webserviceUri, message.getHttpWebservice());
             me.getFuture().setSuccess();
             return;
         }
@@ -200,7 +206,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     private void processRequestForRegisteredResource(final ChannelHandlerContext ctx,
                                                      final InetSocketAddress remoteAddress,
                                                      final HttpRequest httpRequest,
-                                                     SemanticHttpRequestProcessor httpRequestProcessor){
+                                                     HttpSemanticWebservice httpRequestProcessor){
 
         final SettableFuture<InternalResourceStatusMessage> resourceResponseFuture = SettableFuture.create();
 
@@ -247,7 +253,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     private void processRequestForDefaultWebservice(final ChannelHandlerContext ctx,
                                                     final InetSocketAddress remoteAddress,
                                                     final HttpRequest httpRequest,
-                                                    DefaultHttpRequestProcessor httpRequestProcessor){
+                                                    HttpWebservice httpWebservice){
 
         final SettableFuture<HttpResponse> httpResponseFuture = SettableFuture.create();
 
@@ -266,7 +272,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             }
         }, ioExecutorService);
 
-        httpRequestProcessor.processHttpRequest(httpResponseFuture, httpRequest);
+        httpWebservice.processHttpRequest(httpResponseFuture, httpRequest);
     }
 
     /**
@@ -274,7 +280,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
      */
     private void registerFavicon() throws URISyntaxException {
         URI faviconUri = new URI("http", null, this.dnsName, this.httpProxyPort, "/favicon.ico",null, null);
-        registerProxyWebservice(faviconUri, new FaviconHttpRequestProcessor());
+        registerProxyWebservice(faviconUri, new FaviconHttpWebservice());
     }
 
     /**
@@ -329,11 +335,11 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
 
     private synchronized boolean registerProxyWebservice(URI proxyWebserviceUri,
-                                                         HttpRequestProcessor httpRequestProcessor){
+                                                         HttpWebservice httpWebservice){
         if(proxyServices.containsKey(proxyWebserviceUri))
             return false;
 
-        proxyServices.put(proxyWebserviceUri, httpRequestProcessor);
+        proxyServices.put(proxyWebserviceUri, httpWebservice);
         log.info("Registered new Webservice: {}", proxyWebserviceUri);
         return true;
     }

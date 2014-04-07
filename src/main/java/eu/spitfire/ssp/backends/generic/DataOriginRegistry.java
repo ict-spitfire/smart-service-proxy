@@ -3,12 +3,8 @@ package eu.spitfire.ssp.backends.generic;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ResIterator;
-import com.hp.hpl.jena.rdf.model.Resource;
 import eu.spitfire.ssp.backends.generic.exceptions.MultipleSubjectsInModelException;
 import eu.spitfire.ssp.backends.generic.messages.*;
-import eu.spitfire.ssp.backends.generic.exceptions.ResourceAlreadyRegisteredException;
-import eu.spitfire.ssp.server.webservices.HttpRequestProcessor;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;
@@ -19,8 +15,6 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * A {@link DataOriginRegistry} is the component to register new data origins, i.e. the resources from data origins.
@@ -34,12 +28,12 @@ public abstract class DataOriginRegistry<T> {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private LocalServerChannel localServerChannel;
-    private SemanticHttpRequestProcessor httpRequestProcessor;
+    private HttpSemanticWebservice httpRequestProcessor;
 
 
     protected DataOriginRegistry(BackendComponentFactory<T> backendComponentFactory) {
         this.httpRequestProcessor = backendComponentFactory.getHttpRequestProcessor();
-        this.localServerChannel = backendComponentFactory.getLocalServerChannel();
+        this.localServerChannel = backendComponentFactory.getLocalChannel();
     }
 
     protected final ListenableFuture<URI> registerResource(final T dataOrigin, final Model model){
@@ -77,17 +71,23 @@ public abstract class DataOriginRegistry<T> {
                         resourceRegistrationFuture.setException(future.getCause());
                 }
             });
+
+            return resourceRegistrationFuture;
         }
+
         catch (URISyntaxException e) {
             log.error("The resource URI was not valid.", e);
             resourceRegistrationFuture.setException(e);
+
+            return resourceRegistrationFuture;
         }
+
         catch (MultipleSubjectsInModelException e) {
             log.error("There were multiple resources contained in the given model", e);
             resourceRegistrationFuture.setException(e);
-        }
-        finally{
+
             return resourceRegistrationFuture;
         }
+
     }
 }

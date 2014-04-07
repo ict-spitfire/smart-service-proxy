@@ -66,6 +66,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         this.scheduledExecutorService = scheduledExecutorService;
     }
 
+
     /**
      * This method is invoked for upstream {@link MessageEvent}s and handles incoming {@link HttpRequest}s.
      * It tries to find a fresh status of the requested resource (identified using the requests target URI) in its

@@ -2,8 +2,9 @@ package eu.spitfire.ssp.backends.files;
 
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOriginRegistry;
-import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
+import eu.spitfire.ssp.backends.generic.HttpSemanticWebservice;
 import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
+import org.apache.commons.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +23,7 @@ public class FilesBackendComponentFactory extends BackendComponentFactory<Path>{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private HttpRequestProcessorForFiles httpRequestProcessor;
+    private HttpSemanticWebserviceForFiles httpRequestProcessor;
 
     private WatchService watchService;
     private Path directory;
@@ -30,17 +31,15 @@ public class FilesBackendComponentFactory extends BackendComponentFactory<Path>{
     private FilesWatcher filesWatcher;
     private boolean copyExamples;
 
-    public FilesBackendComponentFactory(String prefix, LocalPipelineFactory localPipelineFactory,
-                                        ScheduledExecutorService scheduledExecutorService, String sspHostName,
-                                        int sspHttpPort, Path directory, boolean copyExamples)
+    public FilesBackendComponentFactory(String prefix, Configuration config, ScheduledExecutorService executorService)
             throws Exception {
 
-        super(prefix, localPipelineFactory, scheduledExecutorService, sspHostName, sspHttpPort);
+        super(prefix, config, executorService);
 
         this.directory = directory;
         this.copyExamples = copyExamples;
         this.watchService = FileSystems.getDefault().newWatchService();
-        this.httpRequestProcessor = new HttpRequestProcessorForFiles(this);
+        this.httpRequestProcessor = new HttpSemanticWebserviceForFiles(this);
     }
 
     public WatchService getWatchService(){
@@ -56,7 +55,7 @@ public class FilesBackendComponentFactory extends BackendComponentFactory<Path>{
     }
 
     @Override
-    public SemanticHttpRequestProcessor getHttpRequestProcessor() {
+    public HttpSemanticWebservice getHttpRequestProcessor() {
         return this.httpRequestProcessor;
     }
 

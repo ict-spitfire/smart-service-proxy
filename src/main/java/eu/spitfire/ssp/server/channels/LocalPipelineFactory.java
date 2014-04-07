@@ -34,9 +34,8 @@ public class LocalPipelineFactory implements ChannelPipelineFactory {
         ChannelPipeline pipeline = Channels.pipeline();
 
         pipeline.addLast("Internal Pipeline Sink", internalPipelineSink);
-        Iterator<ChannelHandler> handlerIterator = handler.iterator();
-        while(handlerIterator.hasNext()){
-            ChannelHandler channelHandler = handlerIterator.next();
+
+        for (ChannelHandler channelHandler : handler) {
             pipeline.addLast(channelHandler.getClass().getSimpleName(), channelHandler);
             log.info("Added {} to internal pipeline", channelHandler.getClass().getSimpleName());
         }

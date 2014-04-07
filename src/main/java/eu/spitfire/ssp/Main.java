@@ -44,17 +44,14 @@ public class Main {
         log.info("START SSP!");
 
         Configuration config = new PropertiesConfiguration("ssp.properties");
-        ComponentFactory componentFactory = new ComponentFactory(config);
+        Initializer initializer = new Initializer(config);
+        initializer.start();
 
-        //Start proxy server
-        int port = config.getInt("SSP_HTTP_SERVER_PORT", 8080);
-        ServerBootstrap serverBootstrap = componentFactory.getServerBootstrap();
-        serverBootstrap.bind(new InetSocketAddress(port));
-        log.info("HTTP proxy started (listening on port {})", port);
+
 
 
         //Start the backends
-        for (BackendComponentFactory backendComponentFactory : componentFactory.getBackendComponentFactories()) {
+        for (BackendComponentFactory backendComponentFactory : initializer.getBackendComponentFactories()) {
             backendComponentFactory.initializeBackendComponents();
         }
 

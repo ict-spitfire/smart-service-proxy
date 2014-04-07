@@ -1,10 +1,11 @@
 package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
 import eu.spitfire.ssp.backends.files.FilesBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.uberdust.UberdustBackendComponentFactory;
+import eu.spitfire.ssp.backends.generic.BackendResourceManager;
 import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
 import eu.spitfire.ssp.server.channels.SmartServiceProxyPipelineFactory;
 import eu.spitfire.ssp.server.channels.handler.HttpRequestDispatcher;
@@ -13,17 +14,27 @@ import eu.spitfire.ssp.server.channels.handler.cache.DummySemanticCache;
 import eu.spitfire.ssp.server.channels.handler.cache.JenaSdbSemanticCache;
 import eu.spitfire.ssp.server.channels.handler.cache.JenaTdbSemanticCache;
 import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
+
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.ChannelHandler;
+import org.jboss.netty.channel.ChannelPipeline;
+import org.jboss.netty.channel.local.DefaultLocalServerChannelFactory;
+import org.jboss.netty.channel.local.LocalChannel;
+import org.jboss.netty.channel.local.LocalServerChannel;
+import org.jboss.netty.channel.local.LocalServerChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.execution.ExecutionHandler;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
+
+import java.net.InetSocketAddress;
 import java.nio.file.Paths;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -39,17 +50,16 @@ import java.util.concurrent.TimeUnit;
  * Time: 21:07
  * To change this template use File | Settings | File Templates.
  */
-public class ComponentFactory {
+public class Initializer {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private String sspHostName;
-    private int sspHttpPort;
+    private Configuration config;
 
-    private ScheduledExecutorService scheduledExecutorService;
+    private ScheduledExecutorService mgmtExecutorService;
     private OrderedMemoryAwareThreadPoolExecutor ioExecutorService;
-
     private ServerBootstrap serverBootstrap;
+
     private LocalPipelineFactory localPipelineFactory;
 
     private ExecutionHandler executionHandler;
@@ -59,11 +69,11 @@ public class ComponentFactory {
 
     private Collection<BackendComponentFactory> backendComponentFactories;
 
-    public ComponentFactory(Configuration config) throws Exception {
-        this.sspHostName = config.getString("SSP_HOST_NAME");
-        this.sspHttpPort = config.getInt("SSP_HTTP_SERVER_PORT", 8080);
+    public Initializer(Configuration config) throws Exception {
+        this.config = config;
+
         //Create Executor Services
-        createScheduledExecutorService();
+        createMgmtExecutorService(config);
         createIoExecutorService(config);
 
         //Create Pipeline Components
@@ -79,8 +89,47 @@ public class ComponentFactory {
         createBackendComponentFactories(config);
     }
 
-    public ServerBootstrap getServerBootstrap() {
-        return this.serverBootstrap;
+
+    private void createMgmtExecutorService(Configuration config) {
+
+        //Scheduled Executor Service for management tasks, i.e. everything that is not I/O
+        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("Request Processing Thread #%d")
+                .build();
+
+        int threadCount = Math.max(Runtime.getRuntime().availableProcessors() * 2,
+                config.getInt("SSP_MGMT_THREADS", 0));
+
+        this.mgmtExecutorService = Executors.newScheduledThreadPool(threadCount, threadFactory);
+        log.info("Management Executor Service created with {} threads.", threadCount);
+    }
+
+
+    private void createIoExecutorService(Configuration config) {
+
+        int threadCount = Math.max(Runtime.getRuntime().availableProcessors() * 2,
+                config.getInt("SSP_I/O_THREADS", 0));
+
+        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP-REQUEST-EXECUTION-Thread #%d")
+                .build();
+
+        this.ioExecutorService = new OrderedMemoryAwareThreadPoolExecutor(threadCount, 0, 0, 60, TimeUnit.SECONDS,
+                threadFactory);
+
+        log.info("I/O-Executor-Service created with {} threads", threadCount);
+    }
+
+    private void createExecutionHandler() {
+
+        this.executionHandler = new ExecutionHandler(this.ioExecutorService);
+        log.debug("Execution Handler created.");
+    }
+
+
+    public void start(){
+        //Start proxy server
+        int port = this.config.getInt("SSP_HTTP_SERVER_PORT", 8080);
+        this.serverBootstrap.bind(new InetSocketAddress(port));
+        log.info("HTTP proxy started (listening on port {})", port);
     }
 
 
@@ -88,54 +137,48 @@ public class ComponentFactory {
         return this.backendComponentFactories;
     }
 
+
     private void createBackendComponentFactories(Configuration config) throws Exception {
-        int threadsPerBackand = config.getInt("SSP_THREADS_PER_BACKEND", 16);
+//        int threadsPerBackand = config.getInt("SSP_THREADS_PER_BACKEND", 4);
         String[] enabledBackends = config.getStringArray("ENABLE_BACKEND");
 
         this.backendComponentFactories = new ArrayList<>(enabledBackends.length);
 
-        for (String proxyServiceManagerName : enabledBackends) {
-            ScheduledExecutorService executorService = Executors.newScheduledThreadPool(threadsPerBackand);
+        LocalServerChannelFactory localChannelFactory = new DefaultLocalServerChannelFactory();
 
-            //Local files
-            if (proxyServiceManagerName.equals("files")) {
-                String directory = config.getString("files.directory");
-                if (directory == null) {
-                    throw new Exception("Property 'files.directory' not set.");
+        for (String backendName : enabledBackends) {
+
+            BackendComponentFactory backendComponentFactory;
+            switch (backendName) {
+
+                case "files": {
+                    backendComponentFactory = new FilesBackendComponentFactory("files", config,
+                            this.mgmtExecutorService);
+                    break;
                 }
-                boolean copyExamples = config.getBoolean("files.copyExamples");
-                //int numberOfRandomFiles = config.getInt("files.numberOfRandomFiles", 0);
 
-                BackendComponentFactory backendComponentFactory =
-                        new FilesBackendComponentFactory("files", localPipelineFactory, executorService,
-                                sspHostName, sspHttpPort, Paths.get(directory), copyExamples);
-                this.backendComponentFactories.add(backendComponentFactory);
-                continue;
+                case "coap": {
+                    backendComponentFactory = new CoapBackendComponentFactory("coap", config,
+                            this.mgmtExecutorService);
+                    break;
+                }
+
+                //Unknown AbstractGatewayFactory type
+                default: {
+                    log.error("Config file error: Gateway for '" + backendName + "' not found!");
+                    continue;
+                }
             }
 
-            else if (proxyServiceManagerName.equals("coap")) {
-                log.info("Create CoAP Backend");
-                InetAddress registrationServerAddress =
-                        InetAddress.getByName(config.getString("coap.registration.server.ip"));
-                BackendComponentFactory backendComponentFactory =
-                        new CoapBackendComponentFactory("coap", localPipelineFactory, executorService,
-                                sspHostName, sspHttpPort, registrationServerAddress);
-                this.backendComponentFactories.add(backendComponentFactory);
-                continue;
-            }
+            BackendResourceManager backendResourceManager = backendComponentFactory.getBackendResourceManager();
+            ChannelPipeline localPipeline = localPipelineFactory.getPipeline();
 
-            else if (proxyServiceManagerName.equals("uberdust")) {
-                log.info("Create Uberdust Backend");
-                final int insertThreadCount = config.getInt("UBERDUST_INSERT_THREAD_COUNT",1);
-                this.backendComponentFactories.add(new UberdustBackendComponentFactory("uberdust",
-                        localPipelineFactory, executorService, sspHostName, sspHttpPort,insertThreadCount));
-            }
+            localPipeline.addLast("Backend Resource Manager (" + backendName + ")", backendResourceManager);
+            LocalServerChannel localChannel = localChannelFactory.newChannel(localPipeline);
+            backendComponentFactory.setLocalChannel(localChannel);
 
-            //Unknown AbstractGatewayFactory type
-            else {
-                log.error("Config file error: Gateway for '" + proxyServiceManagerName + "' not found!");
-                continue;
-            }
+            this.backendComponentFactories.add(backendComponentFactory);
+
         }
     }
 
@@ -146,15 +189,16 @@ public class ComponentFactory {
             handler.add(mqttResourceHandler);
 
         handler.add(semanticCache);
-
         handler.add(httpRequestDispatcher);
+
         this.localPipelineFactory = new LocalPipelineFactory(handler);
         log.debug("Local Pipeline Factory created.");
     }
 
+
     private void createServerBootstrap(Configuration config) throws Exception {
         //read parameters from config
-        boolean tcpNoDelay = config.getBoolean("SSP_TCP_NODELAY");
+        boolean tcpNoDelay = config.getBoolean("SSP_TCP_NODELAY", false);
         int ioThreads = config.getInt("SSP_I/O_THREADS");
 
         //create the bootstrap
@@ -164,7 +208,7 @@ public class ComponentFactory {
         );
 
         this.serverBootstrap.setOption("reuseAddress", true);
-        this.serverBootstrap.setOption("tcpNoDelay", false);
+        this.serverBootstrap.setOption("tcpNoDelay", tcpNoDelay);
 
         LinkedHashSet<ChannelHandler> handler = new LinkedHashSet<>();
 
@@ -180,29 +224,9 @@ public class ComponentFactory {
         log.debug("Server Bootstrap created.");
     }
 
-    private void createIoExecutorService(Configuration config) {
-        int executionThreads = config.getInt("SSP_REQUEST_EXECUTION_THREADS");
-        int messageQueueSize = config.getInt("SSP_MESSAGE_QUEUE_SIZE");
-
-        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP-REQUEST-EXECUTION-Thread #%d")
-                .build();
-
-        this.ioExecutorService = new OrderedMemoryAwareThreadPoolExecutor(executionThreads, 0, messageQueueSize,
-                60, TimeUnit.SECONDS, threadFactory);
-
-        log.debug("Request-Executor-Service created.");
-    }
-
-
-    private void createExecutionHandler() {
-        this.executionHandler = new ExecutionHandler(this.ioExecutorService);
-        log.debug("Execution Handler created.");
-    }
-
 
     private void createHttpRequestDispatcher() throws Exception {
-        this.httpRequestDispatcher = new HttpRequestDispatcher(ioExecutorService, semanticCache.supportsSPARQL(),
-                semanticCache, sspHostName, sspHttpPort);
+        this.httpRequestDispatcher = new HttpRequestDispatcher(ioExecutorService, semanticCache, config);
         log.debug("HTTP Request Dispatcher created.");
     }
 
@@ -224,7 +248,7 @@ public class ComponentFactory {
         String cacheType = config.getString("cache");
 
         if ("dummy".equals(cacheType)) {
-            this.semanticCache = new DummySemanticCache(scheduledExecutorService);
+            this.semanticCache = new DummySemanticCache(this.mgmtExecutorService);
             log.info("Semantic Cache is of type {}", this.semanticCache.getClass().getSimpleName());
             return;
         }
@@ -234,7 +258,7 @@ public class ComponentFactory {
             if (dbDirectory == null)
                 throw new RuntimeException("'cache.jenaSDB.jdbc.url' missing in ssp.properties");
 
-            this.semanticCache = new JenaTdbSemanticCache(scheduledExecutorService, Paths.get(dbDirectory));
+            this.semanticCache = new JenaTdbSemanticCache(this.mgmtExecutorService, Paths.get(dbDirectory));
             return;
         }
 
@@ -243,7 +267,7 @@ public class ComponentFactory {
             String jdbcUser = config.getString("cache.jenaSDB.jdbc.user");
             String jdbcPassword = config.getString("cache.jenaSDB.jdbc.password");
 
-            this.semanticCache = new JenaSdbSemanticCache(scheduledExecutorService, jdbcUri, jdbcUser, jdbcPassword);
+            this.semanticCache = new JenaSdbSemanticCache(this.mgmtExecutorService, jdbcUri, jdbcUser, jdbcPassword);
             return;
         }
 
@@ -251,12 +275,5 @@ public class ComponentFactory {
     }
 
 
-    private void createScheduledExecutorService() {
-        //Scheduled executorservice for management tasks
-        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("Proxy-Service-Mgmt.-Thread #%d")
-                .build();
-        int numberOfMgmtThreads = Math.max(Runtime.getRuntime().availableProcessors() * 2, 4);
-        this.scheduledExecutorService = Executors.newScheduledThreadPool(numberOfMgmtThreads, threadFactory);
-        log.debug("Scheduled Executor created.");
-    }
+
 }

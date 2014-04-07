@@ -1,7 +1,7 @@
 package eu.spitfire.ssp.backends.generic.messages;
 
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
+import eu.spitfire.ssp.backends.generic.HttpSemanticWebservice;
 import eu.spitfire.ssp.backends.generic.exceptions.MultipleSubjectsInModelException;
 
 import java.net.URISyntaxException;
@@ -17,9 +17,9 @@ import java.util.Date;
 public class InternalRegisterResourceMessage<T> extends InternalResourceStatusMessage{
 
     private T dataOrigin;
-    private SemanticHttpRequestProcessor httpRequestProcessor;
+    private HttpSemanticWebservice httpRequestProcessor;
 
-    public InternalRegisterResourceMessage(SemanticHttpRequestProcessor httpRequestProcessor, T dataOrigin,
+    public InternalRegisterResourceMessage(HttpSemanticWebservice httpRequestProcessor, T dataOrigin,
                                Model model, Date expiry) throws MultipleSubjectsInModelException, URISyntaxException {
         super(model, expiry);
         this.httpRequestProcessor = httpRequestProcessor;
@@ -31,7 +31,7 @@ public class InternalRegisterResourceMessage<T> extends InternalResourceStatusMe
         return this.dataOrigin;
     }
 
-    public SemanticHttpRequestProcessor getHttpRequestProcessor() {
+    public HttpSemanticWebservice getHttpRequestProcessor() {
         return httpRequestProcessor;
     }
 }

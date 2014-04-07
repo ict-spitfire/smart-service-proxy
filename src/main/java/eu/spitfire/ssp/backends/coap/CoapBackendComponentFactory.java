@@ -26,12 +26,12 @@ package eu.spitfire.ssp.backends.coap;
 
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
-import eu.spitfire.ssp.backends.coap.registry.CoapRegistrationWebservice;
 import eu.spitfire.ssp.backends.coap.registry.CoapWebserviceRegistry;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOriginRegistry;
-import eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor;
+import eu.spitfire.ssp.backends.generic.HttpSemanticWebservice;
 import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
+import org.apache.commons.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +45,7 @@ import java.util.concurrent.ScheduledExecutorService;
  * {@link CoapServerApplication} with a {@link eu.spitfire.ssp.backends.coap.registry.CoapRegistrationWebservice} to enable CoAP webservers to register
  * at the SSP.
  *
- * Furthermore it provides a {@link CoapClientApplication} and a {@link eu.spitfire.ssp.backends.generic.SemanticHttpRequestProcessor}
+ * Furthermore it provides a {@link CoapClientApplication} and a {@link eu.spitfire.ssp.backends.generic.HttpSemanticWebservice}
  * to forward incoming HTTP requests to the original host.
  *
  * @author Oliver Kleine
@@ -58,7 +58,7 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
 
     private CoapClientApplication coapClientApplication;
     private CoapServerApplication coapServerApplication;
-    private SemanticHttpRequestProcessorForCoap httpRequestProcessor;
+    private HttpSemanticWebserviceForCoap httpRequestProcessor;
 
     /**
      * @param prefix the prefix used for not-absolute resource URIs, e.g. <code>prefix/gui</code>
@@ -66,12 +66,10 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
      *                             e.g. resource status updates.
      * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
      */
-    public CoapBackendComponentFactory(String prefix, LocalPipelineFactory localPipelineFactory,
-                                       ScheduledExecutorService scheduledExecutorService, String sspHostName,
-                                       int sspHttpPort, InetAddress registrationServerAddress)
+    public CoapBackendComponentFactory(String prefix, Configuration config, ScheduledExecutorService executorService)
             throws Exception{
 
-        super(prefix, localPipelineFactory, scheduledExecutorService, sspHostName, sspHttpPort);
+        super(prefix, config, executorService);
 
         //create instances of CoAP client and server applications
         this.coapClientApplication = new CoapClientApplication();
@@ -81,11 +79,11 @@ public class CoapBackendComponentFactory extends BackendComponentFactory<URI> {
         log.info("CoAP server started (listening at {}, port {})", coapServerSocketAddress.getAddress(),
                 coapServerSocketAddress.getPort());
 
-        this.httpRequestProcessor = new SemanticHttpRequestProcessorForCoap(this);
+        this.httpRequestProcessor = new HttpSemanticWebserviceForCoap(this);
     }
 
     @Override
-    public SemanticHttpRequestProcessor getHttpRequestProcessor() {
+    public HttpSemanticWebservice getHttpRequestProcessor() {
         return this.httpRequestProcessor;
     }
 

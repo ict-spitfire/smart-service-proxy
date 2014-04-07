@@ -24,22 +24,26 @@ import java.util.concurrent.ScheduledExecutorService;
  *
  * @author Oliver Kleine
  */
-public abstract class DataOriginObserver{
+public abstract class DataOriginObserver<T>{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private LocalServerChannel localServerChannel;
     private ScheduledExecutorService scheduledExecutorService;
 
+
     protected DataOriginObserver(BackendComponentFactory backendComponentFactory){
-        this.localServerChannel = backendComponentFactory.getLocalServerChannel();
-        this.scheduledExecutorService = backendComponentFactory.getScheduledExecutorService();
+        this.localServerChannel = backendComponentFactory.getLocalChannel();
+        this.scheduledExecutorService = backendComponentFactory.getExecutorService();
     }
 
 
     protected final void cacheResourcesStates(Model model){
         cacheResourcesStates(model, null);
     }
+
+
+    public abstract void startObservation(T dataOrigin);
 
 
     /**
@@ -57,9 +61,8 @@ public abstract class DataOriginObserver{
                 public void run() {
                     try {
                         cacheResourceStatus(models.get(resourceUri), expiry);
-                    } catch (MultipleSubjectsInModelException e) {
-                        log.error("This should never happen.", e);
-                    } catch (URISyntaxException e) {
+                    }
+                    catch (MultipleSubjectsInModelException | URISyntaxException e) {
                         log.error("This should never happen.", e);
                     }
                 }
@@ -68,8 +71,7 @@ public abstract class DataOriginObserver{
     }
 
 
-    private ChannelFuture cacheResourceStatus(final Model model, Date expiry)
-            throws MultipleSubjectsInModelException, URISyntaxException {
+    public ChannelFuture cacheResourceStatus(final Model model, Date expiry) throws MultipleSubjectsInModelException, URISyntaxException {
 
         InternalResourceStatusMessage internalResourceStatusMessage = new InternalResourceStatusMessage(model, expiry);
         return Channels.write(localServerChannel, internalResourceStatusMessage);

@@ -1,35 +1,38 @@
 package eu.spitfire.ssp.backends.coap.registry;
 
+import com.google.common.collect.Multimap;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import com.hp.hpl.jena.rdf.model.Model;
+
 import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
 import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
+import de.uniluebeck.itm.ncoap.application.server.webservice.linkformat.EmptyLinkAttribute;
+import de.uniluebeck.itm.ncoap.application.server.webservice.linkformat.LinkAttribute;
 import de.uniluebeck.itm.ncoap.message.CoapRequest;
-import de.uniluebeck.itm.ncoap.message.header.Code;
-import de.uniluebeck.itm.ncoap.message.header.MsgType;
-import de.uniluebeck.itm.ncoap.message.options.OptionRegistry.MediaType;
-import edu.emory.mathcs.backport.java.util.Collections;
+import de.uniluebeck.itm.ncoap.message.MessageCode;
+import de.uniluebeck.itm.ncoap.message.MessageType;
+import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
+
 import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
 import eu.spitfire.ssp.backends.coap.CoapWebserviceResponseProcessor;
-import eu.spitfire.ssp.backends.coap.observation.CoapWebserviceObserver;
 import eu.spitfire.ssp.backends.generic.DataOriginRegistry;
-import eu.spitfire.ssp.backends.generic.ExpiringModel;
-import eu.spitfire.ssp.backends.generic.ResourceToolbox;
-import eu.spitfire.ssp.backends.generic.exceptions.ResourceAlreadyRegisteredException;
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+
+import java.util.Collections;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created with IntelliJ IDEA.
@@ -44,24 +47,24 @@ public class CoapWebserviceRegistry extends DataOriginRegistry<URI> {
 
     private CoapBackendComponentFactory backendComponentFactory;
     private CoapClientApplication coapClientApplication;
-    private CoapServerApplication coapServerApplication;
     private ExecutorService executorService;
 
     public CoapWebserviceRegistry(CoapBackendComponentFactory backendComponentFactory) {
         super(backendComponentFactory);
         this.backendComponentFactory = backendComponentFactory;
         this.coapClientApplication = backendComponentFactory.getCoapClientApplication();
-        this.executorService = backendComponentFactory.getScheduledExecutorService();
-        this.coapServerApplication = backendComponentFactory.getCoapServerApplication();
+        this.executorService = backendComponentFactory.getExecutorService();
 
         CoapRegistrationWebservice registrationWebservice = new CoapRegistrationWebservice(this, executorService);
-        coapServerApplication.registerService(registrationWebservice);
+        this.backendComponentFactory.getCoapServerApplication()
+                                    .registerService(registrationWebservice);
+
         log.info("Registered CoAP registration Webservice ({})", registrationWebservice.getPath());
     }
 
 
     /**
-     * Invokation of this method causes the framework to send a CoAP request to the .well-known/core service
+     * Invocation of this method causes the framework to send a CoAP request to the .well-known/core service
      * at the given remote address on port 5683. All services from the list returned by that service are
      * considered data origins to be registered at the SSP.
      *
@@ -69,227 +72,170 @@ public class CoapWebserviceRegistry extends DataOriginRegistry<URI> {
      */
     public ListenableFuture<Set<URI>> processRegistration(final InetAddress remoteAddress){
 
-        log.info("Process registration request from {}.", remoteAddress.getHostAddress());
-        final SettableFuture<Set<URI>> registeredResourcesFuture = SettableFuture.create();
-        final String host = remoteAddress.getHostAddress();
-
-        //discover all available webservices using the well-known/core webservice
-        final ListenableFuture<Set<String>> wellKnownCoreFuture = discoverAvailableService(host);
-
-        //register the resources from all services listed in .well-known/core
-        wellKnownCoreFuture.addListener(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    Set<String> webservices = wellKnownCoreFuture.get();
-
-                    if(webservices.contains("/rdf"))
-                        registerTubsResources(registeredResourcesFuture, webservices, host);
-                    else{
-                        //registeredResourcesFuture.setException(new Exception("No /rdf webservice!"));
-                        registerResources(registeredResourcesFuture, webservices, host);
-                    }
-
-                }
-                catch (Exception e) {
-                    log.error("This should never happen.", e);
-                    registeredResourcesFuture.setException(e);
-                }
-            }
-        }, executorService);
-
-        return registeredResourcesFuture;
-
-    }
-
-    private ListenableFuture<Set<String>> discoverAvailableService(String host){
-        SettableFuture<Set<String>> wellKnownCoreFuture = SettableFuture.create();
-
         try{
-            //create request for /.well-known/core and a processor to process the response
-            URI wellKnownCoreUri = new URI("coap", null, host, CoapBackendComponentFactory.COAP_SERVER_PORT,
-                    "/.well-known/core", null, null);
+            log.info("Process registration request from {}.", remoteAddress.getHostAddress());
 
-            log.info("Discover available services at {} ", wellKnownCoreUri);
-            CoapRequest wellKnownCoreRequest = new CoapRequest(MsgType.CON, Code.GET, wellKnownCoreUri);
+            final SettableFuture<Set<URI>> result = SettableFuture.create();
 
-            //Create the processor for the .well-known/core service
-            WellKnownCoreResponseProcessor wellKnownCoreResponseProcessor =
-                    new WellKnownCoreResponseProcessor(wellKnownCoreFuture, executorService);
+             //Send request for .well-known/core resource
+            WellKnownCoreResponseProcessor responseProcessor = new WellKnownCoreResponseProcessor(executorService);
+            sendWellKnownCoreRequest(remoteAddress, CoapServerApplication.DEFAULT_COAP_SERVER_PORT, responseProcessor);
 
-            //write the CoAP request to the .well-known/core resource
-            coapClientApplication.writeCoapRequest(wellKnownCoreRequest, wellKnownCoreResponseProcessor);
-        }
-        catch(Exception e){
-            wellKnownCoreFuture.setException(e);
-        }
+            final ListenableFuture<Multimap<String, LinkAttribute>> wellKnownCoreFuture =
+                    responseProcessor.getWellKnownCoreFuture();
 
-        return wellKnownCoreFuture;
-    }
+            //register the resources from all services listed in .well-known/core
+            Futures.addCallback(wellKnownCoreFuture, new FutureCallback<Multimap<String, LinkAttribute>>() {
 
-    private void registerResources(final SettableFuture<Set<URI>> registeredResourcesFuture,
-                                    final Set<String> webservices, final String host){
-
-        final Map<URI, Boolean> registeredResources = Collections.synchronizedMap(new HashMap<URI, Boolean>());
-
-        for(String path : webservices){
-            try{
-                final URI webserviceUri = new URI("coap", null, host, -1, path, null, null);
-
-                final SettableFuture<InternalResourceStatusMessage> resourceStatusFuture = SettableFuture.create();
-
-                CoapWebserviceResponseProcessor coapResponseProcessor =
-                        new CoapWebserviceResponseProcessor(backendComponentFactory, resourceStatusFuture,
-                                webserviceUri, webserviceUri);
-
-                CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.GET, webserviceUri);
-                coapRequest.setAccept(MediaType.APP_SHDT, MediaType.APP_RDF_XML, MediaType.APP_N3, MediaType.APP_TURTLE);
-
-                coapClientApplication.writeCoapRequest(coapRequest, coapResponseProcessor);
-
-                resourceStatusFuture.addListener(new Runnable(){
-                    @Override
-                    public void run() {
-                        try{
-                            InternalResourceStatusMessage message = resourceStatusFuture.get();
-                            ListenableFuture<URI> registrationFuture =
-                                    registerResource(webserviceUri, message.getModel(), message.getExpiry());
-
-                            registrationFuture.addListener(new Runnable(){
-                                @Override
-                                public void run() {
-                                    log.info("Start observation of {}", webserviceUri);
-                                    CoapWebserviceObserver observer =
-                                            new CoapWebserviceObserver(backendComponentFactory, webserviceUri);
-                                    observer.startObservation();
-                                }
-                            }, backendComponentFactory.getScheduledExecutorService());
-
-
-                            registeredResources.put(webserviceUri, true);
-
-                        }
-                        catch(Exception e){
-                            log.error("Failed to register CoAP webservice {}", webserviceUri, e);
-                            registeredResources.put(webserviceUri, false);
-                        }
-                        finally {
-                            if(registeredResources.size() == webservices.size()){
-                                log.info("Finished registration of {} resources from {}", webservices.size(), host);
-                                registeredResourcesFuture.set(registeredResources.keySet());
-                            }
-                        }
-                    }
-                }, backendComponentFactory.getScheduledExecutorService());
-            }
-            catch (Exception e) {
-                log.error("Error during CoAP Webservice registration.", e);
-            }
-        }
-    }
-
-
-    private void registerTubsResources(final SettableFuture<Set<URI>> registeredResourcesFuture,
-                                       final Set<String> webservices, final String host){
-        try{
-            final URI rdfServiceUri = new URI("coap", null, host, -1, "/rdf", null, null);
-
-            final SettableFuture<ExpiringModel> expiringModelFuture = SettableFuture.create();
-
-            final Set<URI> registeredResources = new HashSet<>();
-
-            expiringModelFuture.addListener(new Runnable(){
                 @Override
-                public void run() {
-                    log.info("Received Model from {}", rdfServiceUri);
-                    try {
-                        ExpiringModel expiringModel = expiringModelFuture.get();
-                        Map<URI, Model> models = ResourceToolbox.getModelsPerSubject(expiringModel.getModel());
+                public void onSuccess(Multimap<String, LinkAttribute> webservices) {
 
-                        for(String path : webservices){
-                            final URI resourceUri = new URI("coap", null, host, -1, path, null, null);
-                            log.debug("Lookup resource {} in response from {}", resourceUri, rdfServiceUri);
+                    SettableFuture<Set<URI>> resourceRegistrationFuture =
+                            registerResources(webservices, remoteAddress.getHostAddress());
 
-                            Model model = models.get(resourceUri);
-                            if(model != null){
-                                log.debug("Found resource {} in response from {}", resourceUri, rdfServiceUri);
+                    Futures.addCallback(resourceRegistrationFuture, new FutureCallback<Set<URI>>() {
 
-                                registeredResources.add(resourceUri);
-
-                                final ListenableFuture<URI> resourceRegistrationFuture =
-                                        registerResource(resourceUri, model);
-
-                                resourceRegistrationFuture.addListener(new Runnable(){
-                                    @Override
-                                    public void run() {
-                                        try {
-                                            URI resourceProxyUri = resourceRegistrationFuture.get();
-                                            log.info("Successfully registered resource at {}", resourceProxyUri);
-                                            startTubsObservation(resourceUri);
-                                        }
-                                        catch(ExecutionException e){
-                                            if (e.getCause() instanceof ResourceAlreadyRegisteredException){
-                                                log.info("Re-registration of resource {}", resourceUri);
-                                                startTubsObservation(resourceUri);
-                                            }
-                                        }
-                                        catch (Exception e) {
-                                            if(e.getCause() instanceof ResourceAlreadyRegisteredException)
-                                            log.error("Error during registration of resource {}.", resourceUri, e);
-                                            registeredResourcesFuture.setException(e);
-                                        }
-                                    }
-                                }, executorService);
-                            }
-                            else{
-                                log.debug("There is no resource {} in response from {}", resourceUri, rdfServiceUri);
-                            }
+                        @Override
+                        public void onSuccess(Set<URI> uris) {
+                            result.set(uris);
                         }
 
-                        registeredResourcesFuture.set(registeredResources);
-                    }
-                    catch (Exception e) {
-                        log.error("Exception while processing model from {}.", rdfServiceUri, e);
-                        registeredResourcesFuture.setException(e);
-                    }
+                        @Override
+                        public void onFailure(Throwable throwable) {
+                            result.setException(throwable);
+                        }
+
+                    }, executorService);
                 }
-            }, executorService);
 
-            RdfWebserviceResponseProcessor rdfResponseProcessor =
-                    new RdfWebserviceResponseProcessor(expiringModelFuture, rdfServiceUri, executorService);
+                @Override
+                public void onFailure(Throwable throwable) {
+                    result.setException(throwable);
+                }
 
-            CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.GET, rdfServiceUri);
-            coapRequest.setAccept(MediaType.APP_SHDT, MediaType.APP_RDF_XML, MediaType.APP_N3, MediaType.APP_TURTLE);
+            });
 
-            coapClientApplication.writeCoapRequest(coapRequest, rdfResponseProcessor);
+            return result;
         }
-        catch(Exception e){
-            log.error("Exception while registering TUBS resources.", e);
-            registeredResourcesFuture.setException(e);
+
+        catch(Exception ex){
+            SettableFuture<Set<URI>> future = SettableFuture.create();
+            future.setException(ex);
+            return future;
         }
+
     }
 
-    private void startTubsObservation(URI resourceUri){
-        try{
-            URI observableWebserviceUri;
-            if("/rdf".equals(resourceUri.getPath())){
-                observableWebserviceUri =
-                        new URI(resourceUri.getScheme(), null, resourceUri.getHost(), -1, "/location/_minimal", null, null);
-            }
-            else{
-                observableWebserviceUri =
-                        new URI(resourceUri.getScheme(), null, resourceUri.getHost(), -1,
-                                resourceUri.getPath() + "/_minimal", null, null);
-            }
 
-            CoapWebserviceObserver observer =
-                    new CoapWebserviceObserver(backendComponentFactory, observableWebserviceUri);
+//    private ListenableFuture<Multimap<String, LinkAttribute>> discoverWebservices(InetAddress remoteAddress)
+//            throws URISyntaxException {
+//
+//        //Send request for .well-known/core resource
+//        WellKnownCoreResponseProcessor responseProcessor = new WellKnownCoreResponseProcessor(executorService);
+//        sendWellKnownCoreRequest(remoteAddress, CoapServerApplication.DEFAULT_COAP_SERVER_PORT, responseProcessor);
+//
+//        return responseProcessor.getWellKnownCoreFuture();
+//
+//    }
 
-            observer.startObservation();
-        }
-        catch(Exception e){
-            log.error("This should never happen!", e);
-        }
+
+    private void sendWellKnownCoreRequest(InetAddress remoteHost, int remotePort,
+                                          WellKnownCoreResponseProcessor responseProcessor) throws URISyntaxException {
+
+        URI uri = new URI("coap", null, null, -1, "/.well-known/core", null, null);
+        CoapRequest coapRequest = new CoapRequest(MessageType.Name.CON, MessageCode.Name.GET, uri);
+
+        InetSocketAddress remoteEndpoint = new InetSocketAddress(remoteHost, remotePort);
+        coapClientApplication.sendCoapRequest(coapRequest, responseProcessor, remoteEndpoint);
     }
+
+
+    @SuppressWarnings("unchecked")
+    private SettableFuture<Set<URI>> registerResources(final Multimap<String, LinkAttribute> webservices, String host){
+
+        final SettableFuture<Set<URI>> result = SettableFuture.create();
+        final AtomicInteger counter = new AtomicInteger(0);
+
+        final Set<URI> registeredResources = Collections.synchronizedSet(new TreeSet<URI>());
+
+        for(final String webservicePath : webservices.keySet()){
+
+            try{
+                final URI webserviceUri = new URI("coap", null, host, -1, webservicePath, null, null);
+
+                CoapWebserviceResponseProcessor responseProcessor;
+                if(webservices.get(webservicePath).contains(new EmptyLinkAttribute(LinkAttribute.OBSERVABLE, null)))
+                    responseProcessor = new CoapWebserviceUpdateNotificationProcessor(
+                            this.backendComponentFactory, webserviceUri, webserviceUri);
+                else
+                    responseProcessor = new CoapWebserviceResponseProcessor(this.backendComponentFactory,
+                        webserviceUri, webserviceUri);
+
+
+                final ListenableFuture<InternalResourceStatusMessage> resourceStatusFuture =
+                        responseProcessor.getResourceStatusFuture();
+
+                CoapRequest coapRequest = new CoapRequest(MessageType.Name.CON, MessageCode.Name.GET, webserviceUri);
+                coapRequest.setAccept(ContentFormat.APP_SHDT, ContentFormat.APP_RDF_XML, ContentFormat.APP_N3,
+                        ContentFormat.APP_TURTLE);
+
+                coapRequest.setObserve();
+
+                coapClientApplication.sendCoapRequest(coapRequest, responseProcessor,
+                        new InetSocketAddress(host, CoapServerApplication.DEFAULT_COAP_SERVER_PORT));
+
+                Futures.addCallback(resourceStatusFuture, new FutureCallback<InternalResourceStatusMessage>() {
+
+                    @Override
+                    public void onSuccess(InternalResourceStatusMessage resourceStatusMessage) {
+
+                        ListenableFuture<URI> registrationFuture = registerResource(webserviceUri,
+                                resourceStatusMessage.getModel(), resourceStatusMessage.getExpiry());
+
+                        Futures.addCallback(registrationFuture, new FutureCallback<URI>() {
+
+                            @Override
+                            public void onSuccess(URI uri) {
+                                registeredResources.add(webserviceUri);
+
+                                if(counter.incrementAndGet() == webservices.keySet().size())
+                                    result.set(registeredResources);
+                            }
+
+                            @Override
+                            public void onFailure(Throwable throwable) {
+                                log.error("Could not register \"{}\"!", webservicePath, throwable);
+
+                                if(counter.incrementAndGet() == webservices.keySet().size())
+                                    result.set(registeredResources);
+                            }
+
+                        }, executorService);
+                    }
+
+                    @Override
+                    public void onFailure(Throwable throwable) {
+                        log.error("Could not register \"{}\"!", webservicePath, throwable);
+
+                        if(counter.incrementAndGet() == webservices.keySet().size())
+                            result.set(registeredResources);
+                    }
+
+                }, executorService);
+
+
+            }
+
+            catch (Exception ex) {
+                log.error("Could not register \"{}\"!", webservicePath, ex);
+
+                if(counter.incrementAndGet() == webservices.keySet().size())
+                    result.set(registeredResources);
+            }
+        }
+
+        return result;
+    }
+
 }
 

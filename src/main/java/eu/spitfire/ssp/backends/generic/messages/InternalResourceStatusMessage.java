@@ -26,22 +26,21 @@ public class InternalResourceStatusMessage {
     private final Model model;
     private final Date expiry;
 
-    public InternalResourceStatusMessage(Model model) throws MultipleSubjectsInModelException, URISyntaxException {
+    public InternalResourceStatusMessage(Model model) throws IllegalArgumentException, URISyntaxException {
         this(model, null);
     }
 
-    public InternalResourceStatusMessage(Model model, Date expiry) throws MultipleSubjectsInModelException,
-                                                                          URISyntaxException {
+    public InternalResourceStatusMessage(Model model, Date expiry) throws IllegalArgumentException, URISyntaxException{
 
         //We allow only allow models with at most one subject
         if(!model.isEmpty()){
             ResIterator subjectIterator = model.listSubjects();
             if(subjectIterator.hasNext()){
                 Resource subject = subjectIterator.nextResource();
-                resourceUri = new URI(subject.toString());
+                this.resourceUri = new URI(subject.toString());
 
-//                if(subjectIterator.hasNext())
-//                    throw new MultipleSubjectsInModelException(model.listSubjects());
+                if(subjectIterator.hasNext())
+                    throw new IllegalArgumentException("Given model has multiple subjects!");
             }
         }
 

@@ -21,7 +21,7 @@ import java.util.concurrent.ExecutorService;
  * Time: 10:00
  * To change this template use File | Settings | File Templates.
  */
-public class SparqlEndpoint implements DefaultHttpRequestProcessor {
+public class SparqlEndpoint implements HttpNonSemanticWebservice {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 

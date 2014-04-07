@@ -3,11 +3,6 @@ package eu.spitfire.ssp.server.webservices;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.Main;
-import eu.spitfire.ssp.server.webservices.DefaultHttpRequestProcessor;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.PropertiesConfiguration;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.handler.codec.http.*;
@@ -28,7 +23,7 @@ import java.util.NoSuchElementException;
  * Time: 17:49
  * To change this template use File | Settings | File Templates.
  */
-public abstract class WebserviceForResourcesList<T> implements DefaultHttpRequestProcessor {
+public abstract class WebserviceForResourcesList<T> implements HttpNonSemanticWebservice {
 
     private Map<URI, T> resources;
     private String sspHostName;

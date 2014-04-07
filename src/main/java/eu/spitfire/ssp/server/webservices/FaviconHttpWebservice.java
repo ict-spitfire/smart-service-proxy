@@ -13,11 +13,11 @@ import java.util.Date;
 import java.util.Locale;
 
 /**
- * This is the {@link HttpRequestProcessor} instance to provide the /favicon.ico service
+ * This is the {@link HttpWebservice} instance to provide the /favicon.ico service
  *
  * @author Oliver Kleine
  */
-public class FaviconHttpRequestProcessor implements DefaultHttpRequestProcessor{
+public class FaviconHttpWebservice implements HttpNonSemanticWebservice {
 
     private static SimpleDateFormat dateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
     private static final long MILLISECONDS_PER_YEAR = 31556926000L;
@@ -30,9 +30,9 @@ public class FaviconHttpRequestProcessor implements DefaultHttpRequestProcessor{
      * Reads the favicon.ico file at <code>resources/eu/spitfire/ssp/core/webservice/favicon.ico</code> and provides
      * this image as favicon service.
      */
-    public FaviconHttpRequestProcessor(){
+    public FaviconHttpWebservice(){
         try{
-            InputStream inputStream = FaviconHttpRequestProcessor.class.getResourceAsStream("favicon.ico");
+            InputStream inputStream = FaviconHttpWebservice.class.getResourceAsStream("favicon.ico");
             faviconBuffer = ChannelBuffers.dynamicBuffer();
             int value = inputStream.read();
             while(value != -1){
