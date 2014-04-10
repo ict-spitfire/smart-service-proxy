@@ -2,9 +2,7 @@ package eu.spitfire.ssp.backends.generic;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.backends.generic.exceptions.MultipleSubjectsInModelException;
-import eu.spitfire.ssp.backends.generic.messages.*;
+import eu.spitfire.ssp.backends.generic.messages.InternalRegisterDataOriginMessage;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;
@@ -13,8 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.*;
 
 /**
  * A {@link DataOriginRegistry} is the component to register new data origins, i.e. the resources from data origins.
@@ -27,46 +23,60 @@ public abstract class DataOriginRegistry<T> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private LocalServerChannel localServerChannel;
-    private HttpSemanticWebservice httpRequestProcessor;
+    private BackendComponentFactory<T> componentFactory;
+//    private LocalServerChannel localChannel;
 
 
-    protected DataOriginRegistry(BackendComponentFactory<T> backendComponentFactory) {
-        this.httpRequestProcessor = backendComponentFactory.getHttpRequestProcessor();
-        this.localServerChannel = backendComponentFactory.getLocalChannel();
+    protected DataOriginRegistry(BackendComponentFactory<T> componentFactory) {
+        this.componentFactory = componentFactory;
     }
 
-    protected final ListenableFuture<URI> registerResource(final T dataOrigin, final Model model){
-        return this.registerResource(dataOrigin, model, null);
-    }
+
+//    /**
+//     * Sets the {@link org.jboss.netty.channel.local.LocalServerChannel} that is used to send internal messages
+//     *
+//     * @param localChannel the {@link org.jboss.netty.channel.local.LocalServerChannel} that is used to send internal
+//     *                     messages
+//     */
+//    void setLocalChannel(LocalServerChannel localChannel){
+////        this.localChannel = localChannel;
+//    }
 
     /**
      * This method is to be called by implementing classes, i.e. registries for particular data origins,
      * to register the model from that data origin at the SSP.
      *
-     * @param dataOrigin the data origin of the given model, e.g a file name or Webservice URI
+     * @param dataOrigin the data origin to be registered
      *
      * @return a {@link ListenableFuture} where {@link ListenableFuture#get()} returns the list of resource proxy URIs
      * for all resources from the given data origin / model.
      */
-    protected final ListenableFuture<URI> registerResource(final T dataOrigin, final Model model, final Date expiry){
+    protected final ListenableFuture<Void> registerResource(final DataOrigin<T> dataOrigin){
 
-        final SettableFuture<URI> resourceRegistrationFuture = SettableFuture.create();
+        final SettableFuture<Void> resourceRegistrationFuture = SettableFuture.create();
+
+        HttpSemanticProxyWebservice httpProxyWebservice = componentFactory.getSemanticProxyWebservice(dataOrigin);
+        T identifier = dataOrigin.getIdentifier();
 
         try{
             //Register resource
-            final InternalRegisterResourceMessage<T> registerResourceMessage =
-                    new InternalRegisterResourceMessage<T>(httpRequestProcessor, dataOrigin, model, expiry){};
+            final InternalRegisterDataOriginMessage<T> registerResourceMessage =
+                    new InternalRegisterDataOriginMessage<>(dataOrigin, httpProxyWebservice);
 
-            log.info("Try to register resource {} from data origin {}",
-                    registerResourceMessage.getResourceUri(), dataOrigin);
+            log.info("Try to register data origin with identifier {}.", identifier);
 
-            ChannelFuture channelFuture = Channels.write(localServerChannel, registerResourceMessage);
+            LocalServerChannel localChannel = componentFactory.getLocalChannel();
+            ChannelFuture channelFuture = Channels.write(localChannel, registerResourceMessage);
+
             channelFuture.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
-                    if(future.isSuccess())
-                        resourceRegistrationFuture.set(registerResourceMessage.getResourceUri());
+                    if(future.isSuccess()){
+                        resourceRegistrationFuture.set(null);
+
+                        if(dataOrigin.isObservable())
+                            startObservation(dataOrigin);
+                    }
                     else
                         resourceRegistrationFuture.setException(future.getCause());
                 }
@@ -75,19 +85,17 @@ public abstract class DataOriginRegistry<T> {
             return resourceRegistrationFuture;
         }
 
-        catch (URISyntaxException e) {
-            log.error("The resource URI was not valid.", e);
-            resourceRegistrationFuture.setException(e);
+        catch (Exception ex) {
+            log.error("Registration of data origin failed!", ex);
+            resourceRegistrationFuture.setException(ex);
 
             return resourceRegistrationFuture;
         }
+    }
 
-        catch (MultipleSubjectsInModelException e) {
-            log.error("There were multiple resources contained in the given model", e);
-            resourceRegistrationFuture.setException(e);
 
-            return resourceRegistrationFuture;
-        }
-
+    private void startObservation(DataOrigin<T> dataOrigin){
+        DataOriginObserver<T> observer = componentFactory.getDataOriginObserver(dataOrigin);
+        observer.startObservation(dataOrigin);
     }
 }

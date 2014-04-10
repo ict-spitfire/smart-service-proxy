@@ -7,15 +7,21 @@ package eu.spitfire.ssp.backends.generic.messages;
  * Time: 23:14
  * To change this template use File | Settings | File Templates.
  */
-public abstract class InternalRemoveDataOriginMessage<T> {
+public class InternalRemoveDataOriginMessage<T> {
 
-    private T dataOrigin;
+    private T identifier;
+    private boolean removeFromCache;
 
-    public InternalRemoveDataOriginMessage(T dataOrigin){
-        this.dataOrigin = dataOrigin;
+    public InternalRemoveDataOriginMessage(T identifier, boolean removeFromCache){
+        this.identifier = identifier;
+        this.removeFromCache = removeFromCache;
     }
 
-    public T getDataOrigin() {
-        return this.dataOrigin;
+    public T getIdentifier() {
+        return identifier;
+    }
+
+    public boolean isRemoveFromCache() {
+        return removeFromCache;
     }
 }

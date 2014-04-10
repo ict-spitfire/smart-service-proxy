@@ -25,10 +25,11 @@
 package eu.spitfire.ssp.server.channels.handler;
 
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backends.generic.HttpSemanticWebservice;
+import eu.spitfire.ssp.backends.generic.HttpSemanticProxyWebservice;
+import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
 import eu.spitfire.ssp.backends.generic.exceptions.ResourceAlreadyRegisteredException;
 import eu.spitfire.ssp.backends.generic.exceptions.SemanticResourceException;
-import eu.spitfire.ssp.backends.generic.messages.InternalRegisterResourceMessage;
+import eu.spitfire.ssp.backends.generic.messages.InternalRegisterDataOriginMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalRegisterWebserviceMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
@@ -144,9 +145,9 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         }
 
         //For semantic services
-        else if(httpWebservice instanceof HttpSemanticWebservice){
+        else if(httpWebservice instanceof HttpSemanticProxyWebservice){
             processRequestForRegisteredResource(ctx, (InetSocketAddress) me.getRemoteAddress(), httpRequest,
-                    (HttpSemanticWebservice) httpWebservice);
+                    (HttpSemanticProxyWebservice) httpWebservice);
         }
 
         //For non-semantic services, e.g. GUIs
@@ -176,13 +177,12 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             return;
         }
 
-        else if(me.getMessage() instanceof InternalRegisterResourceMessage){
-            InternalRegisterResourceMessage message = (InternalRegisterResourceMessage) me.getMessage();
-            URI resourceUri = message.getResourceUri();
-
+        else if(me.getMessage() instanceof InternalRegisterDataOriginMessage){
+            InternalRegisterDataOriginMessage message = (InternalRegisterDataOriginMessage) me.getMessage();
+            URI resourceUri = message.getDataOrigin().getGraphName();
             URI resourceProxyUri = generateProxyWebserviceUri(resourceUri);
 
-            boolean success = registerProxyWebservice(resourceProxyUri, message.getHttpRequestProcessor());
+            boolean success = registerProxyWebservice(resourceProxyUri, message.getHttpProxyWebservice());
             if(!success){
                 me.getFuture().setFailure(new ResourceAlreadyRegisteredException(resourceUri));
                 return;
@@ -206,16 +206,16 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     private void processRequestForRegisteredResource(final ChannelHandlerContext ctx,
                                                      final InetSocketAddress remoteAddress,
                                                      final HttpRequest httpRequest,
-                                                     HttpSemanticWebservice httpRequestProcessor){
+                                                     HttpSemanticProxyWebservice httpRequestProcessor){
 
-        final SettableFuture<InternalResourceStatusMessage> resourceResponseFuture = SettableFuture.create();
+        final SettableFuture<WrappedDataOriginStatus> resourceResponseFuture = SettableFuture.create();
 
         resourceResponseFuture.addListener(new Runnable() {
             @Override
             public void run() {
                 try {
-                    InternalResourceStatusMessage message = resourceResponseFuture.get();
-                    if(!message.getModel().isEmpty())
+                    WrappedDataOriginStatus dataOriginStatus = resourceResponseFuture.get();
+                    if(!dataOriginStatus.getStatus().isEmpty())
                         writeResourceResponseMessage(ctx.getChannel(), resourceResponseFuture.get(), remoteAddress);
                     else{
                         HttpResponse httpResponse =
@@ -307,15 +307,16 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     private void writeHttpResponse(Channel channel, final HttpResponse httpResponse,
                                    final InetSocketAddress remoteAddress){
         ChannelFuture future = Channels.write(channel, httpResponse, remoteAddress);
-        //future.addListener(ChannelFutureListener.CLOSE);
+        future.addListener(ChannelFutureListener.CLOSE);
     }
 
 
 
-    private void writeResourceResponseMessage(Channel channel, final InternalResourceStatusMessage internalResourceStatusMessage,
-                                              final InetSocketAddress remoteAddress){
-        ChannelFuture future = Channels.write(channel, internalResourceStatusMessage, remoteAddress);
-        //future.addListener(ChannelFutureListener.CLOSE);
+    private void writeResourceResponseMessage(Channel channel, WrappedDataOriginStatus dataOriginStatus,
+                                              InetSocketAddress remoteAddress){
+
+        ChannelFuture future = Channels.write(channel, dataOriginStatus, remoteAddress);
+        future.addListener(ChannelFutureListener.CLOSE);
     }
 
 

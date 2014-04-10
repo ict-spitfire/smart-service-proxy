@@ -2,8 +2,9 @@ package eu.spitfire.ssp.backends.files;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.backends.generic.BackendResourceManager;
-import eu.spitfire.ssp.backends.generic.HttpSemanticWebservice;
+import eu.spitfire.ssp.backends.generic.DataOriginManager;
+import eu.spitfire.ssp.backends.generic.HttpSemanticProxyWebservice;
+import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
 import eu.spitfire.ssp.backends.generic.exceptions.DataOriginAccessException;
 import eu.spitfire.ssp.backends.generic.exceptions.SemanticResourceException;
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
@@ -18,14 +19,14 @@ import java.nio.file.Path;
 import java.util.Map;
 
 
-public class HttpSemanticWebserviceForFiles implements HttpSemanticWebservice {
+public class HttpProxyWebserviceForFiles implements HttpSemanticProxyWebservice<Path> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private BackendResourceManager<Path> backendResourceManager;
+    private DataOriginManager<Path> dataOriginManager;
 
-    public HttpSemanticWebserviceForFiles(FilesBackendComponentFactory backendComponentFactory){
-        this.backendResourceManager = backendComponentFactory.getBackendResourceManager();
+    public HttpProxyWebserviceForFiles(FilesBackendComponentFactory backendComponentFactory){
+        this.dataOriginManager = backendComponentFactory.getDataOriginManager();
     }
 
     @Override
@@ -98,7 +99,7 @@ public class HttpSemanticWebserviceForFiles implements HttpSemanticWebservice {
             URI resourceProxyUri = new URI(httpRequest.getUri());
             URI resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
 
-            Path file = backendResourceManager.getDataOrigin(resourceUri);
+            Path file = dataOriginManager.getDataOrigin(resourceUri);
 
             Model modelFromFile = FilesResourceToolBox.readModelFromFile(file);
             Map<URI, Model> models = FilesResourceToolBox.getModelsPerSubject(modelFromFile);
@@ -118,5 +119,10 @@ public class HttpSemanticWebserviceForFiles implements HttpSemanticWebservice {
             log.error("This should never happen!", e);
             resourceStatusFuture.setException(new Exception("Something went really wrong!"));
         }
+    }
+
+    @Override
+    public void processHttpRequest(SettableFuture<WrappedDataOriginStatus> responseFuture, HttpRequest httpRequest) {
+
     }
 }

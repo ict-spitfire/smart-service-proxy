@@ -2,7 +2,6 @@ package eu.spitfire.ssp.backends.files;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
-import eu.spitfire.ssp.backends.generic.ResourceToolbox;
 import eu.spitfire.ssp.utils.Language;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +17,7 @@ import java.nio.file.Path;
 * Time: 16:47
 * To change this template use File | Settings | File Templates.
 */
-public abstract class FilesResourceToolBox extends ResourceToolbox{
+public abstract class FilesResourceToolBox{
 
     private static Logger log = LoggerFactory.getLogger(FilesResourceToolBox.class.getName());
 

@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.backends.files;
 
-import eu.spitfire.ssp.backends.generic.BackendResourceManager;
+import eu.spitfire.ssp.backends.generic.DataOriginManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,12 +13,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import static java.nio.file.StandardWatchEventKinds.*;
 
 /**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 04.10.13
- * Time: 18:04
- * To change this template use File | Settings | File Templates.
- */
+* Created with IntelliJ IDEA.
+* User: olli
+* Date: 04.10.13
+* Time: 18:04
+* To change this template use File | Settings | File Templates.
+*/
 public class FilesWatcher {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
@@ -29,26 +29,26 @@ public class FilesWatcher {
     private WatchService watchService;
     private Map<WatchKey, Path> watchKeys;
 
-    private FilesBackendComponentFactory backendComponentFactory;
-    private BackendResourceManager<Path> backendResourceManager;
+    private FilesBackendComponentFactory componentFactory;
+    private DataOriginManager<Path> dataOriginManager;
     private FilesRegistry filesRegistry;
-    private FilesObserver filesObserver;
+//    private FilesObserver filesObserver;
     private ScheduledExecutorService scheduledExecutorService;
 
 
 
-    public FilesWatcher(FilesBackendComponentFactory backendComponentFactory) throws IOException {
-        this.backendComponentFactory = backendComponentFactory;
-        this.backendResourceManager = backendComponentFactory.getBackendResourceManager();
-        this.watchService = backendComponentFactory.getWatchService();
-        this.filesObserver = backendComponentFactory.getFilesObserver();
-        this.scheduledExecutorService = backendComponentFactory.getExecutorService();
+    public FilesWatcher(FilesBackendComponentFactory componentFactory) throws IOException {
+        this.componentFactory = componentFactory;
+        this.dataOriginManager = componentFactory.getDataOriginManager();
+        this.watchService = componentFactory.getWatchService();
+//        this.filesObserver = componentFactory.getFilesObserver();
+        this.scheduledExecutorService = componentFactory.getExecutorService();
         this.watchKeys = Collections.synchronizedMap(new HashMap<WatchKey, Path>());
     }
 
 
     public void initialize(Path directory){
-        filesRegistry = (FilesRegistry) backendComponentFactory.getDataOriginRegistry();
+        filesRegistry = (FilesRegistry) componentFactory.getDataOriginRegistry();
         watchDirectory(directory);
         scheduledExecutorService.submit(new FileWatcherTask());
         log.info("Started recursive observation of directory {}", directory);
@@ -85,9 +85,7 @@ public class FilesWatcher {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attr){
                     //If a file is no N3 file then ignore it
-                    if(!file.toString().endsWith(".n3"))
-                        log.debug("{} is neither N3 file nor directory. IGNORE!", file);
-                    else{
+                    if(file.toString().endsWith(".n3")){
 //                        fileModifications.put(file.getParent(), file.getParent().relativize(file),
 //                                file.toFile().lastModified());
                         filesRegistry.handleFileCreation(file);
@@ -104,7 +102,7 @@ public class FilesWatcher {
 
     private class FileWatcherTask implements Runnable{
 
-        @SuppressWarnings("ConstantConditions")
+        @SuppressWarnings("InfiniteLoopStatement")
         @Override
         public void run() {
             while(true){
@@ -174,7 +172,7 @@ public class FilesWatcher {
             Thread.sleep(1000);
 
                 if(eventKind == ENTRY_CREATE){
-                    if(backendResourceManager.getResources(file).isEmpty())
+                    if(dataOriginManager.getResources(file).isEmpty())
                         filesRegistry.handleFileCreation(file);
                     else
                         filesObserver.handleFileModification(file);

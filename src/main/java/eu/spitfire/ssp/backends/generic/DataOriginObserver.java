@@ -1,94 +1,85 @@
 package eu.spitfire.ssp.backends.generic;
 
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.Statement;
-import eu.spitfire.ssp.backends.generic.exceptions.MultipleSubjectsInModelException;
-import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
-import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
-import eu.spitfire.ssp.backends.generic.messages.InternalUpdateResourceStatusMessage;
-import org.jboss.netty.channel.ChannelFuture;
-import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.local.LocalServerChannel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Date;
-import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 
-/**
- * Extending classes are supposed to observe a data origin of type T. Whenever there was an update detected by
- * the extending observer it must call the method {@link #cacheResourcesStates(Model, Date)}.
- *
- * @author Oliver Kleine
- */
-public abstract class DataOriginObserver<T>{
+public abstract class DataOriginObserver<T> extends DataOriginAccessor<T>{
 
-    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
-
-    private LocalServerChannel localServerChannel;
-    private ScheduledExecutorService scheduledExecutorService;
+    private ScheduledExecutorService executorService;
 
 
-    protected DataOriginObserver(BackendComponentFactory backendComponentFactory){
-        this.localServerChannel = backendComponentFactory.getLocalChannel();
-        this.scheduledExecutorService = backendComponentFactory.getExecutorService();
+    protected DataOriginObserver(LocalServerChannel localChannel, ScheduledExecutorService executorService){
+        super(localChannel);
+        this.executorService = executorService;
     }
-
-
-    protected final void cacheResourcesStates(Model model){
-        cacheResourcesStates(model, null);
-    }
-
-
-    public abstract void startObservation(T dataOrigin);
 
 
     /**
-     * This method is to be invoked by extending classes if there was an update at the data origin.
+     * Starts the observation of the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}. Whenever the status
+     * of the observed {@link eu.spitfire.ssp.backends.generic.DataOrigin} changes, implementing classes are supposed
+     * to invoke {@link #updateCache(WrappedDataOriginStatus)}.
      *
-     * @param model the {@link Model} containing the new status of the resource(s) hosted at the observed
-     *              data origin
-     * @param expiry the {@link Date} indicating the expiry of the new status
+     * @param dataOrigin the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to be observed.
      */
-    protected final void cacheResourcesStates(Model model, final Date expiry){
-        final Map<URI, Model> models = ResourceToolbox.getModelsPerSubject(model);
-        for(final URI resourceUri : models.keySet()){
-            scheduledExecutorService.submit(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        cacheResourceStatus(models.get(resourceUri), expiry);
-                    }
-                    catch (MultipleSubjectsInModelException | URISyntaxException e) {
-                        log.error("This should never happen.", e);
-                    }
-                }
-            });
-        }
+    public abstract void startObservation(DataOrigin<T> dataOrigin);
+
+
+    /**
+     * Returns the {@link java.util.concurrent.ScheduledExecutorService} to be used to schedule or submit observation
+     * specific tasks.
+     *
+     * @return the {@link java.util.concurrent.ScheduledExecutorService} to be used to schedule or submit observation
+     * specific tasks.
+     */
+    protected ScheduledExecutorService getExecutorService(){
+        return this.executorService;
     }
 
 
-    public ChannelFuture cacheResourceStatus(final Model model, Date expiry) throws MultipleSubjectsInModelException, URISyntaxException {
+//    /**
+//     * This method is to be invoked by extending classes if there was an update at the data origin.
+//     *
+//     * @param model the {@link Model} containing the new status of the resource(s) hosted at the observed
+//     *              data origin
+//     * @param expiry the {@link Date} indicating the expiry of the new status
+//     */
+//    protected final void cacheResourcesStates(Model model, final Date expiry){
+//        final Map<URI, Model> models = ResourceToolbox.getModelsPerSubject(model);
+//        for(final URI resourceUri : models.keySet()){
+//            scheduledExecutorService.submit(new Runnable() {
+//                @Override
+//                public void run() {
+//                    try {
+//                        cacheResourceStatus(models.get(resourceUri), expiry);
+//                    }
+//                    catch (MultipleSubjectsInModelException | URISyntaxException e) {
+//                        log.error("This should never happen.", e);
+//                    }
+//                }
+//            });
+//        }
+//    }
+//
+//
+//    public ChannelFuture cacheResourceStatus(final Model model, Date expiry) throws MultipleSubjectsInModelException, URISyntaxException {
+//
+//        InternalResourceStatusMessage internalResourceStatusMessage = new InternalResourceStatusMessage(model, expiry);
+//        return Channels.write(localChannel, internalResourceStatusMessage);
+//
+//    }
 
-        InternalResourceStatusMessage internalResourceStatusMessage = new InternalResourceStatusMessage(model, expiry);
-        return Channels.write(localServerChannel, internalResourceStatusMessage);
-
-    }
-
-
-    protected ChannelFuture deleteResource(URI resourceUri){
-        InternalRemoveResourcesMessage message = new InternalRemoveResourcesMessage(resourceUri);
-        return Channels.write(localServerChannel, message);
-    }
-
-
-    protected final void updateResourceStatus(Statement statement, Date expiry){
-        InternalUpdateResourceStatusMessage message = new InternalUpdateResourceStatusMessage(statement, expiry);
-        Channels.write(localServerChannel, message);
-    }
+//
+//    protected ChannelFuture deleteResource(URI resourceUri){
+//        InternalRemoveResourcesMessage message = new InternalRemoveResourcesMessage(resourceUri);
+//        return Channels.write(localChannel, message);
+//    }
+//
+//
+//    protected final void updateResourceStatus(Statement statement, Date expiry){
+//        InternalUpdateResourceStatusMessage message = new InternalUpdateResourceStatusMessage(statement, expiry);
+//        Channels.write(localChannel, message);
+//    }
 
 
 

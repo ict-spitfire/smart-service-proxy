@@ -1,9 +1,6 @@
 package eu.spitfire.ssp.backends.files;
 
-import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.generic.DataOriginRegistry;
-import eu.spitfire.ssp.backends.generic.HttpSemanticWebservice;
-import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
+import eu.spitfire.ssp.backends.generic.*;
 import org.apache.commons.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,21 +10,21 @@ import java.nio.file.*;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 04.10.13
- * Time: 17:01
- * To change this template use File | Settings | File Templates.
- */
+* Created with IntelliJ IDEA.
+* User: olli
+* Date: 04.10.13
+* Time: 17:01
+* To change this template use File | Settings | File Templates.
+*/
 public class FilesBackendComponentFactory extends BackendComponentFactory<Path>{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private HttpSemanticWebserviceForFiles httpRequestProcessor;
+    private HttpProxyWebserviceForFiles httpRequestProcessor;
 
     private WatchService watchService;
     private Path directory;
-    private FilesObserver filesObserver;
+//    private FilesObserver filesObserver;
     private FilesWatcher filesWatcher;
     private boolean copyExamples;
 
@@ -36,28 +33,40 @@ public class FilesBackendComponentFactory extends BackendComponentFactory<Path>{
 
         super(prefix, config, executorService);
 
-        this.directory = directory;
-        this.copyExamples = copyExamples;
+        this.directory = new File(config.getString("files.directory")).toPath();
+        this.copyExamples = config.getBoolean("files.copyExamples", false);
+
         this.watchService = FileSystems.getDefault().newWatchService();
-        this.httpRequestProcessor = new HttpSemanticWebserviceForFiles(this);
+        this.httpRequestProcessor = new HttpProxyWebserviceForFiles(this);
+    }
+
+    @Override
+    public HttpSemanticProxyWebservice getSemanticProxyWebservice(DataOrigin<Path> dataOrigin) {
+        return null;
+    }
+
+    @Override
+    public DataOriginObserver<Path> getDataOriginObserver(DataOrigin<Path> dataOrigin) {
+        return null;
     }
 
     public WatchService getWatchService(){
         return this.watchService;
     }
 
-    public FilesObserver getFilesObserver(){
-        return this.filesObserver;
-    }
+
+//    public FilesObserver getFilesObserver(){
+//        return this.filesObserver;
+//    }
 
     public FilesWatcher getFilesWatcher(){
         return this.filesWatcher;
     }
 
-    @Override
-    public HttpSemanticWebservice getHttpRequestProcessor() {
-        return this.httpRequestProcessor;
-    }
+//    @Override
+//    public HttpSemanticProxyWebservice getSemanticProxyWebservice() {
+//        return this.httpRequestProcessor;
+//    }
 
     @Override
     public void initialize() throws Exception{

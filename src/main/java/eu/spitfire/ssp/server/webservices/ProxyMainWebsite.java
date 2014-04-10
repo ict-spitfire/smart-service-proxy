@@ -1,7 +1,7 @@
 package eu.spitfire.ssp.server.webservices;
 
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backends.generic.HttpSemanticWebservice;
+import eu.spitfire.ssp.backends.generic.HttpSemanticProxyWebservice;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
@@ -44,7 +44,7 @@ public class ProxyMainWebsite implements HttpNonSemanticWebservice{
 
         for(URI uri : services.keySet()){
             HttpWebservice httpWebservice = services.get(uri);
-            if(httpWebservice instanceof HttpSemanticWebservice){
+            if(httpWebservice instanceof HttpSemanticProxyWebservice){
                 semanticServices.append(String.format("<li><a href=\"%s\">%s</a></li>\n", uri, uri));
             }
             else{

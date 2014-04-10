@@ -2,10 +2,9 @@ package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
 import eu.spitfire.ssp.backends.files.FilesBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.generic.BackendResourceManager;
+import eu.spitfire.ssp.backends.generic.DataOriginManager;
 import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
 import eu.spitfire.ssp.server.channels.SmartServiceProxyPipelineFactory;
 import eu.spitfire.ssp.server.channels.handler.HttpRequestDispatcher;
@@ -20,7 +19,6 @@ import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.local.DefaultLocalServerChannelFactory;
-import org.jboss.netty.channel.local.LocalChannel;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.channel.local.LocalServerChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
@@ -29,8 +27,6 @@ import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.net.InetAddress;
 
 import java.net.InetSocketAddress;
 import java.nio.file.Paths;
@@ -68,6 +64,7 @@ public class Initializer {
     private SemanticCache semanticCache;
 
     private Collection<BackendComponentFactory> backendComponentFactories;
+
 
     public Initializer(Configuration config) throws Exception {
         this.config = config;
@@ -118,6 +115,7 @@ public class Initializer {
         log.info("I/O-Executor-Service created with {} threads", threadCount);
     }
 
+
     private void createExecutionHandler() {
 
         this.executionHandler = new ExecutionHandler(this.ioExecutorService);
@@ -139,8 +137,7 @@ public class Initializer {
 
 
     private void createBackendComponentFactories(Configuration config) throws Exception {
-//        int threadsPerBackand = config.getInt("SSP_THREADS_PER_BACKEND", 4);
-        String[] enabledBackends = config.getStringArray("ENABLE_BACKEND");
+        String[] enabledBackends = config.getStringArray("ENABLED_BACKEND");
 
         this.backendComponentFactories = new ArrayList<>(enabledBackends.length);
 
@@ -157,23 +154,23 @@ public class Initializer {
                     break;
                 }
 
-                case "coap": {
-                    backendComponentFactory = new CoapBackendComponentFactory("coap", config,
-                            this.mgmtExecutorService);
-                    break;
-                }
+//                case "coap": {
+//                    backendComponentFactory = new CoapBackendComponentFactory("coap", config,
+//                            this.mgmtExecutorService);
+//                    break;
+//                }
 
                 //Unknown AbstractGatewayFactory type
                 default: {
-                    log.error("Config file error: Gateway for '" + backendName + "' not found!");
+                    log.error("Config file error: Unknown backend (\"" + backendName + "\")!");
                     continue;
                 }
             }
 
-            BackendResourceManager backendResourceManager = backendComponentFactory.getBackendResourceManager();
+            DataOriginManager dataOriginManager = backendComponentFactory.getDataOriginManager();
             ChannelPipeline localPipeline = localPipelineFactory.getPipeline();
 
-            localPipeline.addLast("Backend Resource Manager (" + backendName + ")", backendResourceManager);
+            localPipeline.addLast("Backend Resource Manager (" + backendName + ")", dataOriginManager);
             LocalServerChannel localChannel = localChannelFactory.newChannel(localPipeline);
             backendComponentFactory.setLocalChannel(localChannel);
 

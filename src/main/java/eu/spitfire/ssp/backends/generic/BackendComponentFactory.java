@@ -29,7 +29,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import eu.spitfire.ssp.backends.generic.messages.InternalRegisterWebserviceMessage;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.channel.local.LocalChannel;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
@@ -55,7 +54,7 @@ public abstract class BackendComponentFactory<T>{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private BackendResourceManager<T> backendResourceManager;
+    private DataOriginManager<T> dataOriginManager;
     private DataOriginRegistry<T> dataOriginRegistry;
     private ScheduledExecutorService executorService;
 
@@ -75,13 +74,11 @@ public abstract class BackendComponentFactory<T>{
     protected BackendComponentFactory(String prefix, Configuration config, ScheduledExecutorService executorService)
         throws Exception {
 
-        this.name = config.getString(prefix + ".name");
+        this.name = config.getString(prefix + ".backend.name");
         this.executorService = executorService;
 
-        this.backendResourceManager = new BackendResourceManager<T>(
-                config.getString("SSP_HOST_NAME"),
-                config.getInt("SSP_HTTP_PORT", 8080)
-        ) {};
+        this.dataOriginManager = new DataOriginManager<>(this.name);
+
     }
 
 
@@ -128,22 +125,26 @@ public abstract class BackendComponentFactory<T>{
 
 
     /**
-     * Returns the {@link HttpSemanticWebservice} which is responsible to process all incoming HTTP requests
+     * Returns the {@link HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
+     * for the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      *
-     * @return the {@link HttpSemanticWebservice} which is responsible to process all incoming HTTP requests
+     * @return the {@link HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
+     * for the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      */
-    public abstract HttpSemanticWebservice getHttpRequestProcessor();
+    public abstract HttpSemanticProxyWebservice getSemanticProxyWebservice(DataOrigin<T> dataOrigin);
 
+
+    public abstract DataOriginObserver<T> getDataOriginObserver(DataOrigin<T> dataOrigin);
 
     /**
-     * Returns the {@link BackendResourceManager} which is contains all resources, resp. data origins, this backend is
+     * Returns the {@link DataOriginManager} which is contains all resources, resp. data origins, this backend is
      * responible for.
      *
-     * @return the {@link BackendResourceManager} which is contains all resources, resp. data origins, this backend is
+     * @return the {@link DataOriginManager} which is contains all resources, resp. data origins, this backend is
      * responible for
      */
-    public final BackendResourceManager<T> getBackendResourceManager(){
-        return this.backendResourceManager;
+    public final DataOriginManager<T> getDataOriginManager(){
+        return this.dataOriginManager;
     }
 
 
@@ -161,7 +162,7 @@ public abstract class BackendComponentFactory<T>{
         try{
             InternalRegisterWebserviceMessage registerWebserviceMessage =
                     new InternalRegisterWebserviceMessage(new URI("/" + this.name + "/resources"),
-                            backendResourceManager.getResourcesListWebservice());
+                            dataOriginManager.getWebserviceForGraphList());
 
             ChannelFuture future = Channels.write(localChannel, registerWebserviceMessage);
 
