@@ -10,18 +10,13 @@ package eu.spitfire.ssp.backends.generic.messages;
 public class InternalRemoveDataOriginMessage<T> {
 
     private T identifier;
-    private boolean removeFromCache;
 
-    public InternalRemoveDataOriginMessage(T identifier, boolean removeFromCache){
+    public InternalRemoveDataOriginMessage(T identifier){
         this.identifier = identifier;
-        this.removeFromCache = removeFromCache;
     }
 
     public T getIdentifier() {
         return identifier;
     }
 
-    public boolean isRemoveFromCache() {
-        return removeFromCache;
-    }
 }

@@ -24,9 +24,11 @@
 */
 package eu.spitfire.ssp.backends.generic;
 
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
+import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
 import eu.spitfire.ssp.backends.generic.messages.InternalRegisterWebserviceMessage;
+import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
+import eu.spitfire.ssp.backends.generic.registration.DataOriginManager;
+import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.local.LocalServerChannel;
@@ -104,14 +106,14 @@ public abstract class BackendComponentFactory<T>{
         return this.executorService;
     }
 
-    /**
-     * Returns the {@link ListeningExecutorService} to execute tasks
-     *
-     * @return the {@link ListeningExecutorService} to execute tasks
-     */
-    public final ListeningExecutorService getListeningExecutorService(){
-        return MoreExecutors.listeningDecorator(this.executorService);
-    }
+//    /**
+//     * Returns the {@link ListeningExecutorService} to execute tasks
+//     *
+//     * @return the {@link ListeningExecutorService} to execute tasks
+//     */
+//    public final ListeningExecutorService getListeningExecutorService(){
+//        return MoreExecutors.listeningDecorator(this.executorService);
+//    }
 
     /**
      * Returns the {@link DataOriginRegistry} which is necessary to register resources from a new data origin this
@@ -123,18 +125,40 @@ public abstract class BackendComponentFactory<T>{
         return this.dataOriginRegistry;
     }
 
-
     /**
-     * Returns the {@link HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
+     * Returns the {@link eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
      * for the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      *
-     * @return the {@link HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
+     * @return the {@link eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
      * for the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      */
     public abstract HttpSemanticProxyWebservice getSemanticProxyWebservice(DataOrigin<T> dataOrigin);
 
 
+
+//    /**
+//     * Returns the {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} to access the given
+//     * {@link eu.spitfire.ssp.backends.generic.DataOrigin}
+//     *
+//     * @param dataOrigin the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to be accessed
+//     *
+//     * @return the {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} to access the given
+//     * {@link eu.spitfire.ssp.backends.generic.DataOrigin}
+//     */
+//    public abstract DataOriginAccessor<T> getDataOriginAccessor(DataOrigin<T> dataOrigin);
+
+
+    /**
+     * Returns the {@link eu.spitfire.ssp.backends.generic.observation.DataOriginObserver} to observe the given
+     * {@link eu.spitfire.ssp.backends.generic.DataOrigin}
+     *
+     * @param dataOrigin the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to be observed
+     *
+     * @return the {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} to observe the given
+     * {@link eu.spitfire.ssp.backends.generic.DataOrigin}
+     */
     public abstract DataOriginObserver<T> getDataOriginObserver(DataOrigin<T> dataOrigin);
+
 
     /**
      * Returns the {@link DataOriginManager} which is contains all resources, resp. data origins, this backend is
@@ -162,7 +186,7 @@ public abstract class BackendComponentFactory<T>{
         try{
             InternalRegisterWebserviceMessage registerWebserviceMessage =
                     new InternalRegisterWebserviceMessage(new URI("/" + this.name + "/resources"),
-                            dataOriginManager.getWebserviceForGraphList());
+                            dataOriginManager.getWebserviceForGraphsList());
 
             ChannelFuture future = Channels.write(localChannel, registerWebserviceMessage);
 

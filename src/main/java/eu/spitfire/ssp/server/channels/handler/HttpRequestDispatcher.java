@@ -24,24 +24,22 @@
  */
 package eu.spitfire.ssp.server.channels.handler;
 
-import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backends.generic.HttpSemanticProxyWebservice;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
+import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
 import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
 import eu.spitfire.ssp.backends.generic.exceptions.ResourceAlreadyRegisteredException;
-import eu.spitfire.ssp.backends.generic.exceptions.SemanticResourceException;
-import eu.spitfire.ssp.backends.generic.messages.InternalRegisterDataOriginMessage;
+import eu.spitfire.ssp.backends.generic.registration.InternalRegisterDataOriginMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalRegisterWebserviceMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
-import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
 import eu.spitfire.ssp.server.webservices.*;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponse;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
-import org.jboss.netty.handler.codec.http.HttpVersion;
+import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +49,6 @@ import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 
@@ -67,7 +64,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
 	//Maps resource proxy uris to request processors
-	private Map<URI, HttpWebservice> proxyServices;
+	private Map<URI, HttpWebservice> webservices;
 
     private String dnsName;
     private int httpProxyPort;
@@ -85,7 +82,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         this.dnsName = config.getString("SSP_HOST_NAME");
         this.httpProxyPort = config.getInt("SSP_HTTP_PORT");
 
-        this.proxyServices = Collections.synchronizedMap(new HashMap<URI, HttpWebservice>());
+        this.webservices = Collections.synchronizedMap(new HashMap<URI, HttpWebservice>());
 
         registerMainWebsite();
         registerFavicon();
@@ -110,9 +107,10 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
 
     /**
-     * This method is invoked by the netty framework for incoming messages from remote peers. It forwards
-     * the incoming {@link HttpRequest} contained in the {@link MessageEvent} to the proper instance of
-     * {@link eu.spitfire.ssp.server.webservices.HttpWebservice}, awaits its result asynchronously and sends the response to the client.
+     * This method is invoked by the netty framework for incoming messages from remote peers. It forwards the incoming
+     * {@link HttpRequest} contained in the {@link MessageEvent} to the proper instance of
+     * {@link eu.spitfire.ssp.server.webservices.HttpWebservice}, awaits its result asynchronously and sends the
+     * response to the client.
      *
      * @param ctx the {@link ChannelHandlerContext} to link actual task to a {@link Channel}
      * @param me the {@link MessageEvent} containing the {@link HttpRequest}
@@ -130,31 +128,41 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
         //Create resource proxy uri from request
-        URI resourceProxyUri = generateProxyWebserviceUri(new URI(httpRequest.getUri()));
-        log.info("Received HTTP request for proxy Webservice {}", resourceProxyUri);
+        URI proxyUri = new URI(httpRequest.getUri());
+        log.info("Received HTTP request for proxy Webservice {}", proxyUri);
 
         //Lookup proper http request processor
-        HttpWebservice httpWebservice = proxyServices.get(resourceProxyUri);
+        HttpWebservice httpWebservice = webservices.get(proxyUri);
 
         //Send NOT FOUND if there is no proper processor
         if(httpWebservice == null){
-            log.warn("No HttpWebservice found for {}. Send error response.", resourceProxyUri);
+            log.warn("No HttpWebservice found for {}. Send error response.", proxyUri);
             HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
-                    HttpResponseStatus.NOT_FOUND, resourceProxyUri.toString());
+                    HttpResponseStatus.NOT_FOUND, proxyUri.toString());
             writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
         }
 
         //For semantic services
-        else if(httpWebservice instanceof HttpSemanticProxyWebservice){
-            processRequestForRegisteredResource(ctx, (InetSocketAddress) me.getRemoteAddress(), httpRequest,
-                    (HttpSemanticProxyWebservice) httpWebservice);
+        else{
+            ctx.getChannel().getPipeline().addLast("HTTP Webservice", httpWebservice);
+            ctx.sendUpstream(me);
         }
 
-        //For non-semantic services, e.g. GUIs
-        else{
-            processRequestForDefaultWebservice(ctx, (InetSocketAddress) me.getRemoteAddress(), httpRequest,
-                    (HttpWebservice) httpWebservice);
-        }
+//        //For non-semantic services, e.g. GUIs
+//        else if(httpWebservice instanceof HttpNonSemanticWebservice){
+//            processHttpRequest(ctx, me, (HttpNonSemanticWebservice) httpWebservice);
+//        }
+//
+//        else{
+//            String message = String.format("HttpWebservice for proxy URI %s does neither implement " +
+//                    "\"HttpSemanticProxyWebservice\" nor \"HttpNonSemanticWebservice\"!", proxyUri.toString());
+//
+//            log.error(message);
+//            HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+//                    HttpResponseStatus.INTERNAL_SERVER_ERROR, message);
+//
+//            writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
+//        }
     }
 
 
@@ -167,7 +175,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
             URI webserviceUri = generateProxyWebserviceUri(message.getLocalUri());
 
-            if(proxyServices.containsKey(webserviceUri)){
+            if(webservices.containsKey(webserviceUri)){
                 me.getFuture().setFailure(new ResourceAlreadyRegisteredException(message.getLocalUri()));
                 return;
             }
@@ -203,77 +211,89 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     }
 
 
-    private void processRequestForRegisteredResource(final ChannelHandlerContext ctx,
-                                                     final InetSocketAddress remoteAddress,
-                                                     final HttpRequest httpRequest,
-                                                     HttpSemanticProxyWebservice httpRequestProcessor){
+//    @SuppressWarnings("unchecked")
+//    private void processHttpRequest(final ChannelHandlerContext ctx, MessageEvent me, HttpWebservice httpWebservice){
+//
+//        ctx.getChannel().getPipeline().addLast("HTTP Webservice", httpWebservice);
+//        ctx.sendUpstream(me);
+//    }
+//                                    HttpSemanticProxyWebservice semanticProxyWebservice){
+//
+//        final HttpRequest httpRequest = (HttpRequest) me.getMessage();
+//        final InetSocketAddress clientAddress = (InetSocketAddress) me.getRemoteAddress();
+//
+//       semanticProxyWebservice.processHttpRequest(ctx.getChannel(), (HttpRequest) me.getMessage(), clientAddress);
+//
+////        Futures.addCallback(statusFuture, new FutureCallback<WrappedDataOriginStatus>() {
+////
+////            @Override
+////            public void onSuccess(WrappedDataOriginStatus dataOriginStatus) {
+////
+////                if (!dataOriginStatus.getStatus().isEmpty()){
+////                    Channels.write(ctx.getChannel(), dataOriginStatus, clientAddress);
+////                }
+////
+////                else {
+////                    HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+////                            HttpResponseStatus.OK, "Status changed.");
+////
+////                    writeHttpResponse(ctx.getChannel(), httpResponse, clientAddress);
+////                }
+////            }
+////
+////            @Override
+////            public void onFailure(Throwable throwable) {
+////                HttpResponse httpResponse;
+////                HttpVersion httpVersion = httpRequest.getProtocolVersion();
+////
+////                if(throwable instanceof DataOriginAccessException){
+////                    DataOriginAccessException ex = (DataOriginAccessException) throwable;
+////                    httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, ex.getHttpResponseStatus(),
+////                            ex.getMessage());
+////                }
+////
+////                else if(throwable instanceof Exception){
+////                    httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
+////                            HttpResponseStatus.INTERNAL_SERVER_ERROR, (Exception) throwable);
+////                }
+////
+////                else{
+////                    httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
+////                            HttpResponseStatus.INTERNAL_SERVER_ERROR, throwable.getMessage());
+////                }
+////
+////                writeHttpResponse(ctx.getChannel(), httpResponse, clientAddress);
+////            }
+////
+////        }, ioExecutorService);
+////
+//    }
 
-        final SettableFuture<WrappedDataOriginStatus> resourceResponseFuture = SettableFuture.create();
-
-        resourceResponseFuture.addListener(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    WrappedDataOriginStatus dataOriginStatus = resourceResponseFuture.get();
-                    if(!dataOriginStatus.getStatus().isEmpty())
-                        writeResourceResponseMessage(ctx.getChannel(), resourceResponseFuture.get(), remoteAddress);
-                    else{
-                        HttpResponse httpResponse =
-                                HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
-                                        HttpResponseStatus.OK, "Status changed.");
-
-                        writeHttpResponse(ctx.getChannel(), httpResponse, remoteAddress);
-                    }
-                }
-                catch (Exception e) {
-                    HttpResponseStatus httpResponseStatus;
-
-                    if(e instanceof ExecutionException && e.getCause() instanceof SemanticResourceException) {
-                        SemanticResourceException exception = (SemanticResourceException) e.getCause();
-                        httpResponseStatus = exception.getHttpResponseStatus();
-                    }
-                    else{
-                        httpResponseStatus = HttpResponseStatus.INTERNAL_SERVER_ERROR;
-                    }
-
-                    HttpResponse errorResponse =
-                            HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
-                                                                   httpResponseStatus,
-                                                                   e);
-                    writeHttpResponse(ctx.getChannel(), errorResponse, remoteAddress);
-                }
-            }
-        }, ioExecutorService);
-
-        httpRequestProcessor.processHttpRequest(resourceResponseFuture, httpRequest);
-    }
 
 
-
-    private void processRequestForDefaultWebservice(final ChannelHandlerContext ctx,
-                                                    final InetSocketAddress remoteAddress,
-                                                    final HttpRequest httpRequest,
-                                                    HttpWebservice httpWebservice){
-
-        final SettableFuture<HttpResponse> httpResponseFuture = SettableFuture.create();
-
-        httpResponseFuture.addListener(new Runnable(){
-            @Override
-            public void run() {
-                try {
-                    writeHttpResponse(ctx.getChannel(), httpResponseFuture.get(), remoteAddress);
-                }
-                catch (Exception e) {
-                    HttpResponse httpResponse =
-                            HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
-                                    HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-                    writeHttpResponse(ctx.getChannel(), httpResponse, remoteAddress);
-                }
-            }
-        }, ioExecutorService);
-
-        httpWebservice.processHttpRequest(httpResponseFuture, httpRequest);
-    }
+//    private void processHttpRequest(final ChannelHandlerContext ctx, final MessageEvent me,
+//                                    HttpNonSemanticWebservice webservice){
+//
+//        final InetSocketAddress clientAddress = (InetSocketAddress) me.getRemoteAddress();
+//        webservice.processHttpRequest(ctx.getChannel(), (HttpRequest) me.getMessage(), clientAddress);
+//
+////        Futures.addCallback(responseFuture, new FutureCallback<HttpResponse>() {
+////
+////            @Override
+////            public void onSuccess(HttpResponse httpResponse) {
+////                writeHttpResponse(ctx.getChannel(), httpResponse, clientAddress);
+////            }
+////
+////            @Override
+////            public void onFailure(Throwable throwable) {
+////                HttpVersion version = ((HttpRequest) me.getMessage()).getProtocolVersion();
+////                HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(version,
+////                                HttpResponseStatus.INTERNAL_SERVER_ERROR, throwable.getMessage());
+////                writeHttpResponse(ctx.getChannel(), httpResponse, clientAddress);
+////            }
+////
+////        }, ioExecutorService);
+//    }
 
     /**
      * Registers the service to provide the favicon.ico
@@ -287,32 +307,34 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
      * Registers the service to provide a list of registered services
      */
     private void registerMainWebsite() throws URISyntaxException {
-        //register service to provide list of available proxyServices
+        //register service to provide list of available webservices
         if(this.dnsName == null)
             throw new RuntimeException("SSP_HOST_NAME must be defined (DNS name or IP address)!");
 
         URI websiteUri = new URI("http", null, this.dnsName,
                 this.httpProxyPort == 80 ? -1 : this.httpProxyPort , "/", null, null);
 
-        registerProxyWebservice(websiteUri, new ProxyMainWebsite(proxyServices));
+        registerProxyWebservice(websiteUri, new ProxyMainWebsite(webservices));
     }
+
 
     /**
      * Sends an HTTP response to the given remote address
      *
      * @param channel the {@link Channel} to send the response over
      * @param httpResponse the {@link HttpResponse} to be sent
-     * @param remoteAddress the recipient of the response
+     * @param clientAddress the recipient of the response
      */
     private void writeHttpResponse(Channel channel, final HttpResponse httpResponse,
-                                   final InetSocketAddress remoteAddress){
-        ChannelFuture future = Channels.write(channel, httpResponse, remoteAddress);
+                                   final InetSocketAddress clientAddress){
+
+        ChannelFuture future = Channels.write(channel, httpResponse, clientAddress);
         future.addListener(ChannelFutureListener.CLOSE);
     }
 
 
 
-    private void writeResourceResponseMessage(Channel channel, WrappedDataOriginStatus dataOriginStatus,
+    private void writeDataOriginStatusMessage(Channel channel, WrappedDataOriginStatus dataOriginStatus,
                                               InetSocketAddress remoteAddress){
 
         ChannelFuture future = Channels.write(channel, dataOriginStatus, remoteAddress);
@@ -337,17 +359,17 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
     private synchronized boolean registerProxyWebservice(URI proxyWebserviceUri,
                                                          HttpWebservice httpWebservice){
-        if(proxyServices.containsKey(proxyWebserviceUri))
+        if(webservices.containsKey(proxyWebserviceUri))
             return false;
 
-        proxyServices.put(proxyWebserviceUri, httpWebservice);
+        webservices.put(proxyWebserviceUri, httpWebservice);
         log.info("Registered new Webservice: {}", proxyWebserviceUri);
         return true;
     }
 
 
     private boolean unregisterProxyWebservice(URI proxyWebserviceUri){
-        if(proxyServices.remove(proxyWebserviceUri) != null){
+        if(webservices.remove(proxyWebserviceUri) != null){
             log.info("Successfully removed resource from list of registered services: {}.", proxyWebserviceUri);
             return true;
         }

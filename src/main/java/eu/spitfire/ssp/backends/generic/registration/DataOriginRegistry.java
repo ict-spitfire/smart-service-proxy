@@ -1,8 +1,11 @@
-package eu.spitfire.ssp.backends.generic;
+package eu.spitfire.ssp.backends.generic.registration;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backends.generic.messages.InternalRegisterDataOriginMessage;
+import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
+import eu.spitfire.ssp.backends.generic.DataOrigin;
+import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
+import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;

@@ -1,8 +1,8 @@
-package eu.spitfire.ssp.backends.files;
+package eu.spitfire.ssp.backends.files_old;
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.backends.generic.DataOriginManager;
-import eu.spitfire.ssp.backends.generic.DataOriginObserver;
+import eu.spitfire.ssp.backends.generic.registration.DataOriginManager;
+import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
 import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,18 +18,18 @@ import java.util.*;
 * Time: 17:19
 * To change this template use File | Settings | File Templates.
 */
-public class FilesObserver extends DataOriginObserver<Path> {
+public class OldFilesObserver extends DataOriginObserver<Path> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private FilesRegistry filesRegistry;
+    private OldFilesRegistry oldFilesRegistry;
     private DataOriginManager<Path> dataOriginManager;
 
-    public FilesObserver(FilesBackendComponentFactory componentFactory) {
+    public OldFilesObserver(OldFilesBackendComponentFactory componentFactory) {
         super(componentFactory.getLocalChannel(), componentFactory.getExecutorService());
 
         this.dataOriginManager = componentFactory.getDataOriginManager();
-        this.filesRegistry = (FilesRegistry) componentFactory.getDataOriginRegistry();
+        this.oldFilesRegistry = (OldFilesRegistry) componentFactory.getDataOriginRegistry();
     }
 
 
@@ -37,8 +37,8 @@ public class FilesObserver extends DataOriginObserver<Path> {
         log.info("File modified: {}", file);
         try{
             //Read models (i.e. resource states) from the file
-            Model modelFromFile = FilesResourceToolBox.readModelFromFile(file);
-////            Map<URI, Model> modelsFromFile = FilesResourceToolBox.getModelsPerSubject(modelFromFile);
+            Model modelFromFile = OldFilesResourceToolBox.readModelFromFile(file);
+////            Map<URI, Model> modelsFromFile = OldFilesResourceToolBox.getModelsPerSubject(modelFromFile);
 //
 //            List<URI> registeredResourceUris =
 //                    Arrays.asList(dataOriginManager.getResources(file).toArray(new URI[0]));
@@ -57,7 +57,7 @@ public class FilesObserver extends DataOriginObserver<Path> {
 //                if(!registeredResourceUris.contains(resourceUriFromFile)){
 //
 //                    log.info("Register new resource {}", resourceUriFromFile);
-//                    filesRegistry.registerResource(modelsFromFile.get(resourceUriFromFile), file);
+//                    oldFilesRegistry.registerResource(modelsFromFile.get(resourceUriFromFile), file);
 //
 //                    log.info("Remove resource {} from model.", resourceUriFromFile);
 //                    modelFromFile.remove(modelsFromFile.get(resourceUriFromFile).listStatements());

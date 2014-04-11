@@ -1,17 +1,19 @@
 package eu.spitfire.ssp.backends.generic;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.server.webservices.HttpNonSemanticWebservice;
+import eu.spitfire.ssp.server.webservices.HttpWebservice;
+import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
+import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.util.Collection;
-import java.util.Set;
 
 /**
  * Created with IntelliJ IDEA.
@@ -20,32 +22,43 @@ import java.util.Set;
  * Time: 17:49
  * To change this template use File | Settings | File Templates.
  */
-public class WebserviceForGraphList<T> implements HttpNonSemanticWebservice {
+public class WebserviceForGraphsList<T> extends HttpWebservice {
 
     private String backendName;
     private Collection<DataOrigin<T>> dataOrigins;
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
 
-    WebserviceForGraphList(String backendName, Collection<DataOrigin<T>> dataOrigins){
+    public WebserviceForGraphsList(String backendName, Collection<DataOrigin<T>> dataOrigins){
         this.backendName = backendName;
         this.dataOrigins = dataOrigins;
     }
 
 
     @Override
-    public void processHttpRequest(SettableFuture<HttpResponse> responseFuture, HttpRequest httpRequest) {
-        HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
-                HttpResponseStatus.OK);
+    public void processHttpRequest(Channel channel, HttpRequest httpRequest, InetSocketAddress clientAddress) {
 
-        ChannelBuffer content = getHtmlContent();
+        log.debug("Incmoing HTTP request for URI {}", httpRequest.getUri());
 
-        httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, content.readableBytes());
-        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, "text/html; charset=utf-8");
-        httpResponse.setContent(content);
+        HttpResponse httpResponse;
 
-        responseFuture.set(httpResponse);
+        try{
+            httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
+            ChannelBuffer content = getHtmlContent();
+            httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, content.readableBytes());
+            httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, "text/html; charset=utf-8");
+            httpResponse.setContent(content);
+        }
+
+        catch(Exception ex){
+            httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+                    HttpResponseStatus.INTERNAL_SERVER_ERROR, ex);
+        }
+
+        ChannelFuture future = Channels.write(channel, httpResponse, clientAddress);
+        future.addListener(ChannelFutureListener.CLOSE);
     }
+
 
     private ChannelBuffer getHtmlContent(){
         StringBuilder buf = new StringBuilder();

@@ -28,8 +28,8 @@
 //import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
 //import eu.spitfire.ssp.backends.coap.registry.CoapWebserviceRegistry;
 //import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-//import eu.spitfire.ssp.backends.generic.DataOriginRegistry;
-//import eu.spitfire.ssp.backends.generic.HttpSemanticProxyWebservice;
+//import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
+//import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
 //import org.apache.commons.configuration.Configuration;
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
@@ -43,7 +43,7 @@
 // * {@link CoapServerApplication} with a {@link eu.spitfire.ssp.backends.coap.registry.CoapRegistrationWebservice} to enable CoAP webservers to register
 // * at the SSP.
 // *
-// * Furthermore it provides a {@link CoapClientApplication} and a {@link eu.spitfire.ssp.backends.generic.HttpSemanticProxyWebservice}
+// * Furthermore it provides a {@link CoapClientApplication} and a {@link eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice}
 // * to forward incoming HTTP requests to the original host.
 // *
 // * @author Oliver Kleine

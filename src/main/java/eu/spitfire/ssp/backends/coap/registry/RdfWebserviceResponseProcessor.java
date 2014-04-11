@@ -10,7 +10,7 @@
 //import eu.spitfire.ssp.backends.coap.CoapCodeHttpStatusMapper;
 //import eu.spitfire.ssp.backends.coap.CoapResourceToolbox;
 //import eu.spitfire.ssp.backends.generic.ExpiringModel;
-//import eu.spitfire.ssp.backends.generic.exceptions.DataOriginAccessException;
+//import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 //import eu.spitfire.ssp.backends.generic.exceptions.SemanticResourceException;
 //import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 //import org.slf4j.Logger;

@@ -1,11 +1,11 @@
-package eu.spitfire.ssp.backends.files;
+package eu.spitfire.ssp.backends.files_old;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.backends.generic.DataOriginManager;
-import eu.spitfire.ssp.backends.generic.HttpSemanticProxyWebservice;
+import eu.spitfire.ssp.backends.generic.registration.DataOriginManager;
+import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
 import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
-import eu.spitfire.ssp.backends.generic.exceptions.DataOriginAccessException;
+import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 import eu.spitfire.ssp.backends.generic.exceptions.SemanticResourceException;
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -19,13 +19,13 @@ import java.nio.file.Path;
 import java.util.Map;
 
 
-public class HttpProxyWebserviceForFiles implements HttpSemanticProxyWebservice<Path> {
+public class OldHttpProxyWebserviceForFiles implements HttpSemanticProxyWebservice<Path> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private DataOriginManager<Path> dataOriginManager;
 
-    public HttpProxyWebserviceForFiles(FilesBackendComponentFactory backendComponentFactory){
+    public OldHttpProxyWebserviceForFiles(OldFilesBackendComponentFactory backendComponentFactory){
         this.dataOriginManager = backendComponentFactory.getDataOriginManager();
     }
 
@@ -67,7 +67,7 @@ public class HttpProxyWebserviceForFiles implements HttpSemanticProxyWebservice<
                             HttpRequest httpRequest) throws Exception {
 
         resourceStatusFuture.setException(new DataOriginAccessException(HttpResponseStatus.METHOD_NOT_ALLOWED,
-                "Resources from files only allow GET requests"));
+                "Resources from files_old only allow GET requests"));
 
 //        URI resourceProxyUri = new URI(httpRequest.getUri());
 //        URI resourceUri = new URI(resourceProxyUri.getQuery().substring(4));
@@ -76,7 +76,7 @@ public class HttpProxyWebserviceForFiles implements HttpSemanticProxyWebservice<
 //        Path resourceFile = resources.get(resourceUri);
 //
 //        synchronized (resourceFile){
-//            Model modelFromFile = FilesResourceToolBox.readModelFromFile(resourceFile);
+//            Model modelFromFile = OldFilesResourceToolBox.readModelFromFile(resourceFile);
 //
 //            //Delete the resource from the model
 //            Resource resource = modelFromFile.getResource(resourceUri.toString());
@@ -86,7 +86,7 @@ public class HttpProxyWebserviceForFiles implements HttpSemanticProxyWebservice<
 //            //Add the new resource status into the model
 //            Model newModel = modelFromFile.union(ResourceToolbox.getModelFromHttpMessage(httpRequest));
 //
-//            FilesResourceToolBox.writeModelToFile(resourceFile, newModel);
+//            OldFilesResourceToolBox.writeModelToFile(resourceFile, newModel);
 //
 //            resourceStatusFuture.set(new InternalResourceStatusMessage(ModelFactory.createDefaultModel()));
 //        }
@@ -101,8 +101,8 @@ public class HttpProxyWebserviceForFiles implements HttpSemanticProxyWebservice<
 
             Path file = dataOriginManager.getDataOrigin(resourceUri);
 
-            Model modelFromFile = FilesResourceToolBox.readModelFromFile(file);
-            Map<URI, Model> models = FilesResourceToolBox.getModelsPerSubject(modelFromFile);
+            Model modelFromFile = OldFilesResourceToolBox.readModelFromFile(file);
+            Map<URI, Model> models = OldFilesResourceToolBox.getModelsPerSubject(modelFromFile);
 
             Model model = models.get(resourceUri);
 

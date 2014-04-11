@@ -1,7 +1,7 @@
-package eu.spitfire.ssp.backends.files;
+package eu.spitfire.ssp.backends.files_old;
 
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.backends.generic.DataOriginRegistry;
+import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,12 +18,12 @@ import java.util.Map;
 * Time: 17:01
 * To change this template use File | Settings | File Templates.
 */
-public class FilesRegistry extends DataOriginRegistry<Path> {
+public class OldFilesRegistry extends DataOriginRegistry<Path> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
 
-    protected FilesRegistry(FilesBackendComponentFactory componentFactory) {
+    protected OldFilesRegistry(OldFilesBackendComponentFactory componentFactory) {
         super(componentFactory);
     }
 
@@ -33,8 +33,8 @@ public class FilesRegistry extends DataOriginRegistry<Path> {
 
         try {
             if(file.toString().endsWith(".n3") ){
-                Model model = FilesResourceToolBox.readModelFromFile(file);
-                Map<URI, Model> modelsFromFile = FilesObserver.getModelsPerSubject(model);
+                Model model = OldFilesResourceToolBox.readModelFromFile(file);
+                Map<URI, Model> modelsFromFile = OldFilesObserver.getModelsPerSubject(model);
 
                 log.info("Register {} new resources.", modelsFromFile.size());
 

@@ -1,32 +1,29 @@
-package eu.spitfire.ssp.backends.generic;
+package eu.spitfire.ssp.backends.generic.registration;
 
-import eu.spitfire.ssp.backends.generic.exceptions.GraphNameAlreadyExistsException;
-import eu.spitfire.ssp.backends.generic.exceptions.ResourceAlreadyRegisteredException;
-import eu.spitfire.ssp.backends.generic.messages.InternalRegisterDataOriginMessage;
-import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
+import eu.spitfire.ssp.backends.generic.DataOrigin;
+import eu.spitfire.ssp.backends.generic.WebserviceForGraphsList;
 import org.jboss.netty.channel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URI;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
-public class DataOriginManager<T> extends SimpleChannelHandler{
+public class DataOriginManager<T> extends SimpleChannelDownstreamHandler{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private final Object monitor = new Object();
     private Map<T, DataOrigin<T>> dataOrigins;
-    private WebserviceForGraphList<T> webserviceForGraphList;
+    private WebserviceForGraphsList<T> webserviceForGraphsList;
 
 
     public DataOriginManager(String backendName){
         this.dataOrigins = new HashMap<>();
-        this.webserviceForGraphList = new WebserviceForGraphList<>(backendName, dataOrigins.values());
+        this.webserviceForGraphsList = new WebserviceForGraphsList<>(backendName, dataOrigins.values());
     }
 
 
-    @SuppressWarnings("unchecked")
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
 
@@ -36,6 +33,7 @@ public class DataOriginManager<T> extends SimpleChannelHandler{
         else
             ctx.sendDownstream(me);
     }
+
 
     @SuppressWarnings("unchecked")
     private void handleDataOriginRegistration(ChannelHandlerContext ctx, MessageEvent me){
@@ -86,6 +84,7 @@ public class DataOriginManager<T> extends SimpleChannelHandler{
     }
 
 
+
 //    private void addResource(URI resourceUri, T dataOrigin) throws ResourceAlreadyRegisteredException {
 //        synchronized (monitor){
 //            if(!resourceToDataOriginMap.containsKey(resourceUri)){
@@ -127,8 +126,8 @@ public class DataOriginManager<T> extends SimpleChannelHandler{
 //        return dataOriginToResourcesMultimap.get(dataOrigin);
 //    }
 
-    public WebserviceForGraphList<T> getWebserviceForGraphList(){
-        return this.webserviceForGraphList;
+    public WebserviceForGraphsList<T> getWebserviceForGraphsList(){
+        return this.webserviceForGraphsList;
     }
 
 //    /**

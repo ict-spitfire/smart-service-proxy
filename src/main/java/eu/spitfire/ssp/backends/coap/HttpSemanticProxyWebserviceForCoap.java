@@ -7,9 +7,9 @@
 //import de.uniluebeck.itm.ncoap.message.MessageCode;
 //import de.uniluebeck.itm.ncoap.message.MessageType;
 //import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
-//import eu.spitfire.ssp.backends.generic.DataOriginManager;
-//import eu.spitfire.ssp.backends.generic.HttpSemanticProxyWebservice;
-//import eu.spitfire.ssp.backends.generic.exceptions.DataOriginAccessException;
+//import eu.spitfire.ssp.backends.generic.registration.DataOriginManager;
+//import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
+//import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 //import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 //import org.jboss.netty.handler.codec.http.HttpMethod;
 //import org.jboss.netty.handler.codec.http.HttpRequest;

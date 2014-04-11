@@ -88,7 +88,8 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
 
             if(acceptedLanguage == null){
                 acceptedLanguage = DEFAULT_LANGUAGE;
-                log.info("Could not find any language, which is both, accepted and supported. Use default ({})", acceptedLanguage);
+                log.info("Could not find any language, which is both, accepted and supported. Use default ({})",
+                        DEFAULT_LANGUAGE);
             }
             else{
                 log.info("Language with highest priority which is both, accepted and supported: {}", acceptedLanguage);

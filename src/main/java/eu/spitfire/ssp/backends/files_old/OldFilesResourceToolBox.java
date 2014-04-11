@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.files;
+package eu.spitfire.ssp.backends.files_old;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
@@ -17,9 +17,9 @@ import java.nio.file.Path;
 * Time: 16:47
 * To change this template use File | Settings | File Templates.
 */
-public abstract class FilesResourceToolBox{
+public abstract class OldFilesResourceToolBox {
 
-    private static Logger log = LoggerFactory.getLogger(FilesResourceToolBox.class.getName());
+    private static Logger log = LoggerFactory.getLogger(OldFilesResourceToolBox.class.getName());
 
     public static Model readModelFromFile(Path file) throws FileNotFoundException {
         BufferedReader fileReader = new BufferedReader(new FileReader(file.toString()));

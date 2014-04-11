@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.generic.exceptions;
+package eu.spitfire.ssp.backends.generic.access;
 
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 

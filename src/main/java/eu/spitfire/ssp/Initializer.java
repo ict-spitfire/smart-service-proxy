@@ -2,9 +2,9 @@ package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import eu.spitfire.ssp.backends.files.FilesBackendComponentFactory;
+import eu.spitfire.ssp.backends.files_old.OldFilesBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.generic.DataOriginManager;
+import eu.spitfire.ssp.backends.generic.registration.DataOriginManager;
 import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
 import eu.spitfire.ssp.server.channels.SmartServiceProxyPipelineFactory;
 import eu.spitfire.ssp.server.channels.handler.HttpRequestDispatcher;
@@ -148,8 +148,8 @@ public class Initializer {
             BackendComponentFactory backendComponentFactory;
             switch (backendName) {
 
-                case "files": {
-                    backendComponentFactory = new FilesBackendComponentFactory("files", config,
+                case "files_old": {
+                    backendComponentFactory = new OldFilesBackendComponentFactory("files_old", config,
                             this.mgmtExecutorService);
                     break;
                 }

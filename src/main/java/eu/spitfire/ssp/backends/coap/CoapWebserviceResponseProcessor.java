@@ -13,7 +13,7 @@
 //import de.uniluebeck.itm.ncoap.message.MessageCode;
 //import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
 //
-//import eu.spitfire.ssp.backends.generic.exceptions.DataOriginAccessException;
+//import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 //import eu.spitfire.ssp.backends.generic.exceptions.SemanticResourceException;
 //import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
 //import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;

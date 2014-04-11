@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.files;
+package eu.spitfire.ssp.backends.files_old;
 
 import eu.spitfire.ssp.backends.generic.DataOrigin;
 
@@ -8,7 +8,7 @@ import java.nio.file.Path;
 /**
  * Created by olli on 10.04.14.
  */
-public class FilesDataOrigin extends DataOrigin<Path> {
+public class OldFilesDataOrigin extends DataOrigin<Path> {
 
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.DataOrigin}
@@ -17,7 +17,7 @@ public class FilesDataOrigin extends DataOrigin<Path> {
      *                   {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      * @param identifier the identifier for this {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      */
-    protected FilesDataOrigin(URI graphName, Path identifier) {
+    protected OldFilesDataOrigin(URI graphName, Path identifier) {
         super(graphName, identifier);
     }
 

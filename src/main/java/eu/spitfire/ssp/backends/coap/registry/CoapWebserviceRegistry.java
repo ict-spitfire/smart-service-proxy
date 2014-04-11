@@ -17,7 +17,7 @@
 //
 //import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
 //import eu.spitfire.ssp.backends.coap.CoapWebserviceResponseProcessor;
-//import eu.spitfire.ssp.backends.generic.DataOriginRegistry;
+//import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
 //import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 //
 //import org.slf4j.Logger;

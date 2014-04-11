@@ -1,6 +1,6 @@
-package eu.spitfire.ssp.backends.files;
+package eu.spitfire.ssp.backends.files_old;
 
-import eu.spitfire.ssp.backends.generic.DataOriginManager;
+import eu.spitfire.ssp.backends.generic.registration.DataOriginManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +19,7 @@ import static java.nio.file.StandardWatchEventKinds.*;
 * Time: 18:04
 * To change this template use File | Settings | File Templates.
 */
-public class FilesWatcher {
+public class OldFilesWatcher {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -29,15 +29,15 @@ public class FilesWatcher {
     private WatchService watchService;
     private Map<WatchKey, Path> watchKeys;
 
-    private FilesBackendComponentFactory componentFactory;
+    private OldFilesBackendComponentFactory componentFactory;
     private DataOriginManager<Path> dataOriginManager;
-    private FilesRegistry filesRegistry;
-//    private FilesObserver filesObserver;
+    private OldFilesRegistry oldFilesRegistry;
+//    private OldFilesObserver filesObserver;
     private ScheduledExecutorService scheduledExecutorService;
 
 
 
-    public FilesWatcher(FilesBackendComponentFactory componentFactory) throws IOException {
+    public OldFilesWatcher(OldFilesBackendComponentFactory componentFactory) throws IOException {
         this.componentFactory = componentFactory;
         this.dataOriginManager = componentFactory.getDataOriginManager();
         this.watchService = componentFactory.getWatchService();
@@ -48,7 +48,7 @@ public class FilesWatcher {
 
 
     public void initialize(Path directory){
-        filesRegistry = (FilesRegistry) componentFactory.getDataOriginRegistry();
+        oldFilesRegistry = (OldFilesRegistry) componentFactory.getDataOriginRegistry();
         watchDirectory(directory);
         scheduledExecutorService.submit(new FileWatcherTask());
         log.info("Started recursive observation of directory {}", directory);
@@ -88,7 +88,7 @@ public class FilesWatcher {
                     if(file.toString().endsWith(".n3")){
 //                        fileModifications.put(file.getParent(), file.getParent().relativize(file),
 //                                file.toFile().lastModified());
-                        filesRegistry.handleFileCreation(file);
+                        oldFilesRegistry.handleFileCreation(file);
                     }
 
                     return FileVisitResult.CONTINUE;
@@ -173,7 +173,7 @@ public class FilesWatcher {
 
                 if(eventKind == ENTRY_CREATE){
                     if(dataOriginManager.getResources(file).isEmpty())
-                        filesRegistry.handleFileCreation(file);
+                        oldFilesRegistry.handleFileCreation(file);
                     else
                         filesObserver.handleFileModification(file);
                 }
@@ -195,8 +195,8 @@ public class FilesWatcher {
 //
 //                for(Path otherDirectory : getWatchedDirectoriesWithFiles()){
 //                    if(otherDirectory.startsWith(directory)){
-//                        List<Path> files = Arrays.asList(fileModifications.row(directory).keySet().toArray(new Path[0]));
-//                        for(Path file : files){
+//                        List<Path> files_old = Arrays.asList(fileModifications.row(directory).keySet().toArray(new Path[0]));
+//                        for(Path file : files_old){
 //                            fileModifications.remove(directory, file.relativize(otherDirectory));
 //                            filesObserver.handleFileDeletion(directory.resolve(file));
 //                        }

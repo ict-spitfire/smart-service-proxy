@@ -15,7 +15,7 @@
 //import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
 //import eu.spitfire.ssp.backends.coap.CoapResourceToolbox;
 //import eu.spitfire.ssp.backends.coap.CoapWebserviceResponseProcessor;
-//import eu.spitfire.ssp.backends.generic.DataOriginObserver;
+//import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
 //import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
 //import org.jboss.netty.channel.Channels;
 //import org.slf4j.Logger;

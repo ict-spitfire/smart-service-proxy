@@ -7,10 +7,12 @@ import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
+import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.util.concurrent.ExecutorService;
 
@@ -21,7 +23,7 @@ import java.util.concurrent.ExecutorService;
  * Time: 10:00
  * To change this template use File | Settings | File Templates.
  */
-public class SparqlEndpoint implements HttpNonSemanticWebservice {
+public class SparqlEndpoint extends HttpWebservice {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -42,6 +44,52 @@ public class SparqlEndpoint implements HttpNonSemanticWebservice {
     private synchronized void decreaseCounter(){
         counter--;
         log.info("Finished SPARQL query. Now running: {}", counter);
+    }
+
+
+    @Override
+    public void processHttpRequest(Channel channel, HttpRequest httpRequest, InetSocketAddress clientAddress) {
+
+        if(httpRequest.getMethod() != HttpMethod.POST){
+            HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+                    HttpResponseStatus.METHOD_NOT_ALLOWED, "Only POST is supported.");
+            settableFuture.set(httpResponse);
+            return;
+        }
+
+        String sparqlQuery = httpRequest.getContent().toString(Charset.forName("UTF-8"));
+        final SettableFuture<String> queryResultFuture = SettableFuture.create();
+
+        increaseCounter();
+        cache.processSparqlQuery(queryResultFuture, sparqlQuery);
+
+        queryResultFuture.addListener(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    String queryResult = queryResultFuture.get();
+
+                    ChannelBuffer payload =
+                            ChannelBuffers.wrappedBuffer(queryResult.getBytes(Charset.forName("UTF-8")));
+                    Multimap<String, String> header = HashMultimap.create();
+                    header.put(HttpHeaders.Names.CONTENT_LENGTH, "" + payload.readableBytes());
+
+                    HttpResponse httpResponse =
+                            HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+                                    HttpResponseStatus.OK, header, payload);
+
+                    settableFuture.set(httpResponse);
+
+                }
+                catch (Exception e) {
+                    settableFuture.setException(e);
+                }
+                finally {
+                    decreaseCounter();
+                }
+            }
+        }, executorService);
+    }
     }
 
     @Override
@@ -87,4 +135,6 @@ public class SparqlEndpoint implements HttpNonSemanticWebservice {
             }
         }, executorService);
     }
+
+
 }

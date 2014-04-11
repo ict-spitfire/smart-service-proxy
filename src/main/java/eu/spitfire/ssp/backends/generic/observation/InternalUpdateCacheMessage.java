@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.generic.messages;
+package eu.spitfire.ssp.backends.generic.observation;
 
 import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
 
@@ -9,9 +9,11 @@ public class InternalUpdateCacheMessage {
 
     private WrappedDataOriginStatus dataOriginStatus;
 
+
     public InternalUpdateCacheMessage(WrappedDataOriginStatus dataOriginStatus){
         this.dataOriginStatus = dataOriginStatus;
     }
+
 
     public WrappedDataOriginStatus getDataOriginStatus() {
         return dataOriginStatus;
