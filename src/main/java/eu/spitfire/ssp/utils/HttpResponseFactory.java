@@ -21,8 +21,7 @@ public class HttpResponseFactory {
         String payload = status.getReasonPhrase() + "\n\n" + content;
         ChannelBuffer payloadBuffer = ChannelBuffers.wrappedBuffer(payload.getBytes(Charset.forName("UTF-8")));
         response.setContent(payloadBuffer);
-
-        response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, payloadBuffer.readableBytes());
+        response.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payloadBuffer.readableBytes());
         return response;
     }
 
@@ -41,18 +40,15 @@ public class HttpResponseFactory {
 
         HttpResponse response = new DefaultHttpResponse(version, status);
         response.setContent(payload);
-
         setHeaders(response, headers);
-
-        response.setHeader("Content-Length", payload.readableBytes());
-
+        response.headers().add("Content-Length", payload.readableBytes());
         return response;
     }
 
     public static void setHeaders(HttpMessage httpMessage, Multimap<String, String> headers){
         for(String headerName : headers.keySet()){
             Iterable<String> headerValue = headers.get(headerName);
-            httpMessage.setHeader(headerName, headerValue);
+            httpMessage.headers().add(headerName, headerValue);
             log.debug("Set Header: {} (Name), {} (Value(s))", headerName, headerValue);
         }
     }

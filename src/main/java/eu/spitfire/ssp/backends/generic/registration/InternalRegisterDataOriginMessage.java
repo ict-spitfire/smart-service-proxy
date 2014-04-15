@@ -1,5 +1,6 @@
 package eu.spitfire.ssp.backends.generic.registration;
 
+import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
 import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
 
@@ -16,6 +17,7 @@ public class InternalRegisterDataOriginMessage<T>{
     private HttpSemanticProxyWebservice httpProxyWebservice;
 
     public InternalRegisterDataOriginMessage(DataOrigin<T> dataOrigin, HttpSemanticProxyWebservice httpProxyWebservice){
+
         this.httpProxyWebservice = httpProxyWebservice;
         this.dataOrigin = dataOrigin;
     }
@@ -28,4 +30,5 @@ public class InternalRegisterDataOriginMessage<T>{
     public HttpSemanticProxyWebservice getHttpProxyWebservice() {
         return httpProxyWebservice;
     }
+
 }

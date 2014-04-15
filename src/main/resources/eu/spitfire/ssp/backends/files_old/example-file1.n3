@@ -1,3 +1,5 @@
+#graphname: http://www.example.org/device/remotea12b
+#expires: 03/31/2013 10:30:31PM GMT-08:00
 <http://www.example.org/device/remotea12b>
       a       <http://purl.oclc.org/NET/ssnx/ssn#Device> ;
       <http://purl.org/NET/corelf#bn>

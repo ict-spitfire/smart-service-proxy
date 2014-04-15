@@ -3,12 +3,12 @@ package eu.spitfire.ssp.backends.generic.messages;
 import com.google.common.util.concurrent.SettableFuture;
 
 /**
-* Created with IntelliJ IDEA.
-* User: olli
-* Date: 03.09.13
-* Time: 10:15
-* To change this template use File | Settings | File Templates.
-*/
+ * Created with IntelliJ IDEA.
+ * User: olli
+ * Date: 03.09.13
+ * Time: 10:15
+ * To change this template use File | Settings | File Templates.
+ */
 public class InternalSparqlQueryMessage {
 
     private String query;

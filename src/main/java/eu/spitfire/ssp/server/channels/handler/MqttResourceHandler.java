@@ -4,8 +4,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Multimap;
 import com.hp.hpl.jena.rdf.model.*;
 import de.uniluebeck.itm.spitfire.ssphttpobserveovermqttlib.HttpObserveOverMqttLib;
-import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
-import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
+import eu.spitfire.ssp.backends.generic.observation.InternalUpdateCacheMessage;
 import eu.spitfire.ssp.utils.Language;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -42,12 +41,14 @@ public class MqttResourceHandler extends SimpleChannelDownstreamHandler{
 
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
-        if(me.getMessage() instanceof InternalResourceStatusMessage){
+        if(me.getMessage() instanceof InternalUpdateCacheMessage){
             log.info("DO something********************************************************************");
-            InternalResourceStatusMessage message = (InternalResourceStatusMessage) me.getMessage();
-            final URI resourceUri = message.getResourceUri();
-            final Model model = message.getModel();
-            final Date expiry = message.getExpiry() != null ? message.getExpiry() : new Date(System.currentTimeMillis() + 10000);
+            InternalUpdateCacheMessage message = (InternalUpdateCacheMessage) me.getMessage();
+
+            final URI resourceUri = message.getDataOriginStatus().getGraphName();
+            final Model model = message.getDataOriginStatus().getStatus();
+            Date tmpExpiry = message.getDataOriginStatus().getExpiry();
+            final Date expiry = tmpExpiry != null ? tmpExpiry : new Date(System.currentTimeMillis() + 10000);
 
             log.info("Add/Update resource {}", resourceUri);
 
@@ -104,11 +105,11 @@ public class MqttResourceHandler extends SimpleChannelDownstreamHandler{
                 });
         }
 
-        if(me.getMessage() instanceof InternalRemoveResourcesMessage){
-            InternalRemoveResourcesMessage message = (InternalRemoveResourcesMessage) me.getMessage();
-            URI resourceUri = message.getResourceUri();
-            httpObserver.removeObservableURL(resourceUri.toString());
-        }
+//        if(me.getMessage() instanceof InternalRemoveResourcesMessage){
+//            InternalRemoveResourcesMessage message = (InternalRemoveResourcesMessage) me.getMessage();
+//            URI resourceUri = message.getResourceUri();
+//            httpObserver.removeObservableURL(resourceUri.toString());
+//        }
 
         ctx.sendDownstream(me);
     }

@@ -10,7 +10,7 @@ import java.net.URI;
  * Webservice this could e.g. be {@link URI}. Then {@link #getIdentifier()} returns a {@link java.net.URI} identifying
  * this Webservice.
  *
- * Each {@link eu.spitfire.ssp.backends.generic.DataOrigin} instance is connected to a graph name. In this context a
+ * Each {@link eu.spitfire.ssp.backends.generic.DataOrigin} instance is connected to a graph backendName. In this context a
  * graph is the component to contain the complete semantic information provided by this
  * {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
  *
@@ -24,7 +24,7 @@ public abstract class DataOrigin<T> {
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      *
-     * @param graphName the name of the graph representing the semantic information at this
+     * @param graphName the backendName of the graph representing the semantic information at this
      *                  {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      * @param identifier the identifier for this {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      */
@@ -36,14 +36,16 @@ public abstract class DataOrigin<T> {
     /**
      * Returns <code>true</code> if this {@link eu.spitfire.ssp.backends.generic.DataOrigin} instance is observable
      * and <code>false</code> otherwise
-     * @return <code>true</code> if this {@link eu.spitfire.ssp.backends.generic.DataOrigin} instance is observable
-     * and <code>false</code> otherwise.
+     * * @return <code>true</code> if this {@link eu.spitfire.ssp.backends.generic.DataOrigin} instance is observable
+     * and <code>false</code> otherwise
      */
     public abstract boolean isObservable();
 
 
     /**
-     * Returns the identifier of this data origin
+     * Returns the identifier of this data origin (e.g. a path for files or a URI for Webservices). The returned value
+     * is unique among all {@link eu.spitfire.ssp.backends.generic.DataOrigin}s per local backend.
+     *
      * @return the identifier of this data origin
      */
     public T getIdentifier(){
@@ -52,8 +54,12 @@ public abstract class DataOrigin<T> {
 
 
     /**
-     * Returns the graph name of the model hosted by this data origin
-     * @return the graph name of the model hosted by this data origin
+     * Returns the graph backendName of the model hosted by this data origin. The graph backendName is used to globally identify the
+     * data that was retrieved by a {@link eu.spitfire.ssp.backends.generic.DataOrigin}, i.e. a graph backendName is unique
+     * over all {@link eu.spitfire.ssp.backends.generic.DataOrigin}s "worldwide" and not only locally as the result
+     * {@link #getIdentifier()} is.
+     *
+     * @return the graph backendName of the model hosted by this data origin
      */
     public URI getGraphName() {
         return graphName;

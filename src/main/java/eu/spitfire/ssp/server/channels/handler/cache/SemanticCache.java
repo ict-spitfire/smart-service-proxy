@@ -11,7 +11,7 @@
  *  - Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
  *    following disclaimer in the documentation and/or other materials provided with the distribution.
  *
- *  - Neither the name of the University of Luebeck nor the names of its contributors may be used to endorse or promote
+ *  - Neither the backendName of the University of Luebeck nor the names of its contributors may be used to endorse or promote
  *    products derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
@@ -26,10 +26,10 @@ package eu.spitfire.ssp.server.channels.handler.cache;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
-import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
-import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
-import eu.spitfire.ssp.backends.generic.messages.InternalSparqlQueryMessage;
-import eu.spitfire.ssp.backends.generic.messages.InternalUpdateResourceStatusMessage;
+import eu.spitfire.ssp.backends.generic.DataOrigin;
+import eu.spitfire.ssp.backends.generic.access.DataOriginStatusMessage;
+import eu.spitfire.ssp.backends.generic.observation.InternalUpdateCacheMessage;
+import eu.spitfire.ssp.backends.generic.registration.InternalRegisterDataOriginMessage;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -98,18 +98,17 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
 
             log.debug("Lookup resource with URI: {}", resourceUri);
-            InternalResourceStatusMessage cachedResource = getCachedResource(resourceUri);
+            DataOriginStatusMessage dataOriginStatusMessage = getCachedResource(resourceUri);
 
-            if (cachedResource != null) {
+            if (dataOriginStatusMessage != null) {
                 log.debug("Cached status for {} found.", resourceUri);
 
                 //me.getFuture().setSuccess();
 
                 ChannelFuture future = me.getFuture();
-                DownstreamMessageEvent dme = new DownstreamMessageEvent(ctx.getChannel(), future, cachedResource, me.getRemoteAddress());
+                DownstreamMessageEvent dme = new DownstreamMessageEvent(ctx.getChannel(), future, dataOriginStatusMessage, me.getRemoteAddress());
                 ctx.sendDownstream(dme);
-                //Channels.write(ctx, future, cachedResource, me.getRemoteAddress());
-                //future.addListener(ChannelFutureListener.CLOSE);
+
                 future.addListener(new ChannelFutureListener(){
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
@@ -134,61 +133,78 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * @param resourceUri the {@link URI} identifying the wanted resource
      * @return the {@link Model} representing the status of the wanted resource
      */
-    public abstract InternalResourceStatusMessage getCachedResource(URI resourceUri) throws Exception;
+    public abstract DataOriginStatusMessage getCachedResource(URI resourceUri) throws Exception;
 
 
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) {
         URI resourceUri = null;
         try {
-            if (me.getMessage() instanceof InternalResourceStatusMessage) {
-                InternalResourceStatusMessage message = (InternalResourceStatusMessage) me.getMessage();
+            if(me.getMessage() instanceof InternalRegisterDataOriginMessage){
 
-                scheduleResourceStatusExpiry(message.getResourceUri(), message.getExpiry());
+                DataOrigin dataOrigin = ((InternalRegisterDataOriginMessage) me.getMessage()).getDataOrigin();
+                URI graphName = dataOrigin.getGraphName();
+
+                if(this.containsNamedGraph(graphName))
+                      me.getFuture().setFailure(new GraphNameAlreadyExistsException(graphName));
+
+                else
+                    ctx.sendDownstream(me);
+            }
+
+            if (me.getMessage() instanceof InternalUpdateCacheMessage) {
+                InternalUpdateCacheMessage message = (InternalUpdateCacheMessage) me.getMessage();
+
+                URI graphName = message.getDataOriginStatus().getGraphName();
+                Model namedGraph = message.getDataOriginStatus().getStatus();
+                Date expiry = message.getDataOriginStatus().getExpiry();
+                scheduleNamedGraphExpiry(graphName, expiry);
 
                 Long startTime = System.currentTimeMillis();
-                log.debug("Start putting resource {} to cache.", message.getResourceUri());
+                log.debug("Start put graph \"{}\" to cache.", graphName);
 
-                putResourceToCache(message.getResourceUri(), message.getModel());
-                log.debug("Successfully put resource {} to cache after {} millis.", message.getResourceUri(),
+                putNamedGraphToCache(graphName, namedGraph);
+                log.debug("Successfully put graph \"{}\" to cache after {} millis.", graphName,
                         System.currentTimeMillis() - startTime);
-            }
-            else if (me.getMessage() instanceof InternalUpdateResourceStatusMessage) {
-                InternalUpdateResourceStatusMessage message = (InternalUpdateResourceStatusMessage) me.getMessage();
-                resourceUri = new URI(message.getStatement().getSubject().toString());
-                log.info("Received update for resource {} (expiry: {})", resourceUri, message.getExpiry());
 
-                scheduleResourceStatusExpiry(resourceUri, message.getExpiry());
-                updateStatement(message.getStatement());
+            }
 
-                InternalResourceStatusMessage cachedResource = getCachedResource(resourceUri);
-                if (cachedResource != null) {
-                    InternalResourceStatusMessage resourceStatusMessage =
-                            new InternalResourceStatusMessage(cachedResource.getModel(), message.getExpiry());
-
-                    if (resourceStatusMessage != null) {
-                        Channels.write(ctx, me.getFuture(), resourceStatusMessage);
-                        return;
-                    }
-                    log.warn("Resource status of {} was null!!!", resourceUri);
-                } else {
-                    log.warn("Resource {} was null!!!", resourceUri);
-                    return;
-                }
-            }
-            else if (me.getMessage() instanceof InternalSparqlQueryMessage) {
-                InternalSparqlQueryMessage message = (InternalSparqlQueryMessage) me.getMessage();
-                processSparqlQuery(message.getQueryResultFuture(), message.getQuery());
-            }
-            else if(me.getMessage() instanceof InternalRemoveResourcesMessage){
-                InternalRemoveResourcesMessage message = (InternalRemoveResourcesMessage) me.getMessage();
-                deleteResource(message.getResourceUri());
-                ScheduledFuture timeoutFuture = expiryFutures.remove(resourceUri);
-                if (timeoutFuture != null){
-                    timeoutFuture.cancel(false);
-                    log.info("Resource status timeout for {} canceled.", resourceUri);
-                }
-            }
+//            else if (me.getMessage() instanceof InternalUpdateResourceStatusMessage) {
+//                InternalUpdateResourceStatusMessage message = (InternalUpdateResourceStatusMessage) me.getMessage();
+//                resourceUri = new URI(message.getStatement().getSubject().toString());
+//                log.info("Received update for resource {} (expiry: {})", resourceUri, message.getExpiry());
+//
+//                scheduleNamedGraphExpiry(resourceUri, message.getExpiry());
+//                updateStatement(message.getStatement());
+//
+//                InternalResourceStatusMessage cachedResource = getCachedResource(resourceUri);
+//                if (cachedResource != null) {
+//                    InternalResourceStatusMessage resourceStatusMessage =
+//                            new InternalResourceStatusMessage(cachedResource.getModel(), message.getExpiry());
+//
+//                    if (resourceStatusMessage != null) {
+//                        Channels.write(ctx, me.getFuture(), resourceStatusMessage);
+//                        return;
+//                    }
+//                    log.warn("Resource status of {} was null!!!", resourceUri);
+//                } else {
+//                    log.warn("Resource {} was null!!!", resourceUri);
+//                    return;
+//                }
+//            }
+//            else if (me.getMessage() instanceof InternalSparqlQueryMessage) {
+//                InternalSparqlQueryMessage message = (InternalSparqlQueryMessage) me.getMessage();
+//                processSparqlQuery(message.getQueryResultFuture(), message.getQuery());
+//            }
+//            else if(me.getMessage() instanceof InternalRemoveResourcesMessage){
+//                InternalRemoveResourcesMessage message = (InternalRemoveResourcesMessage) me.getMessage();
+//                deleteNamedGraph(message.getResourceUri());
+//                ScheduledFuture timeoutFuture = expiryFutures.remove(resourceUri);
+//                if (timeoutFuture != null){
+//                    timeoutFuture.cancel(false);
+//                    log.info("Resource status timeout for {} canceled.", resourceUri);
+//                }
+//            }
 
             ctx.sendDownstream(me);
         }
@@ -199,27 +215,27 @@ public abstract class SemanticCache extends SimpleChannelHandler {
     }
 
 
-    private void scheduleResourceStatusExpiry(final URI resourceUri, Date expiry) {
-        log.info("Received new status of {} (expiry: {})", resourceUri, expiry);
+    private void scheduleNamedGraphExpiry(final URI graphName, Date expiry) {
+        log.info("Received new status of {} (expiry: {})", graphName, expiry);
         Long startTime = System.currentTimeMillis();
-        log.debug("Schedule timeout for resource {}.", resourceUri);
+        log.debug("Schedule timeout for resource {}.", graphName);
         //Cancel old expiry (if existing)
-        ScheduledFuture timeoutFuture = expiryFutures.remove(resourceUri);
+        ScheduledFuture timeoutFuture = expiryFutures.remove(graphName);
         if (timeoutFuture != null)
             timeoutFuture.cancel(false);
 
         log.debug("Canceled timeout after {} millis for resource {}", System.currentTimeMillis() - startTime,
-                resourceUri);
+                graphName);
 
         //Set new expiry (if not null)
         if (expiry != null) {
-            expiryFutures.put(resourceUri, scheduledExecutorService.schedule(new Runnable() {
+            expiryFutures.put(graphName, scheduledExecutorService.schedule(new Runnable() {
                 @Override
                 public void run() {
                     try {
-                        deleteResource(resourceUri);
+                        deleteNamedGraph(graphName);
                     } catch (Exception e) {
-                        log.error("Could not delete resource {} from cache.", resourceUri, e);
+                        log.error("Could not delete resource {} from cache.", graphName, e);
                     }
                 }
             }, expiry.getTime() - System.currentTimeMillis() + DELAY_AFTER_EXPIRY, TimeUnit.MILLISECONDS));
@@ -229,21 +245,26 @@ public abstract class SemanticCache extends SimpleChannelHandler {
     }
 
 
+    public abstract boolean containsNamedGraph(URI graphName);
+
+
     /**
      * Insert a new resource into the cache or updated an already cached one. The expiry is given to enable the
      * cache to delete the resource status from the cache when its no longer valid.
      *
-     * @param resourceUri    the {@link URI} identifying the resource to be cached
-     * @param resourceStatus the {@link Model} representing the resource status to be cached
+     * @param graphName    the {@link URI} identifying the resource to be cached
+     * @param namedGraph the {@link Model} representing the resource status to be cached
      */
-    public abstract void putResourceToCache(URI resourceUri, Model resourceStatus) throws Exception;
+    public abstract void putNamedGraphToCache(URI graphName, Model namedGraph) throws Exception;
+
 
     /**
      * Method to delete a cached resource from the cache.
      *
-     * @param resourceUri the {@link URI} identifying the cached resource who's status is to be deleted
+     * @param graphName the {@link URI} identifying the cached resource who's status is to be deleted
      */
-    public abstract void deleteResource(URI resourceUri) throws Exception;
+    public abstract void deleteNamedGraph(URI graphName) throws Exception;
+
 
     /**
      * Method to update a property of a resource given as the subject of the given statement

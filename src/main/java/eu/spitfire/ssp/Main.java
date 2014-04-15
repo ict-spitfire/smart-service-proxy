@@ -11,7 +11,7 @@
  *  - Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
  *    following disclaimer in the documentation and/or other materials provided with the distribution.
  *
- *  - Neither the name of the University of Luebeck nor the names of its contributors may be used to endorse or promote
+ *  - Neither the backendName of the University of Luebeck nor the names of its contributors may be used to endorse or promote
  *    products derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
@@ -28,11 +28,8 @@ import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.xml.DOMConfigurator;
-import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.net.InetSocketAddress;
 
 
 public class Main {
@@ -45,14 +42,11 @@ public class Main {
 
         Configuration config = new PropertiesConfiguration("ssp.properties");
         Initializer initializer = new Initializer(config);
-        initializer.start();
-
-
-
+        initializer.initialize();
 
         //Start the backends
         for (BackendComponentFactory backendComponentFactory : initializer.getBackendComponentFactories()) {
-            backendComponentFactory.initializeBackendComponents();
+            backendComponentFactory.createComponents(config);
         }
 
         log.info("SSP succesfully started!");

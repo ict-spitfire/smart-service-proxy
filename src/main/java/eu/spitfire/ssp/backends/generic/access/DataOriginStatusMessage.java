@@ -6,9 +6,9 @@ import eu.spitfire.ssp.backends.generic.observation.InternalUpdateCacheMessage;
 /**
  * Created by olli on 11.04.14.
  */
-public class InternalDataOriginStatusMessage extends InternalUpdateCacheMessage {
+public class DataOriginStatusMessage extends InternalUpdateCacheMessage {
 
-    public InternalDataOriginStatusMessage(WrappedDataOriginStatus dataOriginStatus) {
+    public DataOriginStatusMessage(WrappedDataOriginStatus dataOriginStatus) {
         super(dataOriginStatus);
     }
 

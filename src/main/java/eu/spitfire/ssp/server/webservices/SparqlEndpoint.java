@@ -2,12 +2,19 @@ package eu.spitfire.ssp.server.webservices;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
+import eu.spitfire.ssp.backends.generic.messages.InternalSparqlQueryMessage;
 import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.ChannelFutureListener;
+import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created with IntelliJ IDEA.
@@ -27,114 +35,83 @@ public class SparqlEndpoint extends HttpWebservice {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
+    private LocalServerChannel localChannel;
     private ExecutorService executorService;
-    private SemanticCache cache;
-    private int counter = 0;
+    private AtomicInteger openQueriesCount;
 
-    public SparqlEndpoint(ExecutorService executorService, SemanticCache cache) {
+    public SparqlEndpoint(LocalServerChannel localChannel, ExecutorService executorService) {
+        this.localChannel = localChannel;
         this.executorService = executorService;
-        this.cache = cache;
+        this.openQueriesCount = new AtomicInteger(0);
     }
 
-    private synchronized void increaseCounter(){
-        counter++;
-        log.info("Start new SPARQL query. Now running: {}", counter);
-    }
-
-    private synchronized void decreaseCounter(){
-        counter--;
-        log.info("Finished SPARQL query. Now running: {}", counter);
-    }
+//    private synchronized void increaseCounter(){
+//        counter++;
+//        log.info("Start new SPARQL query. Now running: {}", counter);
+//    }
+//
+//    private synchronized void decreaseCounter(){
+//        counter--;
+//        log.info("Finished SPARQL query. Now running: {}", counter);
+//    }
 
 
     @Override
-    public void processHttpRequest(Channel channel, HttpRequest httpRequest, InetSocketAddress clientAddress) {
+    public void processHttpRequest(final Channel channel, final HttpRequest httpRequest, final InetSocketAddress clientAddress) {
+
+        final HttpVersion httpVersion = httpRequest.getProtocolVersion();
 
         if(httpRequest.getMethod() != HttpMethod.POST){
-            HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+            HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
                     HttpResponseStatus.METHOD_NOT_ALLOWED, "Only POST is supported.");
-            settableFuture.set(httpResponse);
-            return;
+
+            writeHttpResponse(channel, httpResponse, clientAddress);
         }
 
-        String sparqlQuery = httpRequest.getContent().toString(Charset.forName("UTF-8"));
-        final SettableFuture<String> queryResultFuture = SettableFuture.create();
+        else{
 
-        increaseCounter();
-        cache.processSparqlQuery(queryResultFuture, sparqlQuery);
+            String query = httpRequest.getContent().toString(Charset.forName("UTF-8"));
+            final SettableFuture<String> resultFuture = SettableFuture.create();
+            InternalSparqlQueryMessage queryMessage = new InternalSparqlQueryMessage(query, resultFuture);
 
-        queryResultFuture.addListener(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    String queryResult = queryResultFuture.get();
+            ChannelFuture future = Channels.write(localChannel, queryMessage);
+            future.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture future) throws Exception {
+                    if(future.isSuccess())
+                        log.info("New SPARQL query started (Now running: {}).", openQueriesCount.incrementAndGet());
+                    else
+                        resultFuture.setException(future.getCause());
+                }
+            });
 
-                    ChannelBuffer payload =
-                            ChannelBuffers.wrappedBuffer(queryResult.getBytes(Charset.forName("UTF-8")));
+            Futures.addCallback(resultFuture, new FutureCallback<String>() {
+                @Override
+                public void onSuccess(String queryResult) {
+                    log.info("SPARQL query result created (Now running: {}).", openQueriesCount.decrementAndGet());
+
+                    byte[] payloadBytes = queryResult.getBytes(Charset.forName("UTF-8"));
+                    ChannelBuffer payload = ChannelBuffers.wrappedBuffer(payloadBytes);
+
                     Multimap<String, String> header = HashMultimap.create();
                     header.put(HttpHeaders.Names.CONTENT_LENGTH, "" + payload.readableBytes());
 
-                    HttpResponse httpResponse =
-                            HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
-                                    HttpResponseStatus.OK, header, payload);
-
-                    settableFuture.set(httpResponse);
-
+                    HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
+                            HttpResponseStatus.OK, header, payload);
+                    writeHttpResponse(channel, httpResponse, clientAddress);
                 }
-                catch (Exception e) {
-                    settableFuture.setException(e);
-                }
-                finally {
-                    decreaseCounter();
-                }
-            }
-        }, executorService);
-    }
-    }
 
-    @Override
-    public void processHttpRequest(final SettableFuture<HttpResponse> settableFuture, final HttpRequest httpRequest) {
+                @Override
+                public void onFailure(Throwable throwable) {
+                    log.info("Could not create SPARQL query result (Now running: {}).",
+                            openQueriesCount.decrementAndGet());
 
-        if(httpRequest.getMethod() != HttpMethod.POST){
-            HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
-                    HttpResponseStatus.METHOD_NOT_ALLOWED, "Only POST is supported.");
-            settableFuture.set(httpResponse);
-            return;
+                    HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
+                            HttpResponseStatus.INTERNAL_SERVER_ERROR, throwable.getMessage());
+                    writeHttpResponse(channel, httpResponse, clientAddress);
+                }
+
+            }, ioExecutorService);
         }
-
-        String sparqlQuery = httpRequest.getContent().toString(Charset.forName("UTF-8"));
-        final SettableFuture<String> queryResultFuture = SettableFuture.create();
-
-        increaseCounter();
-        cache.processSparqlQuery(queryResultFuture, sparqlQuery);
-
-        queryResultFuture.addListener(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    String queryResult = queryResultFuture.get();
-
-                    ChannelBuffer payload =
-                            ChannelBuffers.wrappedBuffer(queryResult.getBytes(Charset.forName("UTF-8")));
-                    Multimap<String, String> header = HashMultimap.create();
-                    header.put(HttpHeaders.Names.CONTENT_LENGTH, "" + payload.readableBytes());
-
-                    HttpResponse httpResponse =
-                            HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
-                                    HttpResponseStatus.OK, header, payload);
-
-                    settableFuture.set(httpResponse);
-
-                }
-                catch (Exception e) {
-                    settableFuture.setException(e);
-                }
-                finally {
-                    decreaseCounter();
-                }
-            }
-        }, executorService);
     }
-
-
 }

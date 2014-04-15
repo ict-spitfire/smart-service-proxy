@@ -1,12 +1,17 @@
 package eu.spitfire.ssp.backends.files;
 
+import com.sun.istack.internal.Nullable;
 import eu.spitfire.ssp.backends.generic.*;
-import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
 import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
-import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
 import org.apache.commons.configuration.Configuration;
+import org.jboss.netty.channel.local.LocalServerChannel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.nio.file.Path;
+import java.nio.file.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -14,39 +19,87 @@ import java.util.concurrent.ScheduledExecutorService;
  */
 public class FilesBackendComponentFactory extends BackendComponentFactory<Path> {
 
+//    private HttpSemanticProxyWebserviceForFiles proxyWebserviceForFiles;
+
+    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
+
+    private FileAccessor fileAccessor;
+    private FileObserver fileObserver;
+    private WatchService watchService;
+    private FileWatcher fileWatcher;
+    private Configuration config;
+
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.BackendComponentFactory}.
      *
      * @param prefix          the prefix of the backend in the given config (without the ".")
      * @param config          the SSP config
-     * @param executorService the {@link java.util.concurrent.ScheduledExecutorService} for backend tasks, e.g.
-     *                        translating and forwarding requests to data origins
+     * @param backendTasksExecutorService the {@link java.util.concurrent.ScheduledExecutorService} for backend tasks,
+     *                                    e.g. translating and forwarding requests to data origins
+     *
      * @throws Exception if something went terribly wrong
      */
-    protected FilesBackendComponentFactory(String prefix, Configuration config,
-                                           ScheduledExecutorService executorService) throws Exception {
+    public FilesBackendComponentFactory(String prefix, Configuration config, LocalServerChannel localChannel,
+            ScheduledExecutorService backendTasksExecutorService, ExecutorService ioExecutorService) throws Exception {
 
-        super(prefix, config, executorService);
+        super(prefix, config, localChannel, backendTasksExecutorService, ioExecutorService);
+        this.config = config.subset(prefix);
+    }
+
+
+    @Override
+    public void initialize() throws Exception{
+        this.watchService = FileSystems.getDefault().newWatchService();
+
+        this.fileAccessor = new FileAccessor(this);
+        this.fileObserver = new FileObserver(this);
+
+        this.fileWatcher = new FileWatcher(this);
+        this.fileWatcher.startFileWatching();
+    }
+
+
+    Configuration getConfig(){
+        return this.config;
     }
 
     @Override
-    public HttpSemanticProxyWebservice getSemanticProxyWebservice(DataOrigin<Path> dataOrigin) {
-        return null;
+    public FileObserver getDataOriginObserver(DataOrigin<Path> dataOrigin) {
+//        Path identifier = dataOrigin.getIdentifier();
+//        Path directory = identifier.getParent();
+//
+//        if(!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)){
+//            log.error("This should never happen... Directory path {} is no directory!", directory);
+//            return null;
+//        }
+//
+//        FileObserver fileObserver = fileObservers.get(directory);
+//
+//        if(fileObserver == null){
+//
+//            fileObserver = new FileObserver(this);
+//            this.fileObservers.put(directory, fileObserver);
+//        }
+
+        return this.fileObserver;
+
     }
 
+
     @Override
-    public DataOriginObserver<Path> getDataOriginObserver(DataOrigin<Path> dataOrigin) {
-        return null;
+    public FileAccessor getDataOriginAccessor(@Nullable DataOrigin<Path> dataOrigin) {
+        return this.fileAccessor;
     }
 
-    @Override
-    public void initialize() throws Exception {
 
+    @Override
+    public FileRegistry createDataOriginRegistry(Configuration config) throws Exception {
+        return new FileRegistry(this);
     }
 
-    @Override
-    public DataOriginRegistry<Path> createDataOriginRegistry() {
-        return null;
+
+    public WatchService getWatchService(){
+        return this.watchService;
     }
 
     @Override

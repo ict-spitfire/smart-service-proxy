@@ -17,7 +17,8 @@ public class InternalRegisterWebserviceMessage {
 
     /**
      * @param localUri the {@link URI} of the resource, e.g. the path
-     * @param httpWebservice the {@link eu.spitfire.ssp.server.webservices.HttpWebservice} to process incoming HTTP requests
+     * @param httpWebservice the {@link eu.spitfire.ssp.server.webservices.HttpWebservice} to process incoming HTTP
+     *                       requests
      */
     public InternalRegisterWebserviceMessage(URI localUri, HttpWebservice httpWebservice) {
         this.localUri = localUri;
@@ -33,8 +34,11 @@ public class InternalRegisterWebserviceMessage {
     }
 
     /**
-     * Returns the {@link eu.spitfire.ssp.server.webservices.HttpWebservice} responsible to process incoming requests to the localUri
-     * @return the {@link eu.spitfire.ssp.server.webservices.HttpWebservice} responsible to process incoming requests to the localUri
+     * Returns the {@link eu.spitfire.ssp.server.webservices.HttpWebservice} responsible to process incoming requests
+     * to the localUri
+     *
+     * @return the {@link eu.spitfire.ssp.server.webservices.HttpWebservice} responsible to process incoming requests
+     * to the localUri
      */
     public HttpWebservice getHttpWebservice() {
         return httpWebservice;

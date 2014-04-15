@@ -11,7 +11,7 @@
  *  - Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
  *    following disclaimer in the documentation and/or other materials provided with the distribution.
  *
- *  - Neither the name of the University of Luebeck nor the names of its contributors may be used to endorse or promote
+ *  - Neither the backendName of the University of Luebeck nor the names of its contributors may be used to endorse or promote
  *    products derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
@@ -24,22 +24,18 @@
  */
 package eu.spitfire.ssp.server.channels.handler;
 
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
-import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
-import eu.spitfire.ssp.backends.generic.exceptions.ResourceAlreadyRegisteredException;
-import eu.spitfire.ssp.backends.generic.registration.InternalRegisterDataOriginMessage;
 import eu.spitfire.ssp.backends.generic.messages.InternalRegisterWebserviceMessage;
-import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
-import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
-import eu.spitfire.ssp.server.webservices.*;
+import eu.spitfire.ssp.backends.generic.registration.InternalRegisterDataOriginMessage;
+import eu.spitfire.ssp.server.webservices.HttpWebservice;
+import eu.spitfire.ssp.server.webservices.ProxyMainWebsite;
+import eu.spitfire.ssp.server.webservices.WebserviceAlreadyRegisteredException;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
-import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.*;
+import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +45,6 @@ import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 
 /**
@@ -64,46 +59,35 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
 	//Maps resource proxy uris to request processors
-	private Map<URI, HttpWebservice> webservices;
+	private Map<String, HttpWebservice> webservices;
 
-    private String dnsName;
-    private int httpProxyPort;
+//    private String dnsName;
+//    private int httpProxyPort;
     
-    private ExecutorService ioExecutorService;
+//    private ExecutorService ioExecutorService;
 
-    /**
-     * @param ioExecutorService the {@link ExecutorService} providing the threads to send the responses
-     * @throws Exception if some unexpected error occurs
-     */
-    public HttpRequestDispatcher(ExecutorService ioExecutorService, SemanticCache cache, Configuration config)
+//    /**
+//     * @param ioExecutorService the {@link ExecutorService} providing the threads to send the responses
+//     * @throws Exception if some unexpected error occurs
+//     */
+    public HttpRequestDispatcher()
             throws Exception {
 
-        this.ioExecutorService = ioExecutorService;
-        this.dnsName = config.getString("SSP_HOST_NAME");
-        this.httpProxyPort = config.getInt("SSP_HTTP_PORT");
+//        this.ioExecutorService = ioExecutorService;
+//        this.dnsName = config.getString("SSP_HOST_NAME");
+//        this.httpProxyPort = config.getInt("SSP_HTTP_PORT");
 
-        this.webservices = Collections.synchronizedMap(new HashMap<URI, HttpWebservice>());
+        this.webservices = Collections.synchronizedMap(new HashMap<String, HttpWebservice>());
 
         registerMainWebsite();
-        registerFavicon();
+//        registerFavicon();
 
-        if(cache.supportsSPARQL())
-            registerSparqlEndpoint(cache);
+//        if(cache.supportsSPARQL())
+//            registerSparqlEndpoint(cache);
     }
 
 
-    private void registerSparqlEndpoint(SemanticCache cache) {
-        try{
-            URI targetUri = new URI("http", null, this.dnsName,
-                    this.httpProxyPort == 80 ? -1 : this.httpProxyPort , "/sparql", null, null);
 
-            registerProxyWebservice(targetUri, new SparqlEndpoint(ioExecutorService, cache));
-        }
-
-        catch (URISyntaxException e) {
-            log.error("This should never happen!", e);
-        }
-    }
 
 
     /**
@@ -128,7 +112,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
         //Create resource proxy uri from request
-        URI proxyUri = new URI(httpRequest.getUri());
+        String proxyUri = httpRequest.getUri();
         log.info("Received HTTP request for proxy Webservice {}", proxyUri);
 
         //Lookup proper http request processor
@@ -138,7 +122,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         if(httpWebservice == null){
             log.warn("No HttpWebservice found for {}. Send error response.", proxyUri);
             HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
-                    HttpResponseStatus.NOT_FOUND, proxyUri.toString());
+                    HttpResponseStatus.NOT_FOUND, proxyUri);
             writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
         }
 
@@ -173,10 +157,10 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         if(me.getMessage() instanceof InternalRegisterWebserviceMessage){
             InternalRegisterWebserviceMessage message = (InternalRegisterWebserviceMessage) me.getMessage();
 
-            URI webserviceUri = generateProxyWebserviceUri(message.getLocalUri());
-
+//            URI webserviceUri = generateProxyWebserviceUri(message.getLocalUri());
+            String webserviceUri = message.getLocalUri().toString();
             if(webservices.containsKey(webserviceUri)){
-                me.getFuture().setFailure(new ResourceAlreadyRegisteredException(message.getLocalUri()));
+                me.getFuture().setFailure(new WebserviceAlreadyRegisteredException(message.getLocalUri()));
                 return;
             }
 
@@ -187,27 +171,52 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
         else if(me.getMessage() instanceof InternalRegisterDataOriginMessage){
             InternalRegisterDataOriginMessage message = (InternalRegisterDataOriginMessage) me.getMessage();
-            URI resourceUri = message.getDataOrigin().getGraphName();
-            URI resourceProxyUri = generateProxyWebserviceUri(resourceUri);
 
-            boolean success = registerProxyWebservice(resourceProxyUri, message.getHttpProxyWebservice());
+            URI graphName = message.getDataOrigin().getGraphName();
+            Object identifier = message.getDataOrigin().getIdentifier();
+            HttpSemanticProxyWebservice proxyWebservice = message.getHttpProxyWebservice();
+
+            log.info("Try to register graph \"{}\" from data origin \"{}\" with backend \"{}\".",
+                    new Object[]{graphName, identifier, proxyWebservice.getBackendName()});
+
+            boolean success = registerProxyWebservice("/?graph=" + graphName, message.getHttpProxyWebservice());
+
             if(!success){
-                me.getFuture().setFailure(new ResourceAlreadyRegisteredException(resourceUri));
+                URI proxyURI = new URI("/?graph=" + graphName);
+                me.getFuture().setFailure(new WebserviceAlreadyRegisteredException(proxyURI));
                 return;
             }
         }
 
-        else if(me.getMessage() instanceof InternalRemoveResourcesMessage){
-            InternalRemoveResourcesMessage removeResourceMessage = (InternalRemoveResourcesMessage) me.getMessage();
-            URI resouceProxyUri = generateProxyWebserviceUri(removeResourceMessage.getResourceUri());
-
-            if(unregisterProxyWebservice(resouceProxyUri))
-                log.info("Removed {} from list of registered resources.", removeResourceMessage.getResourceUri());
-            else
-                log.error("Could not remove {}. Resource was not registered.", removeResourceMessage.getResourceUri());
-        }
+//        else if(me.getMessage() instanceof InternalRemoveResourcesMessage){
+//            InternalRemoveResourcesMessage removeResourceMessage = (InternalRemoveResourcesMessage) me.getMessage();
+//            removeResourceMessage.
+//            URI resouceProxyUri = generateProxyWebserviceUri(removeResourceMessage.getResourceUri());
+//
+//            if(unregisterProxyWebservice(resouceProxyUri))
+//                log.info("Removed {} from list of registered resources.", removeResourceMessage.getResourceUri());
+//            else
+//                log.error("Could not remove {}. Resource was not registered.", removeResourceMessage.getResourceUri());
+//        }
 
         ctx.sendDownstream(me);
+    }
+
+
+    /**
+     * Registers the service to provide a list of registered services
+     */
+    private void registerMainWebsite() throws URISyntaxException {
+        //register service to provide list of available webservices
+//        String dnsName = config.getString("SSP_HOST_NAME");
+//        int httpPort = config.getInt("SSP_HTTP_PORT", 8080);
+
+//        if(dnsName == null)
+//            throw new RuntimeException("SSP_HOST_NAME must be defined (DNS backendName or IP address)!");
+
+//        URI websiteUri = new URI(null, null, null, - 1, "/", null, null);
+
+        registerProxyWebservice("/", new ProxyMainWebsite(webservices));
     }
 
 
@@ -295,27 +304,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 ////        }, ioExecutorService);
 //    }
 
-    /**
-     * Registers the service to provide the favicon.ico
-     */
-    private void registerFavicon() throws URISyntaxException {
-        URI faviconUri = new URI("http", null, this.dnsName, this.httpProxyPort, "/favicon.ico",null, null);
-        registerProxyWebservice(faviconUri, new FaviconHttpWebservice());
-    }
 
-    /**
-     * Registers the service to provide a list of registered services
-     */
-    private void registerMainWebsite() throws URISyntaxException {
-        //register service to provide list of available webservices
-        if(this.dnsName == null)
-            throw new RuntimeException("SSP_HOST_NAME must be defined (DNS name or IP address)!");
-
-        URI websiteUri = new URI("http", null, this.dnsName,
-                this.httpProxyPort == 80 ? -1 : this.httpProxyPort , "/", null, null);
-
-        registerProxyWebservice(websiteUri, new ProxyMainWebsite(webservices));
-    }
 
 
     /**
@@ -334,36 +323,36 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
 
 
-    private void writeDataOriginStatusMessage(Channel channel, WrappedDataOriginStatus dataOriginStatus,
-                                              InetSocketAddress remoteAddress){
-
-        ChannelFuture future = Channels.write(channel, dataOriginStatus, remoteAddress);
-        future.addListener(ChannelFutureListener.CLOSE);
-    }
-
-
-
-    private URI generateProxyWebserviceUri(URI uri) throws URISyntaxException {
-        if(uri.isAbsolute())
-            return new URI("http", null, this.dnsName,
-                                    this.httpProxyPort == 80 ? -1 : this.httpProxyPort, "/",
-                                    "uri=" + uri.toString(), null);
-
-        else
-            return new URI("http", null, this.dnsName,
-                                    this.httpProxyPort == 80 ? -1 : this.httpProxyPort,
-                                    uri.getPath(), uri.getQuery(), uri.getFragment());
-    }
+//    private void writeDataOriginStatusMessage(Channel channel, WrappedDataOriginStatus dataOriginStatus,
+//                                              InetSocketAddress remoteAddress){
+//
+//        ChannelFuture future = Channels.write(channel, dataOriginStatus, remoteAddress);
+//        future.addListener(ChannelFutureListener.CLOSE);
+//    }
 
 
 
-    private synchronized boolean registerProxyWebservice(URI proxyWebserviceUri,
+//    private URI generateProxyWebserviceUri(URI uri) throws URISyntaxException {
+//        if(uri.isAbsolute())
+//            return new URI("http", null, this.dnsName,
+//                                    this.httpProxyPort == 80 ? -1 : this.httpProxyPort, "/",
+//                                    "uri=" + uri.toString(), null);
+//
+//        else
+//            return new URI("http", null, this.dnsName,
+//                                    this.httpProxyPort == 80 ? -1 : this.httpProxyPort,
+//                                    uri.getPath(), uri.getQuery(), uri.getFragment());
+//    }
+
+
+
+    private synchronized boolean registerProxyWebservice(String proxyUri,
                                                          HttpWebservice httpWebservice){
-        if(webservices.containsKey(proxyWebserviceUri))
+        if(webservices.containsKey(proxyUri))
             return false;
 
-        webservices.put(proxyWebserviceUri, httpWebservice);
-        log.info("Registered new Webservice: {}", proxyWebserviceUri);
+        webservices.put(proxyUri, httpWebservice);
+        log.info("Registered new Webservice: {}", proxyUri);
         return true;
     }
 

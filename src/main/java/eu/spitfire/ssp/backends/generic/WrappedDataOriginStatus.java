@@ -10,28 +10,40 @@ import java.util.Date;
  */
 public class WrappedDataOriginStatus {
 
+    public enum Code{
+        OK, CHANGED, DELETED;
+    }
+
+    private Code code;
     private URI graphName;
     private Model status;
     private Date expiry;
 
-    public WrappedDataOriginStatus(URI graphName, Model status, Date expiry){
+
+    public WrappedDataOriginStatus(Code code, URI graphName, Model status, Date expiry){
+        this.code = code;
         this.graphName = graphName;
         this.status = status;
         this.expiry = expiry;
     }
 
 
+    public Code getCode() {
+        return this.code;
+    }
+
+
     public Model getStatus() {
-        return status;
+        return this.status;
     }
 
 
     public Date getExpiry() {
-        return expiry;
+        return this.expiry;
     }
 
 
-    public URI getGraphName() {
-        return graphName;
+    public URI getGraphName () {
+        return this.graphName;
     }
 }

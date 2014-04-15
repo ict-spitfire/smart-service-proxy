@@ -11,7 +11,7 @@
 //*  - Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
 //*    following disclaimer in the documentation and/or other materials provided with the distribution.
 //*
-//*  - Neither the name of the University of Luebeck nor the names of its contributors may be used to endorse or promote
+//*  - Neither the backendName of the University of Luebeck nor the names of its contributors may be used to endorse or promote
 //*    products derived from this software without specific prior written permission.
 //*
 //* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
@@ -64,10 +64,10 @@
 //     *                             e.g. resource status updates.
 //     * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
 //     */
-//    public CoapBackendComponentFactory(String prefix, Configuration config, ScheduledExecutorService executorService)
+//    public CoapBackendComponentFactory(String prefix, Configuration config, ScheduledExecutorService backendTasksExecutorService)
 //            throws Exception{
 //
-//        super(prefix, config, executorService);
+//        super(prefix, config, backendTasksExecutorService);
 //
 //        //create instances of CoAP client and server applications
 //        this.coapClientApplication = new CoapClientApplication();

@@ -2,12 +2,11 @@ package eu.spitfire.ssp.server.channels.handler.cache;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.Statement;
-import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
+import eu.spitfire.ssp.backends.generic.access.DataOriginStatusMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -29,17 +28,22 @@ public class DummySemanticCache extends SemanticCache {
     }
 
     @Override
-    public InternalResourceStatusMessage getCachedResource(URI resourceUri) {
+    public DataOriginStatusMessage getCachedResource(URI resourceUri) {
         return null;
     }
 
     @Override
-    public synchronized void putResourceToCache(final URI resourceUri, Model resourceStatus) {
+    public boolean containsNamedGraph(URI graphName) {
+        return false;
+    }
+
+    @Override
+    public synchronized void putNamedGraphToCache(final URI graphName, Model namedGraph) {
         //Nothing to do...
     }
 
     @Override
-    public synchronized void deleteResource(URI resourceUri) {
+    public synchronized void deleteNamedGraph(URI graphName) {
         //Nothing to do...
     }
 

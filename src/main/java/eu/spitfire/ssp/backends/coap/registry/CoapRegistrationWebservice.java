@@ -34,12 +34,12 @@
 //    private static Logger log = LoggerFactory.getLogger(CoapRegistrationWebservice.class.getName());
 //
 //    private CoapWebserviceRegistry coapWebserviceRegistry;
-//    private ExecutorService executorService;
+//    private ExecutorService backendTasksExecutorService;
 //
-//    public CoapRegistrationWebservice(CoapWebserviceRegistry coapWebserviceRegistry, ExecutorService executorService){
+//    public CoapRegistrationWebservice(CoapWebserviceRegistry coapWebserviceRegistry, ExecutorService backendTasksExecutorService){
 //        super("/here_i_am", Boolean.TRUE, OptionValue.MAX_AGE_DEFAULT);
 //        this.coapWebserviceRegistry = coapWebserviceRegistry;
-//        this.executorService = executorService;
+//        this.backendTasksExecutorService = backendTasksExecutorService;
 //    }
 //
 //    @Override
@@ -82,7 +82,7 @@
 //                    registrationResponseFuture.set(coapResponse);
 //                }
 //            }
-//        }, executorService);
+//        }, backendTasksExecutorService);
 //    }
 //
 //

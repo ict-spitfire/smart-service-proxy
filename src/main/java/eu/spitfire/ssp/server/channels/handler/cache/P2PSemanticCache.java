@@ -16,12 +16,12 @@
 //    }
 //
 //    @Override
-//    public void putResourceToCache(URI resourceUri, Model resourceStatus, Date expiry) {
+//    public void putNamedGraphToCache(URI resourceUri, Model resourceStatus, Date expiry) {
 //        //To change body of implemented methods use File | Settings | File Templates.
 //    }
 //
 //    @Override
-//    public void deleteResource(URI resourceUri) {
+//    public void deleteNamedGraph(URI resourceUri) {
 //        //To change body of implemented methods use File | Settings | File Templates.
 //    }
 //

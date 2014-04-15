@@ -13,6 +13,7 @@ import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.URI;
 
 /**
@@ -26,24 +27,12 @@ public abstract class DataOriginRegistry<T> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private BackendComponentFactory<T> componentFactory;
-//    private LocalServerChannel localChannel;
-
+    protected BackendComponentFactory<T> componentFactory;
 
     protected DataOriginRegistry(BackendComponentFactory<T> componentFactory) {
         this.componentFactory = componentFactory;
     }
 
-
-//    /**
-//     * Sets the {@link org.jboss.netty.channel.local.LocalServerChannel} that is used to send internal messages
-//     *
-//     * @param localChannel the {@link org.jboss.netty.channel.local.LocalServerChannel} that is used to send internal
-//     *                     messages
-//     */
-//    void setLocalChannel(LocalServerChannel localChannel){
-////        this.localChannel = localChannel;
-//    }
 
     /**
      * This method is to be called by implementing classes, i.e. registries for particular data origins,
@@ -54,7 +43,7 @@ public abstract class DataOriginRegistry<T> {
      * @return a {@link ListenableFuture} where {@link ListenableFuture#get()} returns the list of resource proxy URIs
      * for all resources from the given data origin / model.
      */
-    protected final ListenableFuture<Void> registerResource(final DataOrigin<T> dataOrigin){
+    protected final ListenableFuture<Void> registerDataOrigin(final DataOrigin<T> dataOrigin){
 
         final SettableFuture<Void> resourceRegistrationFuture = SettableFuture.create();
 
@@ -77,8 +66,16 @@ public abstract class DataOriginRegistry<T> {
                     if(future.isSuccess()){
                         resourceRegistrationFuture.set(null);
 
-                        if(dataOrigin.isObservable())
-                            startObservation(dataOrigin);
+                        if(dataOrigin.isObservable()){
+                            DataOriginObserver<T> observer = componentFactory.getDataOriginObserver(dataOrigin);
+
+                            if(observer != null)
+                                observer.startObservation(dataOrigin);
+                            else
+                                log.warn("Backend component factory did not return a data origin observer for {}",
+                                        dataOrigin.getIdentifier());
+                        }
+
                     }
                     else
                         resourceRegistrationFuture.setException(future.getCause());
@@ -97,8 +94,15 @@ public abstract class DataOriginRegistry<T> {
     }
 
 
-    private void startObservation(DataOrigin<T> dataOrigin){
-        DataOriginObserver<T> observer = componentFactory.getDataOriginObserver(dataOrigin);
-        observer.startObservation(dataOrigin);
+    public ListenableFuture<Void> removeDataOrigin(T identifier){
+        //TODO!!
+        return null;
     }
+
+    /**
+     * This method is automatically invoked by the framework. Implementing classes are supposed to do everything that
+     * is necessary to enable new data origins to register at this
+     * {@link eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry} instance.
+     */
+    public abstract void startRegistry() throws Exception;
 }

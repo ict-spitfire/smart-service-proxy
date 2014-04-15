@@ -11,7 +11,7 @@
 *  - Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
 *    following disclaimer in the documentation and/or other materials provided with the distribution.
 *
-*  - Neither the name of the University of Luebeck nor the names of its contributors may be used to endorse or promote
+*  - Neither the backendName of the University of Luebeck nor the names of its contributors may be used to endorse or promote
 *    products derived from this software without specific prior written permission.
 *
 * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
@@ -24,21 +24,19 @@
 */
 package eu.spitfire.ssp.backends.generic;
 
+import com.sun.istack.internal.Nullable;
+import eu.spitfire.ssp.backends.generic.access.DataOriginAccessor;
 import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
-import eu.spitfire.ssp.backends.generic.messages.InternalRegisterWebserviceMessage;
 import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
-import eu.spitfire.ssp.backends.generic.registration.DataOriginManager;
 import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
 import org.apache.commons.configuration.Configuration;
-import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -56,37 +54,64 @@ public abstract class BackendComponentFactory<T>{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private DataOriginManager<T> dataOriginManager;
-    private DataOriginRegistry<T> dataOriginRegistry;
-    private ScheduledExecutorService executorService;
-
-    private String name;
-    private LocalServerChannel localChannel;
+    protected DataOriginRegistry<T> dataOriginRegistry;
+    private HttpSemanticProxyWebservice<T> semanticProxyWebservice;
+    protected ScheduledExecutorService backendTasksExecutorService;
+    protected ExecutorService ioExecutorService;
+    protected String backendName;
+    protected LocalServerChannel localChannel;
 
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.BackendComponentFactory}.
      *
      * @param prefix the prefix of the backend in the given config (without the ".")
      * @param config the SSP config
-     * @param executorService the {@link java.util.concurrent.ScheduledExecutorService} for backend tasks, e.g.
-     *                        translating and forwarding requests to data origins
+     * @param backendTasksExecutorService the {@link java.util.concurrent.ScheduledExecutorService} for backend tasks,
+     *                                    e.g. translating and forwarding requests to data origins
      *
      * @throws Exception if something went terribly wrong
      */
-    protected BackendComponentFactory(String prefix, Configuration config, ScheduledExecutorService executorService)
+    protected BackendComponentFactory(String prefix, Configuration config, LocalServerChannel localChannel,
+            ScheduledExecutorService backendTasksExecutorService, ExecutorService ioExecutorService)
         throws Exception {
 
-        this.name = config.getString(prefix + ".backend.name");
-        this.executorService = executorService;
-
-        this.dataOriginManager = new DataOriginManager<>(this.name);
-
-    }
-
-
-    public void setLocalChannel(LocalServerChannel localChannel){
         this.localChannel = localChannel;
+        this.backendName = config.getString(prefix + ".backend.name");
+        this.backendTasksExecutorService = backendTasksExecutorService;
+        this.ioExecutorService = ioExecutorService;
+
     }
+
+//    public void setLocalChannel(LocalServerChannel localChannel) throws Exception {
+//        this.localChannel = localChannel;
+//    }
+
+
+    /**
+     * Initialize the components to run this backend, e.g. the {@link DataOriginRegistry}. This method is
+     * automatically invoked by the SSP framework.
+     */
+    public final void createComponents(Configuration config) throws Exception{
+
+        //Create semantic proxy Webservice
+        this.semanticProxyWebservice = new HttpSemanticProxyWebservice<>(this);
+        this.localChannel.getPipeline().addLast("Semantic Proxy Webservice", this.semanticProxyWebservice);
+
+        //Create data origin registry
+        this.dataOriginRegistry = createDataOriginRegistry(config);
+
+        this.initialize();
+    }
+
+
+    public abstract void initialize() throws Exception;
+
+    public String getBackendName(){
+        return this.backendName;
+    }
+
+
+
 
     /**
      * Returns the (backend specific) {@link org.jboss.netty.channel.local.LocalChannel} to send internal messages
@@ -97,24 +122,20 @@ public abstract class BackendComponentFactory<T>{
        return this.localChannel;
     }
 
+
     /**
      * Returns the {@link ScheduledExecutorService} to schedule tasks
      *
      * @return the {@link ScheduledExecutorService} to schedule tasks
      */
-    public final ScheduledExecutorService getExecutorService(){
-        return this.executorService;
+    public final ScheduledExecutorService getBackendTasksExecutorService(){
+        return this.backendTasksExecutorService;
     }
 
-//    /**
-//     * Returns the {@link ListeningExecutorService} to execute tasks
-//     *
-//     * @return the {@link ListeningExecutorService} to execute tasks
-//     */
-//    public final ListeningExecutorService getListeningExecutorService(){
-//        return MoreExecutors.listeningDecorator(this.executorService);
-//    }
 
+    public final ExecutorService getIoExecutorService(){
+        return this.ioExecutorService;
+    }
     /**
      * Returns the {@link DataOriginRegistry} which is necessary to register resources from a new data origin this
      * backend is responsible for.
@@ -125,6 +146,7 @@ public abstract class BackendComponentFactory<T>{
         return this.dataOriginRegistry;
     }
 
+
     /**
      * Returns the {@link eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
      * for the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
@@ -132,7 +154,9 @@ public abstract class BackendComponentFactory<T>{
      * @return the {@link eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
      * for the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      */
-    public abstract HttpSemanticProxyWebservice getSemanticProxyWebservice(DataOrigin<T> dataOrigin);
+    public HttpSemanticProxyWebservice<T> getSemanticProxyWebservice(DataOrigin<T> dataOrigin){
+        return this.semanticProxyWebservice;
+    }
 
 
 
@@ -161,60 +185,40 @@ public abstract class BackendComponentFactory<T>{
 
 
     /**
-     * Returns the {@link DataOriginManager} which is contains all resources, resp. data origins, this backend is
-     * responible for.
+     * Returns an appropriate {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} to access the given
+     * {@link eu.spitfire.ssp.backends.generic.DataOrigin} or <code>null</code> if no such
+     * {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} exists.
      *
-     * @return the {@link DataOriginManager} which is contains all resources, resp. data origins, this backend is
-     * responible for
+     * @param dataOrigin the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to return the associates
+     *                   {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} for
+     *
+     * @return an appropriate {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} to access the given
+     * {@link eu.spitfire.ssp.backends.generic.DataOrigin} or <code>null</code> if no such
+     * {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} exists.
      */
-    public final DataOriginManager<T> getDataOriginManager(){
-        return this.dataOriginManager;
-    }
+    public abstract DataOriginAccessor<T> getDataOriginAccessor(@Nullable DataOrigin<T> dataOrigin);
 
 
-    /**
-     * Initialize the components to run this backend, e.g. the {@link DataOriginRegistry}. This method is
-     * automatically invoked by the SSP framework and itself invokes the methods {@link  #createDataOriginRegistry}
-     * and {@link #initialize()} (in that order).
-     */
-    public final void initializeBackendComponents() throws Exception{
-
-        //Create data origin registry
-        this.dataOriginRegistry = createDataOriginRegistry();
-
-        //Register Webservice to list registered resources per data origin
-        try{
-            InternalRegisterWebserviceMessage registerWebserviceMessage =
-                    new InternalRegisterWebserviceMessage(new URI("/" + this.name + "/resources"),
-                            dataOriginManager.getWebserviceForGraphsList());
-
-            ChannelFuture future = Channels.write(localChannel, registerWebserviceMessage);
-
-            future.addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture future) throws Exception {
-                    if(future.isSuccess())
-                        log.info("Registered service to list resources for backend: {}",
-                                BackendComponentFactory.this.name);
-                    else
-                        log.error("Could not register service to list resources for backend {}",
-                                BackendComponentFactory.this.name);
-                }
-            });
-        }
-        catch (URISyntaxException e) {
-            log.error("This should never happen!", e);
-        }
-
-        this.initialize();
-    }
+//    /**
+//     * Returns the {@link DataOriginManager} which is contains all resources, resp. data origins, this backend is
+//     * responible for.
+//     *
+//     * @return the {@link DataOriginManager} which is contains all resources, resp. data origins, this backend is
+//     * responible for
+//     */
+//    public final DataOriginManager<T> getDataOriginManager(){
+//        return this.dataOriginManager;
+//    }
 
 
-    /**
-     * Method automatically invoked upon construction of the gateway instance. It is considered to contain everything
-     * that is necessary to make the gateway instance working properly.
-     */
-    public abstract void initialize() throws Exception;
+
+
+
+//    /**
+//     * Method automatically invoked upon construction of the gateway instance. It is considered to contain everything
+//     * that is necessary to make the gateway instance working properly.
+//     */
+//    public abstract void initialize() throws Exception;
 
 //    /**
 //     * Returns the specific prefix of this gateway. If wildcard DNS is enabled, then the prefix is used as the very
@@ -234,7 +238,7 @@ public abstract class BackendComponentFactory<T>{
      * @return an instance of {@link DataOriginRegistry} capable to perform registration of new data origins identified
      * by instances of the generic type T.
      */
-    public abstract DataOriginRegistry<T> createDataOriginRegistry();
+    public abstract DataOriginRegistry<T> createDataOriginRegistry(Configuration config) throws Exception;
 
 
     public abstract void shutdown();

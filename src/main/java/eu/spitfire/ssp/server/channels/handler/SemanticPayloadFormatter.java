@@ -11,7 +11,7 @@
 *  - Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
 *    following disclaimer in the documentation and/or other materials provided with the distribution.
 *
-*  - Neither the name of the University of Luebeck nor the names of its contributors may be used to endorse or promote
+*  - Neither the backendName of the University of Luebeck nor the names of its contributors may be used to endorse or promote
 *    products derived from this software without specific prior written permission.
 *
 * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
@@ -27,6 +27,8 @@ package eu.spitfire.ssp.server.channels.handler;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.TreeMultimap;
 import com.hp.hpl.jena.rdf.model.Model;
+import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
+import eu.spitfire.ssp.backends.generic.access.DataOriginStatusMessage;
 import eu.spitfire.ssp.utils.Language;
 import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -70,7 +72,7 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
 		if(me.getMessage() instanceof HttpRequest) {
             HttpRequest httpRequest = (HttpRequest) me.getMessage();
-            String acceptHeader = httpRequest.getHeader(HttpHeaders.Names.ACCEPT);
+            String acceptHeader = httpRequest.headers().get(HttpHeaders.Names.ACCEPT) ;
 
             if(acceptHeader != null){
                 Multimap<Double, String> acceptedMediaTypes = getAcceptedMediaTypes(acceptHeader);
@@ -106,10 +108,11 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
 	public void writeRequested(ChannelHandlerContext ctx, final MessageEvent me) throws Exception {
         log.debug("Downstream: {}", me.getMessage());
 
-        if(me.getMessage() instanceof InternalResourceStatusMessage){
-            final InternalResourceStatusMessage internalResourceStatusMessage = (InternalResourceStatusMessage) me.getMessage();
+        if(me.getMessage() instanceof DataOriginStatusMessage){
+            final DataOriginStatusMessage dataOriginStatusMessage = (DataOriginStatusMessage) me.getMessage();
 
-            Model model = internalResourceStatusMessage.getModel();
+            final WrappedDataOriginStatus status = ((DataOriginStatusMessage) me.getMessage()).getDataOriginStatus();
+            Model model = status.getStatus();
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
             log.info("Model to be serialized{}", model);
@@ -124,12 +127,12 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
 
             httpResponse.setHeader(HttpHeaders.Names.CONTENT_TYPE, acceptedLanguage.mimeType);
             httpResponse.setHeader(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
-            if(internalResourceStatusMessage.getExpiry() == null)
+            if(status.getExpiry() == null)
                 httpResponse.setHeader(HttpHeaders.Names.EXPIRES,
                         dateFormat.format(new Date(System.currentTimeMillis() + MILLIS_PER_YEAR)));
             else
                 httpResponse.setHeader(HttpHeaders.Names.EXPIRES,
-                        dateFormat.format(internalResourceStatusMessage.getExpiry()));
+                        dateFormat.format(status.getExpiry()));
 
             httpResponse.setHeader(HttpHeaders.Names.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
 
@@ -143,7 +146,7 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     log.info("Status of {} (encoded in {}) successfully written to {}.",
-                            new Object[]{internalResourceStatusMessage.getResourceUri(), acceptedLanguage.lang,
+                            new Object[]{status.getGraphName(), acceptedLanguage.lang,
                             me.getRemoteAddress()});
                 }
             });
@@ -160,13 +163,13 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
 
 
     /**
-     * Returns a {@link com.google.common.collect.Multimap}  with priorities as key and the name of the
+     * Returns a {@link com.google.common.collect.Multimap}  with priorities as key and the backendName of the
      * accepted HTTP media type as value. The {@link com.google.common.collect.Multimap#keySet()} is guaranteed to
      * contain the keys ordered according to their priorities with the highest priority first.
      *
      * @param headerValue the value of an HTTP Accept-Header
      *
-     * @return a {@link com.google.common.collect.Multimap}  with priorities as key and the name of the
+     * @return a {@link com.google.common.collect.Multimap}  with priorities as key and the backendName of the
      * accepted HTTP media type as value.
      */
     public static Multimap<Double, String> getAcceptedMediaTypes(String headerValue){

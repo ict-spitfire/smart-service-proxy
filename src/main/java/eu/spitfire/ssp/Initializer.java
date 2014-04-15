@@ -1,36 +1,31 @@
 package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
-import eu.spitfire.ssp.backends.files_old.OldFilesBackendComponentFactory;
+import eu.spitfire.ssp.backends.files.FilesBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.generic.registration.DataOriginManager;
+import eu.spitfire.ssp.backends.generic.messages.InternalRegisterWebserviceMessage;
 import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
 import eu.spitfire.ssp.server.channels.SmartServiceProxyPipelineFactory;
 import eu.spitfire.ssp.server.channels.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.channels.handler.MqttResourceHandler;
 import eu.spitfire.ssp.server.channels.handler.cache.DummySemanticCache;
-import eu.spitfire.ssp.server.channels.handler.cache.JenaSdbSemanticCache;
-import eu.spitfire.ssp.server.channels.handler.cache.JenaTdbSemanticCache;
 import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
-
+import eu.spitfire.ssp.server.webservices.FaviconHttpWebservice;
+import eu.spitfire.ssp.server.webservices.SparqlEndpoint;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.bootstrap.ServerBootstrap;
-import org.jboss.netty.channel.ChannelHandler;
-import org.jboss.netty.channel.ChannelPipeline;
+import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.local.DefaultLocalServerChannelFactory;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.channel.local.LocalServerChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.execution.ExecutionHandler;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
-import java.nio.file.Paths;
-
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -52,10 +47,11 @@ public class Initializer {
 
     private Configuration config;
 
-    private ScheduledExecutorService mgmtExecutorService;
+    private ScheduledExecutorService backenTasksExecutorService;
     private OrderedMemoryAwareThreadPoolExecutor ioExecutorService;
     private ServerBootstrap serverBootstrap;
 
+    private LocalServerChannelFactory localChannelFactory;
     private LocalPipelineFactory localPipelineFactory;
 
     private ExecutionHandler executionHandler;
@@ -68,22 +64,32 @@ public class Initializer {
 
     public Initializer(Configuration config) throws Exception {
         this.config = config;
+        this.localChannelFactory = new DefaultLocalServerChannelFactory();
 
         //Create Executor Services
         createMgmtExecutorService(config);
         createIoExecutorService(config);
 
         //Create Pipeline Components
-        createExecutionHandler();
-        createSemanticCache(config);
         createMqttResourceHandler(config);
+        createSemanticCache(config);
         createHttpRequestDispatcher();
 
-        createServerBootstrap(config);
+        //create local pipeline factory
         createLocalPipelineFactory();
+
+        //create I/O channel
+        createExecutionHandler();
+        createServerBootstrap(config);
 
         //Create backend component factories
         createBackendComponentFactories(config);
+
+        //Create and register initial webservices
+        if(this.semanticCache.supportsSPARQL())
+            registerSparqlEndpoint();
+
+        registerFavicon();
     }
 
 
@@ -96,7 +102,7 @@ public class Initializer {
         int threadCount = Math.max(Runtime.getRuntime().availableProcessors() * 2,
                 config.getInt("SSP_MGMT_THREADS", 0));
 
-        this.mgmtExecutorService = Executors.newScheduledThreadPool(threadCount, threadFactory);
+        this.backenTasksExecutorService = Executors.newScheduledThreadPool(threadCount, threadFactory);
         log.info("Management Executor Service created with {} threads.", threadCount);
     }
 
@@ -117,13 +123,12 @@ public class Initializer {
 
 
     private void createExecutionHandler() {
-
         this.executionHandler = new ExecutionHandler(this.ioExecutorService);
         log.debug("Execution Handler created.");
     }
 
 
-    public void start(){
+    public void initialize(){
         //Start proxy server
         int port = this.config.getInt("SSP_HTTP_SERVER_PORT", 8080);
         this.serverBootstrap.bind(new InetSocketAddress(port));
@@ -141,22 +146,26 @@ public class Initializer {
 
         this.backendComponentFactories = new ArrayList<>(enabledBackends.length);
 
-        LocalServerChannelFactory localChannelFactory = new DefaultLocalServerChannelFactory();
 
+        ChannelPipeline localPipeline = localPipelineFactory.getPipeline();
+//
+//            localPipeline.addLast("Backend Resource Manager (" + backendName + ")", dataOriginManager);
+
+//        backendComponentFactory.setLocalChannel(localChannel);
         for (String backendName : enabledBackends) {
-
+            LocalServerChannel localChannel = localChannelFactory.newChannel(localPipeline);
             BackendComponentFactory backendComponentFactory;
             switch (backendName) {
 
-                case "files_old": {
-                    backendComponentFactory = new OldFilesBackendComponentFactory("files_old", config,
-                            this.mgmtExecutorService);
+                case "files": {
+                    backendComponentFactory = new FilesBackendComponentFactory("files", config, localChannel,
+                            this.backenTasksExecutorService, this.ioExecutorService);
                     break;
                 }
 
 //                case "coap": {
 //                    backendComponentFactory = new CoapBackendComponentFactory("coap", config,
-//                            this.mgmtExecutorService);
+//                            this.backenTasksExecutorService);
 //                    break;
 //                }
 
@@ -167,12 +176,8 @@ public class Initializer {
                 }
             }
 
-            DataOriginManager dataOriginManager = backendComponentFactory.getDataOriginManager();
-            ChannelPipeline localPipeline = localPipelineFactory.getPipeline();
+//            DataOriginManager dataOriginManager = backendComponentFactory.getDataOriginManager();
 
-            localPipeline.addLast("Backend Resource Manager (" + backendName + ")", dataOriginManager);
-            LocalServerChannel localChannel = localChannelFactory.newChannel(localPipeline);
-            backendComponentFactory.setLocalChannel(localChannel);
 
             this.backendComponentFactories.add(backendComponentFactory);
 
@@ -223,7 +228,7 @@ public class Initializer {
 
 
     private void createHttpRequestDispatcher() throws Exception {
-        this.httpRequestDispatcher = new HttpRequestDispatcher(ioExecutorService, semanticCache, config);
+        this.httpRequestDispatcher = new HttpRequestDispatcher();
         log.debug("HTTP Request Dispatcher created.");
     }
 
@@ -245,32 +250,74 @@ public class Initializer {
         String cacheType = config.getString("cache");
 
         if ("dummy".equals(cacheType)) {
-            this.semanticCache = new DummySemanticCache(this.mgmtExecutorService);
+            this.semanticCache = new DummySemanticCache(this.backenTasksExecutorService);
             log.info("Semantic Cache is of type {}", this.semanticCache.getClass().getSimpleName());
             return;
         }
 
-        if ("jenaTDB".equals(cacheType)) {
-            String dbDirectory = config.getString("cache.jenaTDB.dbDirectory");
-            if (dbDirectory == null)
-                throw new RuntimeException("'cache.jenaSDB.jdbc.url' missing in ssp.properties");
-
-            this.semanticCache = new JenaTdbSemanticCache(this.mgmtExecutorService, Paths.get(dbDirectory));
-            return;
-        }
-
-        if("jenaSDB".equals(cacheType)){
-            String jdbcUri = config.getString("cache.jenaSDB.jdbc.url");
-            String jdbcUser = config.getString("cache.jenaSDB.jdbc.user");
-            String jdbcPassword = config.getString("cache.jenaSDB.jdbc.password");
-
-            this.semanticCache = new JenaSdbSemanticCache(this.mgmtExecutorService, jdbcUri, jdbcUser, jdbcPassword);
-            return;
-        }
+//        if ("jenaTDB".equals(cacheType)) {
+//            String dbDirectory = config.getString("cache.jenaTDB.dbDirectory");
+//            if (dbDirectory == null)
+//                throw new RuntimeException("'cache.jenaSDB.jdbc.url' missing in ssp.properties");
+//
+//            this.semanticCache = new JenaTdbSemanticCache(this.backenTasksExecutorService, Paths.get(dbDirectory));
+//            return;
+//        }
+//
+//        if("jenaSDB".equals(cacheType)){
+//            String jdbcUri = config.getString("cache.jenaSDB.jdbc.url");
+//            String jdbcUser = config.getString("cache.jenaSDB.jdbc.user");
+//            String jdbcPassword = config.getString("cache.jenaSDB.jdbc.password");
+//
+//            this.semanticCache = new JenaSdbSemanticCache(this.backenTasksExecutorService, jdbcUri, jdbcUser, jdbcPassword);
+//            return;
+//        }
 
         throw new RuntimeException("No cache type defined in ssp.properties");
     }
 
 
+    /**
+     * Registers the service to provide the favicon.ico
+     */
+    private void registerFavicon() throws Exception {
 
+        final URI faviconUri = new URI(null, null, null, -1, "/favicon.ico",null, null);
+        LocalServerChannel localChannel = localChannelFactory.newChannel(localPipelineFactory.getPipeline());
+        ChannelFuture future = Channels.write(localChannel, new InternalRegisterWebserviceMessage(faviconUri,
+                new FaviconHttpWebservice()));
+
+        future.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                if (future.isSuccess())
+                    log.info("Successfully registered Favicon Service at URI {}", faviconUri);
+                else
+                    log.error("Could not register Favicon Service!", future.getCause());
+            }
+        });
+    }
+
+
+
+
+    private void registerSparqlEndpoint() throws Exception{
+
+        final URI targetUri = new URI("http", null, null, -1 , "/sparql", null, null);
+        LocalServerChannel localChannel = localChannelFactory.newChannel(localPipelineFactory.getPipeline());
+        SparqlEndpoint sparqlEndpoint = new SparqlEndpoint(localChannel, this.backenTasksExecutorService);
+
+        ChannelFuture future = Channels.write(localChannel, new InternalRegisterWebserviceMessage(targetUri,
+                sparqlEndpoint));
+
+        future.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                if(future.isSuccess())
+                    log.info("Successfully registered SPARQL endpoint at URI {}", targetUri);
+                else
+                    log.error("Could not register SPARQL endpoint!", future.getCause());
+            }
+        });
+    }
 }

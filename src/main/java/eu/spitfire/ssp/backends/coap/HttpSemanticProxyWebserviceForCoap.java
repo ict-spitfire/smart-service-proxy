@@ -7,7 +7,7 @@
 //import de.uniluebeck.itm.ncoap.message.MessageCode;
 //import de.uniluebeck.itm.ncoap.message.MessageType;
 //import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
-//import eu.spitfire.ssp.backends.generic.registration.DataOriginManager;
+//import eu.spitfire.ssp.backends.generic.DataOriginManager;
 //import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
 //import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 //import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
@@ -37,14 +37,14 @@
 //    private CoapBackendComponentFactory backendComponentFactory;
 //    private DataOriginManager<URI> dataOriginManager;
 //    private CoapClientApplication coapClientApplication;
-//    private ExecutorService executorService;
+//    private ExecutorService backendTasksExecutorService;
 //
 //
 //    public HttpSemanticProxyWebserviceForCoap(CoapBackendComponentFactory backendComponentFactory){
 //        this.backendComponentFactory = backendComponentFactory;
 //        this.coapClientApplication = backendComponentFactory.getCoapClientApplication();
 //        this.dataOriginManager = backendComponentFactory.getDataOriginManager();
-//        this.executorService = backendComponentFactory.getExecutorService();
+//        this.backendTasksExecutorService = backendComponentFactory.getBackendTasksExecutorService();
 //    }
 //
 //

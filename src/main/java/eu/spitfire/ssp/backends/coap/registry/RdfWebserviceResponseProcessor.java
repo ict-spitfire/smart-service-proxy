@@ -35,18 +35,18 @@
 //
 //    private SettableFuture<ExpiringModel> expiringModelFuture;
 //    private URI webserviceUri;
-//    private ExecutorService executorService;
+//    private ExecutorService backendTasksExecutorService;
 //
 //    public RdfWebserviceResponseProcessor(SettableFuture<ExpiringModel> expiringModelFuture, URI webserviceUri,
-//                                          ExecutorService executorService){
+//                                          ExecutorService backendTasksExecutorService){
 //        this.expiringModelFuture = expiringModelFuture;
 //        this.webserviceUri = webserviceUri;
-//        this.executorService = executorService;
+//        this.backendTasksExecutorService = backendTasksExecutorService;
 //    }
 //
 //    @Override
 //    public void processCoapResponse(final CoapResponse coapResponse) {
-//        executorService.submit(new Runnable(){
+//        backendTasksExecutorService.submit(new Runnable(){
 //            @Override
 //            public void run() {
 //                log.info("Process CoAP response: {}", coapResponse);
