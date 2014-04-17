@@ -1,8 +1,8 @@
-package eu.spitfire.ssp.server.channels.handler.cache;
+package eu.spitfire.ssp.server.handler.cache;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.Statement;
-import eu.spitfire.ssp.backends.generic.access.DataOriginStatusMessage;
+import eu.spitfire.ssp.server.messages.NamedGraphStatusMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +28,7 @@ public class DummySemanticCache extends SemanticCache {
     }
 
     @Override
-    public DataOriginStatusMessage getCachedResource(URI resourceUri) {
+    public NamedGraphStatusMessage getNamedGraph(URI graphName) {
         return null;
     }
 

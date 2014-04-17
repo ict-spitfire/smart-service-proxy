@@ -39,13 +39,15 @@ public class HttpResponseFactory {
                                                   Multimap<String, String> headers, ChannelBuffer payload){
 
         HttpResponse response = new DefaultHttpResponse(version, status);
-        response.setContent(payload);
         setHeaders(response, headers);
+
+        response.setContent(payload);
         response.headers().add("Content-Length", payload.readableBytes());
         return response;
     }
 
-    public static void setHeaders(HttpMessage httpMessage, Multimap<String, String> headers){
+
+    private static void setHeaders(HttpMessage httpMessage, Multimap<String, String> headers){
         for(String headerName : headers.keySet()){
             Iterable<String> headerValue = headers.get(headerName);
             httpMessage.headers().add(headerName, headerValue);

@@ -3,13 +3,9 @@ package eu.spitfire.ssp.backends.generic.access;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
-import org.jboss.netty.channel.local.LocalServerChannel;
+import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * A {@link DataOriginAccessor} is a component to access a
@@ -51,12 +47,12 @@ public abstract class DataOriginAccessor<T> {
 //
 //        final SettableFuture<Void> resultFuture = SettableFuture.create();
 //
-//        ListenableFuture<WrappedDataOriginStatus> statusFuture = getStatus(dataOrigin);
-//        Futures.addCallback(statusFuture, new FutureCallback<WrappedDataOriginStatus>() {
+//        ListenableFuture<WrappedNamedGraphStatus> statusFuture = getStatus(dataOrigin);
+//        Futures.addCallback(statusFuture, new FutureCallback<WrappedNamedGraphStatus>() {
 //
 //            @Override
-//            public void onSuccess(WrappedDataOriginStatus dataOriginStatus) {
-//                DataOriginStatusMessage statusMessage = new DataOriginStatusMessage(dataOriginStatus);
+//            public void onSuccess(WrappedNamedGraphStatus dataOriginStatus) {
+//                NamedGraphStatusMessage statusMessage = new NamedGraphStatusMessage(dataOriginStatus);
 //                Channels.write(channel, statusMessage, clientAddress);
 //                resultFuture.set(null);
 //            }
@@ -89,7 +85,7 @@ public abstract class DataOriginAccessor<T> {
 //    }
 
 
-//    public abstract ListenableFuture<WrappedDataOriginStatus> getStatus(DataOrigin<T> dataOrigin)
+//    public abstract ListenableFuture<WrappedNamedGraphStatus> getStatus(DataOrigin<T> dataOrigin)
 //            throws DataOriginAccessException;
 
     /**
@@ -102,112 +98,15 @@ public abstract class DataOriginAccessor<T> {
      *                   status from
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with the the actual
-     * {@link eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus} retrieved retrieved from the given given
+     * {@link eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus} retrieved retrieved from the given given
      * identifier of a {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      */
-    public abstract ListenableFuture<WrappedDataOriginStatus> getStatus(T identifier) throws DataOriginAccessException;
-//    /**
-//     * Returns the actual status of the given {@link eu.spitfire.ssp.backends.generic.DataOrigin} and updates the
-//     * cache according to the retrieved status
-//     *
-//     * @param dataOrigin the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to retrieve the status from
-//     *
-//     * @return the actual status of the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}
-//     */
-//    public final ListenableFuture<WrappedDataOriginStatus> getStatusAndUpdateCache(final DataOrigin<T> dataOrigin){
-//        ListenableFuture<WrappedDataOriginStatus> statusFuture = retrieveStatus(dataOrigin);
-//
-//        Futures.addCallback(statusFuture, new FutureCallback<WrappedDataOriginStatus>() {
-//
-//            @Override
-//            public void onSuccess(WrappedDataOriginStatus dataOriginStatus) {
-//                if(dataOriginStatus != null)
-//                    updateCache(dataOriginStatus);
-//            }
-//
-//            @Override
-//            public void onFailure(Throwable throwable) {
-//                log.error("Error while trying to retrieve status from data origin with identifier {}!",
-//                        dataOrigin.getIdentifier());
-//            }
-//        });
-//
-//        return statusFuture;
-//    }
+    public abstract ListenableFuture<WrappedNamedGraphStatus> getStatus(T identifier) throws DataOriginAccessException;
 
 
-//    /**
-//     * Unregisters the given {@link eu.spitfire.ssp.backends.generic.DataOrigin} from the list of registered data
-//     * origins and potentially removes the cached data of this data origin from the cache. This method can be called
-//     * by implementing classes within {@link #getStatus(DataOrigin)} if the access to the given
-//     * {@link eu.spitfire.ssp.backends.generic.DataOrigin} failed for some reason.
-//     *
-//     * @param dataOrigin the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to be removed, resp. unregistered
-//     *
-//     * @return a {@link com.google.common.util.concurrent.ListenableFuture} that is set with <code>null</code> if
-//     * the desired operations were completed successfully or with an {@link java.lang.Throwable} if at least one
-//     * of the operations failed
-//     */
-//    protected final ListenableFuture<Void> removeDataOrigin(DataOrigin<T> dataOrigin){
-//
-//        final SettableFuture<Void> resultFuture = SettableFuture.create();
-//
-//        InternalRemoveDataOriginMessage<T> removeDataOriginMessage =
-//                new InternalRemoveDataOriginMessage<>(dataOrigin.getIdentifier());
-//
-//        ChannelFuture future = Channels.write(localChannel, removeDataOriginMessage);
-//        future.addListener(new ChannelFutureListener() {
-//            @Override
-//            public void operationComplete(ChannelFuture future) throws Exception {
-//                if(future.isSuccess())
-//                    resultFuture.set(null);
-//                else
-//                    future.setFailure(future.getCause());
-//            }
-//        });
-//
-//        return resultFuture;
-//    }
+    public abstract ListenableFuture<Boolean> setStatus(T identifier, Model status) throws DataOriginAccessException;
 
 
-
-
-//    /**
-//     * Splits the given {@link com.hp.hpl.jena.rdf.model.Model} into several {@link com.hp.hpl.jena.rdf.model.Model}
-//     * instances, one for each subject contained in the given model.
-//     *
-//     * @param model a {@link com.hp.hpl.jena.rdf.model.Model} instance to be split up into models per subject
-//     *
-//     * @return a {@link java.util.Map} containing the subjects of the given model as keys and the appropriate model
-//     * as value
-//     */
-//    public static Map<URI, Model> getModelsPerSubject(Model model){
-//        Map<URI, Model> result = new HashMap<>();
-//
-//        //Iterate over all subjects in the Model
-//        ResIterator subjectIterator = model.listSubjects();
-//        while(subjectIterator.hasNext()){
-//            Resource resource = subjectIterator.next();
-//
-//            Model subModel = ModelFactory.createDefaultModel();
-//
-//            //Iterate over all properties fort the actual subject
-//            StmtIterator stmtIterator = resource.listProperties();
-//            while(stmtIterator.hasNext()){
-//                subModel = subModel.add(stmtIterator.next());
-//            }
-//
-//            try{
-//                result.put(new URI(resource.getURI()), subModel);
-//            }
-//            catch(URISyntaxException e){
-//                log.error("Malformed Resource URI!", e);
-//            }
-//        }
-//
-//        return result;
-//    }
-
-
+    public abstract ListenableFuture<Boolean> deleteDataOrigin(T identifier) throws DataOriginAccessException;
 
 }

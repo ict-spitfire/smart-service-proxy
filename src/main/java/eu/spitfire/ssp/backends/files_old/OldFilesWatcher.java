@@ -88,7 +88,7 @@
 //                    if(file.toString().endsWith(".n3")){
 ////                        fileModifications.put(file.getParent(), file.getParent().relativize(file),
 ////                                file.toFile().lastModified());
-//                        oldFilesRegistry.handleFileCreation(file);
+//                        oldFilesRegistry.handleN3FileCreation(file);
 //                    }
 //
 //                    return FileVisitResult.CONTINUE;
@@ -151,7 +151,7 @@
 //
 //            if(eventKind == ENTRY_DELETE){
 //                //fileModifications.remove(file.getParent(), file.relativize(directory));
-//                filesObserver.handleFileDeletion(file);
+//                filesObserver.handleN3FileDeletion(file);
 //                return;
 //            }
 //
@@ -173,7 +173,7 @@
 //
 //                if(eventKind == ENTRY_CREATE){
 //                    if(dataOriginManager.getResources(file).isEmpty())
-//                        oldFilesRegistry.handleFileCreation(file);
+//                        oldFilesRegistry.handleN3FileCreation(file);
 //                    else
 //                        filesObserver.handleFileModification(file);
 //                }
@@ -198,7 +198,7 @@
 ////                        List<Path> files_old = Arrays.asList(fileModifications.row(directory).keySet().toArray(new Path[0]));
 ////                        for(Path file : files_old){
 ////                            fileModifications.remove(directory, file.relativize(otherDirectory));
-////                            filesObserver.handleFileDeletion(directory.resolve(file));
+////                            filesObserver.handleN3FileDeletion(directory.resolve(file));
 ////                        }
 ////                    }
 ////                }

@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.server.webservices;
+package eu.spitfire.ssp.server.exceptions;
 
 import java.net.URI;
 

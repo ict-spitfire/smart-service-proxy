@@ -1,4 +1,4 @@
-//package eu.spitfire.ssp.server.channels.handler.cache;
+//package eu.spitfire.ssp.server.handler.cache;
 //
 //import com.hp.hpl.jena.rdf.model.Model;
 //import com.hp.hpl.jena.rdf.model.Statement;
@@ -11,7 +11,7 @@
 //public class P2PSemanticCache extends SemanticCache {
 //
 //    @Override
-//    public InternalResourceStatusMessage getCachedResource(URI resourceUri) {
+//    public InternalResourceStatusMessage getNamedGraph(URI resourceUri) {
 //        return null;  //To change body of implemented methods use File | Settings | File Templates.
 //    }
 //

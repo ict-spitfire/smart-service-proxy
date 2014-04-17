@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.generic.messages;
+package eu.spitfire.ssp.server.messages;
 
 import com.google.common.util.concurrent.SettableFuture;
 
@@ -9,12 +9,12 @@ import com.google.common.util.concurrent.SettableFuture;
  * Time: 10:15
  * To change this template use File | Settings | File Templates.
  */
-public class InternalSparqlQueryMessage {
+public class SparqlQueryMessage {
 
     private String query;
     private SettableFuture<String> queryResultFuture;
 
-    public InternalSparqlQueryMessage(String query, SettableFuture<String> queryResultFuture) {
+    public SparqlQueryMessage(String query, SettableFuture<String> queryResultFuture) {
         this.query = query;
         this.queryResultFuture = queryResultFuture;
     }

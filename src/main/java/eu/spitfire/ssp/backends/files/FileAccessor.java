@@ -3,12 +3,9 @@ package eu.spitfire.ssp.backends.files;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
-import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
-import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
+import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
 import eu.spitfire.ssp.backends.generic.access.DataOriginAccessor;
 import eu.spitfire.ssp.utils.Language;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,41 +31,45 @@ public class FileAccessor extends DataOriginAccessor<Path> {
 
 
     @Override
-    public ListenableFuture<WrappedDataOriginStatus> getStatus(Path identifier){
-        SettableFuture<WrappedDataOriginStatus> statusFuture = SettableFuture.create();
+    public ListenableFuture<WrappedNamedGraphStatus> getStatus(Path identifier){
+        SettableFuture<WrappedNamedGraphStatus> statusFuture = SettableFuture.create();
 
         try{
+//            BufferedReader fileReader = new BufferedReader(new FileReader(identifier.toString()));
+//
+//
+//            String tmpExpiry = null;
+
+//            for(int i = 0; i < 2; i++){
+//                String actualLine = fileReader.readLine();
+//
+//                if(actualLine != null && actualLine.startsWith("#graphname: ")){
+//                    tmpGraphName = actualLine.substring(actualLine.indexOf(": ") + 2);
+//                    log.info("Name of graph from file \"{}\" is \"{}\"", identifier, tmpGraphName);
+//                }
+//
+//                else if(actualLine != null && actualLine.startsWith("expires: ")){
+//                    tmpExpiry = actualLine.substring(actualLine.indexOf(": ") + 2);
+//                    log.info("Graph from file \"{}\" expires on {}", identifier, tmpExpiry);
+//                }
+//            }
+
             BufferedReader fileReader = new BufferedReader(new FileReader(identifier.toString()));
-            String tmpGraphName = null;
-            String tmpExpiry = null;
-
-            for(int i = 0; i < 2; i++){
-                String actualLine = fileReader.readLine();
-
-                if(actualLine != null && actualLine.startsWith("#graphname: ")){
-                    tmpGraphName = actualLine.substring(actualLine.indexOf(": ") + 2);
-                    log.info("Name of graph from file \"{}\" is \"{}\"", identifier, tmpGraphName);
-                }
-
-                else if(actualLine != null && actualLine.startsWith("expires: ")){
-                    tmpExpiry = actualLine.substring(actualLine.indexOf(": ") + 2);
-                    log.info("Graph from file \"{}\" expires on {}", identifier, tmpExpiry);
-                }
-            }
-
-            fileReader = new BufferedReader(new FileReader(identifier.toString()));
 
             Model model = ModelFactory.createDefaultModel();
             model.read(fileReader, null, Language.RDF_N3.lang);
 
-            URI graphName = tmpGraphName == null ? null : new URI(tmpGraphName);
+//            String tmpGraphName = "file://" + ((FilesBackendComponentFactory) componentFactory).getSspHostName()
+//                    + identifier;
+            URI graphName = new URI("file", null, ((FilesBackendComponentFactory) componentFactory).getSspHostName(),
+                    -1, identifier.toString(), null, null);
 
-            //TODO: Read Expiry Date!
             Date expiry = new Date(System.currentTimeMillis() + MILLIS_PER_YEAR);
 
-            FileDataOrigin dataOrigin = new FileDataOrigin(graphName, identifier);
+            FileDataOrigin dataOrigin = new FileDataOrigin(identifier,
+                    ((FilesBackendComponentFactory) componentFactory).getSspHostName());
 
-            WrappedDataOriginStatus dataOriginStatus = new WrappedDataOriginStatus(WrappedDataOriginStatus.Code.OK,
+            WrappedNamedGraphStatus dataOriginStatus = new WrappedNamedGraphStatus(WrappedNamedGraphStatus.Code.OK,
                     dataOrigin.getGraphName(), model, expiry);
 
             statusFuture.set(dataOriginStatus);

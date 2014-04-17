@@ -1,5 +1,8 @@
 package eu.spitfire.ssp.backends.files;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import eu.spitfire.ssp.server.exceptions.IdentifierAlreadyRegisteredException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -7,13 +10,12 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 
 /**
  * Created by olli on 15.04.14.
@@ -58,7 +60,7 @@ class FileWatcher {
                 public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attrs)
                         throws IOException {
 
-                    directory.register(watchService, ENTRY_CREATE, ENTRY_DELETE);
+                    directory.register(watchService, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
 
                     log.info("Added directory to be watched: {}", directory);
                     return FileVisitResult.CONTINUE;
@@ -66,7 +68,11 @@ class FileWatcher {
 
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attr) throws IOException {
-                    fileRegistry.handleFileCreation(file);
+                    if(file.toString().endsWith(".n3"))
+                        fileRegistry.handleN3FileCreation(file);
+                    else
+                        log.debug("No N3 file: \"{}\"", file);
+
                     return FileVisitResult.CONTINUE;
                 }
             });
@@ -88,25 +94,56 @@ class FileWatcher {
                 for(WatchEvent event : watchKey.pollEvents()){
 
                     WatchEvent.Kind eventKind = event.kind();
-                    Path file = directory.resolve((Path) event.context());
+                    final Path file = directory.resolve((Path) event.context());
 
                     log.info("Event {} at file {}", eventKind, file);
 
-                    //Handle if the file is a directory
                     if(eventKind == StandardWatchEventKinds.ENTRY_CREATE){
+
                         if(Files.isDirectory(file)){
                             log.info("New directory \"{}\" created!", file);
-                            file.register(watchService, ENTRY_CREATE, ENTRY_DELETE);
+                            file.register(watchService, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
                         }
-                        else{
-                            fileRegistry.handleFileCreation(file);
+
+                        else if (file.toString().endsWith(".n3")){
+                            Futures.addCallback(fileRegistry.handleN3FileCreation(file), new FutureCallback<Void>() {
+
+                                @Override
+                                public void onSuccess(Void aVoid) {
+                                    log.info("Successfully handled creation of new file \"{}\".", file);
+                                }
+
+                                @Override
+                                public void onFailure(Throwable throwable) {
+                                    if(throwable instanceof IdentifierAlreadyRegisteredException)
+                                        fileObserver.updateDetected(file);
+                                }
+                            });
                         }
                     }
-                    else if(eventKind == StandardWatchEventKinds.ENTRY_DELETE && Files.isRegularFile(file)){
-                        fileRegistry.removeDataOrigin(file);
+
+                    else if(eventKind == StandardWatchEventKinds.ENTRY_DELETE && (file.toString().endsWith(".n3"))){
+
+                        Futures.addCallback(fileRegistry.handleN3FileDeletion(file), new FutureCallback<Void>() {
+
+                            @Override
+                            public void onSuccess(Void aVoid) {
+                                log.info("Successfully handled deletion of file \"{}\".", file);
+                            }
+
+                            @Override
+                            public void onFailure(Throwable throwable) {
+                                log.error("Error while handling deletion of file \"{}\".", file, throwable);
+                            }
+                        });
                     }
-                    else if(eventKind == StandardWatchEventKinds.ENTRY_MODIFY && Files.isRegularFile(file)){
+
+                    else if(eventKind == StandardWatchEventKinds.ENTRY_MODIFY && (file.toString().endsWith(".n3"))){
                         fileObserver.updateDetected(file);
+                    }
+
+                    else{
+                        log.warn("Don't know what to do (Event {} on file \"{}\").", eventKind, file);
                     }
                 }
 

@@ -1,10 +1,10 @@
-package eu.spitfire.ssp.server.channels.handler;
+package eu.spitfire.ssp.server.handler;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Multimap;
 import com.hp.hpl.jena.rdf.model.*;
 import de.uniluebeck.itm.spitfire.ssphttpobserveovermqttlib.HttpObserveOverMqttLib;
-import eu.spitfire.ssp.backends.generic.observation.InternalUpdateCacheMessage;
+import eu.spitfire.ssp.server.messages.NamedGraphStatusMessage;
 import eu.spitfire.ssp.utils.Language;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -27,12 +27,12 @@ import java.util.List;
 * Time: 21:17
 * To change this template use File | Settings | File Templates.
 */
-public class MqttResourceHandler extends SimpleChannelDownstreamHandler{
+public class MqttHandler extends SimpleChannelDownstreamHandler{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
     private HttpObserveOverMqttLib httpObserver;
 
-    public MqttResourceHandler(String mqttBrokerUri, int mqttBrokerHttpPort) throws IOException, MqttException {
+    public MqttHandler(String mqttBrokerUri, int mqttBrokerHttpPort) throws IOException, MqttException {
         httpObserver = new HttpObserveOverMqttLib();
         httpObserver.startServer(mqttBrokerHttpPort, mqttBrokerUri);
         log.info("MQTT Broker started");
@@ -41,13 +41,13 @@ public class MqttResourceHandler extends SimpleChannelDownstreamHandler{
 
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
-        if(me.getMessage() instanceof InternalUpdateCacheMessage){
+        if(me.getMessage() instanceof NamedGraphStatusMessage){
             log.info("DO something********************************************************************");
-            InternalUpdateCacheMessage message = (InternalUpdateCacheMessage) me.getMessage();
+            NamedGraphStatusMessage message = (NamedGraphStatusMessage) me.getMessage();
 
-            final URI resourceUri = message.getDataOriginStatus().getGraphName();
-            final Model model = message.getDataOriginStatus().getStatus();
-            Date tmpExpiry = message.getDataOriginStatus().getExpiry();
+            final URI resourceUri = message.getGraphName().getGraphName();
+            final Model model = message.getGraphName().getStatus();
+            Date tmpExpiry = message.getGraphName().getExpiry();
             final Date expiry = tmpExpiry != null ? tmpExpiry : new Date(System.currentTimeMillis() + 10000);
 
             log.info("Add/Update resource {}", resourceUri);

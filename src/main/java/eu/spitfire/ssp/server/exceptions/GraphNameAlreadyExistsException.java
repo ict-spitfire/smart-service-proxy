@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.server.channels.handler.cache;
+package eu.spitfire.ssp.server.exceptions;
 
 import java.net.URI;
 

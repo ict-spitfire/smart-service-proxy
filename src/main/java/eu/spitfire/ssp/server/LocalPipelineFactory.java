@@ -1,6 +1,6 @@
-package eu.spitfire.ssp.server.channels;
+package eu.spitfire.ssp.server;
 
-import eu.spitfire.ssp.server.channels.handler.InternalPipelineSink;
+import eu.spitfire.ssp.server.handler.InternalChannelSink;
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
@@ -8,7 +8,6 @@ import org.jboss.netty.channel.Channels;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 
 /**
@@ -22,18 +21,18 @@ public class LocalPipelineFactory implements ChannelPipelineFactory {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private LinkedHashSet<ChannelHandler> handler;
-    private InternalPipelineSink internalPipelineSink;
+    private InternalChannelSink internalChannelSink;
 
     public LocalPipelineFactory(LinkedHashSet<ChannelHandler> handler){
         this.handler = handler;
-        this.internalPipelineSink = new InternalPipelineSink();
+        this.internalChannelSink = new InternalChannelSink();
     }
 
     @Override
     public ChannelPipeline getPipeline() throws Exception {
         ChannelPipeline pipeline = Channels.pipeline();
 
-        pipeline.addLast("Internal Pipeline Sink", internalPipelineSink);
+        pipeline.addLast("Internal Pipeline Sink", internalChannelSink);
 
         for (ChannelHandler channelHandler : handler) {
             pipeline.addLast(channelHandler.getClass().getSimpleName(), channelHandler);

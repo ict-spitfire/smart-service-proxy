@@ -3,7 +3,7 @@
 //import eu.spitfire.ssp.backends.generic.DataOrigin;
 //import eu.spitfire.ssp.backends.generic.DataOriginManager;
 //import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
-//import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
+//import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 //
@@ -71,7 +71,7 @@
 //        }
 //    }
 //
-//    public void handleFileDeletion(Path file){
+//    public void handleN3FileDeletion(Path file){
 //        log.info("File deleted: {}", file);
 //        List<URI> registeredResourceUris =
 //                Arrays.asList(dataOriginManager.getResources(file).toArray(new URI[0]));
@@ -86,7 +86,7 @@
 //    }
 //
 //    @Override
-//    public WrappedDataOriginStatus getStatus(DataOrigin<Path> dataOrigin) {
+//    public WrappedNamedGraphStatus getStatus(DataOrigin<Path> dataOrigin) {
 //        return null;
 //    }
 //}

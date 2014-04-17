@@ -1,16 +1,18 @@
 package eu.spitfire.ssp.backends.files;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
+import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
 import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
-import java.nio.file.WatchKey;
 
 /**
- * Created by olli on 15.04.14.
+ * Observer for local files
  */
 public class FileObserver extends DataOriginObserver<Path> {
 
@@ -25,8 +27,37 @@ public class FileObserver extends DataOriginObserver<Path> {
     }
 
 
-    void updateDetected(Path file){
+    void deletionDetected(final Path file){
+
+    }
+
+
+    void updateDetected(final Path file){
         log.info("File {} was updated!", file);
+
+        Futures.addCallback(fileAccessor.getStatus(file), new FutureCallback<WrappedNamedGraphStatus>() {
+
+            @Override
+            public void onSuccess(WrappedNamedGraphStatus dataOriginStatus) {
+
+                Futures.addCallback(updateCache(dataOriginStatus), new FutureCallback<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        log.info("Successfully updated cached status from file \"{}\"!", file);
+                    }
+
+                    @Override
+                    public void onFailure(Throwable throwable) {
+                        log.warn("Could not update cached status from file \"{}\"!", file);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                log.error("Could not get updated status from file \"{}\"!", throwable);
+            }
+        });
     }
 
     @Override

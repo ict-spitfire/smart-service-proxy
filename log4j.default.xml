@@ -30,7 +30,7 @@
         <appender-ref ref="async"/>
     </logger>
 
-    <logger name="eu.spitfire.ssp.server.channels.handler.DummyHandler" additivity="false">
+    <logger name="eu.spitfire.ssp.server.handler.DummyHandler" additivity="false">
         <level value="INFO"/>
         <appender-ref ref="async"/>
     </logger>

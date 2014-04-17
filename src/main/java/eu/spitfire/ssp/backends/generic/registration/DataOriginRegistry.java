@@ -6,6 +6,8 @@ import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
 import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
 import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
+import eu.spitfire.ssp.server.messages.DataOriginRegistrationMessage;
+import eu.spitfire.ssp.server.messages.DataOriginRemovalMessage;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;
@@ -13,7 +15,6 @@ import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.net.URI;
 
 /**
@@ -45,15 +46,15 @@ public abstract class DataOriginRegistry<T> {
      */
     protected final ListenableFuture<Void> registerDataOrigin(final DataOrigin<T> dataOrigin){
 
-        final SettableFuture<Void> resourceRegistrationFuture = SettableFuture.create();
+        final SettableFuture<Void> registrationFuture = SettableFuture.create();
 
         HttpSemanticProxyWebservice httpProxyWebservice = componentFactory.getSemanticProxyWebservice(dataOrigin);
         T identifier = dataOrigin.getIdentifier();
 
         try{
             //Register resource
-            final InternalRegisterDataOriginMessage<T> registerResourceMessage =
-                    new InternalRegisterDataOriginMessage<>(dataOrigin, httpProxyWebservice);
+            final DataOriginRegistrationMessage<T> registerResourceMessage =
+                    new DataOriginRegistrationMessage<>(dataOrigin, httpProxyWebservice);
 
             log.info("Try to register data origin with identifier {}.", identifier);
 
@@ -64,7 +65,7 @@ public abstract class DataOriginRegistry<T> {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     if(future.isSuccess()){
-                        resourceRegistrationFuture.set(null);
+                        registrationFuture.set(null);
 
                         if(dataOrigin.isObservable()){
                             DataOriginObserver<T> observer = componentFactory.getDataOriginObserver(dataOrigin);
@@ -78,25 +79,41 @@ public abstract class DataOriginRegistry<T> {
 
                     }
                     else
-                        resourceRegistrationFuture.setException(future.getCause());
+                        registrationFuture.setException(future.getCause());
                 }
             });
 
-            return resourceRegistrationFuture;
+            return registrationFuture;
         }
 
         catch (Exception ex) {
             log.error("Registration of data origin failed!", ex);
-            resourceRegistrationFuture.setException(ex);
+            registrationFuture.setException(ex);
 
-            return resourceRegistrationFuture;
+            return registrationFuture;
         }
     }
 
 
-    public ListenableFuture<Void> removeDataOrigin(T identifier){
-        //TODO!!
-        return null;
+
+    protected ListenableFuture<Void> removeDataOrigin(DataOrigin<T> dataOrigin){
+        final SettableFuture<Void> removalFuture = SettableFuture.create();
+
+        log.info("Try to remove data origin: \"{}\".", dataOrigin);
+        DataOriginRemovalMessage<T> removalMessage = new DataOriginRemovalMessage<>(dataOrigin);
+
+        Channels.write(componentFactory.getLocalChannel(), removalMessage)
+                .addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        if(future.isSuccess())
+                            removalFuture.set(null);
+                        else
+                            removalFuture.setException(future.getCause());
+                    }
+                });
+
+        return removalFuture;
     }
 
     /**

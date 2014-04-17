@@ -60,7 +60,7 @@
 //
 //    /**
 //     * @param prefix the prefix used for not-absolute resource URIs, e.g. <code>prefix/gui</code>
-//     * @param localPipelineFactory the {@link eu.spitfire.ssp.server.channels.LocalPipelineFactory} to get the channels to send internal messages,
+//     * @param localPipelineFactory the {@link eu.spitfire.ssp.server.LocalPipelineFactory} to get the channels to send internal messages,
 //     *                             e.g. resource status updates.
 //     * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
 //     */

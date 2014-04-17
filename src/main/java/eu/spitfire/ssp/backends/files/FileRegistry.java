@@ -4,24 +4,12 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
-import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
+import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
 import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
-import org.apache.commons.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.HashMap;
-import java.util.Map;
-
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
+import java.nio.file.Path;
 
 /**
  * Created by olli on 13.04.14.
@@ -42,30 +30,71 @@ public class FileRegistry extends DataOriginRegistry<Path> {
     }
 
 
-    public ListenableFuture<Void> handleFileCreation(final Path file){
-        log.info("Handle creation of file \"{}\".", file);
+    public ListenableFuture<Void> handleN3FileDeletion(final Path file){
+
+        try{
+            if(!file.toString().endsWith(".n3"))
+                throw new IllegalArgumentException("Given file is no N3 file!");
+
+            FileDataOrigin fileDataOrigin = new FileDataOrigin(file,
+                    ((FilesBackendComponentFactory) componentFactory).getSspHostName());
+
+            return removeDataOrigin(fileDataOrigin);
+        }
+
+        catch (Exception ex) {
+            SettableFuture<Void> result = SettableFuture.create();
+            result.setException(ex);
+            return result;
+        }
+    }
+
+
+    public ListenableFuture<Void> handleN3FileCreation(final Path file){
+
         final SettableFuture<Void> registrationFuture = SettableFuture.create();
 
         try {
-            if(file.toString().endsWith(".n3") ){
-                FileAccessor fileAccessor = (FileAccessor) componentFactory.getDataOriginAccessor(null);
-                ListenableFuture<WrappedDataOriginStatus> statusFuture = fileAccessor.getStatus(file);
-                Futures.addCallback(statusFuture, new FutureCallback<WrappedDataOriginStatus>() {
+            if(!file.toString().endsWith(".n3"))
+                throw new IllegalArgumentException("Given file is no N3 file!");
 
-                    @Override
-                    public void onSuccess(WrappedDataOriginStatus dataOriginStatus) {
-                        FileDataOrigin dataOrigin = new FileDataOrigin(dataOriginStatus.getGraphName(), file);
-                        registerDataOrigin(dataOrigin);
-                        registrationFuture.set(null);
+            log.info("Handle creation of file \"{}\".", file);
+
+            FileAccessor fileAccessor = (FileAccessor) componentFactory.getDataOriginAccessor(null);
+            ListenableFuture<WrappedNamedGraphStatus> statusFuture = fileAccessor.getStatus(file);
+            Futures.addCallback(statusFuture, new FutureCallback<WrappedNamedGraphStatus>() {
+
+                @Override
+                public void onSuccess(WrappedNamedGraphStatus dataOriginStatus) {
+                    try{
+                        FileDataOrigin dataOrigin = new FileDataOrigin(file,
+                                ((FilesBackendComponentFactory) componentFactory).getSspHostName());
+
+                        Futures.addCallback(registerDataOrigin(dataOrigin), new FutureCallback<Void>() {
+
+                            @Override
+                            public void onSuccess(Void aVoid) {
+                                registrationFuture.set(null);
+                            }
+
+                            @Override
+                            public void onFailure(Throwable throwable) {
+                                registrationFuture.setException(throwable);
+                            }
+                        });
                     }
 
-                    @Override
-                    public void onFailure(Throwable throwable) {
-                        log.error("Could not retrieve status from {}!", file, throwable);
-                        registrationFuture.setException(throwable);
+                    catch(Exception ex){
+                        registrationFuture.setException(ex);
                     }
-                });
-            }
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+                    log.error("Could not retrieve status from {}!", file, throwable);
+                    registrationFuture.setException(throwable);
+                }
+            });
         }
 
         catch(Exception ex){
@@ -76,6 +105,4 @@ public class FileRegistry extends DataOriginRegistry<Path> {
         return registrationFuture;
     }
 
-
-//
 }

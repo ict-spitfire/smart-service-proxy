@@ -1,6 +1,5 @@
 package eu.spitfire.ssp.server.webservices;
 
-import eu.spitfire.ssp.backends.generic.registration.InternalRegisterDataOriginMessage;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;

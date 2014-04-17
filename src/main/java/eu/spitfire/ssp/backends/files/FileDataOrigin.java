@@ -3,6 +3,7 @@ package eu.spitfire.ssp.backends.files;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 
 /**
@@ -10,20 +11,28 @@ import java.nio.file.Path;
  */
 public class FileDataOrigin extends DataOrigin<Path> {
 
+    private URI graphName;
+
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      *
-     * @param graphName  the backendName of the graph representing the semantic information at this
-     *                   {@link eu.spitfire.ssp.backends.generic.DataOrigin}
+//     * @param graphName  the backendName of the graph representing the semantic information at this
+//     *                   {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      * @param identifier the identifier for this {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      */
-    protected FileDataOrigin(URI graphName, Path identifier) {
-        super(graphName, identifier);
+    public FileDataOrigin(Path identifier, String sspHostName) throws URISyntaxException {
+        super(identifier);
+        this.graphName = new URI("file", null, sspHostName, -1, identifier.toString(), null, null);
     }
 
     @Override
     public boolean isObservable() {
         return true;
+    }
+
+    @Override
+    public URI getGraphName() {
+        return this.graphName;
     }
 
     @Override

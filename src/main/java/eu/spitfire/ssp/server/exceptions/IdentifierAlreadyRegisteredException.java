@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.generic.registration;
+package eu.spitfire.ssp.server.exceptions;
 
 /**
  * Created by olli on 14.04.14.

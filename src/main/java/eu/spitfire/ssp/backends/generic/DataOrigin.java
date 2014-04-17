@@ -10,26 +10,26 @@ import java.net.URI;
  * Webservice this could e.g. be {@link URI}. Then {@link #getIdentifier()} returns a {@link java.net.URI} identifying
  * this Webservice.
  *
- * Each {@link eu.spitfire.ssp.backends.generic.DataOrigin} instance is connected to a graph backendName. In this context a
- * graph is the component to contain the complete semantic information provided by this
- * {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
+ * The complete RDF information provided by an instance of {@link eu.spitfire.ssp.backends.generic.DataOrigin} is
+ * represented as a named graph. This is to give the whole set of triples provided by a single data origin an unique
+ * name, e.g. to limit the amount of data to process a SPARQL query on.
  *
  * @author Oliver Kleine
  */
 public abstract class DataOrigin<T> {
 
-    private URI graphName;
+//    private URI graphName;
     private T identifier;
 
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      *
-     * @param graphName the backendName of the graph representing the semantic information at this
-     *                  {@link eu.spitfire.ssp.backends.generic.DataOrigin}
+//     * @param graphName the backendName of the graph representing the semantic information at this
+//     *                  {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      * @param identifier the identifier for this {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      */
-    protected DataOrigin(URI graphName, T identifier){
-        this.graphName = graphName;
+    protected DataOrigin(T identifier){
+//        this.graphName = graphName;
         this.identifier = identifier;
     }
 
@@ -61,9 +61,7 @@ public abstract class DataOrigin<T> {
      *
      * @return the graph backendName of the model hosted by this data origin
      */
-    public URI getGraphName() {
-        return graphName;
-    }
+    public abstract URI getGraphName();
 
     @Override
     public abstract int hashCode();
@@ -80,4 +78,8 @@ public abstract class DataOrigin<T> {
      */
     @Override
     public abstract boolean equals(Object object);
+
+    public String toString(){
+        return "[Identifier: " + identifier + ", Graph Name: " + getGraphName() + "]";
+    }
 }

@@ -3,13 +3,13 @@ package eu.spitfire.ssp;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import eu.spitfire.ssp.backends.files.FilesBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.generic.messages.InternalRegisterWebserviceMessage;
-import eu.spitfire.ssp.server.channels.LocalPipelineFactory;
-import eu.spitfire.ssp.server.channels.SmartServiceProxyPipelineFactory;
-import eu.spitfire.ssp.server.channels.handler.HttpRequestDispatcher;
-import eu.spitfire.ssp.server.channels.handler.MqttResourceHandler;
-import eu.spitfire.ssp.server.channels.handler.cache.DummySemanticCache;
-import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
+import eu.spitfire.ssp.server.handler.MqttHandler;
+import eu.spitfire.ssp.server.messages.WebserviceRegistrationMessage;
+import eu.spitfire.ssp.server.LocalPipelineFactory;
+import eu.spitfire.ssp.server.SmartServiceProxyPipelineFactory;
+import eu.spitfire.ssp.server.handler.HttpRequestDispatcher;
+import eu.spitfire.ssp.server.handler.cache.DummySemanticCache;
+import eu.spitfire.ssp.server.handler.cache.SemanticCache;
 import eu.spitfire.ssp.server.webservices.FaviconHttpWebservice;
 import eu.spitfire.ssp.server.webservices.SparqlEndpoint;
 import org.apache.commons.configuration.Configuration;
@@ -56,7 +56,7 @@ public class Initializer {
 
     private ExecutionHandler executionHandler;
     private HttpRequestDispatcher httpRequestDispatcher;
-    private MqttResourceHandler mqttResourceHandler;
+    private MqttHandler mqttHandler;
     private SemanticCache semanticCache;
 
     private Collection<BackendComponentFactory> backendComponentFactories;
@@ -187,8 +187,8 @@ public class Initializer {
 
     private void createLocalPipelineFactory() {
         LinkedHashSet<ChannelHandler> handler = new LinkedHashSet<>();
-        if (!(mqttResourceHandler == null))
-            handler.add(mqttResourceHandler);
+        if (!(mqttHandler == null))
+            handler.add(mqttHandler);
 
         handler.add(semanticCache);
         handler.add(httpRequestDispatcher);
@@ -216,8 +216,8 @@ public class Initializer {
 
         handler.add(executionHandler);
 
-        if (!(mqttResourceHandler == null))
-            handler.add(mqttResourceHandler);
+        if (!(mqttHandler == null))
+            handler.add(mqttHandler);
 
         handler.add(semanticCache);
         handler.add(httpRequestDispatcher);
@@ -237,10 +237,10 @@ public class Initializer {
         if (config.getBoolean("ENABLE_MQTT", false)) {
             String mqttBrokerUri = config.getString("MQTT_BROKER_URI");
             int mqttBrokerHttpPort = config.getInt("MQTT_BROKER_HTTP_PORT");
-            this.mqttResourceHandler = new MqttResourceHandler(mqttBrokerUri, mqttBrokerHttpPort);
+            this.mqttHandler = new MqttHandler(mqttBrokerUri, mqttBrokerHttpPort);
             log.debug("MQTT Handler created.");
         } else {
-            this.mqttResourceHandler = null;
+            this.mqttHandler = null;
             log.debug("MQTT was disabled.");
         }
     }
@@ -284,7 +284,7 @@ public class Initializer {
 
         final URI faviconUri = new URI(null, null, null, -1, "/favicon.ico",null, null);
         LocalServerChannel localChannel = localChannelFactory.newChannel(localPipelineFactory.getPipeline());
-        ChannelFuture future = Channels.write(localChannel, new InternalRegisterWebserviceMessage(faviconUri,
+        ChannelFuture future = Channels.write(localChannel, new WebserviceRegistrationMessage(faviconUri,
                 new FaviconHttpWebservice()));
 
         future.addListener(new ChannelFutureListener() {
@@ -307,7 +307,7 @@ public class Initializer {
         LocalServerChannel localChannel = localChannelFactory.newChannel(localPipelineFactory.getPipeline());
         SparqlEndpoint sparqlEndpoint = new SparqlEndpoint(localChannel, this.backenTasksExecutorService);
 
-        ChannelFuture future = Channels.write(localChannel, new InternalRegisterWebserviceMessage(targetUri,
+        ChannelFuture future = Channels.write(localChannel, new WebserviceRegistrationMessage(targetUri,
                 sparqlEndpoint));
 
         future.addListener(new ChannelFutureListener() {

@@ -1,4 +1,4 @@
-//package eu.spitfire.ssp.server.channels.handler.cache;
+//package eu.spitfire.ssp.server.handler.cache;
 //
 //import com.google.common.util.concurrent.SettableFuture;
 //import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
@@ -95,7 +95,7 @@
 //    }
 //
 //    @Override
-//    public InternalResourceStatusMessage getCachedResource(URI resourceUri) throws Exception{
+//    public InternalResourceStatusMessage getNamedGraph(URI resourceUri) throws Exception{
 //        Store store = SDBFactory.connectStore(sdbConnection, storeDescription);
 //        Model model = SDBFactory.connectNamedModel(store, resourceUri.toString());
 //        store.close();

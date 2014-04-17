@@ -22,14 +22,16 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire.ssp.server.channels.handler.cache;
+package eu.spitfire.ssp.server.handler.cache;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.backends.generic.access.DataOriginStatusMessage;
-import eu.spitfire.ssp.backends.generic.observation.InternalUpdateCacheMessage;
-import eu.spitfire.ssp.backends.generic.registration.InternalRegisterDataOriginMessage;
+import eu.spitfire.ssp.server.messages.DataOriginRemovalMessage;
+import eu.spitfire.ssp.server.messages.NamedGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.DataOriginRegistrationMessage;
+import eu.spitfire.ssp.server.exceptions.GraphNameAlreadyExistsException;
+import eu.spitfire.ssp.server.messages.SparqlQueryMessage;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -49,7 +51,7 @@ import java.util.concurrent.TimeUnit;
  * Checks whether the incoming {@link HttpRequest} can be answered with cached information. This depends on the
  * existence of cached information and its age. If there is suitable information available, the request will be
  * answered by sending a corresponding Object of type @link{Model} to the downstream. Otherwise the request will
- * be send to the upstream unchanged to be processed by the {@link eu.spitfire.ssp.server.channels.handler.HttpRequestDispatcher}.
+ * be send to the upstream unchanged to be processed by the {@link eu.spitfire.ssp.server.handler.HttpRequestDispatcher}.
  *
  * @author Oliver Kleine
  */
@@ -71,7 +73,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * This method is invoked for upstream {@link MessageEvent}s and handles incoming {@link HttpRequest}s.
      * It tries to find a fresh status of the requested resource (identified using the requests target URI) in its
      * internal cache. If a fresh status is found, it sends this status (as an instance of {@link Model})
-     * downstream to the {@link eu.spitfire.ssp.server.channels.handler.SemanticPayloadFormatter}.
+     * downstream to the {@link eu.spitfire.ssp.server.handler.SemanticPayloadFormatter}.
      *
      * @param ctx The {@link ChannelHandlerContext} to relate this handler with its current {@link Channel}
      * @param me  The {@link MessageEvent} potentially containing the {@link HttpRequest}
@@ -98,15 +100,15 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
 
             log.debug("Lookup resource with URI: {}", resourceUri);
-            DataOriginStatusMessage dataOriginStatusMessage = getCachedResource(resourceUri);
+            NamedGraphStatusMessage namedGraphStatusMessage = getNamedGraph(resourceUri);
 
-            if (dataOriginStatusMessage != null) {
+            if (namedGraphStatusMessage != null) {
                 log.debug("Cached status for {} found.", resourceUri);
 
                 //me.getFuture().setSuccess();
 
                 ChannelFuture future = me.getFuture();
-                DownstreamMessageEvent dme = new DownstreamMessageEvent(ctx.getChannel(), future, dataOriginStatusMessage, me.getRemoteAddress());
+                DownstreamMessageEvent dme = new DownstreamMessageEvent(ctx.getChannel(), future, namedGraphStatusMessage, me.getRemoteAddress());
                 ctx.sendDownstream(dme);
 
                 future.addListener(new ChannelFutureListener(){
@@ -127,22 +129,14 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         ctx.sendUpstream(me);
     }
 
-    /**
-     * Returns an instance of {@link Model} that represents the resource identified by the given {@link URI}.
-     *
-     * @param resourceUri the {@link URI} identifying the wanted resource
-     * @return the {@link Model} representing the status of the wanted resource
-     */
-    public abstract DataOriginStatusMessage getCachedResource(URI resourceUri) throws Exception;
-
 
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) {
-        URI resourceUri = null;
-        try {
-            if(me.getMessage() instanceof InternalRegisterDataOriginMessage){
 
-                DataOrigin dataOrigin = ((InternalRegisterDataOriginMessage) me.getMessage()).getDataOrigin();
+        try {
+            if(me.getMessage() instanceof DataOriginRegistrationMessage){
+
+                DataOrigin dataOrigin = ((DataOriginRegistrationMessage) me.getMessage()).getDataOrigin();
                 URI graphName = dataOrigin.getGraphName();
 
                 if(this.containsNamedGraph(graphName))
@@ -152,12 +146,12 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                     ctx.sendDownstream(me);
             }
 
-            if (me.getMessage() instanceof InternalUpdateCacheMessage) {
-                InternalUpdateCacheMessage message = (InternalUpdateCacheMessage) me.getMessage();
+            if (me.getMessage() instanceof NamedGraphStatusMessage) {
+                NamedGraphStatusMessage message = (NamedGraphStatusMessage) me.getMessage();
 
-                URI graphName = message.getDataOriginStatus().getGraphName();
-                Model namedGraph = message.getDataOriginStatus().getStatus();
-                Date expiry = message.getDataOriginStatus().getExpiry();
+                URI graphName = message.getGraphName().getGraphName();
+                Model namedGraph = message.getGraphName().getStatus();
+                Date expiry = message.getGraphName().getExpiry();
                 scheduleNamedGraphExpiry(graphName, expiry);
 
                 Long startTime = System.currentTimeMillis();
@@ -169,47 +163,30 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
             }
 
-//            else if (me.getMessage() instanceof InternalUpdateResourceStatusMessage) {
-//                InternalUpdateResourceStatusMessage message = (InternalUpdateResourceStatusMessage) me.getMessage();
-//                resourceUri = new URI(message.getStatement().getSubject().toString());
-//                log.info("Received update for resource {} (expiry: {})", resourceUri, message.getExpiry());
-//
-//                scheduleNamedGraphExpiry(resourceUri, message.getExpiry());
-//                updateStatement(message.getStatement());
-//
-//                InternalResourceStatusMessage cachedResource = getCachedResource(resourceUri);
-//                if (cachedResource != null) {
-//                    InternalResourceStatusMessage resourceStatusMessage =
-//                            new InternalResourceStatusMessage(cachedResource.getModel(), message.getExpiry());
-//
-//                    if (resourceStatusMessage != null) {
-//                        Channels.write(ctx, me.getFuture(), resourceStatusMessage);
-//                        return;
-//                    }
-//                    log.warn("Resource status of {} was null!!!", resourceUri);
-//                } else {
-//                    log.warn("Resource {} was null!!!", resourceUri);
-//                    return;
-//                }
-//            }
-//            else if (me.getMessage() instanceof InternalSparqlQueryMessage) {
-//                InternalSparqlQueryMessage message = (InternalSparqlQueryMessage) me.getMessage();
-//                processSparqlQuery(message.getQueryResultFuture(), message.getQuery());
-//            }
-//            else if(me.getMessage() instanceof InternalRemoveResourcesMessage){
-//                InternalRemoveResourcesMessage message = (InternalRemoveResourcesMessage) me.getMessage();
-//                deleteNamedGraph(message.getResourceUri());
-//                ScheduledFuture timeoutFuture = expiryFutures.remove(resourceUri);
-//                if (timeoutFuture != null){
-//                    timeoutFuture.cancel(false);
-//                    log.info("Resource status timeout for {} canceled.", resourceUri);
-//                }
-//            }
+            else if (me.getMessage() instanceof SparqlQueryMessage) {
+                SparqlQueryMessage message = (SparqlQueryMessage) me.getMessage();
+                processSparqlQuery(message.getQueryResultFuture(), message.getQuery());
+            }
+
+            else if(me.getMessage() instanceof DataOriginRemovalMessage){
+
+                DataOriginRemovalMessage message = (DataOriginRemovalMessage) me.getMessage();
+                URI graphName = message.getDataOrigin().getGraphName();
+
+                deleteNamedGraph(graphName);
+
+                ScheduledFuture timeoutFuture = expiryFutures.remove(graphName);
+                if (timeoutFuture != null){
+                    timeoutFuture.cancel(false);
+                    log.info("Resource status timeout for {} canceled.", graphName);
+                }
+            }
 
             ctx.sendDownstream(me);
         }
+
         catch (Exception e) {
-          log.error("Caching error! " + resourceUri, e);
+          log.error("Cache error! ", e);
           me.getFuture().setFailure(e);
         }
     }
@@ -219,6 +196,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         log.info("Received new status of {} (expiry: {})", graphName, expiry);
         Long startTime = System.currentTimeMillis();
         log.debug("Schedule timeout for resource {}.", graphName);
+
         //Cancel old expiry (if existing)
         ScheduledFuture timeoutFuture = expiryFutures.remove(graphName);
         if (timeoutFuture != null)
@@ -240,9 +218,15 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                 }
             }, expiry.getTime() - System.currentTimeMillis() + DELAY_AFTER_EXPIRY, TimeUnit.MILLISECONDS));
         }
-
-        log.debug("New timeout scheduled after {} millis", System.currentTimeMillis() - startTime);
     }
+
+    /**
+     * Returns a {@link Model}instance of {@link Model} that represents the resource identified by the given {@link URI}.
+     *
+     * @param graphName the {@link URI} identifying the wanted resource
+     * @return the {@link Model} representing the status of the wanted resource
+     */
+    public abstract NamedGraphStatusMessage getNamedGraph(URI graphName) throws Exception;
 
 
     public abstract boolean containsNamedGraph(URI graphName);
@@ -266,12 +250,12 @@ public abstract class SemanticCache extends SimpleChannelHandler {
     public abstract void deleteNamedGraph(URI graphName) throws Exception;
 
 
-    /**
-     * Method to update a property of a resource given as the subject of the given statement
-     *
-     * @param statement the {@link Statement} to be cached
-     */
-    public abstract void updateStatement(Statement statement) throws Exception;
+//    /**
+//     * Method to update a property of a resource given as the subject of the given statement
+//     *
+//     * @param statement the {@link Statement} to be cached
+//     */
+//    public abstract void updateStatement(Statement statement) throws Exception;
 
     /**
      * Sets the {@link SettableFuture} with the result of the given SPARQL query

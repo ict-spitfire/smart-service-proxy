@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.generic.messages;
+package eu.spitfire.ssp.server.messages;
 
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 
@@ -10,7 +10,7 @@ import java.net.URI;
  *
  * @author Oliver Kleine
  */
-public class InternalRegisterWebserviceMessage {
+public class WebserviceRegistrationMessage {
 
     private URI localUri;
     private HttpWebservice httpWebservice;
@@ -20,7 +20,7 @@ public class InternalRegisterWebserviceMessage {
      * @param httpWebservice the {@link eu.spitfire.ssp.server.webservices.HttpWebservice} to process incoming HTTP
      *                       requests
      */
-    public InternalRegisterWebserviceMessage(URI localUri, HttpWebservice httpWebservice) {
+    public WebserviceRegistrationMessage(URI localUri, HttpWebservice httpWebservice) {
         this.localUri = localUri;
         this.httpWebservice = httpWebservice;
     }

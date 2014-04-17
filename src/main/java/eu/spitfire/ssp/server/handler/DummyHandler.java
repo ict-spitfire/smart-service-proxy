@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.server.channels.handler;
+package eu.spitfire.ssp.server.handler;
 
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ExceptionEvent;
@@ -8,11 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 11.10.13
- * Time: 17:34
- * To change this template use File | Settings | File Templates.
+ * This {@link org.jboss.netty.channel.ChannelHandler} is basically supposed to be used for information or debugging
+ * purposes regarding the source of incoming messages and the destination of outgoing messages.
+ *
+ * @author Oliver Kleine
  */
 public class DummyHandler extends SimpleChannelHandler {
 
@@ -28,11 +27,6 @@ public class DummyHandler extends SimpleChannelHandler {
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
         log.info("Message to be sent to {}", me.getRemoteAddress());
         ctx.sendDownstream(me);
-    }
-
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent event){
-        log.error("Exception caught: {}", event.getCause());
     }
 
 }

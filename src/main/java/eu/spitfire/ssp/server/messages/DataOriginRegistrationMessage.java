@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.generic.registration;
+package eu.spitfire.ssp.server.messages;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
@@ -11,12 +11,12 @@ import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
  * Time: 17:12
  * To change this template use File | Settings | File Templates.
  */
-public class InternalRegisterDataOriginMessage<T>{
+public class DataOriginRegistrationMessage<T>{
 
     private DataOrigin<T> dataOrigin;
     private HttpSemanticProxyWebservice httpProxyWebservice;
 
-    public InternalRegisterDataOriginMessage(DataOrigin<T> dataOrigin, HttpSemanticProxyWebservice httpProxyWebservice){
+    public DataOriginRegistrationMessage(DataOrigin<T> dataOrigin, HttpSemanticProxyWebservice httpProxyWebservice){
 
         this.httpProxyWebservice = httpProxyWebservice;
         this.dataOrigin = dataOrigin;
@@ -31,4 +31,8 @@ public class InternalRegisterDataOriginMessage<T>{
         return httpProxyWebservice;
     }
 
+    public String toString(){
+        return "DORM: [Data Origin: " + dataOrigin.toString() + ", Backend: " +
+                httpProxyWebservice.getBackendName() + "]";
+    }
 }

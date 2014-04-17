@@ -55,11 +55,13 @@ public abstract class BackendComponentFactory<T>{
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     protected DataOriginRegistry<T> dataOriginRegistry;
-    private HttpSemanticProxyWebservice<T> semanticProxyWebservice;
     protected ScheduledExecutorService backendTasksExecutorService;
     protected ExecutorService ioExecutorService;
     protected String backendName;
     protected LocalServerChannel localChannel;
+
+    private HttpSemanticProxyWebservice<T> semanticProxyWebservice;
+
 
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.BackendComponentFactory}.

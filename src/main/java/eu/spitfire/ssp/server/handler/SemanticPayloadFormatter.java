@@ -22,15 +22,14 @@
 * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-package eu.spitfire.ssp.server.channels.handler;
+package eu.spitfire.ssp.server.handler;
 
 import com.google.common.collect.Multimap;
 import com.google.common.collect.TreeMultimap;
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
-import eu.spitfire.ssp.backends.generic.access.DataOriginStatusMessage;
+import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
+import eu.spitfire.ssp.server.messages.NamedGraphStatusMessage;
 import eu.spitfire.ssp.utils.Language;
-import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
@@ -108,10 +107,10 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
 	public void writeRequested(ChannelHandlerContext ctx, final MessageEvent me) throws Exception {
         log.debug("Downstream: {}", me.getMessage());
 
-        if(me.getMessage() instanceof DataOriginStatusMessage){
-            final DataOriginStatusMessage dataOriginStatusMessage = (DataOriginStatusMessage) me.getMessage();
+        if(me.getMessage() instanceof NamedGraphStatusMessage){
+            final NamedGraphStatusMessage namedGraphStatusMessage = (NamedGraphStatusMessage) me.getMessage();
 
-            final WrappedDataOriginStatus status = ((DataOriginStatusMessage) me.getMessage()).getDataOriginStatus();
+            final WrappedNamedGraphStatus status = ((NamedGraphStatusMessage) me.getMessage()).getGraphName();
             Model model = status.getStatus();
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 

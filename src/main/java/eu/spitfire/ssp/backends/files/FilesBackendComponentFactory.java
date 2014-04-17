@@ -26,8 +26,8 @@ public class FilesBackendComponentFactory extends BackendComponentFactory<Path> 
     private FileAccessor fileAccessor;
     private FileObserver fileObserver;
     private WatchService watchService;
-    private FileWatcher fileWatcher;
     private Configuration config;
+    private String sspHostName;
 
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.BackendComponentFactory}.
@@ -43,7 +43,9 @@ public class FilesBackendComponentFactory extends BackendComponentFactory<Path> 
             ScheduledExecutorService backendTasksExecutorService, ExecutorService ioExecutorService) throws Exception {
 
         super(prefix, config, localChannel, backendTasksExecutorService, ioExecutorService);
+        this.sspHostName = config.getString("SSP_HOST_NAME");
         this.config = config.subset(prefix);
+
     }
 
 
@@ -54,8 +56,8 @@ public class FilesBackendComponentFactory extends BackendComponentFactory<Path> 
         this.fileAccessor = new FileAccessor(this);
         this.fileObserver = new FileObserver(this);
 
-        this.fileWatcher = new FileWatcher(this);
-        this.fileWatcher.startFileWatching();
+        FileWatcher fileWatcher = new FileWatcher(this);
+        fileWatcher.startFileWatching();
     }
 
 
@@ -105,5 +107,9 @@ public class FilesBackendComponentFactory extends BackendComponentFactory<Path> 
     @Override
     public void shutdown() {
 
+    }
+
+    public String getSspHostName() {
+        return sspHostName;
     }
 }

@@ -3,18 +3,18 @@ package eu.spitfire.ssp.backends.generic.access;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
-import eu.spitfire.ssp.backends.generic.registration.IdentifierAlreadyRegisteredException;
-import eu.spitfire.ssp.backends.generic.registration.InternalRegisterDataOriginMessage;
+import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
+import eu.spitfire.ssp.server.messages.DataOriginRegistrationMessage;
+import eu.spitfire.ssp.server.exceptions.IdentifierAlreadyRegisteredException;
+import eu.spitfire.ssp.server.messages.GraphStatusMessage;
+import eu.spitfire.ssp.server.messages.NamedGraphStatusMessage;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
-import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponse;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +29,7 @@ import java.util.Map;
  * Implementing classes are supposed to process the incoming {@link org.jboss.netty.handler.codec.http.HttpRequest},
  * e.g. by converting it to another protocol, forward the translated request to a data-origin, await the
  * response, and set the given {@link com.google.common.util.concurrent.SettableFuture} with an instance of
- * {@link eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus} based on the response from
+ * {@link eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus} based on the response from
  * the data-origin.
  *
  * @author Oliver Kleine
@@ -61,9 +61,9 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
     @SuppressWarnings("unchecked")
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
 
-        if(me.getMessage() instanceof InternalRegisterDataOriginMessage){
+        if(me.getMessage() instanceof DataOriginRegistrationMessage){
 
-            InternalRegisterDataOriginMessage<T> message = (InternalRegisterDataOriginMessage<T>) me.getMessage();
+            DataOriginRegistrationMessage<T> message = (DataOriginRegistrationMessage<T>) me.getMessage();
 
             final DataOrigin<T> dataOrigin = message.getDataOrigin();
             final String proxyUri = "/?graph=" + dataOrigin.getGraphName();
@@ -83,7 +83,7 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
             }
 
             catch (IdentifierAlreadyRegisteredException e) {
-                log.error("Could not register new data origin!", e);
+                log.warn("Could not register new data origin!", e);
                 me.getFuture().setFailure(e);
             }
 
@@ -156,42 +156,66 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
             }
 
 
-            //Forward message to data origin accessor
-//            boolean removeOnFailure = removeDataOriginOnAccessFailure(dataOrigin);
             T identifier = dataOrigin.getIdentifier();
-            ListenableFuture<WrappedDataOriginStatus> resultFuture = dataOriginAccessor.getStatus(identifier);
 
-            Futures.addCallback(resultFuture, new FutureCallback<WrappedDataOriginStatus>() {
+            HttpMethod httpMethod = httpRequest.getMethod();
+
+            ListenableFuture resultFuture;
+            final boolean httpResponseOnSuccess;
+
+            if(httpMethod.equals(HttpMethod.GET)){
+                httpResponseOnSuccess = false;
+                resultFuture = handleGetRequest(channel, clientAddress, dataOriginAccessor, identifier);
+            }
+
+            else if(httpMethod.equals(HttpMethod.PUT)){
+                httpResponseOnSuccess = true;
+                resultFuture = handlePutRequest(channel, clientAddress, dataOriginAccessor, identifier);
+            }
+
+            else if(httpMethod.equals(HttpMethod.DELETE)){
+                httpResponseOnSuccess = true;
+                resultFuture = handleDeleteRequest(channel, clientAddress, dataOriginAccessor, identifier);
+            }
+
+            else
+                throw new DataOriginAccessException(HttpResponseStatus.METHOD_NOT_ALLOWED,
+                        "Method " + httpMethod + " is not allowed!");
+
+
+            Futures.addCallback(resultFuture, new FutureCallback() {
 
                 @Override
-                public void onSuccess(WrappedDataOriginStatus dataOriginStatus) {
+                public void onSuccess(Object object) {
+                    if(httpResponseOnSuccess){
+                        HttpVersion httpVersion = httpRequest.getProtocolVersion();
+                        HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
+                                HttpResponseStatus.OK, "Operation successful!");
 
-                    if((dataOriginStatus.getCode() == WrappedDataOriginStatus.Code.DELETED) ||
-                            ((dataOriginStatus.getCode() == WrappedDataOriginStatus.Code.OK ||
-                                dataOriginStatus.getCode() == WrappedDataOriginStatus.Code.CHANGED)
-                                    &&
-                            (dataOriginStatus.getStatus() == null || dataOriginStatus.getStatus().isEmpty()))){
-
-                        HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(),
-                                HttpResponseStatus.NO_CONTENT);
                         writeHttpResponse(channel, httpResponse, clientAddress);
-                    }
-
-                    else{
-                        DataOriginStatusMessage dataOriginStatusMessage = new DataOriginStatusMessage(dataOriginStatus);
-                        writeDataOriginStatusMessage(channel, dataOriginStatusMessage, clientAddress);
                     }
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
-                            HttpResponseStatus.INTERNAL_SERVER_ERROR, throwable.getMessage());
+                    HttpVersion httpVersion = httpRequest.getProtocolVersion();
+                    HttpResponse httpResponse;
+
+                    if(throwable instanceof DataOriginAccessException){
+                        DataOriginAccessException ex = (DataOriginAccessException) throwable;
+                        httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, ex.getHttpResponseStatus(),
+                                ex);
+                    }
+
+                    else{
+                        httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
+                                HttpResponseStatus.INTERNAL_SERVER_ERROR, throwable.getMessage());
+                    }
 
                     writeHttpResponse(channel, httpResponse, clientAddress);
                 }
+            });
 
-            }, componentFactory.getIoExecutorService());
         }
 
         catch(DataOriginAccessException ex){
@@ -211,7 +235,71 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
     }
 
 
-    protected void writeDataOriginStatusMessage(Channel channel, DataOriginStatusMessage statusMessage,
+    private ListenableFuture<Void> handleGetRequest(final Channel channel, final InetSocketAddress clientAddress,
+            DataOriginAccessor<T> dataOriginAccessor, T identifier) throws DataOriginAccessException {
+
+        final SettableFuture<Void> resultFuture = SettableFuture.create();
+
+        Futures.addCallback(dataOriginAccessor.getStatus(identifier), new FutureCallback<WrappedNamedGraphStatus>() {
+
+            @Override
+            public void onSuccess(WrappedNamedGraphStatus namedGraphStatus) {
+                NamedGraphStatusMessage namedGraphStatusMessage =
+                        new NamedGraphStatusMessage(GraphStatusMessage.Code.OK, namedGraphStatus);
+
+                writeDataOriginStatusMessage(channel, namedGraphStatusMessage, clientAddress);
+
+                resultFuture.set(null);
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                resultFuture.setException(throwable);
+            }
+
+        }, componentFactory.getIoExecutorService());
+
+        return resultFuture;
+    }
+
+
+    private ListenableFuture<Void> handlePutRequest(Channel channel, InetSocketAddress clientAddress,
+            DataOriginAccessor<T> dataOriginAccessor, T identifier) throws DataOriginAccessException {
+
+        final SettableFuture<Void> resultFuture = SettableFuture.create();
+
+        Futures.addCallback(dataOriginAccessor.setStatus(identifier), new FutureCallback<WrappedNamedGraphStatus>() {
+
+            @Override
+            public void onSuccess(WrappedNamedGraphStatus namedGraphStatus) {
+                NamedGraphStatusMessage namedGraphStatusMessage =
+                        new NamedGraphStatusMessage(GraphStatusMessage.Code.OK, namedGraphStatus);
+
+                writeDataOriginStatusMessage(channel, namedGraphStatusMessage, clientAddress);
+
+                resultFuture.set(null);
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                resultFuture.setException(throwable);
+            }
+
+        }, componentFactory.getIoExecutorService());
+
+        return resultFuture;
+    }
+
+
+    private ListenableFuture<Void> handleDeleteRequest(Channel channel, InetSocketAddress clientAddress,
+            DataOriginAccessor<T> dataOriginAccessor, T identifier) throws DataOriginAccessException {
+
+    }
+
+
+
+
+    protected void writeDataOriginStatusMessage(Channel channel, NamedGraphStatusMessage statusMessage,
                                                 InetSocketAddress clientAddress){
 
         ChannelFuture future = Channels.write(channel, statusMessage, clientAddress);

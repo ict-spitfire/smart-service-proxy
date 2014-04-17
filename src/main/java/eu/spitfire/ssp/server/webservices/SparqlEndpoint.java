@@ -5,8 +5,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backends.generic.messages.InternalSparqlQueryMessage;
-import eu.spitfire.ssp.server.channels.handler.cache.SemanticCache;
+import eu.spitfire.ssp.server.messages.SparqlQueryMessage;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -72,7 +71,7 @@ public class SparqlEndpoint extends HttpWebservice {
 
             String query = httpRequest.getContent().toString(Charset.forName("UTF-8"));
             final SettableFuture<String> resultFuture = SettableFuture.create();
-            InternalSparqlQueryMessage queryMessage = new InternalSparqlQueryMessage(query, resultFuture);
+            SparqlQueryMessage queryMessage = new SparqlQueryMessage(query, resultFuture);
 
             ChannelFuture future = Channels.write(localChannel, queryMessage);
             future.addListener(new ChannelFutureListener() {
@@ -98,6 +97,7 @@ public class SparqlEndpoint extends HttpWebservice {
 
                     HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
                             HttpResponseStatus.OK, header, payload);
+
                     writeHttpResponse(channel, httpResponse, clientAddress);
                 }
 

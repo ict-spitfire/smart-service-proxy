@@ -22,9 +22,9 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package eu.spitfire.ssp.server.channels;
+package eu.spitfire.ssp.server;
 
-import eu.spitfire.ssp.server.channels.handler.SemanticPayloadFormatter;
+import eu.spitfire.ssp.server.handler.SemanticPayloadFormatter;
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
@@ -41,8 +41,8 @@ import java.util.LinkedHashSet;
 
 
 /**
- * The {@link SmartServiceProxyPipelineFactory} is a factory to generate pipelines to handle messages (internal
- * or incoming)
+ * The {@link SmartServiceProxyPipelineFactory} is a factory to generate pipelines for channels to handle
+ * incoming {@link org.jboss.netty.handler.codec.http.HttpRequest}s.
  *
  * @author Oliver Kleine
  *
@@ -53,19 +53,28 @@ public class SmartServiceProxyPipelineFactory implements ChannelPipelineFactory 
 
     private LinkedHashSet<ChannelHandler> handler;
 
-    public SmartServiceProxyPipelineFactory(LinkedHashSet<ChannelHandler> handler)
-            throws Exception {
+    /**
+     * Creates a new instance of {@link eu.spitfire.ssp.server.SmartServiceProxyPipelineFactory}.
+     *
+     * @param handler a {@link java.util.LinkedHashSet} containing the handlers to be added to the
+     *                pipeline (in most-downstream-first order)
+     *
+     * @throws Exception if something went terribly wrong
+     */
+    public SmartServiceProxyPipelineFactory(LinkedHashSet<ChannelHandler> handler) throws Exception {
         this.handler = handler;
-//        InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory());
     }
 
 
     /**
-     * The channels contains the handlers to handle incoming HTTP requests and return a proper HTTP response
+     * The {@link org.jboss.netty.channel.ChannelPipeline} contains the handlers to handle incoming
+     * {@link org.jboss.netty.handler.codec.http.HttpRequest}s and send appropriate
+     * {@link org.jboss.netty.handler.codec.http.HttpResponse}s.
      *
-     * @return the channels (chain of handlers) to handle incoming HTTP requests
+     * @return the {@link org.jboss.netty.channel.ChannelPipeline} (chain of handlers) to handle incoming
+     * {@link org.jboss.netty.handler.codec.http.HttpRequest}s
      *
-     * @throws Exception if some unexpected error occured
+     * @throws Exception if something went terribly wrong
      */
     @Override
 	public ChannelPipeline getPipeline() throws Exception {

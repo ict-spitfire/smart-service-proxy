@@ -4,7 +4,7 @@
 //import com.hp.hpl.jena.rdf.model.Model;
 //import eu.spitfire.ssp.backends.generic.DataOriginManager;
 //import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
-//import eu.spitfire.ssp.backends.generic.WrappedDataOriginStatus;
+//import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
 //import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 //import eu.spitfire.ssp.backends.generic.exceptions.SemanticResourceException;
 //import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
@@ -122,7 +122,7 @@
 //    }
 //
 //    @Override
-//    public void processHttpRequest(SettableFuture<WrappedDataOriginStatus> responseFuture, HttpRequest httpRequest) {
+//    public void processHttpRequest(SettableFuture<WrappedNamedGraphStatus> responseFuture, HttpRequest httpRequest) {
 //
 //    }
 //}
