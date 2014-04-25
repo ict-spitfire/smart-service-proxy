@@ -28,7 +28,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
 import eu.spitfire.ssp.server.messages.DataOriginRemovalMessage;
-import eu.spitfire.ssp.server.messages.NamedGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
 import eu.spitfire.ssp.server.messages.DataOriginRegistrationMessage;
 import eu.spitfire.ssp.server.exceptions.GraphNameAlreadyExistsException;
 import eu.spitfire.ssp.server.messages.SparqlQueryMessage;
@@ -100,15 +100,15 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
 
             log.debug("Lookup resource with URI: {}", resourceUri);
-            NamedGraphStatusMessage namedGraphStatusMessage = getNamedGraph(resourceUri);
+            ExpiringNamedGraphStatusMessage expiringNamedGraphStatusMessage = getNamedGraph(resourceUri);
 
-            if (namedGraphStatusMessage != null) {
+            if (expiringNamedGraphStatusMessage != null) {
                 log.debug("Cached status for {} found.", resourceUri);
 
                 //me.getFuture().setSuccess();
 
                 ChannelFuture future = me.getFuture();
-                DownstreamMessageEvent dme = new DownstreamMessageEvent(ctx.getChannel(), future, namedGraphStatusMessage, me.getRemoteAddress());
+                DownstreamMessageEvent dme = new DownstreamMessageEvent(ctx.getChannel(), future, expiringNamedGraphStatusMessage, me.getRemoteAddress());
                 ctx.sendDownstream(dme);
 
                 future.addListener(new ChannelFutureListener(){
@@ -146,12 +146,12 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                     ctx.sendDownstream(me);
             }
 
-            if (me.getMessage() instanceof NamedGraphStatusMessage) {
-                NamedGraphStatusMessage message = (NamedGraphStatusMessage) me.getMessage();
+            if (me.getMessage() instanceof ExpiringNamedGraphStatusMessage) {
+                ExpiringNamedGraphStatusMessage message = (ExpiringNamedGraphStatusMessage) me.getMessage();
 
-                URI graphName = message.getGraphName().getGraphName();
-                Model namedGraph = message.getGraphName().getStatus();
-                Date expiry = message.getGraphName().getExpiry();
+                URI graphName = message.getExpiringGraph().getGraphName();
+                Model namedGraph = message.getExpiringGraph().getGraph();
+                Date expiry = message.getExpiringGraph().getExpiry();
                 scheduleNamedGraphExpiry(graphName, expiry);
 
                 Long startTime = System.currentTimeMillis();
@@ -221,12 +221,15 @@ public abstract class SemanticCache extends SimpleChannelHandler {
     }
 
     /**
-     * Returns a {@link Model}instance of {@link Model} that represents the resource identified by the given {@link URI}.
+     * Returns a {@link Model} that contains the graph identified by the given {@link URI} as graph name. If no such
+     * graph is contained in the database, it returns <code>null</code>.
      *
      * @param graphName the {@link URI} identifying the wanted resource
-     * @return the {@link Model} representing the status of the wanted resource
+     *
+     * @return the {@link Model} containing the graph with the given name or <code>null</code> if no such graph is
+     * contained in the database.
      */
-    public abstract NamedGraphStatusMessage getNamedGraph(URI graphName) throws Exception;
+    public abstract ExpiringNamedGraphStatusMessage getNamedGraph(URI graphName) throws Exception;
 
 
     public abstract boolean containsNamedGraph(URI graphName);
@@ -236,7 +239,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * Insert a new resource into the cache or updated an already cached one. The expiry is given to enable the
      * cache to delete the resource status from the cache when its no longer valid.
      *
-     * @param graphName    the {@link URI} identifying the resource to be cached
+     * @param graphName the {@link URI} identifying the resource to be cached
      * @param namedGraph the {@link Model} representing the resource status to be cached
      */
     public abstract void putNamedGraphToCache(URI graphName, Model namedGraph) throws Exception;

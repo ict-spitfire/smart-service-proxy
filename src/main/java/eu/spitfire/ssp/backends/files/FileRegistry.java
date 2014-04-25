@@ -4,7 +4,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
+import eu.spitfire.ssp.backends.generic.ExpiringNamedGraph;
 import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,11 +61,11 @@ public class FileRegistry extends DataOriginRegistry<Path> {
             log.info("Handle creation of file \"{}\".", file);
 
             FileAccessor fileAccessor = (FileAccessor) componentFactory.getDataOriginAccessor(null);
-            ListenableFuture<WrappedNamedGraphStatus> statusFuture = fileAccessor.getStatus(file);
-            Futures.addCallback(statusFuture, new FutureCallback<WrappedNamedGraphStatus>() {
+            ListenableFuture<ExpiringNamedGraph> statusFuture = fileAccessor.getStatus(file);
+            Futures.addCallback(statusFuture, new FutureCallback<ExpiringNamedGraph>() {
 
                 @Override
-                public void onSuccess(WrappedNamedGraphStatus dataOriginStatus) {
+                public void onSuccess(ExpiringNamedGraph dataOriginStatus) {
                     try{
                         FileDataOrigin dataOrigin = new FileDataOrigin(file,
                                 ((FilesBackendComponentFactory) componentFactory).getSspHostName());

@@ -3,8 +3,11 @@ package eu.spitfire.ssp.backends.files;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
-import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
+import eu.spitfire.ssp.backends.generic.ExpiringNamedGraph;
+import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 import eu.spitfire.ssp.backends.generic.access.DataOriginAccessor;
+import eu.spitfire.ssp.server.messages.ExpiringGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.GraphStatusMessage;
 import eu.spitfire.ssp.utils.Language;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,8 +34,8 @@ public class FileAccessor extends DataOriginAccessor<Path> {
 
 
     @Override
-    public ListenableFuture<WrappedNamedGraphStatus> getStatus(Path identifier){
-        SettableFuture<WrappedNamedGraphStatus> statusFuture = SettableFuture.create();
+    public ListenableFuture<ExpiringNamedGraph> getStatus(Path identifier){
+        SettableFuture<ExpiringNamedGraph> statusFuture = SettableFuture.create();
 
         try{
 //            BufferedReader fileReader = new BufferedReader(new FileReader(identifier.toString()));
@@ -66,11 +69,10 @@ public class FileAccessor extends DataOriginAccessor<Path> {
 
             Date expiry = new Date(System.currentTimeMillis() + MILLIS_PER_YEAR);
 
-            FileDataOrigin dataOrigin = new FileDataOrigin(identifier,
-                    ((FilesBackendComponentFactory) componentFactory).getSspHostName());
+//            FileDataOrigin dataOrigin = new FileDataOrigin(identifier,
+//                    ((FilesBackendComponentFactory) componentFactory).getSspHostName());
 
-            WrappedNamedGraphStatus dataOriginStatus = new WrappedNamedGraphStatus(WrappedNamedGraphStatus.Code.OK,
-                    dataOrigin.getGraphName(), model, expiry);
+            ExpiringNamedGraph dataOriginStatus = new ExpiringNamedGraph(graphName, model, expiry);
 
             statusFuture.set(dataOriginStatus);
         }
@@ -87,5 +89,17 @@ public class FileAccessor extends DataOriginAccessor<Path> {
         }
 
         return statusFuture;
+    }
+
+    @Override
+    public ListenableFuture<Boolean> setStatus(Path identifier, Model status) throws DataOriginAccessException {
+        //TODO
+        return null;
+    }
+
+    @Override
+    public ListenableFuture<Boolean> deleteDataOrigin(Path identifier) throws DataOriginAccessException {
+        //TODO
+        return null;
     }
 }

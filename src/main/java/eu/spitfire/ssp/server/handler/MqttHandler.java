@@ -4,7 +4,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Multimap;
 import com.hp.hpl.jena.rdf.model.*;
 import de.uniluebeck.itm.spitfire.ssphttpobserveovermqttlib.HttpObserveOverMqttLib;
-import eu.spitfire.ssp.server.messages.NamedGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
 import eu.spitfire.ssp.utils.Language;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -41,13 +41,13 @@ public class MqttHandler extends SimpleChannelDownstreamHandler{
 
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me){
-        if(me.getMessage() instanceof NamedGraphStatusMessage){
+        if(me.getMessage() instanceof ExpiringNamedGraphStatusMessage){
             log.info("DO something********************************************************************");
-            NamedGraphStatusMessage message = (NamedGraphStatusMessage) me.getMessage();
+            ExpiringNamedGraphStatusMessage message = (ExpiringNamedGraphStatusMessage) me.getMessage();
 
-            final URI resourceUri = message.getGraphName().getGraphName();
-            final Model model = message.getGraphName().getStatus();
-            Date tmpExpiry = message.getGraphName().getExpiry();
+            final URI resourceUri = message.getGraphName();
+            final Model model = message.getGraph();
+            Date tmpExpiry = message.getExpiry();
             final Date expiry = tmpExpiry != null ? tmpExpiry : new Date(System.currentTimeMillis() + 10000);
 
             log.info("Add/Update resource {}", resourceUri);

@@ -9,7 +9,7 @@
 //import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
 //import de.uniluebeck.itm.ncoap.message.CoapRequest;
 //import de.uniluebeck.itm.ncoap.message.CoapResponse;
-//import de.uniluebeck.itm.ncoap.message.header.Code;
+//import de.uniluebeck.itm.ncoap.message.header.StatusCode;
 //import de.uniluebeck.itm.ncoap.message.header.MsgType;
 //import de.uniluebeck.itm.ncoap.message.options.OptionRegistry;
 //import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
@@ -55,7 +55,7 @@
 //    public void startObservation() {
 //        try {
 //            log.info("Start observation of service {}", dataOrigin);
-//            CoapRequest coapRequest = new CoapRequest(MsgType.CON, Code.GET, dataOrigin);
+//            CoapRequest coapRequest = new CoapRequest(MsgType.CON, StatusCode.GET, dataOrigin);
 //            coapRequest.setObserveOptionRequest();
 //            coapRequest.setAccept(OptionRegistry.MediaType.APP_SHDT, OptionRegistry.MediaType.APP_RDF_XML,
 //                    OptionRegistry.MediaType.APP_N3, OptionRegistry.MediaType.APP_TURTLE);

@@ -1,40 +1,22 @@
 package eu.spitfire.ssp.server.messages;
 
-import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.server.handler.cache.WrappedGraphStatus;
-
-import java.util.Date;
-
 /**
- * Created by olli on 17.04.14.
+ * Created by olli on 25.04.14.
  */
 public class GraphStatusMessage {
 
-    public static enum Code{
+   public static enum StatusCode {
         OK, CHANGED, DELETED
     }
 
-    private Code code;
-    private Model status;
-    private Date expiry;
+    private StatusCode statusCode;
 
-    public GraphStatusMessage(Code code, WrappedGraphStatus graphStatus) {
-        this.code = code;
-        this.status = graphStatus.getStatus();
-        this.expiry = graphStatus.getExpiry();
+    public GraphStatusMessage(StatusCode statusCode){
+        this.statusCode = statusCode;
     }
 
-
-    public Code getCode() {
-        return code;
-    }
-
-    public Model getStatus() {
-        return status;
-    }
-
-    public Date getExpiry() {
-        return expiry;
+    public StatusCode getStatusCode() {
+        return statusCode;
     }
 
 }

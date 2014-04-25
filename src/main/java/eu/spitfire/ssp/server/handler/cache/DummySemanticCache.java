@@ -1,8 +1,7 @@
 package eu.spitfire.ssp.server.handler.cache;
 
 import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.Statement;
-import eu.spitfire.ssp.server.messages.NamedGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +27,7 @@ public class DummySemanticCache extends SemanticCache {
     }
 
     @Override
-    public NamedGraphStatusMessage getNamedGraph(URI graphName) {
+    public ExpiringNamedGraphStatusMessage getNamedGraph(URI graphName) {
         return null;
     }
 
@@ -47,10 +46,10 @@ public class DummySemanticCache extends SemanticCache {
         //Nothing to do...
     }
 
-    @Override
-    public void updateStatement(Statement statement) {
-        //Nothing to do...
-    }
+//    @Override
+//    public void updateStatement(Statement statement) {
+//        //Nothing to do...
+//    }
 
     @Override
     public boolean supportsSPARQL() {

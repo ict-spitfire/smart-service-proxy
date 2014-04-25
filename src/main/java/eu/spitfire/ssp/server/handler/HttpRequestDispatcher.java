@@ -230,12 +230,12 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 //
 //       semanticProxyWebservice.processHttpRequest(ctx.getChannel(), (HttpRequest) me.getMessage(), clientAddress);
 //
-////        Futures.addCallback(statusFuture, new FutureCallback<WrappedNamedGraphStatus>() {
+////        Futures.addCallback(statusFuture, new FutureCallback<ExpiringNamedGraph>() {
 ////
 ////            @Override
-////            public void onSuccess(WrappedNamedGraphStatus dataOriginStatus) {
+////            public void onSuccess(ExpiringNamedGraph dataOriginStatus) {
 ////
-////                if (!dataOriginStatus.getStatus().isEmpty()){
+////                if (!dataOriginStatus.getGraph().isEmpty()){
 ////                    Channels.write(ctx.getChannel(), dataOriginStatus, clientAddress);
 ////                }
 ////

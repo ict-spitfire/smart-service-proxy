@@ -4,7 +4,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
+import eu.spitfire.ssp.backends.generic.ExpiringNamedGraph;
 import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,10 +35,10 @@ public class FileObserver extends DataOriginObserver<Path> {
     void updateDetected(final Path file){
         log.info("File {} was updated!", file);
 
-        Futures.addCallback(fileAccessor.getStatus(file), new FutureCallback<WrappedNamedGraphStatus>() {
+        Futures.addCallback(fileAccessor.getStatus(file), new FutureCallback<ExpiringNamedGraph>() {
 
             @Override
-            public void onSuccess(WrappedNamedGraphStatus dataOriginStatus) {
+            public void onSuccess(ExpiringNamedGraph dataOriginStatus) {
 
                 Futures.addCallback(updateCache(dataOriginStatus), new FutureCallback<Void>() {
                     @Override

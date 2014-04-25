@@ -27,8 +27,9 @@ package eu.spitfire.ssp.server.handler;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.TreeMultimap;
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
-import eu.spitfire.ssp.server.messages.NamedGraphStatusMessage;
+import de.uniluebeck.itm.spitfire.ssphttpobserveovermqttlib.HttpObserveOverMqttLib;
+import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.GraphStatusMessage;
 import eu.spitfire.ssp.utils.Language;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -107,11 +108,21 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
 	public void writeRequested(ChannelHandlerContext ctx, final MessageEvent me) throws Exception {
         log.debug("Downstream: {}", me.getMessage());
 
-        if(me.getMessage() instanceof NamedGraphStatusMessage){
-            final NamedGraphStatusMessage namedGraphStatusMessage = (NamedGraphStatusMessage) me.getMessage();
 
-            final WrappedNamedGraphStatus status = ((NamedGraphStatusMessage) me.getMessage()).getGraphName();
-            Model model = status.getStatus();
+
+        if(me.getMessage() instanceof GraphStatusMessage){
+            HttpResponse httpResponse = new DefaultHttpResponse(httpVersion, OK);
+
+            GraphStatusMessage graphStatusMessage = (GraphStatusMessage) me.getMessage();
+
+            if(graphStatusMessage.getStatusCode() == GraphStatusMessage.StatusCode.CHANGED){
+                httpResponse
+        }
+
+        if(me.getMessage() instanceof ExpiringNamedGraphStatusMessage){
+            final ExpiringNamedGraphStatusMessage expiringNamedGraphStatusMessage = (ExpiringNamedGraphStatusMessage) me.getMessage();
+
+            Model model = expiringNamedGraphStatusMessage.getGraph();
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
             log.info("Model to be serialized{}", model);
@@ -124,19 +135,20 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
             ChannelBuffer payload = ChannelBuffers.wrappedBuffer(byteArrayOutputStream.toByteArray());
             httpResponse.setContent(payload);
 
-            httpResponse.setHeader(HttpHeaders.Names.CONTENT_TYPE, acceptedLanguage.mimeType);
-            httpResponse.setHeader(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
-            if(status.getExpiry() == null)
-                httpResponse.setHeader(HttpHeaders.Names.EXPIRES,
+            httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, acceptedLanguage.mimeType);
+            httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
+
+            if(expiringNamedGraphStatusMessage.getExpiry() == null)
+                httpResponse.headers().add(HttpHeaders.Names.EXPIRES,
                         dateFormat.format(new Date(System.currentTimeMillis() + MILLIS_PER_YEAR)));
             else
-                httpResponse.setHeader(HttpHeaders.Names.EXPIRES,
-                        dateFormat.format(status.getExpiry()));
+                httpResponse.headers().add(HttpHeaders.Names.EXPIRES,
+                        dateFormat.format(expiringNamedGraphStatusMessage.getExpiry()));
 
-            httpResponse.setHeader(HttpHeaders.Names.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
+            httpResponse.headers().add(HttpHeaders.Names.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
 
-            httpResponse.setHeader("Access-Control-Allow-Origin", "*");
-            httpResponse.setHeader("Access-Control-Allow-Credentials", "true");
+            httpResponse.headers().add("Access-Control-Allow-Origin", "*");
+            httpResponse.headers().add("Access-Control-Allow-Credentials", "true");
 
             //Write HTTP response to remote host, i.e. the client
             Channels.write(ctx, me.getFuture(), httpResponse, me.getRemoteAddress());
@@ -145,7 +157,7 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     log.info("Status of {} (encoded in {}) successfully written to {}.",
-                            new Object[]{status.getGraphName(), acceptedLanguage.lang,
+                            new Object[]{expiringNamedGraphStatusMessage.getGraphName(), acceptedLanguage.lang,
                             me.getRemoteAddress()});
                 }
             });

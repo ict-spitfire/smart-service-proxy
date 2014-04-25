@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import eu.spitfire.ssp.backends.files.FilesBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.server.handler.MqttHandler;
+import eu.spitfire.ssp.server.handler.cache.JenaTdbSemanticCache;
 import eu.spitfire.ssp.server.messages.WebserviceRegistrationMessage;
 import eu.spitfire.ssp.server.LocalPipelineFactory;
 import eu.spitfire.ssp.server.SmartServiceProxyPipelineFactory;
@@ -26,6 +27,9 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -255,14 +259,18 @@ public class Initializer {
             return;
         }
 
-//        if ("jenaTDB".equals(cacheType)) {
-//            String dbDirectory = config.getString("cache.jenaTDB.dbDirectory");
-//            if (dbDirectory == null)
-//                throw new RuntimeException("'cache.jenaSDB.jdbc.url' missing in ssp.properties");
-//
-//            this.semanticCache = new JenaTdbSemanticCache(this.backenTasksExecutorService, Paths.get(dbDirectory));
-//            return;
-//        }
+        if ("jenaTDB".equals(cacheType)) {
+            String dbDirectory = config.getString("cache.jenaTDB.dbDirectory");
+            if (dbDirectory == null)
+                throw new RuntimeException("'cache.jenaSDB.jdbc.url' missing in ssp.properties");
+
+            Path directoryPath = Paths.get(dbDirectory);
+            if(!Files.isDirectory(directoryPath))
+                throw new IllegalArgumentException("The given path for Jena TDB does not refer to a directory!");
+
+            this.semanticCache = new JenaTdbSemanticCache(this.backenTasksExecutorService, directoryPath);
+            return;
+        }
 //
 //        if("jenaSDB".equals(cacheType)){
 //            String jdbcUri = config.getString("cache.jenaSDB.jdbc.url");

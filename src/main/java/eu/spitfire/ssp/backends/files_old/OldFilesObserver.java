@@ -3,7 +3,7 @@
 //import eu.spitfire.ssp.backends.generic.DataOrigin;
 //import eu.spitfire.ssp.backends.generic.DataOriginManager;
 //import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
-//import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
+//import eu.spitfire.ssp.backends.generic.ExpiringNamedGraph;
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 //
@@ -86,7 +86,7 @@
 //    }
 //
 //    @Override
-//    public WrappedNamedGraphStatus getStatus(DataOrigin<Path> dataOrigin) {
+//    public ExpiringNamedGraph getGraph(DataOrigin<Path> dataOrigin) {
 //        return null;
 //    }
 //}

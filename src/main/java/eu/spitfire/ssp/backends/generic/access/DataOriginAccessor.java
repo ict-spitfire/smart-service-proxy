@@ -3,7 +3,7 @@ package eu.spitfire.ssp.backends.generic.access;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
+import eu.spitfire.ssp.backends.generic.ExpiringNamedGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +30,7 @@ public abstract class DataOriginAccessor<T> {
 
 
 //    /**
-//     * This method invokes {@link #getStatus(eu.spitfire.ssp.backends.generic.DataOrigin)} and awaits the status
+//     * This method invokes {@link #getGraph(eu.spitfire.ssp.backends.generic.DataOrigin)} and awaits the status
 //     * returned. Then it sends the status to the client.
 //     *
 //     * @param channel the {@link org.jboss.netty.channel.Channel} on which the result is supposed to be written
@@ -47,12 +47,12 @@ public abstract class DataOriginAccessor<T> {
 //
 //        final SettableFuture<Void> resultFuture = SettableFuture.create();
 //
-//        ListenableFuture<WrappedNamedGraphStatus> statusFuture = getStatus(dataOrigin);
-//        Futures.addCallback(statusFuture, new FutureCallback<WrappedNamedGraphStatus>() {
+//        ListenableFuture<ExpiringNamedGraph> statusFuture = getGraph(dataOrigin);
+//        Futures.addCallback(statusFuture, new FutureCallback<ExpiringNamedGraph>() {
 //
 //            @Override
-//            public void onSuccess(WrappedNamedGraphStatus dataOriginStatus) {
-//                NamedGraphStatusMessage statusMessage = new NamedGraphStatusMessage(dataOriginStatus);
+//            public void onSuccess(ExpiringNamedGraph dataOriginStatus) {
+//                ExpiringNamedGraphStatusMessage statusMessage = new ExpiringNamedGraphStatusMessage(dataOriginStatus);
 //                Channels.write(channel, statusMessage, clientAddress);
 //                resultFuture.set(null);
 //            }
@@ -85,7 +85,7 @@ public abstract class DataOriginAccessor<T> {
 //    }
 
 
-//    public abstract ListenableFuture<WrappedNamedGraphStatus> getStatus(DataOrigin<T> dataOrigin)
+//    public abstract ListenableFuture<ExpiringNamedGraph> getGraph(DataOrigin<T> dataOrigin)
 //            throws DataOriginAccessException;
 
     /**
@@ -98,10 +98,10 @@ public abstract class DataOriginAccessor<T> {
      *                   status from
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with the the actual
-     * {@link eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus} retrieved retrieved from the given given
+     * {@link eu.spitfire.ssp.backends.generic.ExpiringNamedGraph} retrieved retrieved from the given given
      * identifier of a {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      */
-    public abstract ListenableFuture<WrappedNamedGraphStatus> getStatus(T identifier) throws DataOriginAccessException;
+    public abstract ListenableFuture<ExpiringNamedGraph> getStatus(T identifier) throws DataOriginAccessException;
 
 
     public abstract ListenableFuture<Boolean> setStatus(T identifier, Model status) throws DataOriginAccessException;

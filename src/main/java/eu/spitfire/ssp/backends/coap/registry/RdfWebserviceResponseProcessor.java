@@ -6,7 +6,7 @@
 //import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.InternalRetransmissionTimeoutMessage;
 //import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
 //import de.uniluebeck.itm.ncoap.message.CoapResponse;
-//import de.uniluebeck.itm.ncoap.message.header.Code;
+//import de.uniluebeck.itm.ncoap.message.header.StatusCode;
 //import eu.spitfire.ssp.backends.coap.CoapCodeHttpStatusMapper;
 //import eu.spitfire.ssp.backends.coap.CoapResourceToolbox;
 //import eu.spitfire.ssp.backends.generic.ExpiringModel;
@@ -52,7 +52,7 @@
 //                log.info("Process CoAP response: {}", coapResponse);
 //                try{
 //                    if(coapResponse.getCode().isErrorMessage()){
-//                        Code code = coapResponse.getCode();
+//                        StatusCode code = coapResponse.getCode();
 //                        HttpResponseStatus httpResponseStatus = CoapCodeHttpStatusMapper.getHttpResponseStatus(code);
 //                        String message = "CoAP response code from " + webserviceUri + " was " + code;
 //                        throw new SemanticResourceException(webserviceUri, httpResponseStatus, message);

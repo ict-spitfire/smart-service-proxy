@@ -6,11 +6,12 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
+import eu.spitfire.ssp.backends.generic.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.messages.DataOriginRegistrationMessage;
 import eu.spitfire.ssp.server.exceptions.IdentifierAlreadyRegisteredException;
+import eu.spitfire.ssp.server.messages.ExpiringGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
 import eu.spitfire.ssp.server.messages.GraphStatusMessage;
-import eu.spitfire.ssp.server.messages.NamedGraphStatusMessage;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.channel.*;
@@ -29,7 +30,7 @@ import java.util.Map;
  * Implementing classes are supposed to process the incoming {@link org.jboss.netty.handler.codec.http.HttpRequest},
  * e.g. by converting it to another protocol, forward the translated request to a data-origin, await the
  * response, and set the given {@link com.google.common.util.concurrent.SettableFuture} with an instance of
- * {@link eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus} based on the response from
+ * {@link eu.spitfire.ssp.backends.generic.ExpiringNamedGraph} based on the response from
  * the data-origin.
  *
  * @author Oliver Kleine
@@ -168,15 +169,15 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
                 resultFuture = handleGetRequest(channel, clientAddress, dataOriginAccessor, identifier);
             }
 
-            else if(httpMethod.equals(HttpMethod.PUT)){
-                httpResponseOnSuccess = true;
-                resultFuture = handlePutRequest(channel, clientAddress, dataOriginAccessor, identifier);
-            }
-
-            else if(httpMethod.equals(HttpMethod.DELETE)){
-                httpResponseOnSuccess = true;
-                resultFuture = handleDeleteRequest(channel, clientAddress, dataOriginAccessor, identifier);
-            }
+//            else if(httpMethod.equals(HttpMethod.PUT)){
+//                httpResponseOnSuccess = true;
+//                resultFuture = handlePutRequest(channel, clientAddress, dataOriginAccessor, identifier);
+//            }
+//
+//            else if(httpMethod.equals(HttpMethod.DELETE)){
+//                httpResponseOnSuccess = true;
+//                resultFuture = handleDeleteRequest(channel, clientAddress, dataOriginAccessor, identifier);
+//            }
 
             else
                 throw new DataOriginAccessException(HttpResponseStatus.METHOD_NOT_ALLOWED,
@@ -240,14 +241,14 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
 
         final SettableFuture<Void> resultFuture = SettableFuture.create();
 
-        Futures.addCallback(dataOriginAccessor.getStatus(identifier), new FutureCallback<WrappedNamedGraphStatus>() {
+        Futures.addCallback(dataOriginAccessor.getStatus(identifier), new FutureCallback<ExpiringNamedGraph>() {
 
             @Override
-            public void onSuccess(WrappedNamedGraphStatus namedGraphStatus) {
-                NamedGraphStatusMessage namedGraphStatusMessage =
-                        new NamedGraphStatusMessage(GraphStatusMessage.Code.OK, namedGraphStatus);
+            public void onSuccess(ExpiringNamedGraph namedGraphStatus) {
+                ExpiringNamedGraphStatusMessage expiringNamedGraphStatusMessage =
+                        new ExpiringNamedGraphStatusMessage(GraphStatusMessage.StatusCode.OK, namedGraphStatus);
 
-                writeDataOriginStatusMessage(channel, namedGraphStatusMessage, clientAddress);
+                writeDataOriginStatusMessage(channel, expiringNamedGraphStatusMessage, clientAddress);
 
                 resultFuture.set(null);
             }
@@ -263,43 +264,43 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
     }
 
 
-    private ListenableFuture<Void> handlePutRequest(Channel channel, InetSocketAddress clientAddress,
-            DataOriginAccessor<T> dataOriginAccessor, T identifier) throws DataOriginAccessException {
-
-        final SettableFuture<Void> resultFuture = SettableFuture.create();
-
-        Futures.addCallback(dataOriginAccessor.setStatus(identifier), new FutureCallback<WrappedNamedGraphStatus>() {
-
-            @Override
-            public void onSuccess(WrappedNamedGraphStatus namedGraphStatus) {
-                NamedGraphStatusMessage namedGraphStatusMessage =
-                        new NamedGraphStatusMessage(GraphStatusMessage.Code.OK, namedGraphStatus);
-
-                writeDataOriginStatusMessage(channel, namedGraphStatusMessage, clientAddress);
-
-                resultFuture.set(null);
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                resultFuture.setException(throwable);
-            }
-
-        }, componentFactory.getIoExecutorService());
-
-        return resultFuture;
-    }
-
-
-    private ListenableFuture<Void> handleDeleteRequest(Channel channel, InetSocketAddress clientAddress,
-            DataOriginAccessor<T> dataOriginAccessor, T identifier) throws DataOriginAccessException {
-
-    }
+//    private ListenableFuture<Void> handlePutRequest(Channel channel, InetSocketAddress clientAddress,
+//            DataOriginAccessor<T> dataOriginAccessor, T identifier) throws DataOriginAccessException {
+//
+//        final SettableFuture<Void> resultFuture = SettableFuture.create();
+//
+//        Futures.addCallback(dataOriginAccessor.setStatus(identifier), new FutureCallback<ExpiringNamedGraph>() {
+//
+//            @Override
+//            public void onSuccess(ExpiringNamedGraph namedGraphStatus) {
+//                ExpiringNamedGraphStatusMessage namedGraphStatusMessage =
+//                        new ExpiringNamedGraphStatusMessage(ExpiringGraphStatusMessage.StatusCode.OK, namedGraphStatus);
+//
+//                writeDataOriginStatusMessage(channel, namedGraphStatusMessage, clientAddress);
+//
+//                resultFuture.set(null);
+//            }
+//
+//            @Override
+//            public void onFailure(Throwable throwable) {
+//                resultFuture.setException(throwable);
+//            }
+//
+//        }, componentFactory.getIoExecutorService());
+//
+//        return resultFuture;
+//    }
 
 
+//    private ListenableFuture<Void> handleDeleteRequest(Channel channel, InetSocketAddress clientAddress,
+//            DataOriginAccessor<T> dataOriginAccessor, T identifier) throws DataOriginAccessException {
+//
+//    }
 
 
-    protected void writeDataOriginStatusMessage(Channel channel, NamedGraphStatusMessage statusMessage,
+
+
+    protected void writeDataOriginStatusMessage(Channel channel, ExpiringNamedGraphStatusMessage statusMessage,
                                                 InetSocketAddress clientAddress){
 
         ChannelFuture future = Channels.write(channel, statusMessage, clientAddress);

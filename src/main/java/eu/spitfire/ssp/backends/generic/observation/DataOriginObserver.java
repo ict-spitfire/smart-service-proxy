@@ -4,8 +4,10 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus;
-import eu.spitfire.ssp.server.messages.NamedGraphStatusMessage;
+import eu.spitfire.ssp.backends.generic.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.messages.ExpiringGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.GraphStatusMessage;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;
@@ -24,22 +26,23 @@ public abstract class DataOriginObserver<T>{
 
 
     /**
-     * Updates the cache according to the given {@link eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus}.
+     * Updates the cache according to the given {@link eu.spitfire.ssp.backends.generic.ExpiringNamedGraph}.
      *
-     * @param dataOriginStatus the {@link eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus} to be used to
+     * @param dataOriginStatus the {@link eu.spitfire.ssp.backends.generic.ExpiringNamedGraph} to be used to
      *                         update the cache
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} that is set with <code>null</code> if the
      * update was successful or with a {@link java.lang.Throwable} if the update failed for some reason.
      */
-    protected final ListenableFuture<Void> updateCache(WrappedNamedGraphStatus dataOriginStatus){
+    protected final ListenableFuture<Void> updateCache(ExpiringNamedGraph dataOriginStatus){
 
         final SettableFuture<Void> resultFuture = SettableFuture.create();
 
         log.info("Try to update cached status for named graph {}.", dataOriginStatus.getGraphName());
-        NamedGraphStatusMessage namedGraphStatusMessage = new NamedGraphStatusMessage(dataOriginStatus);
+        ExpiringNamedGraphStatusMessage expiringNamedGraphStatusMessage =
+                new ExpiringNamedGraphStatusMessage(ExpiringGraphStatusMessage.StatusCode.OK, dataOriginStatus);
 
-        Channels.write(componentFactory.getLocalChannel(), namedGraphStatusMessage)
+        Channels.write(componentFactory.getLocalChannel(), expiringNamedGraphStatusMessage)
                 .addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
@@ -77,7 +80,7 @@ public abstract class DataOriginObserver<T>{
     /**
      * Starts the observation of the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}. Whenever the status
      * of the observed {@link eu.spitfire.ssp.backends.generic.DataOrigin} changes, implementing classes are supposed
-     * to invoke {@link #updateCache(eu.spitfire.ssp.backends.generic.WrappedNamedGraphStatus)}.
+     * to invoke {@link #updateCache(eu.spitfire.ssp.backends.generic.ExpiringNamedGraph)}.
      *
      * @param dataOrigin the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to be observed.
      */
