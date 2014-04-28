@@ -12,7 +12,6 @@ import eu.spitfire.ssp.server.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.handler.cache.DummySemanticCache;
 import eu.spitfire.ssp.server.handler.cache.SemanticCache;
 import eu.spitfire.ssp.server.webservices.FaviconHttpWebservice;
-import eu.spitfire.ssp.server.webservices.SparqlEndpoint;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.*;
@@ -51,7 +50,7 @@ public class Initializer {
 
     private Configuration config;
 
-    private ScheduledExecutorService backenTasksExecutorService;
+    private ScheduledExecutorService internalTasksExecutorService;
     private OrderedMemoryAwareThreadPoolExecutor ioExecutorService;
     private ServerBootstrap serverBootstrap;
 
@@ -90,8 +89,8 @@ public class Initializer {
         createBackendComponentFactories(config);
 
         //Create and register initial webservices
-        if(this.semanticCache.supportsSPARQL())
-            registerSparqlEndpoint();
+//        if(this.semanticCache.supportsSPARQL())
+//            registerSparqlEndpoint();
 
         registerFavicon();
     }
@@ -106,7 +105,7 @@ public class Initializer {
         int threadCount = Math.max(Runtime.getRuntime().availableProcessors() * 2,
                 config.getInt("SSP_MGMT_THREADS", 0));
 
-        this.backenTasksExecutorService = Executors.newScheduledThreadPool(threadCount, threadFactory);
+        this.internalTasksExecutorService = Executors.newScheduledThreadPool(threadCount, threadFactory);
         log.info("Management Executor Service created with {} threads.", threadCount);
     }
 
@@ -163,13 +162,13 @@ public class Initializer {
 
                 case "files": {
                     backendComponentFactory = new FilesBackendComponentFactory("files", config, localChannel,
-                            this.backenTasksExecutorService, this.ioExecutorService);
+                            this.internalTasksExecutorService, this.ioExecutorService);
                     break;
                 }
 
 //                case "coap": {
 //                    backendComponentFactory = new CoapBackendComponentFactory("coap", config,
-//                            this.backenTasksExecutorService);
+//                            this.internalTasksExecutorService);
 //                    break;
 //                }
 
@@ -254,7 +253,7 @@ public class Initializer {
         String cacheType = config.getString("cache");
 
         if ("dummy".equals(cacheType)) {
-            this.semanticCache = new DummySemanticCache(this.backenTasksExecutorService);
+            this.semanticCache = new DummySemanticCache(this.ioExecutorService, this.internalTasksExecutorService);
             log.info("Semantic Cache is of type {}", this.semanticCache.getClass().getSimpleName());
             return;
         }
@@ -262,13 +261,15 @@ public class Initializer {
         if ("jenaTDB".equals(cacheType)) {
             String dbDirectory = config.getString("cache.jenaTDB.dbDirectory");
             if (dbDirectory == null)
-                throw new RuntimeException("'cache.jenaSDB.jdbc.url' missing in ssp.properties");
+                throw new RuntimeException("'cache.jenaTDB.dbDirectory' missing in ssp.properties");
 
             Path directoryPath = Paths.get(dbDirectory);
             if(!Files.isDirectory(directoryPath))
                 throw new IllegalArgumentException("The given path for Jena TDB does not refer to a directory!");
 
-            this.semanticCache = new JenaTdbSemanticCache(this.backenTasksExecutorService, directoryPath);
+            this.semanticCache = new JenaTdbSemanticCache(this.ioExecutorService, this.internalTasksExecutorService,
+                    directoryPath);
+
             return;
         }
 //
@@ -277,7 +278,7 @@ public class Initializer {
 //            String jdbcUser = config.getString("cache.jenaSDB.jdbc.user");
 //            String jdbcPassword = config.getString("cache.jenaSDB.jdbc.password");
 //
-//            this.semanticCache = new JenaSdbSemanticCache(this.backenTasksExecutorService, jdbcUri, jdbcUser, jdbcPassword);
+//            this.semanticCache = new JenaSdbSemanticCache(this.internalTasksExecutorService, jdbcUri, jdbcUser, jdbcPassword);
 //            return;
 //        }
 
@@ -309,23 +310,25 @@ public class Initializer {
 
 
 
-    private void registerSparqlEndpoint() throws Exception{
-
-        final URI targetUri = new URI("http", null, null, -1 , "/sparql", null, null);
-        LocalServerChannel localChannel = localChannelFactory.newChannel(localPipelineFactory.getPipeline());
-        SparqlEndpoint sparqlEndpoint = new SparqlEndpoint(localChannel, this.backenTasksExecutorService);
-
-        ChannelFuture future = Channels.write(localChannel, new WebserviceRegistrationMessage(targetUri,
-                sparqlEndpoint));
-
-        future.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                if(future.isSuccess())
-                    log.info("Successfully registered SPARQL endpoint at URI {}", targetUri);
-                else
-                    log.error("Could not register SPARQL endpoint!", future.getCause());
-            }
-        });
-    }
+//    private void registerSparqlEndpoint() throws Exception{
+//
+//        final URI targetUri = new URI(null, null, null, -1 , "/sparql", null, null);
+//        LocalServerChannel localChannel = localChannelFactory.newChannel(localPipelineFactory.getPipeline());
+//        SparqlEndpoint sparqlEndpoint = new SparqlEndpoint(localChannel, this.internalTasksExecutorService);
+//
+//        ChannelFuture future = Channels.write(localChannel, new WebserviceRegistrationMessage(targetUri,
+//                sparqlEndpoint));
+//
+//        future.addListener(new ChannelFutureListener() {
+//            @Override
+//            public void operationComplete(ChannelFuture future) throws Exception {
+//                if(future.isSuccess())
+//                    log.info("Successfully registered SPARQL endpoint at URI {}", targetUri);
+//                else
+//                    log.error("Could not register SPARQL endpoint!", future.getCause());
+//            }
+//        });
+//
+//        sparqlEndpoint.setIoExecutorService(this.ioExecutorService);
+//    }
 }

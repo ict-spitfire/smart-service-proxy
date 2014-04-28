@@ -1,12 +1,16 @@
 package eu.spitfire.ssp.server.handler.cache;
 
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
+import eu.spitfire.ssp.server.messages.ExpiringGraphStatusMessage;
 import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.HashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -22,28 +26,42 @@ public class DummySemanticCache extends SemanticCache {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    public DummySemanticCache(ScheduledExecutorService scheduledExecutorService) {
-        super(scheduledExecutorService);
+    public DummySemanticCache(ExecutorService ioExecutorService, ScheduledExecutorService scheduledExecutorService) {
+        super(ioExecutorService, scheduledExecutorService);
     }
 
     @Override
-    public ExpiringNamedGraphStatusMessage getNamedGraph(URI graphName) {
-        return null;
+    public ListenableFuture<ExpiringGraphStatusMessage> getNamedGraph(URI graphName) {
+
+        SettableFuture<ExpiringGraphStatusMessage> resultFuture = SettableFuture.create();
+        resultFuture.set(null);
+
+        return resultFuture;
     }
 
     @Override
-    public boolean containsNamedGraph(URI graphName) {
-        return false;
+    public ListenableFuture<Boolean> containsNamedGraph(URI graphName) {
+
+        SettableFuture<Boolean> resultFuture = SettableFuture.create();
+        resultFuture.set(false);
+
+        return resultFuture;
     }
 
     @Override
-    public synchronized void putNamedGraphToCache(final URI graphName, Model namedGraph) {
-        //Nothing to do...
+    public ListenableFuture<Void> putNamedGraphToCache(final URI graphName, Model namedGraph) {
+        SettableFuture<Void> resultFuture = SettableFuture.create();
+        resultFuture.set(null);
+
+        return resultFuture;
     }
 
     @Override
-    public synchronized void deleteNamedGraph(URI graphName) {
-        //Nothing to do...
+    public ListenableFuture<Void> deleteNamedGraph(URI graphName) {
+        SettableFuture<Void> resultFuture = SettableFuture.create();
+        resultFuture.set(null);
+
+        return resultFuture;
     }
 
 //    @Override
@@ -51,8 +69,8 @@ public class DummySemanticCache extends SemanticCache {
 //        //Nothing to do...
 //    }
 
-    @Override
-    public boolean supportsSPARQL() {
-        return false;
-    }
+//    @Override
+//    public boolean supportsSPARQL() {
+//        return false;
+//    }
 }

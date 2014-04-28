@@ -3,12 +3,14 @@ package eu.spitfire.ssp.backends.files;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
-import eu.spitfire.ssp.backends.generic.ExpiringNamedGraph;
 import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 import eu.spitfire.ssp.backends.generic.access.DataOriginAccessor;
+import eu.spitfire.ssp.server.handler.cache.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.messages.ExpiringGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
 import eu.spitfire.ssp.server.messages.GraphStatusMessage;
 import eu.spitfire.ssp.utils.Language;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,47 +36,22 @@ public class FileAccessor extends DataOriginAccessor<Path> {
 
 
     @Override
-    public ListenableFuture<ExpiringNamedGraph> getStatus(Path identifier){
-        SettableFuture<ExpiringNamedGraph> statusFuture = SettableFuture.create();
+    public ListenableFuture<GraphStatusMessage> getStatus(Path identifier){
+        SettableFuture<GraphStatusMessage> statusFuture = SettableFuture.create();
 
         try{
-//            BufferedReader fileReader = new BufferedReader(new FileReader(identifier.toString()));
-//
-//
-//            String tmpExpiry = null;
-
-//            for(int i = 0; i < 2; i++){
-//                String actualLine = fileReader.readLine();
-//
-//                if(actualLine != null && actualLine.startsWith("#graphname: ")){
-//                    tmpGraphName = actualLine.substring(actualLine.indexOf(": ") + 2);
-//                    log.info("Name of graph from file \"{}\" is \"{}\"", identifier, tmpGraphName);
-//                }
-//
-//                else if(actualLine != null && actualLine.startsWith("expires: ")){
-//                    tmpExpiry = actualLine.substring(actualLine.indexOf(": ") + 2);
-//                    log.info("Graph from file \"{}\" expires on {}", identifier, tmpExpiry);
-//                }
-//            }
-
             BufferedReader fileReader = new BufferedReader(new FileReader(identifier.toString()));
 
             Model model = ModelFactory.createDefaultModel();
             model.read(fileReader, null, Language.RDF_N3.lang);
 
-//            String tmpGraphName = "file://" + ((FilesBackendComponentFactory) componentFactory).getSspHostName()
-//                    + identifier;
             URI graphName = new URI("file", null, ((FilesBackendComponentFactory) componentFactory).getSspHostName(),
                     -1, identifier.toString(), null, null);
 
             Date expiry = new Date(System.currentTimeMillis() + MILLIS_PER_YEAR);
 
-//            FileDataOrigin dataOrigin = new FileDataOrigin(identifier,
-//                    ((FilesBackendComponentFactory) componentFactory).getSspHostName());
-
             ExpiringNamedGraph dataOriginStatus = new ExpiringNamedGraph(graphName, model, expiry);
-
-            statusFuture.set(dataOriginStatus);
+            statusFuture.set(new ExpiringNamedGraphStatusMessage(dataOriginStatus));
         }
 
         catch (FileNotFoundException ex) {
@@ -92,13 +69,13 @@ public class FileAccessor extends DataOriginAccessor<Path> {
     }
 
     @Override
-    public ListenableFuture<Boolean> setStatus(Path identifier, Model status) throws DataOriginAccessException {
+    public ListenableFuture<GraphStatusMessage> setStatus(Path identifier, Model status) throws DataOriginAccessException {
         //TODO
         return null;
     }
 
     @Override
-    public ListenableFuture<Boolean> deleteDataOrigin(Path identifier) throws DataOriginAccessException {
+    public ListenableFuture<GraphStatusMessage> deleteDataOrigin(Path identifier) throws DataOriginAccessException {
         //TODO
         return null;
     }

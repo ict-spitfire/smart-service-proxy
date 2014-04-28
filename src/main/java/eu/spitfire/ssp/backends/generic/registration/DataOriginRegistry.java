@@ -56,7 +56,7 @@ public abstract class DataOriginRegistry<T> {
             final DataOriginRegistrationMessage<T> registerResourceMessage =
                     new DataOriginRegistrationMessage<>(dataOrigin, httpProxyWebservice);
 
-            log.info("Try to register data origin with identifier {}.", identifier);
+            log.info("Try to register data origin with identifier \"{}\".", identifier);
 
             LocalServerChannel localChannel = componentFactory.getLocalChannel();
             ChannelFuture channelFuture = Channels.write(localChannel, registerResourceMessage);
@@ -70,11 +70,14 @@ public abstract class DataOriginRegistry<T> {
                         if(dataOrigin.isObservable()){
                             DataOriginObserver<T> observer = componentFactory.getDataOriginObserver(dataOrigin);
 
-                            if(observer != null)
+                            if(observer != null){
+                                log.info("Start observation of data origin \"{}\".", dataOrigin);
                                 observer.startObservation(dataOrigin);
-                            else
-                                log.warn("Backend component factory did not return a data origin observer for {}",
+                            }
+                            else{
+                                log.warn("Backend component factory did not return a data origin observer for \"{}\"",
                                         dataOrigin.getIdentifier());
+                            }
                         }
 
                     }

@@ -53,7 +53,7 @@
 //        super(backendComponentFactory);
 //        this.backendComponentFactory = backendComponentFactory;
 //        this.coapClientApplication = backendComponentFactory.getCoapClientApplication();
-//        this.backendTasksExecutorService = backendComponentFactory.getBackendTasksExecutorService();
+//        this.backendTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
 //
 //        CoapRegistrationWebservice registrationWebservice = new CoapRegistrationWebservice(this, backendTasksExecutorService);
 //        this.backendComponentFactory.getCoapServerApplication()

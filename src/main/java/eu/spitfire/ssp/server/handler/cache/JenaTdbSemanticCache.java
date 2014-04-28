@@ -8,27 +8,26 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.Date;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
-import eu.spitfire.ssp.backends.generic.ExpiringNamedGraph;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.hp.hpl.jena.query.*;
+import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.rdf.model.Statement;
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import eu.spitfire.ssp.server.messages.ExpiringGraphStatusMessage;
 import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.GraphStatusMessage;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.ontology.OntModel;
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.query.Query;
-import com.hp.hpl.jena.query.QueryExecution;
-import com.hp.hpl.jena.query.QueryExecutionFactory;
-import com.hp.hpl.jena.query.QueryFactory;
-import com.hp.hpl.jena.query.ReadWrite;
-import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.reasoner.Reasoner;
@@ -59,8 +58,10 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	private Reasoner reasoner;
 
 
-	public JenaTdbSemanticCache(ScheduledExecutorService scheduledExecutorService, Path dbDirectory){
-		super(scheduledExecutorService);
+	public JenaTdbSemanticCache(ExecutorService ioExecutorService,
+                                ScheduledExecutorService internalTasksExecutorService, Path dbDirectory){
+
+		super(ioExecutorService, internalTasksExecutorService);
 
 		File directory = dbDirectory.toFile();
 		File[] oldFiles = directory.listFiles();
@@ -147,27 +148,40 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
 
 	@Override
-	public ExpiringNamedGraphStatusMessage getNamedGraph(URI graphName) throws Exception {
+	public ListenableFuture<ExpiringGraphStatusMessage> getNamedGraph(URI graphName) {
+
+        SettableFuture<ExpiringGraphStatusMessage> resultFuture = SettableFuture.create();
+
         try {
             dataset.begin(ReadWrite.READ);
 
 			if (graphName == null){
 				log.error("Resource URI was NULL!");
-                return null;
+                resultFuture.set(null);
+                return resultFuture;
             }
 
 			Model model = dataset.getNamedModel(graphName.toString());
 
 			if (model.isEmpty()) {
 				log.warn("No cached status found for resource {}", graphName);
-				return null;
+				resultFuture.set(null);
 			}
 
-			log.info("Cached status found for resource {}", graphName);
+            else{
+                log.info("Cached status found for resource {}", graphName);
 
-            ExpiringNamedGraph status = new ExpiringNamedGraph(graphName, model, new Date());
-			return new ExpiringNamedGraphStatusMessage(ExpiringGraphStatusMessage.Code.OK, status);
+                ExpiringNamedGraph expiringNamedGraph = new ExpiringNamedGraph(graphName, model, new Date());
+                resultFuture.set(new ExpiringGraphStatusMessage(HttpResponseStatus.OK, expiringNamedGraph));
+            }
+
+            return resultFuture;
 		}
+
+        catch(Exception ex){
+            resultFuture.setException(ex);
+            return resultFuture;
+        }
 
         finally {
 			dataset.end();
@@ -176,10 +190,22 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	}
 
     @Override
-    public boolean containsNamedGraph(URI graphName) {
+    public ListenableFuture<Boolean> containsNamedGraph(URI graphName) {
+
+        SettableFuture<Boolean> resultFuture = SettableFuture.create();
+
         try{
             dataset.begin(ReadWrite.READ);
-            return !dataset.getNamedModel(graphName.toString()).isEmpty();
+            Boolean result = !dataset.getNamedModel(graphName.toString()).isEmpty();
+
+            resultFuture.set(result);
+            return resultFuture;
+        }
+
+        catch(Exception ex){
+            resultFuture.setException(ex);
+            return resultFuture;
+
         }
 
         finally {
@@ -187,14 +213,19 @@ public class JenaTdbSemanticCache extends SemanticCache {
         }
     }
 
+
     @Override
-	public void putNamedGraphToCache(URI graphName, Model namedGraph) throws Exception {
-		try {
+	public ListenableFuture<Void> putNamedGraphToCache(URI graphName, Model namedGraph){
+
+        SettableFuture<Void> resultFuture = SettableFuture.create();
+
+        try {
             dataset.begin(ReadWrite.WRITE);
 
 			Model model = dataset.getNamedModel(graphName.toString());
 			model.removeAll();
-			model.add(ModelFactory.createInfModel(reasoner, namedGraph));
+//			model.add(ModelFactory.createInfModel(reasoner, namedGraph));
+            model.add(namedGraph);
 //            InfModel im = ModelFactory.createInfModel(reasoner, resourceStatus);
 //			InfModel im = ModelFactory.createInfModel(reasoner, resourceStatus);
 			// force starting the rule execution
@@ -202,22 +233,42 @@ public class JenaTdbSemanticCache extends SemanticCache {
 //			model.add(im);
 			dataset.commit();
 			log.debug("Added status for resource {}", graphName);
+
+            resultFuture.set(null);
+            return resultFuture;
 		}
+
+        catch(Exception ex){
+            resultFuture.setException(ex);
+            return resultFuture;
+        }
 
         finally {
 			dataset.end();
 		}
 	}
 
+
 	@Override
-	public void deleteNamedGraph(URI graphName) throws Exception {
-		try {
+	public ListenableFuture<Void> deleteNamedGraph(URI graphName){
+
+		SettableFuture<Void> resultFuture = SettableFuture.create();
+
+        try {
             dataset.begin(ReadWrite.WRITE);
 
 			dataset.removeNamedModel(graphName.toString());
 			dataset.commit();
 			log.debug("Removed status for resource {}", graphName);
+
+            resultFuture.set(null);
+            return resultFuture;
 		}
+
+        catch(Exception ex){
+            resultFuture.setException(ex);
+            return resultFuture;
+        }
 
         finally {
 			dataset.end();
@@ -255,29 +306,52 @@ public class JenaTdbSemanticCache extends SemanticCache {
 //
 //	}
 
-	public synchronized void processSparqlQuery(SettableFuture<String> queryResultFuture, String sparqlQuery) {
+    @Override
+	public ListenableFuture<GraphStatusMessage> processSparqlQuery(Query sparqlQuery) {
 
+        SettableFuture<GraphStatusMessage> resultFuture = SettableFuture.create();
 		dataset.begin(ReadWrite.READ);
+
 		try {
-			log.info("Start SPARQL query processing: {}", sparqlQuery);
+			log.info("Start SPARQL query processing: {}", sparqlQuery.toString(Syntax.syntaxSPARQL));
 
-			Query query = QueryFactory.create(sparqlQuery);
-			QueryExecution queryExecution = QueryExecutionFactory.create(query, dataset);
+			QueryExecution queryExecution = QueryExecutionFactory.create(sparqlQuery, dataset);
 
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            Model resultGraph = ModelFactory.createDefaultModel();
+
+//			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			try {
 				ResultSet resultSet = queryExecution.execSelect();
-				ResultSetFormatter.outputAsXML(baos, resultSet);
+
+                while(resultSet.hasNext()){
+                    QuerySolution querySolution = resultSet.next();
+                    Statement statement = resultGraph.createStatement(
+                            querySolution.getResource("?s"),
+                            resultGraph.createProperty(querySolution.getResource("?p").getURI()),
+                            querySolution.get("?o")
+                    );
+                    resultGraph.add(statement);
+                }
+//                resultSet.ne
+//                ResultSetFormatter.asRDF(resultGraph, resultSet);
+
+//				ResultSetFormatter.outputAsXML(baos, resultSet);
+//
+//                log.info("SPARQL query result: {}", baos.toString());
+
 			} finally {
 				queryExecution.close();
 			}
-			String result = baos.toString("UTF-8");
+//			String result = baos.toString("UTF-8");
+            ExpiringGraph expiringGraph = new ExpiringGraph(resultGraph, new Date());
+			resultFuture.set(new ExpiringGraphStatusMessage(HttpResponseStatus.OK, expiringGraph));
 
-			queryResultFuture.set(result);
+            return resultFuture;
 		}
 
-        catch (Exception e) {
-			queryResultFuture.setException(e);
+        catch (Exception ex) {
+			resultFuture.setException(ex);
+            return resultFuture;
 		}
 
         finally {
@@ -285,10 +359,10 @@ public class JenaTdbSemanticCache extends SemanticCache {
 		}
 	}
 
-
-	@Override
-	public boolean supportsSPARQL() {
-		return true;
-	}
+//
+//	@Override
+//	public boolean supportsSPARQL() {
+//		return true;
+//	}
 }
 

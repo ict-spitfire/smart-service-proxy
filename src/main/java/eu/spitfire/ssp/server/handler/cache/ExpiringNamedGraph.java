@@ -21,6 +21,7 @@ public class ExpiringNamedGraph extends ExpiringGraph{
         this.graphName = graphName;
     }
 
+
     public URI getGraphName() {
         return graphName;
     }

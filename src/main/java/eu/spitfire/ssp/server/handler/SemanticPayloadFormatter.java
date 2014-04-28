@@ -26,23 +26,19 @@ package eu.spitfire.ssp.server.handler;
 
 import com.google.common.collect.Multimap;
 import com.google.common.collect.TreeMultimap;
-import com.hp.hpl.jena.rdf.model.Model;
-import de.uniluebeck.itm.spitfire.ssphttpobserveovermqttlib.HttpObserveOverMqttLib;
-import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
-import eu.spitfire.ssp.server.messages.GraphStatusMessage;
+import eu.spitfire.ssp.server.messages.*;
+import eu.spitfire.ssp.utils.HttpResponseFactory;
 import eu.spitfire.ssp.utils.Language;
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.*;
+import org.jboss.netty.handler.codec.http.HttpHeaders;
+import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.text.SimpleDateFormat;
-import java.util.*;
-
-import static org.jboss.netty.handler.codec.http.HttpResponseStatus.OK;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * The {@link SemanticPayloadFormatter} recognizes the requested mimetype from the incoming {@link HttpRequest}.
@@ -57,13 +53,8 @@ import static org.jboss.netty.handler.codec.http.HttpResponseStatus.OK;
 public class SemanticPayloadFormatter extends SimpleChannelHandler {
 
     public static final Language DEFAULT_LANGUAGE = Language.RDF_XML;
-    public static final long MILLIS_PER_YEAR = 31536000730L;
 
     private static Logger log = LoggerFactory.getLogger(SemanticPayloadFormatter.class.getName());
-    private static SimpleDateFormat dateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
-    static{
-        dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
-    }
 
     private Language acceptedLanguage;
     private HttpVersion httpVersion;
@@ -108,68 +99,50 @@ public class SemanticPayloadFormatter extends SimpleChannelHandler {
 	public void writeRequested(ChannelHandlerContext ctx, final MessageEvent me) throws Exception {
         log.debug("Downstream: {}", me.getMessage());
 
-
+        HttpResponse httpResponse = null;
 
         if(me.getMessage() instanceof GraphStatusMessage){
-            HttpResponse httpResponse = new DefaultHttpResponse(httpVersion, OK);
 
-            GraphStatusMessage graphStatusMessage = (GraphStatusMessage) me.getMessage();
+            if(me.getMessage() instanceof EmptyGraphStatusMessage){
+                EmptyGraphStatusMessage graphStatusMessage = (EmptyGraphStatusMessage) me.getMessage();
+                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, graphStatusMessage);
+            }
 
-            if(graphStatusMessage.getStatusCode() == GraphStatusMessage.StatusCode.CHANGED){
-                httpResponse
+            else if(me.getMessage() instanceof ExpiringGraphStatusMessage){
+                ExpiringGraphStatusMessage graphStatusMessage = (ExpiringGraphStatusMessage) me.getMessage();
+                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, acceptedLanguage,
+                        graphStatusMessage);
+            }
+
+            else if(me.getMessage() instanceof GraphStatusErrorMessage){
+                GraphStatusErrorMessage graphStatusMessage = (GraphStatusErrorMessage) me.getMessage();
+                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, graphStatusMessage);
+            }
         }
 
-        if(me.getMessage() instanceof ExpiringNamedGraphStatusMessage){
-            final ExpiringNamedGraphStatusMessage expiringNamedGraphStatusMessage = (ExpiringNamedGraphStatusMessage) me.getMessage();
+        else if(me.getMessage() instanceof HttpResponse){
+            httpResponse = (HttpResponse) me.getMessage();
+        }
 
-            Model model = expiringNamedGraphStatusMessage.getGraph();
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-
-            log.info("Model to be serialized{}", model);
-
-            //Serialize the model associated with the resource and write on OutputStream
-            model.write(byteArrayOutputStream, acceptedLanguage.lang);
-
-            HttpResponse httpResponse = new DefaultHttpResponse(httpVersion, OK);
-
-            ChannelBuffer payload = ChannelBuffers.wrappedBuffer(byteArrayOutputStream.toByteArray());
-            httpResponse.setContent(payload);
-
-            httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, acceptedLanguage.mimeType);
-            httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
-
-            if(expiringNamedGraphStatusMessage.getExpiry() == null)
-                httpResponse.headers().add(HttpHeaders.Names.EXPIRES,
-                        dateFormat.format(new Date(System.currentTimeMillis() + MILLIS_PER_YEAR)));
-            else
-                httpResponse.headers().add(HttpHeaders.Names.EXPIRES,
-                        dateFormat.format(expiringNamedGraphStatusMessage.getExpiry()));
-
-            httpResponse.headers().add(HttpHeaders.Names.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
-
+        if(httpResponse != null){
             httpResponse.headers().add("Access-Control-Allow-Origin", "*");
             httpResponse.headers().add("Access-Control-Allow-Credentials", "true");
 
-            //Write HTTP response to remote host, i.e. the client
             Channels.write(ctx, me.getFuture(), httpResponse, me.getRemoteAddress());
 
-            me.getFuture().addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture future) throws Exception {
-                    log.info("Status of {} (encoded in {}) successfully written to {}.",
-                            new Object[]{expiringNamedGraphStatusMessage.getGraphName(), acceptedLanguage.lang,
-                            me.getRemoteAddress()});
-                }
-            });
-
-            return;
+            if(log.isInfoEnabled()){
+                me.getFuture().addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        log.info("HTTP response written to {}.", me.getRemoteAddress());
+                    }
+                });
+            }
         }
 
-        if(me.getMessage() instanceof HttpResponse){
-            ((HttpResponse) me.getMessage()).setHeader("Access-Control-Allow-Origin", "*");
-            ((HttpResponse) me.getMessage()).setHeader("Access-Control-Allow-Credentials", "true");
+        else{
+            ctx.sendDownstream(me);
         }
-        ctx.sendDownstream(me);
     }
 
 

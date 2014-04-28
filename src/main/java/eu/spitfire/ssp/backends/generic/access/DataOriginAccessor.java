@@ -3,7 +3,9 @@ package eu.spitfire.ssp.backends.generic.access;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.generic.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.handler.cache.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.GraphStatusMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,15 +100,18 @@ public abstract class DataOriginAccessor<T> {
      *                   status from
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with the the actual
-     * {@link eu.spitfire.ssp.backends.generic.ExpiringNamedGraph} retrieved retrieved from the given given
+     * {@link ExpiringNamedGraph} retrieved retrieved from the given given
      * identifier of a {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      */
-    public abstract ListenableFuture<ExpiringNamedGraph> getStatus(T identifier) throws DataOriginAccessException;
+    public abstract ListenableFuture<GraphStatusMessage> getStatus(T identifier)
+            throws DataOriginAccessException;
 
 
-    public abstract ListenableFuture<Boolean> setStatus(T identifier, Model status) throws DataOriginAccessException;
+    public abstract ListenableFuture<GraphStatusMessage> setStatus(T identifier, Model status)
+            throws DataOriginAccessException;
 
 
-    public abstract ListenableFuture<Boolean> deleteDataOrigin(T identifier) throws DataOriginAccessException;
+    public abstract ListenableFuture<GraphStatusMessage> deleteDataOrigin(T identifier)
+            throws DataOriginAccessException;
 
 }

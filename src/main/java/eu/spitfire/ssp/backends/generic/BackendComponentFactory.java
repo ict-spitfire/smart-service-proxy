@@ -130,7 +130,7 @@ public abstract class BackendComponentFactory<T>{
      *
      * @return the {@link ScheduledExecutorService} to schedule tasks
      */
-    public final ScheduledExecutorService getBackendTasksExecutorService(){
+    public final ScheduledExecutorService getInternalTasksExecutorService(){
         return this.backendTasksExecutorService;
     }
 

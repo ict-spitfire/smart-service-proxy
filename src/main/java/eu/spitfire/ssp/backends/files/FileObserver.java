@@ -4,8 +4,11 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.backends.generic.ExpiringNamedGraph;
 import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
+import eu.spitfire.ssp.server.handler.cache.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.messages.ExpiringGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.GraphStatusMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,22 +38,31 @@ public class FileObserver extends DataOriginObserver<Path> {
     void updateDetected(final Path file){
         log.info("File {} was updated!", file);
 
-        Futures.addCallback(fileAccessor.getStatus(file), new FutureCallback<ExpiringNamedGraph>() {
+        Futures.addCallback(fileAccessor.getStatus(file), new FutureCallback<GraphStatusMessage>() {
 
             @Override
-            public void onSuccess(ExpiringNamedGraph dataOriginStatus) {
+            public void onSuccess(GraphStatusMessage dataOriginStatus) {
 
-                Futures.addCallback(updateCache(dataOriginStatus), new FutureCallback<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        log.info("Successfully updated cached status from file \"{}\"!", file);
-                    }
+                if(dataOriginStatus instanceof ExpiringNamedGraphStatusMessage){
+                    ExpiringNamedGraphStatusMessage statusMessage = (ExpiringNamedGraphStatusMessage) dataOriginStatus;
 
-                    @Override
-                    public void onFailure(Throwable throwable) {
-                        log.warn("Could not update cached status from file \"{}\"!", file);
-                    }
-                });
+                    Futures.addCallback(updateCache(statusMessage), new FutureCallback<Void>() {
+                        @Override
+                        public void onSuccess(Void aVoid) {
+                            log.info("Successfully updated cached status from file \"{}\"!", file);
+                        }
+
+                        @Override
+                        public void onFailure(Throwable throwable) {
+                            log.warn("Could not update cached status from file \"{}\"!", file);
+                        }
+                    });
+                }
+
+                else{
+                    log.error("Data Origin {} did not return an expiring named graph status but {}",
+                            file, dataOriginStatus);
+                }
             }
 
             @Override
@@ -60,8 +72,10 @@ public class FileObserver extends DataOriginObserver<Path> {
         });
     }
 
+
     @Override
     public void startObservation(DataOrigin<Path> dataOrigin) {
         log.info("Start observation of file {}!", dataOrigin.getIdentifier());
+        updateDetected(dataOrigin.getIdentifier());
     }
 }

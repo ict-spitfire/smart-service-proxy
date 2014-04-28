@@ -42,7 +42,7 @@ class FileWatcher {
         Path rootDirectory = new File(componentFactory.getConfig().getString("directory")).toPath();
         preWatchDirectory(rootDirectory);
 
-        ScheduledExecutorService backendTasksExecutorService = componentFactory.getBackendTasksExecutorService();
+        ScheduledExecutorService backendTasksExecutorService = componentFactory.getInternalTasksExecutorService();
         backendTasksExecutorService.scheduleAtFixedRate(new FileWatchingTask(), 100, 100, TimeUnit.MILLISECONDS);
     }
 

@@ -26,7 +26,7 @@
 //    private DataOriginManager<Path> dataOriginManager;
 //
 //    public OldFilesObserver(OldFilesBackendComponentFactory componentFactory) {
-//        super(componentFactory.getLocalChannel(), componentFactory.getBackendTasksExecutorService());
+//        super(componentFactory.getLocalChannel(), componentFactory.getInternalTasksExecutorService());
 //
 //        this.dataOriginManager = componentFactory.getDataOriginManager();
 //        this.oldFilesRegistry = (OldFilesRegistry) componentFactory.getDataOriginRegistry();

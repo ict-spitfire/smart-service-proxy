@@ -42,7 +42,7 @@
 //        this.dataOriginManager = componentFactory.getDataOriginManager();
 //        this.watchService = componentFactory.getWatchService();
 ////        this.filesObserver = componentFactory.getFilesObserver();
-//        this.scheduledExecutorService = componentFactory.getBackendTasksExecutorService();
+//        this.scheduledExecutorService = componentFactory.getInternalTasksExecutorService();
 //        this.watchKeys = Collections.synchronizedMap(new HashMap<WatchKey, Path>());
 //    }
 //

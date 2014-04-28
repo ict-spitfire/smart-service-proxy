@@ -6,11 +6,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.backends.generic.ExpiringNamedGraph;
-import eu.spitfire.ssp.server.messages.DataOriginRegistrationMessage;
 import eu.spitfire.ssp.server.exceptions.IdentifierAlreadyRegisteredException;
-import eu.spitfire.ssp.server.messages.ExpiringGraphStatusMessage;
-import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
+import eu.spitfire.ssp.server.messages.DataOriginRegistrationMessage;
 import eu.spitfire.ssp.server.messages.GraphStatusMessage;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
@@ -24,14 +21,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Abstract class to be extended by HTTP Webservice instances running on the Smart Service Proxy to provide semantic
- * data, i.e. semantic resource states.
- *
- * Implementing classes are supposed to process the incoming {@link org.jboss.netty.handler.codec.http.HttpRequest},
- * e.g. by converting it to another protocol, forward the translated request to a data-origin, await the
- * response, and set the given {@link com.google.common.util.concurrent.SettableFuture} with an instance of
- * {@link eu.spitfire.ssp.backends.generic.ExpiringNamedGraph} based on the response from
- * the data-origin.
+ * The generic proxy Webservice to translate incoming {@link org.jboss.netty.handler.codec.http.HttpRequest}s to
+ * a proper format to perform the desired operation (GET, POST, PUT, DELETE) on a
+ * {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
  *
  * @author Oliver Kleine
  */
@@ -162,10 +154,8 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
             HttpMethod httpMethod = httpRequest.getMethod();
 
             ListenableFuture resultFuture;
-            final boolean httpResponseOnSuccess;
 
             if(httpMethod.equals(HttpMethod.GET)){
-                httpResponseOnSuccess = false;
                 resultFuture = handleGetRequest(channel, clientAddress, dataOriginAccessor, identifier);
             }
 
@@ -188,13 +178,7 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
 
                 @Override
                 public void onSuccess(Object object) {
-                    if(httpResponseOnSuccess){
-                        HttpVersion httpVersion = httpRequest.getProtocolVersion();
-                        HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
-                                HttpResponseStatus.OK, "Operation successful!");
-
-                        writeHttpResponse(channel, httpResponse, clientAddress);
-                    }
+                    //Nothing to do...
                 }
 
                 @Override
@@ -241,15 +225,11 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
 
         final SettableFuture<Void> resultFuture = SettableFuture.create();
 
-        Futures.addCallback(dataOriginAccessor.getStatus(identifier), new FutureCallback<ExpiringNamedGraph>() {
+        Futures.addCallback(dataOriginAccessor.getStatus(identifier), new FutureCallback<GraphStatusMessage>() {
 
             @Override
-            public void onSuccess(ExpiringNamedGraph namedGraphStatus) {
-                ExpiringNamedGraphStatusMessage expiringNamedGraphStatusMessage =
-                        new ExpiringNamedGraphStatusMessage(GraphStatusMessage.StatusCode.OK, namedGraphStatus);
-
-                writeDataOriginStatusMessage(channel, expiringNamedGraphStatusMessage, clientAddress);
-
+            public void onSuccess(GraphStatusMessage graphStatusMessage) {
+                writeDataOriginStatusMessage(channel, graphStatusMessage, clientAddress);
                 resultFuture.set(null);
             }
 
@@ -300,7 +280,7 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
 
 
 
-    protected void writeDataOriginStatusMessage(Channel channel, ExpiringNamedGraphStatusMessage statusMessage,
+    private void writeDataOriginStatusMessage(Channel channel, GraphStatusMessage statusMessage,
                                                 InetSocketAddress clientAddress){
 
         ChannelFuture future = Channels.write(channel, statusMessage, clientAddress);

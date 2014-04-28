@@ -45,9 +45,9 @@ public class MqttHandler extends SimpleChannelDownstreamHandler{
             log.info("DO something********************************************************************");
             ExpiringNamedGraphStatusMessage message = (ExpiringNamedGraphStatusMessage) me.getMessage();
 
-            final URI resourceUri = message.getGraphName();
-            final Model model = message.getGraph();
-            Date tmpExpiry = message.getExpiry();
+            final URI resourceUri = message.getExpiringGraph().getGraphName();
+            final Model model = message.getExpiringGraph().getGraph();
+            Date tmpExpiry = message.getExpiringGraph().getExpiry();
             final Date expiry = tmpExpiry != null ? tmpExpiry : new Date(System.currentTimeMillis() + 10000);
 
             log.info("Add/Update resource {}", resourceUri);

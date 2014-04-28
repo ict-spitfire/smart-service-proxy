@@ -1,21 +1,31 @@
 package eu.spitfire.ssp.server.messages;
 
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+
 /**
- * Created by olli on 25.04.14.
+ * A {@link eu.spitfire.ssp.server.messages.GraphStatusMessage} is the result of access to a
+ * {@link eu.spitfire.ssp.backends.generic.DataOrigin}. Create instances of this class to represent access results
+ * that were successful but do not contain payload, i.e. upon UPDATE or DELETE operations.
+ *
+ * If the access caused an error, use {@link eu.spitfire.ssp.server.messages.GraphStatusErrorMessage} instead. If the
+ * access result is supposed to contain payload (e.g. GET requests) use
+ * {@link eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage}.
+ *
+ * @author Oliver Kleine
  */
-public class GraphStatusMessage {
+public abstract class GraphStatusMessage {
 
-   public static enum StatusCode {
-        OK, CHANGED, DELETED
-    }
+//   public static enum StatusCode {
+//        OK, CHANGED, DELETED, ERROR
+//   }
 
-    private StatusCode statusCode;
+    private HttpResponseStatus statusCode;
 
-    public GraphStatusMessage(StatusCode statusCode){
+    public GraphStatusMessage(HttpResponseStatus statusCode){
         this.statusCode = statusCode;
     }
 
-    public StatusCode getStatusCode() {
+    public HttpResponseStatus getStatusCode() {
         return statusCode;
     }
 

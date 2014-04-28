@@ -44,7 +44,7 @@
 //        this.backendComponentFactory = backendComponentFactory;
 //        this.coapClientApplication = backendComponentFactory.getCoapClientApplication();
 //        this.dataOriginManager = backendComponentFactory.getDataOriginManager();
-//        this.backendTasksExecutorService = backendComponentFactory.getBackendTasksExecutorService();
+//        this.backendTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
 //    }
 //
 //
