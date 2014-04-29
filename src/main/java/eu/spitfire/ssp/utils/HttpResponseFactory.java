@@ -1,9 +1,11 @@
 package eu.spitfire.ssp.utils;
 
 import com.google.common.collect.Multimap;
+import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.server.messages.*;
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBufferOutputStream;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
@@ -62,9 +64,25 @@ public class HttpResponseFactory {
         return response;
     }
 
+    public static HttpResponse createHttpResponse(HttpVersion httpVersion, QueryResultMessage queryResultMessage,
+                                                  SparqlResultFormat sparqlResultFormat){
 
-    public static HttpResponse createHttpResponse(HttpVersion httpVersion,
-                                           EmptyGraphStatusMessage graphStatusMessage){
+        ChannelBuffer payload = ChannelBuffers.dynamicBuffer();
+        ChannelBufferOutputStream outputStream = new ChannelBufferOutputStream(payload);
+
+        ResultSetFormatter.output(outputStream, queryResultMessage.getQueryResult(), sparqlResultFormat.resultsFormat);
+
+        HttpResponse httpResponse = new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK);
+        httpResponse.setContent(payload);
+
+        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, sparqlResultFormat.mimeType);
+        httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
+
+        return httpResponse;
+
+    }
+
+    public static HttpResponse createHttpResponse(HttpVersion httpVersion, EmptyGraphStatusMessage graphStatusMessage){
 
         return HttpResponseFactory.createHttpResponse(httpVersion, graphStatusMessage.getStatusCode(),
                 "The operation returned with code: " + graphStatusMessage.getStatusCode().toString());

@@ -19,6 +19,7 @@ import com.sun.org.apache.xpath.internal.operations.Bool;
 import eu.spitfire.ssp.server.messages.ExpiringGraphStatusMessage;
 import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
 import eu.spitfire.ssp.server.messages.GraphStatusMessage;
+import eu.spitfire.ssp.server.messages.QueryResultMessage;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -307,9 +308,9 @@ public class JenaTdbSemanticCache extends SemanticCache {
 //	}
 
     @Override
-	public ListenableFuture<GraphStatusMessage> processSparqlQuery(Query sparqlQuery) {
+	public ListenableFuture<QueryResultMessage> processSparqlQuery(Query sparqlQuery) {
 
-        SettableFuture<GraphStatusMessage> resultFuture = SettableFuture.create();
+        SettableFuture<QueryResultMessage> resultFuture = SettableFuture.create();
 		dataset.begin(ReadWrite.READ);
 
 		try {
@@ -317,21 +318,23 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
 			QueryExecution queryExecution = QueryExecutionFactory.create(sparqlQuery, dataset);
 
-            Model resultGraph = ModelFactory.createDefaultModel();
+//            Model resultGraph = ModelFactory.createDefaultModel();
 
 //			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			try {
 				ResultSet resultSet = queryExecution.execSelect();
+                QueryResultMessage resultMessage = new QueryResultMessage(resultSet);
+                resultFuture.set(resultMessage);
 
-                while(resultSet.hasNext()){
-                    QuerySolution querySolution = resultSet.next();
-                    Statement statement = resultGraph.createStatement(
-                            querySolution.getResource("?s"),
-                            resultGraph.createProperty(querySolution.getResource("?p").getURI()),
-                            querySolution.get("?o")
-                    );
-                    resultGraph.add(statement);
-                }
+//                while(resultSet.hasNext()){
+//                    QuerySolution querySolution = resultSet.next();
+//                    Statement statement = resultGraph.createStatement(
+//                            querySolution.getResource("?s"),
+//                            resultGraph.createProperty(querySolution.getResource("?p").getURI()),
+//                            querySolution.get("?o")
+//                    );
+//                    resultGraph.add(statement);
+//                }
 //                resultSet.ne
 //                ResultSetFormatter.asRDF(resultGraph, resultSet);
 
@@ -343,8 +346,8 @@ public class JenaTdbSemanticCache extends SemanticCache {
 				queryExecution.close();
 			}
 //			String result = baos.toString("UTF-8");
-            ExpiringGraph expiringGraph = new ExpiringGraph(resultGraph, new Date());
-			resultFuture.set(new ExpiringGraphStatusMessage(HttpResponseStatus.OK, expiringGraph));
+//            ExpiringGraph expiringGraph = new ExpiringGraph(resultGraph, new Date());
+//			resultFuture.set(new ExpiringGraphStatusMessage(HttpResponseStatus.OK, expiringGraph));
 
             return resultFuture;
 		}

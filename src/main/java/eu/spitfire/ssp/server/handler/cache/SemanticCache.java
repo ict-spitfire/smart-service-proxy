@@ -30,6 +30,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryFactory;
+import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
 import eu.spitfire.ssp.server.messages.*;
@@ -130,10 +131,10 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         try{
             Query sparqlQuery = extractSparqlQuery((HttpRequest) me.getMessage());
 
-            Futures.addCallback(processSparqlQuery(sparqlQuery), new FutureCallback<GraphStatusMessage>() {
+            Futures.addCallback(processSparqlQuery(sparqlQuery), new FutureCallback<QueryResultMessage>() {
 
                 @Override
-                public void onSuccess(GraphStatusMessage result) {
+                public void onSuccess(QueryResultMessage result) {
                     ChannelFuture future = Channels.future(ctx.getChannel());
                     Channels.write(ctx, future, result, me.getRemoteAddress());
 
@@ -199,15 +200,35 @@ public abstract class SemanticCache extends SimpleChannelHandler {
             public void run() {
                 try{
                     Query sparqlQuery = QueryFactory.create(
-                        "SELECT ?s ?p ?o WHERE {?s ?p ?o . FILTER (?s = <" + resourceName + ">)}"
+                        "SELECT ?p ?o WHERE {<" + resourceName + "> ?p ?o .}"
                     );
 
-                    Futures.addCallback(processSparqlQuery(sparqlQuery), new FutureCallback<GraphStatusMessage>(){
+                    Futures.addCallback(processSparqlQuery(sparqlQuery), new FutureCallback<QueryResultMessage>(){
 
                         @Override
-                        public void onSuccess(GraphStatusMessage result) {
+                        public void onSuccess(QueryResultMessage result) {
+                            Model resultGraph = ModelFactory.createDefaultModel();
+                            QuerySolution solution = result.getNextSolution();
+
+                            while(solution != null){
+
+                                Statement statement = resultGraph.createStatement(
+                                    resultGraph.createResource(resourceName.toString()),
+                                    resultGraph.createProperty(solution.getResource("?p").getURI()),
+                                    solution.get("?o")
+                                );
+
+                                resultGraph.add(statement);
+
+                                solution = result.getNextSolution();
+                            }
+
+                            ExpiringGraph expiringGraph = new ExpiringGraph(resultGraph, new Date());
+                            ExpiringGraphStatusMessage message = new ExpiringGraphStatusMessage(HttpResponseStatus.OK,
+                                    expiringGraph);
+
                             ChannelFuture channelFuture = Channels.future(ctx.getChannel());
-                            Channels.write(ctx, channelFuture, result, me.getRemoteAddress());
+                            Channels.write(ctx, channelFuture, message, me.getRemoteAddress());
 
                             channelFuture.addListener(ChannelFutureListener.CLOSE);
                         }
@@ -494,12 +515,13 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with an instance of
      * {@link eu.spitfire.ssp.server.messages.GraphStatusMessage}.
      */
-    public ListenableFuture<GraphStatusMessage> processSparqlQuery(Query sparqlQuery) {
-        SettableFuture<GraphStatusMessage> resultFuture = SettableFuture.create();
-        resultFuture.set(new GraphStatusErrorMessage(HttpResponseStatus.NOT_IMPLEMENTED,
-                "The semantic cache does not support execution of SPARQL queries!"));
+    public ListenableFuture<QueryResultMessage> processSparqlQuery(Query sparqlQuery) {
+        SettableFuture<QueryResultMessage> resultFuture = SettableFuture.create();
+
+        resultFuture.set(null);
 
         return resultFuture;
     }
+
 }
 
