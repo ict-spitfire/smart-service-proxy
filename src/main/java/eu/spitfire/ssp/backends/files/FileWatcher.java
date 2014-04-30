@@ -2,7 +2,7 @@ package eu.spitfire.ssp.backends.files;
 
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import eu.spitfire.ssp.server.exceptions.IdentifierAlreadyRegisteredException;
+import eu.spitfire.ssp.utils.exceptions.IdentifierAlreadyRegisteredException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

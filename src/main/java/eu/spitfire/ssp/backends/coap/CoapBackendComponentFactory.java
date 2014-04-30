@@ -29,7 +29,7 @@
 //import eu.spitfire.ssp.backends.coap.registry.CoapWebserviceRegistry;
 //import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 //import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
-//import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
+//import eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice;
 //import org.apache.commons.configuration.Configuration;
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
@@ -43,7 +43,7 @@
 // * {@link CoapServerApplication} with a {@link eu.spitfire.ssp.backends.coap.registry.CoapRegistrationWebservice} to enable CoAP webservers to register
 // * at the SSP.
 // *
-// * Furthermore it provides a {@link CoapClientApplication} and a {@link eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice}
+// * Furthermore it provides a {@link CoapClientApplication} and a {@link eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice}
 // * to forward incoming HTTP requests to the original host.
 // *
 // * @author Oliver Kleine
@@ -60,7 +60,7 @@
 //
 //    /**
 //     * @param prefix the prefix used for not-absolute resource URIs, e.g. <code>prefix/gui</code>
-//     * @param localPipelineFactory the {@link eu.spitfire.ssp.server.LocalPipelineFactory} to get the channels to send internal messages,
+//     * @param localPipelineFactory the {@link eu.spitfire.ssp.server.InternalPipelineFactory} to get the channels to send internal messages,
 //     *                             e.g. resource status updates.
 //     * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
 //     */

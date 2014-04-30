@@ -5,12 +5,10 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 import eu.spitfire.ssp.backends.generic.access.DataOriginAccessor;
-import eu.spitfire.ssp.server.handler.cache.ExpiringNamedGraph;
-import eu.spitfire.ssp.server.messages.ExpiringGraphStatusMessage;
-import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
-import eu.spitfire.ssp.server.messages.GraphStatusMessage;
+import eu.spitfire.ssp.backends.generic.wrappers.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.common.messages.ExpiringNamedGraphStatusMessage;
+import eu.spitfire.ssp.server.common.messages.GraphStatusMessage;
 import eu.spitfire.ssp.utils.Language;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

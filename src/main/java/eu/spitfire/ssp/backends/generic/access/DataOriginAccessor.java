@@ -3,9 +3,7 @@ package eu.spitfire.ssp.backends.generic.access;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.server.handler.cache.ExpiringNamedGraph;
-import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
-import eu.spitfire.ssp.server.messages.GraphStatusMessage;
+import eu.spitfire.ssp.server.common.messages.GraphStatusMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,7 +98,7 @@ public abstract class DataOriginAccessor<T> {
      *                   status from
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with the the actual
-     * {@link ExpiringNamedGraph} retrieved retrieved from the given given
+     * {@link eu.spitfire.ssp.backends.generic.wrappers.ExpiringNamedGraph} retrieved retrieved from the given given
      * identifier of a {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      */
     public abstract ListenableFuture<GraphStatusMessage> getStatus(T identifier)

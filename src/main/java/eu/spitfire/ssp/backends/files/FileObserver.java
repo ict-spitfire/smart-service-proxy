@@ -5,10 +5,8 @@ import com.google.common.util.concurrent.Futures;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
 import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
-import eu.spitfire.ssp.server.handler.cache.ExpiringNamedGraph;
-import eu.spitfire.ssp.server.messages.ExpiringGraphStatusMessage;
-import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
-import eu.spitfire.ssp.server.messages.GraphStatusMessage;
+import eu.spitfire.ssp.server.common.messages.ExpiringNamedGraphStatusMessage;
+import eu.spitfire.ssp.server.common.messages.GraphStatusMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

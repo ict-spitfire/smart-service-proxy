@@ -18,25 +18,21 @@ import java.net.URI;
  */
 public abstract class DataOrigin<T> {
 
-//    private URI graphName;
     private T identifier;
 
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      *
-//     * @param graphName the backendName of the graph representing the semantic information at this
-//     *                  {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      * @param identifier the identifier for this {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      */
     protected DataOrigin(T identifier){
-//        this.graphName = graphName;
         this.identifier = identifier;
     }
 
     /**
      * Returns <code>true</code> if this {@link eu.spitfire.ssp.backends.generic.DataOrigin} instance is observable
      * and <code>false</code> otherwise
-     * * @return <code>true</code> if this {@link eu.spitfire.ssp.backends.generic.DataOrigin} instance is observable
+     * @return <code>true</code> if this {@link eu.spitfire.ssp.backends.generic.DataOrigin} instance is observable
      * and <code>false</code> otherwise
      */
     public abstract boolean isObservable();

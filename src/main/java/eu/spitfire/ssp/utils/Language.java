@@ -3,28 +3,52 @@ package eu.spitfire.ssp.utils;
 import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
 
 /**
- * Created with IntelliJ IDEA.
- * User: olli
- * Date: 16.07.13
- * Time: 13:40
- * To change this template use File | Settings | File Templates.
+ * A wrapper class for the internal representation of content format names in the JENA framework and corresponding
+ * HTTP mime types.
+ *
+ * @author Oliver Kleine
  */
 public enum Language{
-
+    /**
+     * Corresponds to HTTP mime type "application/rdf+xml"
+     */
     RDF_XML("RDF/XML", "application/rdf+xml"),
+
+    /**
+     * Corresponds to HTTP mime type "application/n3"
+     */
     RDF_N3 ("N3", "application/n3"),
+
+    /**
+     * Corresponds to HTTP mime type "application/turtle"
+     */
     RDF_TURTLE("TURTLE", "application/turtle");
 
-    public static Language DEFAULT_MODEL_LANGUAGE = Language.RDF_XML;
-
+    /**
+     * A String representing the JENA name of the language
+     */
     public String lang;
+
+    /**
+     * A String representing the HTTP mime type of the language
+     */
     public String mimeType;
+
 
     private Language(String lang, String mimeType) {
         this.lang = lang;
         this.mimeType = mimeType;
     }
 
+    /**
+     * Returns the {@link eu.spitfire.ssp.utils.Language} according to the given HTTP mime type or <code>null</code>
+     * if the given mime type is not supported.
+     *
+     * @param mimeType the HTTP mime type to lookup the corresponding {@link eu.spitfire.ssp.utils.Language} for
+     *
+     * @return the {@link eu.spitfire.ssp.utils.Language} according to the given HTTP mime type or <code>null</code>
+     * if the given mime type is not supported.
+     */
     public static Language getByHttpMimeType(String mimeType){
         for(Language language : Language.values()){
             if(mimeType.contains(language.mimeType))

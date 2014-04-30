@@ -3,15 +3,17 @@ package eu.spitfire.ssp;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import eu.spitfire.ssp.backends.files.FilesBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.server.handler.MqttHandler;
-import eu.spitfire.ssp.server.handler.cache.JenaTdbSemanticCache;
-import eu.spitfire.ssp.server.messages.WebserviceRegistrationMessage;
-import eu.spitfire.ssp.server.LocalPipelineFactory;
-import eu.spitfire.ssp.server.SmartServiceProxyPipelineFactory;
-import eu.spitfire.ssp.server.handler.HttpRequestDispatcher;
-import eu.spitfire.ssp.server.handler.cache.DummySemanticCache;
-import eu.spitfire.ssp.server.handler.cache.SemanticCache;
-import eu.spitfire.ssp.server.webservices.FaviconHttpWebservice;
+import eu.spitfire.ssp.server.common.handler.cache.JenaTdbSemanticCache;
+import eu.spitfire.ssp.server.http.HttpProxyPipelineFactory;
+import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
+import eu.spitfire.ssp.server.http.handler.HttpRequestDispatcher;
+import eu.spitfire.ssp.server.common.handler.cache.DummySemanticCache;
+import eu.spitfire.ssp.server.common.handler.cache.SemanticCache;
+import eu.spitfire.ssp.server.http.handler.MqttHandler;
+import eu.spitfire.ssp.server.http.webservices.FaviconHttpWebservice;
+import eu.spitfire.ssp.server.http.webservices.HttpSlseDefinitionWebservice;
+import eu.spitfire.ssp.server.http.webservices.HttpWebservice;
+import eu.spitfire.ssp.server.internal.InternalPipelineFactory;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.*;
@@ -55,7 +57,7 @@ public class Initializer {
     private ServerBootstrap serverBootstrap;
 
     private LocalServerChannelFactory localChannelFactory;
-    private LocalPipelineFactory localPipelineFactory;
+    private InternalPipelineFactory internalPipelineFactory;
 
     private ExecutionHandler executionHandler;
     private HttpRequestDispatcher httpRequestDispatcher;
@@ -93,6 +95,8 @@ public class Initializer {
 //            registerSparqlEndpoint();
 
         registerFavicon();
+
+        registerSlseDefinitionService();
     }
 
 
@@ -150,7 +154,7 @@ public class Initializer {
         this.backendComponentFactories = new ArrayList<>(enabledBackends.length);
 
 
-        ChannelPipeline localPipeline = localPipelineFactory.getPipeline();
+        ChannelPipeline localPipeline = internalPipelineFactory.getPipeline();
 //
 //            localPipeline.addLast("Backend Resource Manager (" + backendName + ")", dataOriginManager);
 
@@ -196,7 +200,7 @@ public class Initializer {
         handler.add(semanticCache);
         handler.add(httpRequestDispatcher);
 
-        this.localPipelineFactory = new LocalPipelineFactory(handler);
+        this.internalPipelineFactory = new InternalPipelineFactory(handler);
         log.debug("Local Pipeline Factory created.");
     }
 
@@ -225,7 +229,7 @@ public class Initializer {
         handler.add(semanticCache);
         handler.add(httpRequestDispatcher);
 
-        this.serverBootstrap.setPipelineFactory(new SmartServiceProxyPipelineFactory(handler));
+        this.serverBootstrap.setPipelineFactory(new HttpProxyPipelineFactory(handler));
         log.debug("Server Bootstrap created.");
     }
 
@@ -291,29 +295,46 @@ public class Initializer {
      */
     private void registerFavicon() throws Exception {
 
-        final URI faviconUri = new URI(null, null, null, -1, "/favicon.ico",null, null);
-        LocalServerChannel localChannel = localChannelFactory.newChannel(localPipelineFactory.getPipeline());
-        ChannelFuture future = Channels.write(localChannel, new WebserviceRegistrationMessage(faviconUri,
-                new FaviconHttpWebservice()));
+        URI faviconUri = new URI(null, null, null, -1, "/favicon.ico",null, null);
+        HttpWebservice httpWebservice = new FaviconHttpWebservice();
+
+        registerHttpWebservice(faviconUri, httpWebservice);
+    }
+
+
+    private void registerSlseDefinitionService() throws Exception{
+
+        URI webserviceUri = new URI(null, null, null, -1, "/slse-definition.html",null, null);
+        HttpWebservice httpWebservice = new HttpSlseDefinitionWebservice();
+
+        registerHttpWebservice(webserviceUri, httpWebservice);
+
+    }
+
+
+    private void registerHttpWebservice(final URI webserviceUri, HttpWebservice httpWebservice) throws Exception{
+
+        LocalServerChannel localChannel = localChannelFactory.newChannel(internalPipelineFactory.getPipeline());
+        WebserviceRegistrationMessage registrationMessage = new WebserviceRegistrationMessage(webserviceUri,
+                httpWebservice);
+
+        ChannelFuture future = Channels.write(localChannel, registrationMessage);
 
         future.addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 if (future.isSuccess())
-                    log.info("Successfully registered Favicon Service at URI {}", faviconUri);
+                    log.info("Successfully registered HTTP Webservice at URI {}", webserviceUri);
                 else
-                    log.error("Could not register Favicon Service!", future.getCause());
+                    log.error("Could not register HTTP Webservice!", future.getCause());
             }
         });
     }
 
-
-
-
 //    private void registerSparqlEndpoint() throws Exception{
 //
 //        final URI targetUri = new URI(null, null, null, -1 , "/sparql", null, null);
-//        LocalServerChannel localChannel = localChannelFactory.newChannel(localPipelineFactory.getPipeline());
+//        LocalServerChannel localChannel = localChannelFactory.newChannel(internalPipelineFactory.getPipeline());
 //        SparqlEndpoint sparqlEndpoint = new SparqlEndpoint(localChannel, this.internalTasksExecutorService);
 //
 //        ChannelFuture future = Channels.write(localChannel, new WebserviceRegistrationMessage(targetUri,

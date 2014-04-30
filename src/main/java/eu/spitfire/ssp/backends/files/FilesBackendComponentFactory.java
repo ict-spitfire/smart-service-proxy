@@ -1,16 +1,15 @@
 package eu.spitfire.ssp.backends.files;
 
-import com.sun.istack.internal.Nullable;
-import eu.spitfire.ssp.backends.generic.*;
-import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
+import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
+import eu.spitfire.ssp.backends.generic.DataOrigin;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.*;
-import java.util.HashMap;
-import java.util.Map;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.nio.file.WatchService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -18,8 +17,6 @@ import java.util.concurrent.ScheduledExecutorService;
  * Created by olli on 11.04.14.
  */
 public class FilesBackendComponentFactory extends BackendComponentFactory<Path> {
-
-//    private HttpSemanticProxyWebserviceForFiles proxyWebserviceForFiles;
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -89,7 +86,7 @@ public class FilesBackendComponentFactory extends BackendComponentFactory<Path> 
 
 
     @Override
-    public FileAccessor getDataOriginAccessor(@Nullable DataOrigin<Path> dataOrigin) {
+    public FileAccessor getDataOriginAccessor(DataOrigin<Path> dataOrigin) {
         return this.fileAccessor;
     }
 

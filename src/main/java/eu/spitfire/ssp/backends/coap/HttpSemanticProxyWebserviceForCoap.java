@@ -8,7 +8,7 @@
 //import de.uniluebeck.itm.ncoap.message.MessageType;
 //import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
 //import eu.spitfire.ssp.backends.generic.DataOriginManager;
-//import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
+//import eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice;
 //import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 //import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 //import org.jboss.netty.handler.codec.http.HttpMethod;

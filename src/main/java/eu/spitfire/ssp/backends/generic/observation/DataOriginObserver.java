@@ -4,12 +4,10 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.server.handler.cache.ExpiringNamedGraph;
-import eu.spitfire.ssp.server.messages.ExpiringNamedGraphStatusMessage;
+import eu.spitfire.ssp.server.common.messages.ExpiringNamedGraphStatusMessage;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,9 +23,9 @@ public abstract class DataOriginObserver<T>{
 
 
     /**
-     * Updates the cache according to the given {@link eu.spitfire.ssp.server.handler.cache.ExpiringNamedGraph}.
+     * Updates the cache according to the given {@link eu.spitfire.ssp.backends.generic.wrappers.ExpiringNamedGraph}.
      *
-     * @param dataOriginStatus the {@link eu.spitfire.ssp.server.handler.cache.ExpiringNamedGraph} to be used to
+     * @param dataOriginStatus the {@link eu.spitfire.ssp.backends.generic.wrappers.ExpiringNamedGraph} to be used to
      *                         update the cache
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} that is set with <code>null</code> if the
@@ -76,7 +74,7 @@ public abstract class DataOriginObserver<T>{
     /**
      * Starts the observation of the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}. Whenever the status
      * of the observed {@link eu.spitfire.ssp.backends.generic.DataOrigin} changes, implementing classes are supposed
-     * to invoke {@link #updateCache(eu.spitfire.ssp.server.handler.cache.ExpiringNamedGraph)}.
+     * to invoke {@link #updateCache(eu.spitfire.ssp.backends.generic.wrappers.ExpiringNamedGraph)}.
      *
      * @param dataOrigin the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to be observed.
      */

@@ -24,9 +24,8 @@
 */
 package eu.spitfire.ssp.backends.generic;
 
-import com.sun.istack.internal.Nullable;
 import eu.spitfire.ssp.backends.generic.access.DataOriginAccessor;
-import eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice;
+import eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice;
 import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
 import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
 import org.apache.commons.configuration.Configuration;
@@ -44,7 +43,7 @@ import java.util.concurrent.ScheduledExecutorService;
  * talking HTTP to communicate with an arbitrary server.
  *
  * Classes inheriting from {@link BackendComponentFactory} are responsible to provide the necessary components,
- * i.e. {@link eu.spitfire.ssp.server.webservices.HttpWebservice} instances to translate the incoming
+ * i.e. {@link eu.spitfire.ssp.server.http.webservices.HttpWebservice} instances to translate the incoming
  * {@link HttpRequest} to whatever (potentially proprietary) protocol the actual server talks and to enable the
  * SSP framework to produce a suitable {@link HttpResponse} which is then sent to the client.
  *
@@ -150,10 +149,10 @@ public abstract class BackendComponentFactory<T>{
 
 
     /**
-     * Returns the {@link eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
+     * Returns the {@link eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
      * for the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      *
-     * @return the {@link eu.spitfire.ssp.backends.generic.access.HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
+     * @return the {@link eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
      * for the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      */
     public HttpSemanticProxyWebservice<T> getSemanticProxyWebservice(DataOrigin<T> dataOrigin){
@@ -198,7 +197,7 @@ public abstract class BackendComponentFactory<T>{
      * {@link eu.spitfire.ssp.backends.generic.DataOrigin} or <code>null</code> if no such
      * {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} exists.
      */
-    public abstract DataOriginAccessor<T> getDataOriginAccessor(@Nullable DataOrigin<T> dataOrigin);
+    public abstract DataOriginAccessor<T> getDataOriginAccessor(DataOrigin<T> dataOrigin);
 
 
 //    /**
