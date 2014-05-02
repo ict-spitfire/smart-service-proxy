@@ -37,14 +37,14 @@
 //    private CoapBackendComponentFactory backendComponentFactory;
 //    private DataOriginManager<URI> dataOriginManager;
 //    private CoapClientApplication coapClientApplication;
-//    private ExecutorService backendTasksExecutorService;
+//    private ExecutorService internalTasksExecutorService;
 //
 //
 //    public HttpSemanticProxyWebserviceForCoap(CoapBackendComponentFactory backendComponentFactory){
 //        this.backendComponentFactory = backendComponentFactory;
 //        this.coapClientApplication = backendComponentFactory.getCoapClientApplication();
 //        this.dataOriginManager = backendComponentFactory.getDataOriginManager();
-//        this.backendTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
+//        this.internalTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
 //    }
 //
 //

@@ -64,10 +64,10 @@
 //     *                             e.g. resource status updates.
 //     * @param scheduledExecutorService the {@link ScheduledExecutorService} for resource management tasks.
 //     */
-//    public CoapBackendComponentFactory(String prefix, Configuration config, ScheduledExecutorService backendTasksExecutorService)
+//    public CoapBackendComponentFactory(String prefix, Configuration config, ScheduledExecutorService internalTasksExecutorService)
 //            throws Exception{
 //
-//        super(prefix, config, backendTasksExecutorService);
+//        super(prefix, config, internalTasksExecutorService);
 //
 //        //create instances of CoAP client and server applications
 //        this.coapClientApplication = new CoapClientApplication();

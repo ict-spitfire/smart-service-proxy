@@ -41,14 +41,14 @@
 //    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 //    private CoapClientApplication coapClientApplication;
 //    private URI dataOrigin;
-//    private ExecutorService backendTasksExecutorService;
+//    private ExecutorService internalTasksExecutorService;
 //
 //
 //    public CoapWebserviceObserver(CoapBackendComponentFactory backendComponentFactory, URI dataOrigin) {
 //        super(backendComponentFactory);
 //        this.dataOrigin = dataOrigin;
 //        this.coapClientApplication = backendComponentFactory.getCoapClientApplication();
-//        this.backendTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
+//        this.internalTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
 //    }
 //
 //
@@ -69,7 +69,7 @@
 //
 //    @Override
 //    public void processCoapResponse(final CoapResponse coapResponse) {
-//        backendTasksExecutorService.submit(new Runnable() {
+//        internalTasksExecutorService.submit(new Runnable() {
 //            @Override
 //            public void run() {
 //                log.info("Received update notification from service {}: {}", dataOrigin, coapResponse);

@@ -45,7 +45,7 @@
 //    private SettableFuture<InternalResourceStatusMessage> resourceStatusFuture;
 //    private URI dataOrigin;
 //    private URI resourceUri;
-//    private ExecutorService backendTasksExecutorService;
+//    private ExecutorService internalTasksExecutorService;
 //    private LocalServerChannel localServerChannel;
 //
 //
@@ -53,7 +53,7 @@
 //                                           URI resourceUri){
 //
 //        this.localServerChannel = backendComponentFactory.getLocalChannel();
-//        this.backendTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
+//        this.internalTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
 //
 //        this.resourceStatusFuture = SettableFuture.create();
 //        this.dataOrigin = dataOrigin;
@@ -79,7 +79,7 @@
 //    @Override
 //    public void processCoapResponse(final CoapResponse coapResponse) {
 //
-//        backendTasksExecutorService.submit(new Runnable(){
+//        internalTasksExecutorService.submit(new Runnable(){
 //
 //            @Override
 //            public void run() {

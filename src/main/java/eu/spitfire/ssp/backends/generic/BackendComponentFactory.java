@@ -54,7 +54,7 @@ public abstract class BackendComponentFactory<T>{
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     protected DataOriginRegistry<T> dataOriginRegistry;
-    protected ScheduledExecutorService backendTasksExecutorService;
+    protected ScheduledExecutorService internalTasksExecutorService;
     protected ExecutorService ioExecutorService;
     protected String backendName;
     protected LocalServerChannel localChannel;
@@ -67,18 +67,18 @@ public abstract class BackendComponentFactory<T>{
      *
      * @param prefix the prefix of the backend in the given config (without the ".")
      * @param config the SSP config
-     * @param backendTasksExecutorService the {@link java.util.concurrent.ScheduledExecutorService} for backend tasks,
+     * @param internalTasksExecutorService the {@link java.util.concurrent.ScheduledExecutorService} for backend tasks,
      *                                    e.g. translating and forwarding requests to data origins
      *
      * @throws Exception if something went terribly wrong
      */
     protected BackendComponentFactory(String prefix, Configuration config, LocalServerChannel localChannel,
-            ScheduledExecutorService backendTasksExecutorService, ExecutorService ioExecutorService)
+            ScheduledExecutorService internalTasksExecutorService, ExecutorService ioExecutorService)
         throws Exception {
 
         this.localChannel = localChannel;
         this.backendName = config.getString(prefix + ".backend.name");
-        this.backendTasksExecutorService = backendTasksExecutorService;
+        this.internalTasksExecutorService = internalTasksExecutorService;
         this.ioExecutorService = ioExecutorService;
 
     }
@@ -96,6 +96,10 @@ public abstract class BackendComponentFactory<T>{
 
         //Create semantic proxy Webservice
         this.semanticProxyWebservice = new HttpSemanticProxyWebservice<>(this);
+
+        this.semanticProxyWebservice.setIoExecutorService(this.ioExecutorService);
+        this.semanticProxyWebservice.setInternalTasksExecutorService(this.internalTasksExecutorService);
+
         this.localChannel.getPipeline().addLast("Semantic Proxy Webservice", this.semanticProxyWebservice);
 
         //Create data origin registry
@@ -130,7 +134,7 @@ public abstract class BackendComponentFactory<T>{
      * @return the {@link ScheduledExecutorService} to schedule tasks
      */
     public final ScheduledExecutorService getInternalTasksExecutorService(){
-        return this.backendTasksExecutorService;
+        return this.internalTasksExecutorService;
     }
 
 

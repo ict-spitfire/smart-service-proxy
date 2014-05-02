@@ -8,6 +8,8 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.net.InetSocketAddress;
@@ -17,8 +19,11 @@ import java.net.InetSocketAddress;
  */
 public class HttpSlseDefinitionWebservice extends HttpWebservice {
 
+    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
+
     @Override
     public void processHttpRequest(Channel channel, HttpRequest httpRequest, InetSocketAddress clientAddress) {
+        log.info("Process HTTP request for SLSE definition Service!");
 
         if(httpRequest.getMethod() == HttpMethod.GET){
             processGet(channel, httpRequest, clientAddress);
@@ -51,7 +56,7 @@ public class HttpSlseDefinitionWebservice extends HttpWebservice {
     }
 
     private ChannelBuffer getHtmlContent() throws Exception{
-        InputStream inputStream = FaviconHttpWebservice.class.getResourceAsStream("SlseDefinition.html");
+        InputStream inputStream = HttpFaviconWebservice.class.getResourceAsStream("SlseDefinition.html");
         ChannelBuffer htmlContentBuffer = ChannelBuffers.dynamicBuffer();
 
         int value = inputStream.read();

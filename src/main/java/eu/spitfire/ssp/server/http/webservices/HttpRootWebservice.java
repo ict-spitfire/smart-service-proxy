@@ -25,7 +25,7 @@ import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
  *
  * @author Oliver Kleine
  */
-public class ProxyMainWebsite extends HttpWebservice {
+public class HttpRootWebservice extends HttpWebservice {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -34,7 +34,7 @@ public class ProxyMainWebsite extends HttpWebservice {
     /**
      * @param webservices the {@link Set} containing the {@link URI}s to be listed in the HTTP response
      */
-    public ProxyMainWebsite(Map<String, HttpWebservice> webservices){
+    public HttpRootWebservice(Map<String, HttpWebservice> webservices){
         this.services = webservices;
     }
 

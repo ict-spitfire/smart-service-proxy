@@ -37,13 +37,13 @@
 //    private SettableFuture<Multimap<String, LinkAttribute>> wellKnownCoreFuture;
 //    private AtomicInteger transmissionCounter;
 //
-//    private ExecutorService backendTasksExecutorService;
+//    private ExecutorService internalTasksExecutorService;
 //
 //
-//    public WellKnownCoreResponseProcessor(ExecutorService backendTasksExecutorService){
+//    public WellKnownCoreResponseProcessor(ExecutorService internalTasksExecutorService){
 //        this.transmissionCounter = new AtomicInteger(0);
 //        this.wellKnownCoreFuture = SettableFuture.create();
-//        this.backendTasksExecutorService = backendTasksExecutorService;
+//        this.internalTasksExecutorService = internalTasksExecutorService;
 //    }
 //
 //
@@ -54,7 +54,7 @@
 //
 //    @Override
 //    public void processCoapResponse(final CoapResponse coapResponse) {
-//        backendTasksExecutorService.submit(new Runnable() {
+//        internalTasksExecutorService.submit(new Runnable() {
 //            @Override
 //            public void run() {
 //                try{

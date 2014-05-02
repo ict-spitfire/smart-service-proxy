@@ -47,15 +47,15 @@
 //
 //    private CoapBackendComponentFactory backendComponentFactory;
 //    private CoapClientApplication coapClientApplication;
-//    private ExecutorService backendTasksExecutorService;
+//    private ExecutorService internalTasksExecutorService;
 //
 //    public CoapWebserviceRegistry(CoapBackendComponentFactory backendComponentFactory) {
 //        super(backendComponentFactory);
 //        this.backendComponentFactory = backendComponentFactory;
 //        this.coapClientApplication = backendComponentFactory.getCoapClientApplication();
-//        this.backendTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
+//        this.internalTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
 //
-//        CoapRegistrationWebservice registrationWebservice = new CoapRegistrationWebservice(this, backendTasksExecutorService);
+//        CoapRegistrationWebservice registrationWebservice = new CoapRegistrationWebservice(this, internalTasksExecutorService);
 //        this.backendComponentFactory.getCoapServerApplication()
 //                                    .registerService(registrationWebservice);
 //
@@ -78,7 +78,7 @@
 //            final SettableFuture<Set<URI>> result = SettableFuture.create();
 //
 //             //Send request for .well-known/core resource
-//            WellKnownCoreResponseProcessor responseProcessor = new WellKnownCoreResponseProcessor(backendTasksExecutorService);
+//            WellKnownCoreResponseProcessor responseProcessor = new WellKnownCoreResponseProcessor(internalTasksExecutorService);
 //            sendWellKnownCoreRequest(remoteAddress, CoapServerApplication.DEFAULT_COAP_SERVER_PORT, responseProcessor);
 //
 //            final ListenableFuture<Multimap<String, LinkAttribute>> wellKnownCoreFuture =
@@ -105,7 +105,7 @@
 //                            result.setException(throwable);
 //                        }
 //
-//                    }, backendTasksExecutorService);
+//                    }, internalTasksExecutorService);
 //                }
 //
 //                @Override
@@ -131,7 +131,7 @@
 ////            throws URISyntaxException {
 ////
 ////        //Send request for .well-known/core resource
-////        WellKnownCoreResponseProcessor responseProcessor = new WellKnownCoreResponseProcessor(backendTasksExecutorService);
+////        WellKnownCoreResponseProcessor responseProcessor = new WellKnownCoreResponseProcessor(internalTasksExecutorService);
 ////        sendWellKnownCoreRequest(remoteAddress, CoapServerApplication.DEFAULT_COAP_SERVER_PORT, responseProcessor);
 ////
 ////        return responseProcessor.getWellKnownCoreFuture();
@@ -210,7 +210,7 @@
 //                                    result.set(registeredResources);
 //                            }
 //
-//                        }, backendTasksExecutorService);
+//                        }, internalTasksExecutorService);
 //                    }
 //
 //                    @Override
@@ -221,7 +221,7 @@
 //                            result.set(registeredResources);
 //                    }
 //
-//                }, backendTasksExecutorService);
+//                }, internalTasksExecutorService);
 //
 //
 //            }

@@ -10,9 +10,7 @@ import eu.spitfire.ssp.server.http.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.common.handler.cache.DummySemanticCache;
 import eu.spitfire.ssp.server.common.handler.cache.SemanticCache;
 import eu.spitfire.ssp.server.http.handler.MqttHandler;
-import eu.spitfire.ssp.server.http.webservices.FaviconHttpWebservice;
-import eu.spitfire.ssp.server.http.webservices.HttpSlseDefinitionWebservice;
-import eu.spitfire.ssp.server.http.webservices.HttpWebservice;
+import eu.spitfire.ssp.server.http.webservices.*;
 import eu.spitfire.ssp.server.internal.InternalPipelineFactory;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.bootstrap.ServerBootstrap;
@@ -34,6 +32,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -72,7 +71,7 @@ public class Initializer {
         this.localChannelFactory = new DefaultLocalServerChannelFactory();
 
         //Create Executor Services
-        createMgmtExecutorService(config);
+        createInternalTasksExecutorService(config);
         createIoExecutorService(config);
 
         //Create Pipeline Components
@@ -94,16 +93,17 @@ public class Initializer {
 //        if(this.semanticCache.supportsSPARQL())
 //            registerSparqlEndpoint();
 
+        registerMainWebsite();
         registerFavicon();
-
         registerSlseDefinitionService();
+        registerSlseCreationService();
     }
 
 
-    private void createMgmtExecutorService(Configuration config) {
+    private void createInternalTasksExecutorService(Configuration config) {
 
         //Scheduled Executor Service for management tasks, i.e. everything that is not I/O
-        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("Request Processing Thread #%d")
+        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP Internal Thread #%d")
                 .build();
 
         int threadCount = Math.max(Runtime.getRuntime().availableProcessors() * 2,
@@ -119,7 +119,7 @@ public class Initializer {
         int threadCount = Math.max(Runtime.getRuntime().availableProcessors() * 2,
                 config.getInt("SSP_I/O_THREADS", 0));
 
-        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP-REQUEST-EXECUTION-Thread #%d")
+        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP I/O Thread #%d")
                 .build();
 
         this.ioExecutorService = new OrderedMemoryAwareThreadPoolExecutor(threadCount, 0, 0, 60, TimeUnit.SECONDS,
@@ -290,13 +290,20 @@ public class Initializer {
     }
 
 
+    private void registerMainWebsite() throws Exception{
+        URI webserviceUri = new URI(null, null, null, -1, "/",null, null);
+        Map<String, HttpWebservice> webservices = this.httpRequestDispatcher.getWebservices();
+
+        registerHttpWebservice(webserviceUri, new HttpRootWebservice(webservices));
+    }
+
     /**
      * Registers the service to provide the favicon.ico
      */
     private void registerFavicon() throws Exception {
 
         URI faviconUri = new URI(null, null, null, -1, "/favicon.ico",null, null);
-        HttpWebservice httpWebservice = new FaviconHttpWebservice();
+        HttpWebservice httpWebservice = new HttpFaviconWebservice();
 
         registerHttpWebservice(faviconUri, httpWebservice);
     }
@@ -306,6 +313,16 @@ public class Initializer {
 
         URI webserviceUri = new URI(null, null, null, -1, "/slse-definition.html",null, null);
         HttpWebservice httpWebservice = new HttpSlseDefinitionWebservice();
+
+        registerHttpWebservice(webserviceUri, httpWebservice);
+
+    }
+
+
+    private void registerSlseCreationService() throws Exception{
+
+        URI webserviceUri = new URI(null, null, null, -1, "/slse-creation",null, null);
+        HttpWebservice httpWebservice = new HttpSlseCreationWebservice();
 
         registerHttpWebservice(webserviceUri, httpWebservice);
 
@@ -329,6 +346,9 @@ public class Initializer {
                     log.error("Could not register HTTP Webservice!", future.getCause());
             }
         });
+
+       httpWebservice.setIoExecutorService(this.ioExecutorService);
+       httpWebservice.setInternalTasksExecutorService(this.internalTasksExecutorService);
     }
 
 //    private void registerSparqlEndpoint() throws Exception{

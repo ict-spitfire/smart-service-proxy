@@ -18,7 +18,7 @@ import java.util.Locale;
  *
  * @author Oliver Kleine
  */
-public class FaviconHttpWebservice extends HttpWebservice {
+public class HttpFaviconWebservice extends HttpWebservice {
 
     private static SimpleDateFormat dateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
     private static final long MILLISECONDS_PER_YEAR = 31556926000L;
@@ -31,9 +31,9 @@ public class FaviconHttpWebservice extends HttpWebservice {
      * Reads the favicon.ico file at <code>resources/eu/spitfire/ssp/core/webservice/favicon.ico</code> and provides
      * this image as favicon service.
      */
-    public FaviconHttpWebservice(){
+    public HttpFaviconWebservice(){
         try{
-            InputStream inputStream = FaviconHttpWebservice.class.getResourceAsStream("favicon.ico");
+            InputStream inputStream = HttpFaviconWebservice.class.getResourceAsStream("favicon.ico");
             faviconBuffer = ChannelBuffers.dynamicBuffer();
             int value = inputStream.read();
             while(value != -1){
