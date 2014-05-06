@@ -6,7 +6,7 @@ import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.server.common.messages.EmptyGraphStatusMessage;
 import eu.spitfire.ssp.server.common.messages.ExpiringGraphStatusMessage;
 import eu.spitfire.ssp.server.common.messages.GraphStatusErrorMessage;
-import eu.spitfire.ssp.server.common.messages.QueryResultMessage;
+import eu.spitfire.ssp.server.common.messages.SparqlQueryResultMessage;
 import eu.spitfire.ssp.utils.Language;
 import eu.spitfire.ssp.utils.SparqlResultFormat;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -82,7 +82,7 @@ public class HttpResponseFactory {
         return response;
     }
 
-    public static HttpResponse createHttpResponse(HttpVersion httpVersion, QueryResultMessage queryResultMessage,
+    public static HttpResponse createHttpResponse(HttpVersion httpVersion, SparqlQueryResultMessage queryResultMessage,
                                                   SparqlResultFormat sparqlResultFormat){
 
         ChannelBuffer payload = ChannelBuffers.dynamicBuffer();

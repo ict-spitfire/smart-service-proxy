@@ -3,6 +3,7 @@ package eu.spitfire.ssp.backends.generic.access;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
+import eu.spitfire.ssp.backends.generic.DataOrigin;
 import eu.spitfire.ssp.server.common.messages.GraphStatusMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,14 +95,13 @@ public abstract class DataOriginAccessor<T> {
      * occurs while accessing the data origin set the returned future with an instance of
      * {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessException}.
      *
-     * @param identifier the {@link T} of the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to retrieve the
-     *                   status from
+     * @param dataOrigin the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to retrieve the status from
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with the the actual
-     * {@link eu.spitfire.ssp.backends.generic.wrappers.ExpiringNamedGraph} retrieved retrieved from the given given
+     * {@link eu.spitfire.ssp.server.common.wrapper.ExpiringNamedGraph} retrieved retrieved from the given given
      * identifier of a {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      */
-    public abstract ListenableFuture<GraphStatusMessage> getStatus(T identifier)
+    public abstract ListenableFuture<GraphStatusMessage> getStatus(DataOrigin<T> dataOrigin)
             throws DataOriginAccessException;
 
 

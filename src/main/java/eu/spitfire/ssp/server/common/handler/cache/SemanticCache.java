@@ -33,7 +33,7 @@ import com.hp.hpl.jena.query.QueryFactory;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.backends.generic.wrappers.ExpiringGraph;
+import eu.spitfire.ssp.server.common.wrapper.ExpiringGraph;
 import eu.spitfire.ssp.server.common.messages.*;
 import eu.spitfire.ssp.utils.exceptions.GraphNameAlreadyExistsException;
 import eu.spitfire.ssp.server.http.HttpResponseFactory;
@@ -132,10 +132,10 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         try{
             Query sparqlQuery = extractSparqlQuery((HttpRequest) me.getMessage());
 
-            Futures.addCallback(processSparqlQuery(sparqlQuery), new FutureCallback<QueryResultMessage>() {
+            Futures.addCallback(processSparqlQuery(sparqlQuery), new FutureCallback<SparqlQueryResultMessage>() {
 
                 @Override
-                public void onSuccess(QueryResultMessage result) {
+                public void onSuccess(SparqlQueryResultMessage result) {
                     ChannelFuture future = Channels.future(ctx.getChannel());
                     Channels.write(ctx, future, result, me.getRemoteAddress());
 
@@ -204,10 +204,10 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                         "SELECT ?p ?o WHERE {<" + resourceName + "> ?p ?o .}"
                     );
 
-                    Futures.addCallback(processSparqlQuery(sparqlQuery), new FutureCallback<QueryResultMessage>(){
+                    Futures.addCallback(processSparqlQuery(sparqlQuery), new FutureCallback<SparqlQueryResultMessage>(){
 
                         @Override
-                        public void onSuccess(QueryResultMessage result) {
+                        public void onSuccess(SparqlQueryResultMessage result) {
                             Model resultGraph = ModelFactory.createDefaultModel();
                             QuerySolution solution = result.getNextSolution();
 
@@ -516,8 +516,8 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with an instance of
      * {@link eu.spitfire.ssp.server.common.messages.GraphStatusMessage}.
      */
-    public ListenableFuture<QueryResultMessage> processSparqlQuery(Query sparqlQuery) {
-        SettableFuture<QueryResultMessage> resultFuture = SettableFuture.create();
+    public ListenableFuture<SparqlQueryResultMessage> processSparqlQuery(Query sparqlQuery) {
+        SettableFuture<SparqlQueryResultMessage> resultFuture = SettableFuture.create();
 
         resultFuture.set(null);
 

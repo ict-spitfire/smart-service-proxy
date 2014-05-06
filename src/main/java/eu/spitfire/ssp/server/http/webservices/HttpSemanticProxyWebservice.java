@@ -150,14 +150,12 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
             }
 
 
-            T identifier = dataOrigin.getIdentifier();
-
             HttpMethod httpMethod = httpRequest.getMethod();
 
             ListenableFuture resultFuture;
 
             if(httpMethod.equals(HttpMethod.GET)){
-                resultFuture = handleGetRequest(channel, clientAddress, dataOriginAccessor, identifier);
+                resultFuture = handleGetRequest(channel, clientAddress, dataOriginAccessor, dataOrigin);
             }
 
 //            else if(httpMethod.equals(HttpMethod.PUT)){
@@ -222,11 +220,11 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
 
 
     private ListenableFuture<Void> handleGetRequest(final Channel channel, final InetSocketAddress clientAddress,
-            DataOriginAccessor<T> dataOriginAccessor, T identifier) throws DataOriginAccessException {
+            DataOriginAccessor<T> dataOriginAccessor, DataOrigin<T> dataOrigin) throws DataOriginAccessException {
 
         final SettableFuture<Void> resultFuture = SettableFuture.create();
 
-        Futures.addCallback(dataOriginAccessor.getStatus(identifier), new FutureCallback<GraphStatusMessage>() {
+        Futures.addCallback(dataOriginAccessor.getStatus(dataOrigin), new FutureCallback<GraphStatusMessage>() {
 
             @Override
             public void onSuccess(GraphStatusMessage graphStatusMessage) {

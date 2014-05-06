@@ -1,7 +1,7 @@
 package eu.spitfire.ssp.server.common.messages;
 
 
-import eu.spitfire.ssp.backends.generic.wrappers.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.common.wrapper.ExpiringNamedGraph;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 /**

@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.server.common.messages;
 
-import eu.spitfire.ssp.backends.generic.wrappers.ExpiringGraph;
+import eu.spitfire.ssp.server.common.wrapper.ExpiringGraph;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 /**

@@ -168,15 +168,15 @@ public class HttpSemanticPayloadFormatter extends SimpleChannelHandler {
             }
         }
 
-        else if(me.getMessage() instanceof QueryResultMessage){
+        else if(me.getMessage() instanceof SparqlQueryResultMessage){
             if(formatType == SPARQL_RESULT_FORMAT){
                 httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
-                        (QueryResultMessage) me.getMessage(), (SparqlResultFormat) acceptedFormat);
+                        (SparqlQueryResultMessage) me.getMessage(), (SparqlResultFormat) acceptedFormat);
             }
 
             else{
                 httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
-                        HttpResponseStatus.INTERNAL_SERVER_ERROR, "Format Type for QueryResultMessage was " +
+                        HttpResponseStatus.INTERNAL_SERVER_ERROR, "Format Type for SparqlQueryResultMessage was " +
                         formatType);
             }
         }

@@ -3,9 +3,10 @@ package eu.spitfire.ssp.backends.files;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.*;
+import eu.spitfire.ssp.backends.generic.DataOrigin;
 import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 import eu.spitfire.ssp.backends.generic.access.DataOriginAccessor;
-import eu.spitfire.ssp.backends.generic.wrappers.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.common.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.common.messages.ExpiringNamedGraphStatusMessage;
 import eu.spitfire.ssp.server.common.messages.GraphStatusMessage;
 import eu.spitfire.ssp.utils.Language;
@@ -34,17 +35,17 @@ public class FileAccessor extends DataOriginAccessor<Path> {
 
 
     @Override
-    public ListenableFuture<GraphStatusMessage> getStatus(Path identifier){
+    public ListenableFuture<GraphStatusMessage> getStatus(DataOrigin<Path> dataOrigin){
         SettableFuture<GraphStatusMessage> statusFuture = SettableFuture.create();
 
         try{
-            BufferedReader fileReader = new BufferedReader(new FileReader(identifier.toString()));
+            BufferedReader fileReader = new BufferedReader(new FileReader(dataOrigin.getIdentifier().toString()));
 
             Model model = ModelFactory.createDefaultModel();
             model.read(fileReader, null, Language.RDF_N3.lang);
 
             URI graphName = new URI("file", null, ((FilesBackendComponentFactory) componentFactory).getSspHostName(),
-                    -1, identifier.toString(), null, null);
+                    -1, dataOrigin.getIdentifier().toString(), null, null);
 
             Date expiry = new Date(System.currentTimeMillis() + MILLIS_PER_YEAR);
 
@@ -53,7 +54,7 @@ public class FileAccessor extends DataOriginAccessor<Path> {
         }
 
         catch (FileNotFoundException ex) {
-            String message = "File \"" + identifier + "\" not found!";
+            String message = "File \"" + dataOrigin.getIdentifier() + "\" not found!";
             log.error(message, ex);
             statusFuture.setException(ex);
         }

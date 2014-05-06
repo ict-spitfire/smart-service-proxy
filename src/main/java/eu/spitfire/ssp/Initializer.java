@@ -3,6 +3,8 @@ package eu.spitfire.ssp;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import eu.spitfire.ssp.backends.files.FilesBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
+import eu.spitfire.ssp.backends.slse.HttpVirtualSensorDefinitionWebservice;
+import eu.spitfire.ssp.backends.slse.SlseBackendComponentFactory;
 import eu.spitfire.ssp.server.common.handler.cache.JenaTdbSemanticCache;
 import eu.spitfire.ssp.server.http.HttpProxyPipelineFactory;
 import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
@@ -89,14 +91,13 @@ public class Initializer {
         //Create backend component factories
         createBackendComponentFactories(config);
 
-        //Create and register initial webservices
-//        if(this.semanticCache.supportsSPARQL())
-//            registerSparqlEndpoint();
-
+        //Create and register initial Webservices
         registerMainWebsite();
         registerFavicon();
-        registerSlseDefinitionService();
-        registerSlseCreationService();
+//        registerSlseDefinitionService();
+//        registerSlseCreationService();
+//
+//        registerVirtualSensorDefinitionService();
     }
 
 
@@ -107,7 +108,7 @@ public class Initializer {
                 .build();
 
         int threadCount = Math.max(Runtime.getRuntime().availableProcessors() * 2,
-                config.getInt("SSP_MGMT_THREADS", 0));
+                config.getInt("SSP_INTERNAL_THREADS", 0));
 
         this.internalTasksExecutorService = Executors.newScheduledThreadPool(threadCount, threadFactory);
         log.info("Management Executor Service created with {} threads.", threadCount);
@@ -137,7 +138,7 @@ public class Initializer {
 
     public void initialize(){
         //Start proxy server
-        int port = this.config.getInt("SSP_HTTP_SERVER_PORT", 8080);
+        int port = this.config.getInt("SSP_HTTP_PORT", 8080);
         this.serverBootstrap.bind(new InetSocketAddress(port));
         log.info("HTTP proxy started (listening on port {})", port);
     }
@@ -155,10 +156,7 @@ public class Initializer {
 
 
         ChannelPipeline localPipeline = internalPipelineFactory.getPipeline();
-//
-//            localPipeline.addLast("Backend Resource Manager (" + backendName + ")", dataOriginManager);
 
-//        backendComponentFactory.setLocalChannel(localChannel);
         for (String backendName : enabledBackends) {
             LocalServerChannel localChannel = localChannelFactory.newChannel(localPipeline);
             BackendComponentFactory backendComponentFactory;
@@ -170,21 +168,23 @@ public class Initializer {
                     break;
                 }
 
+                case "slse": {
+                    backendComponentFactory = new SlseBackendComponentFactory("SLSEs", config, localChannel,
+                            this.internalTasksExecutorService, this.ioExecutorService);
+                    break;
+                }
 //                case "coap": {
 //                    backendComponentFactory = new CoapBackendComponentFactory("coap", config,
 //                            this.internalTasksExecutorService);
 //                    break;
 //                }
 
-                //Unknown AbstractGatewayFactory type
+                //Unknown backend
                 default: {
                     log.error("Config file error: Unknown backend (\"" + backendName + "\")!");
                     continue;
                 }
             }
-
-//            DataOriginManager dataOriginManager = backendComponentFactory.getDataOriginManager();
-
 
             this.backendComponentFactories.add(backendComponentFactory);
 
@@ -309,24 +309,26 @@ public class Initializer {
     }
 
 
-    private void registerSlseDefinitionService() throws Exception{
+//    private void registerSlseDefinitionService() throws Exception{
+//
+//        URI webserviceUri = new URI(null, null, null, -1, "/slse-definition.html",null, null);
+//        HttpWebservice httpWebservice = new HttpSlseDefinitionWebservice();
+//
+//        registerHttpWebservice(webserviceUri, httpWebservice);
+//
+//    }
+//
+//
+//    private void registerSlseCreationService() throws Exception{
+//
+//        URI webserviceUri = new URI(null, null, null, -1, "/slse-creation",null, null);
+//        HttpWebservice httpWebservice = new HttpSlseCreationWebservice();
+//
+//        registerHttpWebservice(webserviceUri, httpWebservice);
+//
+//    }
 
-        URI webserviceUri = new URI(null, null, null, -1, "/slse-definition.html",null, null);
-        HttpWebservice httpWebservice = new HttpSlseDefinitionWebservice();
 
-        registerHttpWebservice(webserviceUri, httpWebservice);
-
-    }
-
-
-    private void registerSlseCreationService() throws Exception{
-
-        URI webserviceUri = new URI(null, null, null, -1, "/slse-creation",null, null);
-        HttpWebservice httpWebservice = new HttpSlseCreationWebservice();
-
-        registerHttpWebservice(webserviceUri, httpWebservice);
-
-    }
 
 
     private void registerHttpWebservice(final URI webserviceUri, HttpWebservice httpWebservice) throws Exception{
@@ -351,25 +353,4 @@ public class Initializer {
        httpWebservice.setInternalTasksExecutorService(this.internalTasksExecutorService);
     }
 
-//    private void registerSparqlEndpoint() throws Exception{
-//
-//        final URI targetUri = new URI(null, null, null, -1 , "/sparql", null, null);
-//        LocalServerChannel localChannel = localChannelFactory.newChannel(internalPipelineFactory.getPipeline());
-//        SparqlEndpoint sparqlEndpoint = new SparqlEndpoint(localChannel, this.internalTasksExecutorService);
-//
-//        ChannelFuture future = Channels.write(localChannel, new WebserviceRegistrationMessage(targetUri,
-//                sparqlEndpoint));
-//
-//        future.addListener(new ChannelFutureListener() {
-//            @Override
-//            public void operationComplete(ChannelFuture future) throws Exception {
-//                if(future.isSuccess())
-//                    log.info("Successfully registered SPARQL endpoint at URI {}", targetUri);
-//                else
-//                    log.error("Could not register SPARQL endpoint!", future.getCause());
-//            }
-//        });
-//
-//        sparqlEndpoint.setIoExecutorService(this.ioExecutorService);
-//    }
 }

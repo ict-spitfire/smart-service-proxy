@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.generic.wrappers;
+package eu.spitfire.ssp.server.common.wrapper;
 
 import com.hp.hpl.jena.rdf.model.Model;
 

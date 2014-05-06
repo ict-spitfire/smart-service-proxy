@@ -7,17 +7,13 @@ import com.hp.hpl.jena.sparql.resultset.ResultSetMem;
 /**
 * Created by olli on 29.04.14.
 */
-public class QueryResultMessage {
+public class SparqlQueryResultMessage {
 
     private ResultSetMem queryResult;
-//    private LinkedList<QuerySolution> queryResult;
 
 
-    public QueryResultMessage(ResultSet resultSet) {
-//        this.queryResult = new LinkedList<>();
+    public SparqlQueryResultMessage(ResultSet resultSet) {
         queryResult = new ResultSetMem(resultSet);
-//        while(resultSet.hasNext())
-//            queryResult.add(resultSet.next());
     }
 
     /**

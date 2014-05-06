@@ -8,9 +8,9 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.reasoner.Reasoner;
 import com.hp.hpl.jena.tdb.TDB;
 import com.hp.hpl.jena.tdb.TDBFactory;
-import eu.spitfire.ssp.backends.generic.wrappers.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.common.messages.SparqlQueryResultMessage;
+import eu.spitfire.ssp.server.common.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.common.messages.ExpiringGraphStatusMessage;
-import eu.spitfire.ssp.server.common.messages.QueryResultMessage;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -301,9 +301,9 @@ public class JenaTdbSemanticCache extends SemanticCache {
 //	}
 
     @Override
-	public ListenableFuture<QueryResultMessage> processSparqlQuery(Query sparqlQuery) {
+	public ListenableFuture<SparqlQueryResultMessage> processSparqlQuery(Query sparqlQuery) {
 
-        SettableFuture<QueryResultMessage> resultFuture = SettableFuture.create();
+        SettableFuture<SparqlQueryResultMessage> resultFuture = SettableFuture.create();
 		dataset.begin(ReadWrite.READ);
 
 		try {
@@ -316,7 +316,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
 //			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			try {
 				ResultSet resultSet = queryExecution.execSelect();
-                QueryResultMessage resultMessage = new QueryResultMessage(resultSet);
+                SparqlQueryResultMessage resultMessage = new SparqlQueryResultMessage(resultSet);
                 resultFuture.set(resultMessage);
 
 //                while(resultSet.hasNext()){
