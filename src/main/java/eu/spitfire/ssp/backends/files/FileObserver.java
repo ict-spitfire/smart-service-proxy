@@ -33,10 +33,10 @@ public class FileObserver extends DataOriginObserver<Path> {
     }
 
 
-    void updateDetected(final Path file){
-        log.info("File {} was updated!", file);
+    void updateDetected(final DataOrigin<Path> dataOrigin){
+        log.info("File {} was updated!", dataOrigin);
 
-        Futures.addCallback(fileAccessor.getStatus(file), new FutureCallback<GraphStatusMessage>() {
+        Futures.addCallback(fileAccessor.getStatus(dataOrigin), new FutureCallback<GraphStatusMessage>() {
 
             @Override
             public void onSuccess(GraphStatusMessage dataOriginStatus) {
@@ -47,19 +47,20 @@ public class FileObserver extends DataOriginObserver<Path> {
                     Futures.addCallback(updateCache(statusMessage), new FutureCallback<Void>() {
                         @Override
                         public void onSuccess(Void aVoid) {
-                            log.info("Successfully updated cached status from file \"{}\"!", file);
+                            log.info("Successfully updated cached status from file \"{}\"!",
+                                    dataOrigin.getIdentifier());
                         }
 
                         @Override
                         public void onFailure(Throwable throwable) {
-                            log.warn("Could not update cached status from file \"{}\"!", file);
+                            log.warn("Could not update cached status from file \"{}\"!", dataOrigin.getIdentifier());
                         }
                     });
                 }
 
                 else{
                     log.error("Data Origin {} did not return an expiring named graph status but {}",
-                            file, dataOriginStatus);
+                            dataOrigin, dataOriginStatus);
                 }
             }
 
@@ -74,6 +75,6 @@ public class FileObserver extends DataOriginObserver<Path> {
     @Override
     public void startObservation(DataOrigin<Path> dataOrigin) {
         log.info("Start observation of file {}!", dataOrigin.getIdentifier());
-        updateDetected(dataOrigin.getIdentifier());
+        updateDetected(dataOrigin);
     }
 }

@@ -35,13 +35,15 @@ public class SlseBackendComponentFactory extends BackendComponentFactory<URI> {
                                           ExecutorService ioExecutorService) throws Exception {
 
         super(prefix, config, localChannel, internalTasksExecutorService, ioExecutorService);
+
+        this.slseAccessor = new SlseAccessor(this);
+        this.slseRegistry = new SlseRegistry(this);
     }
 
 
     @Override
     public void initialize() throws Exception {
-        this.slseAccessor = new SlseAccessor(this);
-        this.slseRegistry = new SlseRegistry(this);
+
     }
 
     @Override

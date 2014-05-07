@@ -2,6 +2,7 @@ package eu.spitfire.ssp.backends.files;
 
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import eu.spitfire.ssp.backends.generic.DataOrigin;
 import eu.spitfire.ssp.utils.exceptions.IdentifierAlreadyRegisteredException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -113,10 +114,15 @@ class FileWatcher {
                                     log.info("Successfully handled creation of new file \"{}\".", file);
                                 }
 
+
                                 @Override
                                 public void onFailure(Throwable throwable) {
-                                    if(throwable instanceof IdentifierAlreadyRegisteredException)
-                                        fileObserver.updateDetected(file);
+                                    if(throwable instanceof IdentifierAlreadyRegisteredException){
+                                        FileDataOrigin dataOrigin = (FileDataOrigin) FileWatcher.this.componentFactory
+                                                .getSemanticProxyWebservice().getDataOrigin(file);
+
+                                        fileObserver.updateDetected(dataOrigin);
+                                    }
                                 }
                             });
                         }
@@ -139,7 +145,10 @@ class FileWatcher {
                     }
 
                     else if(eventKind == StandardWatchEventKinds.ENTRY_MODIFY && (file.toString().endsWith(".n3"))){
-                        fileObserver.updateDetected(file);
+                        FileDataOrigin dataOrigin = (FileDataOrigin) FileWatcher.this.componentFactory
+                                .getSemanticProxyWebservice().getDataOrigin(file);
+
+                        fileObserver.updateDetected(dataOrigin);
                     }
 
                     else{

@@ -369,12 +369,27 @@ public abstract class SemanticCache extends SimpleChannelHandler {
             }
 
 
-//            else if (me.getMessage() instanceof SparqlQueryMessage) {
-//                SparqlQueryMessage message = (SparqlQueryMessage) me.getMessage();
-//                log.debug("Received SPARQL query: " + message.getQuery());
-//
-//                processSparqlQuery(message.getQueryResultFuture(), message.getQuery());
-//            }
+            else if (me.getMessage() instanceof SparqlQueryMessage) {
+                final SparqlQueryMessage message = (SparqlQueryMessage) me.getMessage();
+                log.debug("Received SPARQL query: " + message.getQuery());
+
+                Futures.addCallback(processSparqlQuery(message.getQuery()),
+                        new FutureCallback<SparqlQueryResultMessage>() {
+
+                    @Override
+                    public void onSuccess(SparqlQueryResultMessage result) {
+                        message.getQueryResultFuture().set(result.getQueryResult());
+                    }
+
+                    @Override
+                    public void onFailure(Throwable t) {
+                        message.getQueryResultFuture().setException(t);
+                    }
+
+                }, this.internalTasksExecutorService);
+
+
+            }
 
 
             else if(me.getMessage() instanceof DataOriginRemovalMessage){

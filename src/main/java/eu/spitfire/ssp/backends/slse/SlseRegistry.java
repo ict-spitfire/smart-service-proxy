@@ -28,7 +28,11 @@ public class SlseRegistry extends DataOriginRegistry<URI> {
     public void startRegistry() throws Exception {
         //Register Webservice for Virtual Sensor creation
         URI webserviceUri = new URI(null, null, null, -1, "/virtual-sensor-definition",null, null);
-        HttpWebservice httpWebservice = new HttpVirtualSensorDefinitionWebservice(this);
+        HttpWebservice httpWebservice = new HttpVirtualSensorDefinitionWebservice(
+                (SlseBackendComponentFactory) this.componentFactory);
+
+        httpWebservice.setInternalTasksExecutorService(this.componentFactory.getInternalTasksExecutorService());
+        httpWebservice.setIoExecutorService(this.componentFactory.getIoExecutorService());
 
         WebserviceRegistrationMessage registrationMessage = new WebserviceRegistrationMessage(webserviceUri,
                 httpWebservice);

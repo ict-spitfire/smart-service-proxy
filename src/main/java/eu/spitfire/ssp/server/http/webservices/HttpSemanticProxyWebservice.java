@@ -51,6 +51,11 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
     }
 
 
+    public DataOrigin<T> getDataOrigin(T identifier){
+        return identifierToDataOrigin.get(identifier);
+    }
+
+
     @Override
     @SuppressWarnings("unchecked")
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) throws Exception {

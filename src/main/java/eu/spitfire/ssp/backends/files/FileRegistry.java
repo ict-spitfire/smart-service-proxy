@@ -61,15 +61,15 @@ public class FileRegistry extends DataOriginRegistry<Path> {
             log.info("Handle creation of file \"{}\".", file);
 
             FileAccessor fileAccessor = (FileAccessor) componentFactory.getDataOriginAccessor(null);
-            ListenableFuture<GraphStatusMessage> statusFuture = fileAccessor.getStatus(file);
+            final FileDataOrigin dataOrigin = new FileDataOrigin(file,
+                    ((FilesBackendComponentFactory) componentFactory).getSspHostName());
+
+            ListenableFuture<GraphStatusMessage> statusFuture = fileAccessor.getStatus(dataOrigin);
             Futures.addCallback(statusFuture, new FutureCallback<GraphStatusMessage>() {
 
                 @Override
                 public void onSuccess(GraphStatusMessage dataOriginStatus) {
                     try{
-                        FileDataOrigin dataOrigin = new FileDataOrigin(file,
-                                ((FilesBackendComponentFactory) componentFactory).getSspHostName());
-
                         Futures.addCallback(registerDataOrigin(dataOrigin), new FutureCallback<Void>() {
 
                             @Override

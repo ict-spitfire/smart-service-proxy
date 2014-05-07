@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Creation of Virtual Sensors based on SPARQL</title>
+</head>
+<body>
+    <h2>Creation of Virtual Sensors based on SPARQL</h2>
+
+    <form action="virtual-sensor-definition" method="post">
+        <input type="hidden" name="form" value="1"/>
+        <h4>1. Enter URI path postfix of graph name / identifier for virtual sensor</h4>
+        <p style="font-family: monospace">
+            %s<br>
+            <textarea name="graphName" rows ="1" cols="80">%s</textarea>
+            <br>
+            %s
+        </p>
+
+        <!--<h4>2. Choose aggregation function</h4>-->
+        <!--<p>-->
+            <!--<input type="radio" value="Average" name="radAggregation" checked/>Average&nbsp;&nbsp;&nbsp;-->
+            <!--<input type="radio" value="Max" name="radAggregation"/>Max&nbsp;&nbsp;&nbsp;-->
+            <!--<input type="radio" value="Min" name="radAggregation"/>Min&nbsp;&nbsp;&nbsp;-->
+            <!--<br>-->
+            <!--&nbsp;-->
+        <!--</p>-->
+
+        <h4>2. Enter SPARQL query to aggregate sensor values</h4>
+        <textarea name="sparqlQuery" rows="10" cols="80">%s</textarea>
+        <br>
+        %s
+        <input type="submit" value="Test Virtual Sensor"/>
+    </form>
+    <br><br>&nbsp;
+
+
+    <form action="virtual-sensor-definition" method="post">
+        <h4>Query Result</h4>
+        <input type="hidden" name="form" value="2"/>
+        <textarea name="queryResult" rows="10" cols="80" readonly>%s</textarea>
+    </form>
+
+
+</body>
+</html>

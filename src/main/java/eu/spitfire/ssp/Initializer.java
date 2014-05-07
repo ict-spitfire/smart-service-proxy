@@ -154,11 +154,10 @@ public class Initializer {
 
         this.backendComponentFactories = new ArrayList<>(enabledBackends.length);
 
-
-        ChannelPipeline localPipeline = internalPipelineFactory.getPipeline();
-
         for (String backendName : enabledBackends) {
+            ChannelPipeline localPipeline = internalPipelineFactory.getPipeline();
             LocalServerChannel localChannel = localChannelFactory.newChannel(localPipeline);
+
             BackendComponentFactory backendComponentFactory;
             switch (backendName) {
 

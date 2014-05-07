@@ -48,7 +48,7 @@ public abstract class DataOriginRegistry<T> {
 
         final SettableFuture<Void> registrationFuture = SettableFuture.create();
 
-        HttpSemanticProxyWebservice httpProxyWebservice = componentFactory.getSemanticProxyWebservice(dataOrigin);
+        HttpSemanticProxyWebservice httpProxyWebservice = componentFactory.getSemanticProxyWebservice();
         T identifier = dataOrigin.getIdentifier();
 
         try{

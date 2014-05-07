@@ -55,6 +55,7 @@ public class FilesBackendComponentFactory extends BackendComponentFactory<Path> 
 
         FileWatcher fileWatcher = new FileWatcher(this);
         fileWatcher.startFileWatching();
+
     }
 
 

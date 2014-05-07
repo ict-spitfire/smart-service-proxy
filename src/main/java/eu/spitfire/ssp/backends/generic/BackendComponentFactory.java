@@ -58,6 +58,7 @@ public abstract class BackendComponentFactory<T>{
     protected ExecutorService ioExecutorService;
     protected String backendName;
     protected LocalServerChannel localChannel;
+    protected String sspHostName;
 
     private HttpSemanticProxyWebservice<T> semanticProxyWebservice;
 
@@ -80,12 +81,9 @@ public abstract class BackendComponentFactory<T>{
         this.backendName = config.getString(prefix + ".backend.name");
         this.internalTasksExecutorService = internalTasksExecutorService;
         this.ioExecutorService = ioExecutorService;
-
+        this.sspHostName = config.getString("SSP_HOST_NAME");
     }
 
-//    public void setLocalChannel(LocalServerChannel localChannel) throws Exception {
-//        this.localChannel = localChannel;
-//    }
 
 
     /**
@@ -105,17 +103,26 @@ public abstract class BackendComponentFactory<T>{
         //Create data origin registry
         this.dataOriginRegistry = createDataOriginRegistry(config);
 
+        this.initializeComponents();
+    }
+
+    private void initializeComponents() throws Exception {
+        log.info("Initialize Components for backend: {}", this.backendName);
+        this.dataOriginRegistry.startRegistry();
         this.initialize();
     }
 
-
     public abstract void initialize() throws Exception;
+
 
     public String getBackendName(){
         return this.backendName;
     }
 
 
+    public String getSspHostName(){
+        return this.sspHostName;
+    }
 
 
     /**
@@ -159,7 +166,7 @@ public abstract class BackendComponentFactory<T>{
      * @return the {@link eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
      * for the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      */
-    public HttpSemanticProxyWebservice<T> getSemanticProxyWebservice(DataOrigin<T> dataOrigin){
+    public HttpSemanticProxyWebservice<T> getSemanticProxyWebservice(){
         return this.semanticProxyWebservice;
     }
 
