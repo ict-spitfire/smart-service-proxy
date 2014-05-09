@@ -36,8 +36,7 @@ public class FileRegistry extends DataOriginRegistry<Path> {
             if(!file.toString().endsWith(".n3"))
                 throw new IllegalArgumentException("Given file is no N3 file!");
 
-            FileDataOrigin fileDataOrigin = new FileDataOrigin(file,
-                    ((FilesBackendComponentFactory) componentFactory).getSspHostName());
+            FileDataOrigin fileDataOrigin = new FileDataOrigin(file, componentFactory.getSspHostName());
 
             return removeDataOrigin(fileDataOrigin);
         }
@@ -61,8 +60,7 @@ public class FileRegistry extends DataOriginRegistry<Path> {
             log.info("Handle creation of file \"{}\".", file);
 
             FileAccessor fileAccessor = (FileAccessor) componentFactory.getDataOriginAccessor(null);
-            final FileDataOrigin dataOrigin = new FileDataOrigin(file,
-                    ((FilesBackendComponentFactory) componentFactory).getSspHostName());
+            final FileDataOrigin dataOrigin = new FileDataOrigin(file, componentFactory.getSspHostName());
 
             ListenableFuture<GraphStatusMessage> statusFuture = fileAccessor.getStatus(dataOrigin);
             Futures.addCallback(statusFuture, new FutureCallback<GraphStatusMessage>() {

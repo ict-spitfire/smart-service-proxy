@@ -1,5 +1,6 @@
 package eu.spitfire.ssp.backends.slse;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
 import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
@@ -21,6 +22,11 @@ public class SlseRegistry extends DataOriginRegistry<URI> {
 
     protected SlseRegistry(BackendComponentFactory<URI> componentFactory) {
         super(componentFactory);
+    }
+
+
+    public ListenableFuture<Void> registerSlseDataOrigin(SlseDataOrigin dataOrigin){
+        return this.registerDataOrigin(dataOrigin);
     }
 
 

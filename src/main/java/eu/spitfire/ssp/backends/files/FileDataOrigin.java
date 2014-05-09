@@ -21,8 +21,8 @@ public class FileDataOrigin extends DataOrigin<Path> {
      * @param identifier the identifier for this {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      */
     public FileDataOrigin(Path identifier, String sspHostName) throws URISyntaxException {
-        super(identifier);
-        this.graphName = new URI("file", null, sspHostName, -1, identifier.toString(), null, null);
+        super(identifier.isAbsolute() ? identifier : identifier.toAbsolutePath().normalize());
+        this.graphName = new URI("file", null, sspHostName, -1, this.getIdentifier().toString(), null, null);
     }
 
     @Override

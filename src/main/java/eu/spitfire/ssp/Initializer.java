@@ -3,16 +3,17 @@ package eu.spitfire.ssp;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import eu.spitfire.ssp.backends.files.FilesBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.slse.HttpVirtualSensorDefinitionWebservice;
 import eu.spitfire.ssp.backends.slse.SlseBackendComponentFactory;
-import eu.spitfire.ssp.server.common.handler.cache.JenaTdbSemanticCache;
-import eu.spitfire.ssp.server.http.HttpProxyPipelineFactory;
-import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
-import eu.spitfire.ssp.server.http.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.common.handler.cache.DummySemanticCache;
+import eu.spitfire.ssp.server.common.handler.cache.JenaTdbSemanticCache;
 import eu.spitfire.ssp.server.common.handler.cache.SemanticCache;
+import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
+import eu.spitfire.ssp.server.http.HttpProxyPipelineFactory;
+import eu.spitfire.ssp.server.http.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.http.handler.MqttHandler;
-import eu.spitfire.ssp.server.http.webservices.*;
+import eu.spitfire.ssp.server.http.webservices.HttpFaviconWebservice;
+import eu.spitfire.ssp.server.http.webservices.HttpRootWebservice;
+import eu.spitfire.ssp.server.http.webservices.HttpWebservice;
 import eu.spitfire.ssp.server.internal.InternalPipelineFactory;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.bootstrap.ServerBootstrap;
@@ -168,7 +169,7 @@ public class Initializer {
                 }
 
                 case "slse": {
-                    backendComponentFactory = new SlseBackendComponentFactory("SLSEs", config, localChannel,
+                    backendComponentFactory = new SlseBackendComponentFactory("slse", config, localChannel,
                             this.internalTasksExecutorService, this.ioExecutorService);
                     break;
                 }
@@ -266,12 +267,18 @@ public class Initializer {
             if (dbDirectory == null)
                 throw new RuntimeException("'cache.jenaTDB.dbDirectory' missing in ssp.properties");
 
+            String spatialIndexDirectory = config.getString("cache.spatial.index.directory");
+            if (spatialIndexDirectory == null)
+                throw new RuntimeException("'cache.spatial.index.directory' missing in ssp.properties");
+
             Path directoryPath = Paths.get(dbDirectory);
+            Path spatialIndexDirectoryPath = Paths.get(spatialIndexDirectory);
+
             if(!Files.isDirectory(directoryPath))
                 throw new IllegalArgumentException("The given path for Jena TDB does not refer to a directory!");
 
             this.semanticCache = new JenaTdbSemanticCache(this.ioExecutorService, this.internalTasksExecutorService,
-                    directoryPath);
+                    directoryPath, spatialIndexDirectoryPath);
 
             return;
         }

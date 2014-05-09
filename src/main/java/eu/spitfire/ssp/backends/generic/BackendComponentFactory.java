@@ -59,6 +59,7 @@ public abstract class BackendComponentFactory<T>{
     protected String backendName;
     protected LocalServerChannel localChannel;
     protected String sspHostName;
+    protected int sspPort;
 
     private HttpSemanticProxyWebservice<T> semanticProxyWebservice;
 
@@ -82,6 +83,7 @@ public abstract class BackendComponentFactory<T>{
         this.internalTasksExecutorService = internalTasksExecutorService;
         this.ioExecutorService = ioExecutorService;
         this.sspHostName = config.getString("SSP_HOST_NAME");
+        this.sspPort = config.getInt("SSP_PORT", 8080);
     }
 
 
@@ -124,6 +126,10 @@ public abstract class BackendComponentFactory<T>{
         return this.sspHostName;
     }
 
+
+    public int getSspPort(){
+        return this.sspPort;
+    }
 
     /**
      * Returns the (backend specific) {@link org.jboss.netty.channel.local.LocalChannel} to send internal messages

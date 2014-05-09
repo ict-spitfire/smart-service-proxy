@@ -5,6 +5,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.ontology.OntModel;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.reasoner.Reasoner;
 import com.hp.hpl.jena.tdb.TDB;
 import com.hp.hpl.jena.tdb.TDBFactory;
@@ -14,6 +15,10 @@ import eu.spitfire.ssp.server.common.messages.ExpiringGraphStatusMessage;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.jena.query.spatial.EntityDefinition;
+import org.apache.jena.query.spatial.SpatialDatasetFactory;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,12 +53,13 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
 	private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-	private Dataset dataset;
+    private Dataset dataset;
+
 	private Reasoner reasoner;
 
 
 	public JenaTdbSemanticCache(ExecutorService ioExecutorService,
-                                ScheduledExecutorService internalTasksExecutorService, Path dbDirectory){
+            ScheduledExecutorService internalTasksExecutorService, Path dbDirectory, Path spatialIndexDirectory){
 
 		super(ioExecutorService, internalTasksExecutorService);
 
@@ -66,8 +72,19 @@ public class JenaTdbSemanticCache extends SemanticCache {
         }
 
 
-		dataset = TDBFactory.createDataset(dbDirectory.toString());
+		Dataset tmpDataset = TDBFactory.createDataset(dbDirectory.toString());
 		TDB.getContext().set(TDB.symUnionDefaultGraph, true);
+
+
+        try{
+            EntityDefinition entityDefinition = new EntityDefinition("entityField", "geoField");
+            Directory dir = FSDirectory.open(spatialIndexDirectory.toFile());
+            dataset = SpatialDatasetFactory.createLucene(tmpDataset, dir, entityDefinition);
+        }
+
+        catch (IOException e) {
+            log.error("This should never happen.", e);
+        }
 
 		//Collect the SPITFIRE vocabularies
 //		if (ontologyBaseModel == null) {
@@ -155,15 +172,18 @@ public class JenaTdbSemanticCache extends SemanticCache {
                 return resultFuture;
             }
 
-			Model model = dataset.getNamedModel(graphName.toString());
+			Model dbModel = dataset.getNamedModel(graphName.toString());
 
-			if (model.isEmpty()) {
+			if (dbModel.isEmpty()) {
 				log.warn("No cached status found for resource {}", graphName);
 				resultFuture.set(null);
 			}
 
             else{
                 log.info("Cached status found for resource {}", graphName);
+
+                Model model = ModelFactory.createDefaultModel();
+                model.add(dbModel);
 
                 ExpiringNamedGraph expiringNamedGraph = new ExpiringNamedGraph(graphName, model, new Date());
                 resultFuture.set(new ExpiringGraphStatusMessage(HttpResponseStatus.OK, expiringNamedGraph));

@@ -2,42 +2,51 @@
 <html>
 <head>
     <title>Creation of Virtual Sensors based on SPARQL</title>
+    <style type="text/css">
+        .formfield * {
+            vertical-align: middle;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        #graphName {
+            max-height: 14px;
+            margin-top: 1px;
+        }
+
+        .errorField * {
+            font-family: monospace;
+            font-size: 12px;
+            color: red;
+        }
+    </style>
 </head>
 <body>
     <h2>Creation of Virtual Sensors based on SPARQL</h2>
 
     <form action="virtual-sensor-definition" method="post">
-        <input type="hidden" name="form" value="1"/>
         <h4>1. Enter URI path postfix of graph name / identifier for virtual sensor</h4>
-        <p style="font-family: monospace">
-            %s<br>
-            <textarea name="graphName" rows ="1" cols="80">%s</textarea>
-            <br>
-            %s
+        <p class="formfield">
+            <label for="graphName">%s</label>
+            <textarea id="graphName" name="graphName" rows="1" cols="67">%s</textarea>
         </p>
-
-        <!--<h4>2. Choose aggregation function</h4>-->
-        <!--<p>-->
-            <!--<input type="radio" value="Average" name="radAggregation" checked/>Average&nbsp;&nbsp;&nbsp;-->
-            <!--<input type="radio" value="Max" name="radAggregation"/>Max&nbsp;&nbsp;&nbsp;-->
-            <!--<input type="radio" value="Min" name="radAggregation"/>Min&nbsp;&nbsp;&nbsp;-->
-            <!--<br>-->
-            <!--&nbsp;-->
-        <!--</p>-->
+        %s
 
         <h4>2. Enter SPARQL query to aggregate sensor values</h4>
-        <textarea name="sparqlQuery" rows="10" cols="80">%s</textarea>
-        <br>
+        <textarea name="sparqlQuery" rows="15" cols="100">%s</textarea>
         %s
-        <input type="submit" value="Test Virtual Sensor"/>
+        <p>
+            <input type="submit" name="button" value="Test"/>
+            <input type="submit" name="button" value="Create"/>
+        </p>
     </form>
     <br><br>&nbsp;
 
 
     <form action="virtual-sensor-definition" method="post">
-        <h4>Query Result</h4>
+        <h4>Virtual Sensor Status (RDF/XML Notation)</h4>
         <input type="hidden" name="form" value="2"/>
-        <textarea name="queryResult" rows="10" cols="80" readonly>%s</textarea>
+        <textarea name="queryResult" rows="7" cols="100" readonly>%s</textarea>
     </form>
 
 

@@ -1,6 +1,5 @@
 package eu.spitfire.ssp.backends.slse;
 
-import arq.query;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -10,7 +9,6 @@ import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.rdf.model.Statement;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
@@ -23,6 +21,8 @@ import eu.spitfire.ssp.server.common.messages.SparqlQueryMessage;
 import eu.spitfire.ssp.server.common.wrapper.ExpiringGraph;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.Date;
@@ -31,6 +31,8 @@ import java.util.Date;
  * Created by olli on 06.05.14.
  */
 public class SlseAccessor extends DataOriginAccessor<URI> {
+
+    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor}
@@ -44,6 +46,8 @@ public class SlseAccessor extends DataOriginAccessor<URI> {
     @Override
     public ListenableFuture<GraphStatusMessage> getStatus(final DataOrigin<URI> dataOrigin)
             throws DataOriginAccessException{
+
+        log.info("Try to get status for data origin with identifier {}", dataOrigin.getIdentifier());
 
         final SettableFuture<GraphStatusMessage> result = SettableFuture.create();
 

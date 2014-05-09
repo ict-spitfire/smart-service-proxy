@@ -44,7 +44,7 @@ public class FileAccessor extends DataOriginAccessor<Path> {
             Model model = ModelFactory.createDefaultModel();
             model.read(fileReader, null, Language.RDF_N3.lang);
 
-            URI graphName = new URI("file", null, ((FilesBackendComponentFactory) componentFactory).getSspHostName(),
+            URI graphName = new URI("file", null, componentFactory.getSspHostName(),
                     -1, dataOrigin.getIdentifier().toString(), null, null);
 
             Date expiry = new Date(System.currentTimeMillis() + MILLIS_PER_YEAR);

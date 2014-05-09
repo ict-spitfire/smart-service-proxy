@@ -58,7 +58,6 @@ public class HttpRootWebservice extends HttpWebservice {
 
         Map<String, StringBuilder> semanticServices = new TreeMap<>();
 
-//        StringBuilder semanticServices = new StringBuilder();
         StringBuilder otherServices = new StringBuilder();
 
         for(String uri : services.keySet()){

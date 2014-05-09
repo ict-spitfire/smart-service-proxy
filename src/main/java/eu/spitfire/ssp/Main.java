@@ -24,6 +24,7 @@
  */
 package eu.spitfire.ssp;
 
+import com.hp.hpl.jena.shared.impl.JenaParameters;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -43,6 +44,13 @@ public class Main {
         Configuration config = new PropertiesConfiguration("ssp.properties");
         Initializer initializer = new Initializer(config);
         initializer.initialize();
+
+        //Disable acceptence of literals having an unknown XSD datatype
+        JenaParameters.enableSilentAcceptanceOfUnknownDatatypes = false;
+
+        //Disable acceptence of literals having an illegal value for the given XSD datatype
+        JenaParameters.enableEagerLiteralValidation = true;
+
 
         //Start the backends
         for (BackendComponentFactory backendComponentFactory : initializer.getBackendComponentFactories()) {
