@@ -79,7 +79,6 @@ public abstract class DataOriginRegistry<T> {
                                         dataOrigin.getIdentifier());
                             }
                         }
-
                     }
                     else
                         registrationFuture.setException(future.getCause());

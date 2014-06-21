@@ -91,7 +91,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
         //Create resource proxy uri from request
-        String proxyUri = httpRequest.getUri();
+        String proxyUri = new URI(httpRequest.getUri()).getPath();
         log.info("Received HTTP request for proxy Webservice {}", proxyUri);
 
         //Lookup proper http request processor

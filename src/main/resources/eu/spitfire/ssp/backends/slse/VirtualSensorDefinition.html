@@ -2,34 +2,28 @@
 <html>
 <head>
     <title>Creation of Virtual Sensors based on SPARQL</title>
-    <style type="text/css">
-        .formfield * {
-            vertical-align: middle;
-            font-family: monospace;
-            font-size: 12px;
-        }
-        
-        #graphName {
-            max-height: 14px;
-            margin-top: 1px;
-        }
-
-        .errorField * {
-            font-family: monospace;
-            font-size: 12px;
-            color: red;
-        }
-    </style>
+    <link rel="stylesheet" type="text/css" href="./style.css">
 </head>
-<body>
-    <h2>Creation of Virtual Sensors based on SPARQL</h2>
+<body style="width: 800px">
+    <h2>Virtual sensor batch creation</h2>
+    <form method="post" action="virtual-sensor-batch-creation" enctype="multipart/form-data">
+        <p>
+            <h4>Choose XML file:</h4>
+            <input name="xmlFile" type="file" size="50" maxlength="100000"/>
+            <input type="submit" name="xmlButton" value="Create"/>
 
+    </form>
+    <br><br>
+
+    <h2>Create single virtual sensor</h2>
     <form action="virtual-sensor-definition" method="post">
         <h4>1. Enter URI path postfix of graph name / identifier for virtual sensor</h4>
-        <p class="formfield">
-            <label for="graphName">%s</label>
-            <textarea id="graphName" name="graphName" rows="1" cols="67">%s</textarea>
-        </p>
+        <div>
+            <label class="monospace" for="graphName">%s</label>
+            <div class="twrap">
+                <textarea class="singleline" id="graphName" name="graphName" rows="1" cols="67">%s</textarea>
+            </div>
+        </div>
         %s
 
         <h4>2. Enter SPARQL query to aggregate sensor values</h4>
@@ -44,11 +38,10 @@
 
 
     <form action="virtual-sensor-definition" method="post">
-        <h4>Virtual Sensor Status (RDF/XML Notation)</h4>
-        <input type="hidden" name="form" value="2"/>
+        <h4>Test Result: Virtual Sensor Status (RDF/XML Notation)</h4>
+        <p class="note">Query execution duration: %s milliseconds</p>
         <textarea name="queryResult" rows="7" cols="100" readonly>%s</textarea>
     </form>
-
 
 </body>
 </html>

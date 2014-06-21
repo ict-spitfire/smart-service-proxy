@@ -1,13 +1,16 @@
-package eu.spitfire.ssp.backends.slse;
+package eu.spitfire.ssp.backends.slse.webservice;
 
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.hp.hpl.jena.datatypes.RDFDatatype;
+import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
 import com.hp.hpl.jena.query.*;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.rdf.model.*;
+import eu.spitfire.ssp.backends.slse.SlseBackendComponentFactory;
+import eu.spitfire.ssp.backends.slse.SlseDataOrigin;
+import eu.spitfire.ssp.backends.slse.SlseRegistry;
 import eu.spitfire.ssp.server.common.messages.SparqlQueryMessage;
 import eu.spitfire.ssp.server.http.HttpResponseFactory;
 import eu.spitfire.ssp.server.http.webservices.HttpWebservice;
@@ -215,6 +218,7 @@ public class HttpVirtualSensorDefinitionWebservice extends HttpWebservice {
     private void handlePostTestRequest(final SettableFuture<HttpResponse> httpResponseFuture,
             final HttpVersion httpVersion, final VirtualSensorFormData formData) throws Exception{
 
+        final long startTime = System.currentTimeMillis();
         ListenableFuture<ResultSet> sparqlResultFuture = executeSparqlQuery(formData);
 
         Futures.addCallback(sparqlResultFuture, new FutureCallback<ResultSet>() {
@@ -224,10 +228,11 @@ public class HttpVirtualSensorDefinitionWebservice extends HttpWebservice {
 
                 try{
 
-                    String sensorValue = createVirtualSensorN3Payload(formData.getGraphName(), resultSet);
+                    String sensorValue = createVirtualSensorXMLPayload(formData.getGraphName(), resultSet);
+                    long duration = System.currentTimeMillis() - startTime;
 
                     ChannelBuffer contentBuffer = getHtmlContent(formData.getGraphNamePostfix(), EMPTY,
-                            formData.getSparqlQueryString(), EMPTY, sensorValue);
+                            formData.getSparqlQueryString(), EMPTY, String.valueOf(duration), sensorValue);
 
                     httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
                             HttpResponseStatus.OK, contentBuffer, "text/html");
@@ -280,17 +285,26 @@ public class HttpVirtualSensorDefinitionWebservice extends HttpWebservice {
 
 
 
-    private String createVirtualSensorN3Payload(URI virtualSensorUri, ResultSet resultSet){
+    private String createVirtualSensorXMLPayload(URI virtualSensorUri, ResultSet resultSet){
         Model model = ModelFactory.createDefaultModel();
 
         //Get the first row of the result set
-        QuerySolution querySolution = resultSet.nextSolution();
+        RDFNode sensorValue;
+
+        if(resultSet.hasNext()){
+            QuerySolution querySolution = resultSet.nextSolution();
+            sensorValue = querySolution.get(querySolution.varNames().next());
+        }
+
+        else{
+            sensorValue = ResourceFactory.createTypedLiteral("0", XSDDatatype.XSDinteger);
+        }
 
         Statement statement  = model.createStatement(
                 model.createResource(virtualSensorUri.toString()),
                 model.createProperty("http://spitfire-project.eu/ontology/ns/value"),
-                querySolution.get(querySolution.varNames().next())
-        );
+                sensorValue
+            );
 
         model.add(statement);
 
@@ -323,8 +337,19 @@ public class HttpVirtualSensorDefinitionWebservice extends HttpWebservice {
     }
 
 
+
     private ChannelBuffer getHtmlContent(String graphNamePostfix, String graphNameError, String sparqlQuery,
-                                         String sparqlQueryError, String virtualSensorValue) throws Exception{
+                                         String sparqlQueryError, String virtualSensorValue)
+            throws Exception{
+
+        return getHtmlContent(graphNamePostfix, graphNameError, sparqlQuery, sparqlQueryError, EMPTY,
+                virtualSensorValue);
+    }
+
+
+    private ChannelBuffer getHtmlContent(String graphNamePostfix, String graphNameError, String sparqlQuery,
+                                         String sparqlQueryError, String duration, String virtualSensorValue)
+        throws Exception{
 
         InputStream inputStream = this.getClass().getResourceAsStream("VirtualSensorDefinition.html");
         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -338,7 +363,7 @@ public class HttpVirtualSensorDefinitionWebservice extends HttpWebservice {
         }
 
         String content = String.format(formatStringBuilder.toString(), SLSE_GRAPH_NAME_PREFIX, graphNamePostfix,
-                graphNameError, sparqlQuery, sparqlQueryError, virtualSensorValue);
+                graphNameError, sparqlQuery, sparqlQueryError, duration, virtualSensorValue);
 
         return ChannelBuffers.wrappedBuffer(content.getBytes(Charset.forName("UTF-8")));
     }
@@ -373,8 +398,16 @@ public class HttpVirtualSensorDefinitionWebservice extends HttpWebservice {
                 }
 
                 try{
-                    this.sparqlQueryString = formData.get("sparqlQuery");
-                    this.sparqlQuery = QueryFactory.create(formData.get("sparqlQuery"));
+                    //this.sparqlQueryString = formData.get("sparqlQuery");
+                    String[] parts = formData.get("sparqlQuery").split("\\r?\\n|\\r");
+                    StringBuilder builder = new StringBuilder();
+                    for(String part : parts){
+                        builder.append(part).append(System.getProperty("line.separator"));
+                    }
+                    this.sparqlQueryString = builder.toString();
+
+                    log.info("SPARQL String: \n{}", this.sparqlQueryString);
+                    this.sparqlQuery = QueryFactory.create(this.sparqlQueryString);
                     this.sparqlQueryError = EMPTY;
                 }
                 catch(QueryException ex){
@@ -397,7 +430,6 @@ public class HttpVirtualSensorDefinitionWebservice extends HttpWebservice {
         public URI getGraphName() {
             return graphName;
         }
-
 
         public Query getSparqlQuery() {
             return sparqlQuery;
@@ -438,7 +470,7 @@ public class HttpVirtualSensorDefinitionWebservice extends HttpWebservice {
         }
 
         private String getErrorHtml(int rows, String errorMessage){
-            return "<p class=errorfield><textarea rows=\"" + rows + "\" cols=\"100\"" +
+            return "<p><textarea class=errorfield rows=\"" + rows + "\" cols=\"100\"" +
                     "readonly>" + errorMessage + "</textarea></p>";
         }
     }

@@ -17,7 +17,7 @@ public class SlseDataOrigin extends DataOrigin<URI>{
      *
      * @param identifier the identifier for this {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      */
-    protected SlseDataOrigin(URI identifier, Query sparqlQuery) {
+    public SlseDataOrigin(URI identifier, Query sparqlQuery) {
         super(identifier);
         this.sparqlQuery = sparqlQuery;
     }
@@ -25,7 +25,7 @@ public class SlseDataOrigin extends DataOrigin<URI>{
 
     @Override
     public boolean isObservable() {
-        return false;
+        return true;
     }
 
 

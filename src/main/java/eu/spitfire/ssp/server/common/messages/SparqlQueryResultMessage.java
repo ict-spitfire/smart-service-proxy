@@ -11,10 +11,10 @@ public class SparqlQueryResultMessage {
 
     private ResultSetMem queryResult;
 
-
     public SparqlQueryResultMessage(ResultSet resultSet) {
         queryResult = new ResultSetMem(resultSet);
     }
+
 
     /**
      * Returns a {@link com.hp.hpl.jena.query.QuerySolution} if there is a next one or <code>null</code> if there

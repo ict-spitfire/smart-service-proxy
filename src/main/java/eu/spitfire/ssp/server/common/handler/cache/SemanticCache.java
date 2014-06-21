@@ -46,9 +46,11 @@ import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Date;
@@ -83,6 +85,10 @@ public abstract class SemanticCache extends SimpleChannelHandler {
     }
 
 
+    protected ScheduledExecutorService getInternalTasksExecutorService(){
+        return this.internalTasksExecutorService;
+    }
+
     /**
      * This method is invoked for upstream {@link MessageEvent}s and handles incoming {@link HttpRequest}s.
      * It tries to find a fresh status of the requested resource (identified using the requests target URI) in its
@@ -106,7 +112,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                     String[] queryParts = uriQuery.split("&");
                     for(String queryPart : queryParts){
                         if(queryPart.startsWith("graph=")){
-                            URI graphName = new URI(queryPart.substring(6));
+                            URI graphName = new URI(queryPart.substring(6).replace(" ", "%20"));
                             graphRequestReceived(ctx, me, graphName);
                             return;
                         }
@@ -188,6 +194,9 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         log.debug("Use charset {} to read SPARQL query from HTTP request.", charset);
 
         String queryString = httpRequest.getContent().toString(charset);
+        //queryString = queryString.replace("\r", "").replace("\n", "");
+        queryString = queryString.replace("\\r?\\n|\\r", "\n");
+
 
         log.debug("SPARQL query read from HTTP request: {}", queryString);
 
@@ -286,6 +295,8 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                     public void onSuccess(GraphStatusMessage result) {
 
                         if(result instanceof ExpiringGraphStatusMessage){
+                            log.info("Graph found in cache: {}", graphName);
+
                             ChannelFuture future = Channels.future(ctx.getChannel());
                             Channels.write(ctx, future, result, me.getRemoteAddress());
 
@@ -293,12 +304,14 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                         }
 
                         else{
+                            log.info("Graph not found in cache: {}", graphName);
                             ctx.sendUpstream(me);
                         }
                     }
 
                     @Override
                     public void onFailure(Throwable t) {
+                        log.error("Graph not found in cache", t);
                         ctx.sendUpstream(me);
                     }
 
@@ -327,7 +340,21 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                         }
                         else{
                             log.info("Graph \"{}\" not yet contained in cache!", graphName);
-                            me.getFuture().setSuccess();
+
+                            Futures.addCallback(putNamedGraphToCache(graphName, ModelFactory.createDefaultModel()),
+                                    new FutureCallback<Void>() {
+
+                                @Override
+                                public void onSuccess(@Nullable Void result) {
+                                    log.info("Empty graph \"{}\" added to cache!", graphName);
+                                    me.getFuture().setSuccess();
+                                }
+
+                                @Override
+                                public void onFailure(Throwable t) {
+                                    me.getFuture().setFailure(t);
+                                }
+                            });
                         }
                     }
 

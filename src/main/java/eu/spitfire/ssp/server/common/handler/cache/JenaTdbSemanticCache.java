@@ -7,6 +7,7 @@ import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.reasoner.Reasoner;
+import com.hp.hpl.jena.shared.impl.JenaParameters;
 import com.hp.hpl.jena.tdb.TDB;
 import com.hp.hpl.jena.tdb.TDBFactory;
 import eu.spitfire.ssp.server.common.messages.SparqlQueryResultMessage;
@@ -17,6 +18,7 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.jena.query.spatial.EntityDefinition;
 import org.apache.jena.query.spatial.SpatialDatasetFactory;
+import org.apache.jena.query.spatial.SpatialQuery;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -63,12 +65,20 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
 		super(ioExecutorService, internalTasksExecutorService);
 
+        //Disable acceptence of literals having an unknown XSD datatype
+        JenaParameters.enableSilentAcceptanceOfUnknownDatatypes = false;
+
+        //Disable acceptence of literals having an illegal value for the given XSD datatype
+        JenaParameters.enableEagerLiteralValidation = true;
+
 		File directory = dbDirectory.toFile();
 		File[] oldFiles = directory.listFiles();
 
         assert oldFiles != null;
         for (File dbFile : oldFiles) {
-                dbFile.delete();
+                if(!dbFile.delete()){
+                    log.error("Could not delete old DB file: {}", dbFile);
+                };
         }
 
 
@@ -78,6 +88,9 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
         try{
             EntityDefinition entityDefinition = new EntityDefinition("entityField", "geoField");
+            entityDefinition.setSpatialContextFactory(SpatialQuery.JTS_SPATIAL_CONTEXT_FACTORY_CLASS);
+
+            SpatialQuery.init();
             Directory dir = FSDirectory.open(spatialIndexDirectory.toFile());
             dataset = SpatialDatasetFactory.createLucene(tmpDataset, dir, entityDefinition);
         }

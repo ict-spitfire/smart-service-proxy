@@ -45,13 +45,6 @@ public class Main {
         Initializer initializer = new Initializer(config);
         initializer.initialize();
 
-        //Disable acceptence of literals having an unknown XSD datatype
-        JenaParameters.enableSilentAcceptanceOfUnknownDatatypes = false;
-
-        //Disable acceptence of literals having an illegal value for the given XSD datatype
-        JenaParameters.enableEagerLiteralValidation = true;
-
-
         //Start the backends
         for (BackendComponentFactory backendComponentFactory : initializer.getBackendComponentFactories()) {
             backendComponentFactory.createComponents(config);

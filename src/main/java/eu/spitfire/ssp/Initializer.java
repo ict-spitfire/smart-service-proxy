@@ -6,6 +6,7 @@ import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.slse.SlseBackendComponentFactory;
 import eu.spitfire.ssp.server.common.handler.cache.DummySemanticCache;
 import eu.spitfire.ssp.server.common.handler.cache.JenaTdbSemanticCache;
+import eu.spitfire.ssp.server.common.handler.cache.LuposdateSemanticCache;
 import eu.spitfire.ssp.server.common.handler.cache.SemanticCache;
 import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
 import eu.spitfire.ssp.server.http.HttpProxyPipelineFactory;
@@ -13,6 +14,7 @@ import eu.spitfire.ssp.server.http.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.http.handler.MqttHandler;
 import eu.spitfire.ssp.server.http.webservices.HttpFaviconWebservice;
 import eu.spitfire.ssp.server.http.webservices.HttpRootWebservice;
+import eu.spitfire.ssp.server.http.webservices.HttpStylesheetWebservice;
 import eu.spitfire.ssp.server.http.webservices.HttpWebservice;
 import eu.spitfire.ssp.server.internal.InternalPipelineFactory;
 import org.apache.commons.configuration.Configuration;
@@ -93,6 +95,7 @@ public class Initializer {
         createBackendComponentFactories(config);
 
         //Create and register initial Webservices
+        registerStylesheet();
         registerMainWebsite();
         registerFavicon();
 //        registerSlseDefinitionService();
@@ -283,6 +286,11 @@ public class Initializer {
             return;
         }
 //
+        if("luposdate".equals(cacheType)){
+            this.semanticCache = new LuposdateSemanticCache(this.ioExecutorService, this.internalTasksExecutorService);
+            return;
+
+        }
 //        if("jenaSDB".equals(cacheType)){
 //            String jdbcUri = config.getString("cache.jenaSDB.jdbc.url");
 //            String jdbcUser = config.getString("cache.jenaSDB.jdbc.user");
@@ -297,7 +305,7 @@ public class Initializer {
 
 
     private void registerMainWebsite() throws Exception{
-        URI webserviceUri = new URI(null, null, null, -1, "/",null, null);
+        URI webserviceUri = new URI(null, null, null, -1, "/", null, null);
         Map<String, HttpWebservice> webservices = this.httpRequestDispatcher.getWebservices();
 
         registerHttpWebservice(webserviceUri, new HttpRootWebservice(webservices));
@@ -308,10 +316,18 @@ public class Initializer {
      */
     private void registerFavicon() throws Exception {
 
-        URI faviconUri = new URI(null, null, null, -1, "/favicon.ico",null, null);
+        URI faviconUri = new URI(null, null, null, -1, "/favicon.ico", null, null);
         HttpWebservice httpWebservice = new HttpFaviconWebservice();
 
         registerHttpWebservice(faviconUri, httpWebservice);
+    }
+
+
+    private void registerStylesheet() throws Exception{
+        URI stylesheetURi = new URI(null, null, null, -1, "/style.css", null, null);
+        HttpWebservice httpWebservice = new HttpStylesheetWebservice();
+
+        registerHttpWebservice(stylesheetURi, httpWebservice);
     }
 
 

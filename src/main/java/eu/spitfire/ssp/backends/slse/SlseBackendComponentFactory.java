@@ -19,6 +19,7 @@ public class SlseBackendComponentFactory extends BackendComponentFactory<URI> {
 
     private SlseAccessor slseAccessor;
     private SlseRegistry slseRegistry;
+    private SlseObserver slseObserver;
 
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.BackendComponentFactory}.
@@ -38,6 +39,7 @@ public class SlseBackendComponentFactory extends BackendComponentFactory<URI> {
 
         this.slseAccessor = new SlseAccessor(this);
         this.slseRegistry = new SlseRegistry(this);
+        this.slseObserver = new SlseObserver(this);
     }
 
 
@@ -47,17 +49,17 @@ public class SlseBackendComponentFactory extends BackendComponentFactory<URI> {
     }
 
     @Override
-    public DataOriginObserver<URI> getDataOriginObserver(DataOrigin<URI> dataOrigin) {
-        return null;
+    public SlseObserver getDataOriginObserver(DataOrigin<URI> dataOrigin) {
+        return this.slseObserver;
     }
 
     @Override
-    public DataOriginAccessor<URI> getDataOriginAccessor(DataOrigin<URI> dataOrigin) {
+    public SlseAccessor getDataOriginAccessor(DataOrigin<URI> dataOrigin) {
         return this.slseAccessor;
     }
 
     @Override
-    public DataOriginRegistry<URI> createDataOriginRegistry(Configuration config) throws Exception {
+    public SlseRegistry createDataOriginRegistry(Configuration config) throws Exception {
         return this.slseRegistry;
     }
 

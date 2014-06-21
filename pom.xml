@@ -66,10 +66,22 @@
         <dependency>
             <groupId>org.apache.jena</groupId>
             <artifactId>jena-spatial</artifactId>
-            <version>1.0.1</version>
+            <version>1.0.2</version>
         </dependency>
 
         <dependency>
+          <groupId>com.vividsolutions</groupId>
+          <artifactId>jts</artifactId>
+          <version>1.13</version>
+        </dependency>
+
+      <dependency>
+        <groupId>de.uniluebeck.ifis</groupId>
+        <artifactId>luposdate.core</artifactId>
+        <version>1.0-SNAPSHOT</version>
+      </dependency>
+
+      <dependency>
             <groupId>commons-configuration</groupId>
             <artifactId>commons-configuration</artifactId>
             <version>1.9</version>
@@ -81,24 +93,23 @@
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
 
-        <!--<dependency>-->
-            <!--<groupId>uberdust</groupId>-->
-            <!--<artifactId>wisedb</artifactId>-->
-            <!--<version>1.0</version>-->
-        <!--</dependency>-->
+      <dependency>
+        <groupId>de.uniluebeck.ifis</groupId>
+        <artifactId>luposdate.geosparql</artifactId>
+        <version>1.0-SNAPSHOT</version>
+      </dependency>
 
-        <!--<dependency>-->
-            <!--<groupId>uberdust</groupId>-->
-            <!--<artifactId>UberdustInterface</artifactId>-->
-            <!--<version>1.1-SNAPSHOT</version>-->
-        <!--</dependency>-->
+      <dependency>
+        <groupId>de.uniluebeck.ifis</groupId>
+        <artifactId>luposdate.endpoint</artifactId>
+        <version>1.0-SNAPSHOT</version>
+      </dependency>
 
-
-        <!--<dependency>-->
-            <!--<groupId>uberdust</groupId>-->
-            <!--<artifactId>WebSocketsLibrary</artifactId>-->
-            <!--<version>1.1-SNAPSHOT</version>-->
-        <!--</dependency>-->
+      <dependency>
+        <groupId>de.uniluebeck.itm</groupId>
+        <artifactId>jaxb4slse</artifactId>
+        <version>1.0-SNAPSHOT</version>
+      </dependency>
 
     </dependencies>
 
@@ -121,25 +132,30 @@
             </snapshots>
         </repository>
 
+      <repository>
+        <id>aduna</id>
+        <url>http://repo.aduna-software.org/maven2/releases</url>
+        <releases>
+          <enabled>false</enabled>
+        </releases>
+        <snapshots>
+          <enabled>false</enabled>
+        </snapshots>
+      </repository>
+
         <repository>
             <id>itm-maven-repository-snapshots</id>
             <url>https://maven.itm.uni-luebeck.de/content/repositories/snapshots/</url>
+
             <releases>
                 <enabled>false</enabled>
             </releases>
             <snapshots>
+                <updatePolicy>always</updatePolicy>
                 <enabled>true</enabled>
             </snapshots>
         </repository>
 
-        <repository>
-            <id>repository.ru1</id>
-            <url>http://ru1.cti.gr/maven</url>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-            <layout>default</layout>
-        </repository>
     </repositories>
 
     <build>

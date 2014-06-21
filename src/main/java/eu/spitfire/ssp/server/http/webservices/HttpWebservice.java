@@ -66,7 +66,7 @@ public abstract class HttpWebservice extends SimpleChannelHandler {
     }
 
 
-    public abstract void processHttpRequest(Channel channel, HttpRequest httpRequest, InetSocketAddress clientAddress);
+    public abstract void processHttpRequest(Channel channel, HttpRequest httpRequest, InetSocketAddress clientAddress) throws Exception;
 
 
     protected void writeHttpResponse(final Channel channel, final HttpResponse httpResponse,

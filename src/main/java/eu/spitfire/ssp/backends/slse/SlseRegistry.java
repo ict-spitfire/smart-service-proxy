@@ -3,6 +3,8 @@ package eu.spitfire.ssp.backends.slse;
 import com.google.common.util.concurrent.ListenableFuture;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
+import eu.spitfire.ssp.backends.slse.webservice.HttpVirtualSensorCreatedWebservice;
+import eu.spitfire.ssp.backends.slse.webservice.HttpVirtualSensorDefinitionWebservice;
 import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
 import eu.spitfire.ssp.server.http.webservices.HttpWebservice;
 import org.jboss.netty.channel.ChannelFuture;
@@ -33,10 +35,20 @@ public class SlseRegistry extends DataOriginRegistry<URI> {
     @Override
     public void startRegistry() throws Exception {
         //Register Webservice for Virtual Sensor creation
-        URI webserviceUri = new URI(null, null, null, -1, "/virtual-sensor-definition",null, null);
-        HttpWebservice httpWebservice = new HttpVirtualSensorDefinitionWebservice(
-                (SlseBackendComponentFactory) this.componentFactory);
+        this.registerWebservice(
+                new HttpVirtualSensorDefinitionWebservice((SlseBackendComponentFactory) this.componentFactory),
+                new URI(null, null, null, -1, "/virtual-sensor-definition", null, null)
+        );
 
+        this.registerWebservice(
+                new HttpVirtualSensorCreatedWebservice((SlseBackendComponentFactory) this.componentFactory),
+                new URI(null, null, null, -1, "/virtual-sensor-batch-creation", null, null)
+        );
+
+
+    }
+
+    private void registerWebservice(HttpWebservice httpWebservice, URI webserviceUri){
         httpWebservice.setInternalTasksExecutorService(this.componentFactory.getInternalTasksExecutorService());
         httpWebservice.setIoExecutorService(this.componentFactory.getIoExecutorService());
 
@@ -54,6 +66,5 @@ public class SlseRegistry extends DataOriginRegistry<URI> {
                     log.error("Could not register Webservice to create virtual sensors!", future.getCause());
             }
         });
-
     }
 }

@@ -4,21 +4,18 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.DataOrigin;
 import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 import eu.spitfire.ssp.backends.generic.access.DataOriginAccessor;
-import eu.spitfire.ssp.server.common.messages.ExpiringGraphStatusMessage;
-import eu.spitfire.ssp.server.common.messages.GraphStatusErrorMessage;
-import eu.spitfire.ssp.server.common.messages.GraphStatusMessage;
-import eu.spitfire.ssp.server.common.messages.SparqlQueryMessage;
+import eu.spitfire.ssp.server.common.messages.*;
 import eu.spitfire.ssp.server.common.wrapper.ExpiringGraph;
+import eu.spitfire.ssp.server.common.wrapper.ExpiringNamedGraph;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
@@ -59,26 +56,32 @@ public class SlseAccessor extends DataOriginAccessor<URI> {
         Futures.addCallback(queryResultFuture, new FutureCallback<ResultSet>() {
             @Override
             public void onSuccess(ResultSet resultSet) {
-                if(!resultSet.hasNext()){
-                    result.setException(new DataOriginAccessException(HttpResponseStatus.NOT_FOUND,
-                            "No sensors found to aggregate!"));
-                    return;
+                Model slseModel = ModelFactory.createDefaultModel();
+
+                //Get the first row of the result set
+                RDFNode sensorValue;
+
+                if(resultSet.hasNext()){
+                    QuerySolution querySolution = resultSet.nextSolution();
+                    sensorValue = querySolution.get(querySolution.varNames().next());
                 }
 
-                QuerySolution querySolution = resultSet.next();
+                else{
+                    sensorValue = ResourceFactory.createTypedLiteral("0", XSDDatatype.XSDinteger);
+                }
 
-                Model slseModel = ModelFactory.createDefaultModel();
-                Statement statement = slseModel.createStatement(
+                Statement statement  = slseModel.createStatement(
                         slseModel.createResource(dataOrigin.getGraphName().toString()),
                         slseModel.createProperty("http://spitfire-project.eu/ontology/ns/value"),
-                        querySolution.get(querySolution.varNames().next())
+                        sensorValue
                 );
 
                 slseModel.add(statement);
 
-                ExpiringGraph expiringGraph = new ExpiringGraph(slseModel, new Date());
-                ExpiringGraphStatusMessage statusMessage = new ExpiringGraphStatusMessage(HttpResponseStatus.OK,
-                        expiringGraph);
+                ExpiringNamedGraph expiringNamedGraph = new ExpiringNamedGraph(dataOrigin.getGraphName(), slseModel,
+                        new Date(System.currentTimeMillis() + DataOriginAccessor.MILLIS_PER_YEAR));
+
+                ExpiringNamedGraphStatusMessage statusMessage = new ExpiringNamedGraphStatusMessage(expiringNamedGraph);
 
                 result.set(statusMessage);
 
