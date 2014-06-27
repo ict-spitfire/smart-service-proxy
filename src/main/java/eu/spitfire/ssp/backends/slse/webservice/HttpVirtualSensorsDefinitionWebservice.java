@@ -4,7 +4,6 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import com.hp.hpl.jena.datatypes.RDFDatatype;
 import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.*;
@@ -37,18 +36,20 @@ import java.util.Map;
 /**
  * Created by olli on 05.05.14.
  */
-public class HttpVirtualSensorDefinitionWebservice extends HttpWebservice {
+public class HttpVirtualSensorsDefinitionWebservice extends HttpWebservice {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private LocalServerChannel localChannel;
-    private SlseRegistry slseRegistry;
     private static String SSP_HOST;
     private static int SSP_PORT;
     private static final String EMPTY = "&nbsp;";
     private static String SLSE_GRAPH_NAME_PREFIX;
 
-    public HttpVirtualSensorDefinitionWebservice(SlseBackendComponentFactory componentFactory){
+    private LocalServerChannel localChannel;
+    private SlseRegistry slseRegistry;
+
+
+    public HttpVirtualSensorsDefinitionWebservice(SlseBackendComponentFactory componentFactory){
         SSP_HOST = componentFactory.getSspHostName();
         SSP_PORT = componentFactory.getSspPort();
         SLSE_GRAPH_NAME_PREFIX = "http://" + SSP_HOST + "/virtual-sensor/";
@@ -88,11 +89,12 @@ public class HttpVirtualSensorDefinitionWebservice extends HttpWebservice {
     private void processGet(Channel channel, HttpRequest httpRequest, InetSocketAddress clientAddress)
             throws Exception{
 
-        String queryExample = "SELECT (avg(?value) AS ?aggValue) WHERE {\n" +
-                "  ?s\n    <http://spitfire-project.eu/ontology/ns/obs>\n" +
-                "      <http://localhost:8182/ld4s/resource/property/temperatur> .\n" +
-                "  ?s\n    <http://spitfire-project.eu/ontology/ns/value>\n" +
-                "      ?value .\n}";
+        String queryExample = "SELECT (count(?value) AS ?aggValue) WHERE {\n" +
+                "  GRAPH ?graphName {\n" +
+                "    ?s\n    <http://spitfire-project.eu/ontology/ns/obs>\n" +
+                "        <http://localhost:8182/ld4s/resource/property/temperature> .\n" +
+                "    ?s\n    <http://spitfire-project.eu/ontology/ns/value>\n" +
+                "        ?value .\n  }\n}";
 
         ChannelBuffer htmlContentBuffer = this.getHtmlContent("1", EMPTY, queryExample, EMPTY, EMPTY);
 

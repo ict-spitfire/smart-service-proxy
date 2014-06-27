@@ -30,6 +30,7 @@ import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
 import eu.spitfire.ssp.server.http.HttpResponseFactory;
 import eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice;
 import eu.spitfire.ssp.server.http.webservices.HttpWebservice;
+import eu.spitfire.ssp.server.http.webservices.style.HttpStyleWebservice;
 import eu.spitfire.ssp.utils.exceptions.WebserviceAlreadyRegisteredException;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -42,7 +43,6 @@ import org.slf4j.LoggerFactory;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -60,12 +60,13 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
 	//Maps resource proxy uris to request processors
 	private Map<String, HttpWebservice> webservices;
+    private HttpStyleWebservice styleWebservice;
 
-
-    public HttpRequestDispatcher()
+    public HttpRequestDispatcher(HttpStyleWebservice styleWebservice)
             throws Exception {
 
         this.webservices = Collections.synchronizedMap(new TreeMap<String, HttpWebservice>());
+        this.styleWebservice = styleWebservice;
     }
 
 
@@ -91,11 +92,17 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
         //Create resource proxy uri from request
-        String proxyUri = new URI(httpRequest.getUri()).getPath();
+        String proxyUri = httpRequest.getUri();
         log.info("Received HTTP request for proxy Webservice {}", proxyUri);
 
-        //Lookup proper http request processor
-        HttpWebservice httpWebservice = webservices.get(proxyUri);
+        HttpWebservice httpWebservice;
+        if(proxyUri.startsWith("/style")){
+            httpWebservice = styleWebservice;
+        }
+        else{
+            //Lookup proper http request processor
+            httpWebservice = webservices.get(proxyUri);
+        }
 
         //Send NOT FOUND if there is no proper processor
         if(httpWebservice == null){

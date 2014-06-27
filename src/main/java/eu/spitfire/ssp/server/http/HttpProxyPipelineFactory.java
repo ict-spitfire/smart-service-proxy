@@ -86,7 +86,7 @@ public class HttpProxyPipelineFactory implements ChannelPipelineFactory {
 
         //HTTP protocol handlers
 		pipeline.addLast("HTTP Decoder", new HttpRequestDecoder());
-		pipeline.addLast("HTTP Chunk Aggrgator", new HttpChunkAggregator(1048576));
+		pipeline.addLast("HTTP Chunk Aggregator", new HttpChunkAggregator(4194304));
         pipeline.addLast("HTTP Encoder", new HttpResponseEncoder());
 		pipeline.addLast("HTTP Deflater", new HttpContentCompressor());
 

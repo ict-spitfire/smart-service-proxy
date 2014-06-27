@@ -33,7 +33,7 @@ public class SlseObserver extends DataOriginObserver<URI> {
     @Override
     public void startObservation(final DataOrigin<URI> dataOrigin) {
         this.executorService.scheduleAtFixedRate(new SlseObservation((SlseDataOrigin) dataOrigin),
-                0, 30, TimeUnit.SECONDS);
+                0, 30, TimeUnit.MINUTES);
     }
 
     private class SlseObservation implements Runnable{
@@ -69,7 +69,8 @@ public class SlseObserver extends DataOriginObserver<URI> {
                             public void onFailure(Throwable t) {
                                 log.error("Failed to update cached status of graph {}", dataOrigin.getGraphName());
                             }
-                        });
+
+                        }, SlseObserver.this.executorService);
                     }
 
                     @Override
@@ -77,7 +78,8 @@ public class SlseObserver extends DataOriginObserver<URI> {
                         log.error("Failed to retrieve status of graph {} from {}",
                                 new Object[]{dataOrigin.getGraphName(), dataOrigin.getIdentifier(), t});
                     }
-                });
+
+                }, SlseObserver.this.executorService);
             }
             catch(Exception ex){
                 log.error("Could not start observation of graph {}", dataOrigin.getGraphName(), ex);

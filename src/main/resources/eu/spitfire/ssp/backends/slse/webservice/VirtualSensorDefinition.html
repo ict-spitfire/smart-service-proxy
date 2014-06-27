@@ -2,17 +2,25 @@
 <html>
 <head>
     <title>Creation of Virtual Sensors based on SPARQL</title>
-    <link rel="stylesheet" type="text/css" href="./style.css">
+    <!--<link rel="stylesheet" type="text/style" href="./style.style">-->
+    <link rel="stylesheet" type="text/css" href="./style/css/semantic.css">
+    <link rel="stylesheet" type="text/css" href="./style/css/semantic.min.css">
 </head>
 <body style="width: 800px">
-    <h2>Virtual sensor batch creation</h2>
-    <form method="post" action="virtual-sensor-batch-creation" enctype="multipart/form-data">
-        <p>
-            <h4>Choose XML file:</h4>
-            <input name="xmlFile" type="file" size="50" maxlength="100000"/>
-            <input type="submit" name="xmlButton" value="Create"/>
+    <div class="ui form">
+        <h2>Virtual sensor batch creation</h2>
+        <form method="post" action="virtual-sensor-batch-creation-old" enctype="multipart/form-data">
+            <p>
+                <h4>Choose XML file:</h4>
+                <input name="xmlFile" type="file" size="50" maxlength="100000"/>
+                <input type="submit" name="xmlButton" value="Create"/>
 
-    </form>
+            <div class="ui labeled icon button">
+                    <i class="pause icon"></i>
+                    Like it!
+                </div>
+        </form>
+    <
     <br><br>
 
     <h2>Create single virtual sensor</h2>

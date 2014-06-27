@@ -7,7 +7,10 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 
 /**
- * Created by olli on 14.04.14.
+ * A {@link eu.spitfire.ssp.backends.files.FileDataOrigin} represents a local file that contains RDF data in the
+ * form of N3.
+ *
+ * @author Oliver Kleine
  */
 public class FileDataOrigin extends DataOrigin<Path> {
 
@@ -16,20 +19,30 @@ public class FileDataOrigin extends DataOrigin<Path> {
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      *
-//     * @param graphName  the backendName of the graph representing the semantic information at this
-//     *                   {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      * @param identifier the identifier for this {@link eu.spitfire.ssp.backends.generic.DataOrigin}
+     * @param sspHostName the host name of the SSP the N3 file is located on (according to the ssp.properties)
      */
     public FileDataOrigin(Path identifier, String sspHostName) throws URISyntaxException {
         super(identifier.isAbsolute() ? identifier : identifier.toAbsolutePath().normalize());
         this.graphName = new URI("file", null, sspHostName, -1, this.getIdentifier().toString(), null, null);
     }
 
+    /**
+     * Returns <code>true</code> (because files are observable)
+     * @return <code>true</code>
+     */
     @Override
     public boolean isObservable() {
         return true;
     }
 
+    /**
+     * Returns the name of the graph that contains the data from the N3 file.
+     * <br><br>
+     * <code>file://<ssp-hostname>/<identifier></code>
+     *
+     * @return the name of the graph that contains the data from the N3 file.
+     */
     @Override
     public URI getGraphName() {
         return this.graphName;

@@ -14,7 +14,7 @@ import eu.spitfire.ssp.server.http.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.http.handler.MqttHandler;
 import eu.spitfire.ssp.server.http.webservices.HttpFaviconWebservice;
 import eu.spitfire.ssp.server.http.webservices.HttpRootWebservice;
-import eu.spitfire.ssp.server.http.webservices.HttpStylesheetWebservice;
+import eu.spitfire.ssp.server.http.webservices.style.HttpStyleWebservice;
 import eu.spitfire.ssp.server.http.webservices.HttpWebservice;
 import eu.spitfire.ssp.server.internal.InternalPipelineFactory;
 import org.apache.commons.configuration.Configuration;
@@ -38,10 +38,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Created with IntelliJ IDEA.
@@ -214,9 +211,10 @@ public class Initializer {
         int ioThreads = config.getInt("SSP_I/O_THREADS");
 
         //create the bootstrap
+        Executor ioExecutor = Executors.newCachedThreadPool();
         this.serverBootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
                 Executors.newCachedThreadPool(),
-                Executors.newCachedThreadPool(), ioThreads)
+                ioExecutor, ioThreads)
         );
 
         this.serverBootstrap.setOption("reuseAddress", true);
@@ -238,7 +236,11 @@ public class Initializer {
 
 
     private void createHttpRequestDispatcher() throws Exception {
-        this.httpRequestDispatcher = new HttpRequestDispatcher();
+        HttpStyleWebservice styleWebservice = new HttpStyleWebservice();
+        styleWebservice.setInternalTasksExecutorService(this.internalTasksExecutorService);
+        styleWebservice.setIoExecutorService(this.ioExecutorService);
+
+        this.httpRequestDispatcher = new HttpRequestDispatcher(styleWebservice);
         log.debug("HTTP Request Dispatcher created.");
     }
 
@@ -324,10 +326,13 @@ public class Initializer {
 
 
     private void registerStylesheet() throws Exception{
-        URI stylesheetURi = new URI(null, null, null, -1, "/style.css", null, null);
-        HttpWebservice httpWebservice = new HttpStylesheetWebservice();
+        HttpWebservice httpWebservice = new HttpStyleWebservice();
 
-        registerHttpWebservice(stylesheetURi, httpWebservice);
+//        registerHttpWebservice(new URI(null, null, null, -1, "/style/style.style", null, null), httpWebservice);
+        registerHttpWebservice(new URI(null, null, null, -1, "/style/css/semantic.css", null, null),
+                httpWebservice);
+        registerHttpWebservice(new URI(null, null, null, -1, "/style/css/semantic.min.css", null, null),
+                httpWebservice);
     }
 
 

@@ -28,7 +28,6 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import com.hp.hpl.jena.query.Dataset;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryFactory;
 import com.hp.hpl.jena.query.QuerySolution;
@@ -38,19 +37,13 @@ import eu.spitfire.ssp.server.common.wrapper.ExpiringGraph;
 import eu.spitfire.ssp.server.common.messages.*;
 import eu.spitfire.ssp.utils.exceptions.GraphNameAlreadyExistsException;
 import eu.spitfire.ssp.server.http.HttpResponseFactory;
-import org.apache.jena.query.spatial.EntityDefinition;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.FSDirectory;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import java.io.File;
-import java.io.IOException;
 import java.net.URI;
-import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Date;
@@ -71,7 +64,7 @@ import java.util.concurrent.TimeUnit;
  */
 public abstract class SemanticCache extends SimpleChannelHandler {
 
-    public static final int DELAY_AFTER_EXPIRY = 10000;
+    public static final int DELAY_AFTER_EXPIRY_MILLIS = 10000;
 
     private Logger log = LoggerFactory.getLogger(SemanticCache.class.getName());
     private Map<URI, ScheduledFuture> expiryFutures = Collections.synchronizedMap(new HashMap<URI, ScheduledFuture>());
@@ -198,7 +191,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         queryString = queryString.replace("\\r?\\n|\\r", "\n");
 
 
-        log.debug("SPARQL query read from HTTP request: {}", queryString);
+        log.debug("SPARQL query read from HTTP request: \n{}", queryString);
 
         return QueryFactory.create(queryString);
     }
@@ -346,7 +339,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
                                 @Override
                                 public void onSuccess(@Nullable Void result) {
-                                    log.info("Empty graph \"{}\" added to cache!", graphName);
+                                    log.error("Empty graph \"{}\" added to cache!", graphName);
                                     me.getFuture().setSuccess();
                                 }
 
@@ -354,7 +347,8 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                                 public void onFailure(Throwable t) {
                                     me.getFuture().setFailure(t);
                                 }
-                            });
+
+                            }, SemanticCache.this.internalTasksExecutorService);
                         }
                     }
 
@@ -363,7 +357,8 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                         log.error("Failed to register graph \"{}\"!", graphName, t);
                         me.getFuture().setFailure(new GraphNameAlreadyExistsException(graphName));
                     }
-                });
+
+                }, this.internalTasksExecutorService);
             }
 
 
@@ -396,7 +391,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                                 log.error("Failed to put graph \"{}\" to cache after {} millis.",
                                         new Object[]{graphName, System.currentTimeMillis() - startTime, t});
                             }
-                        });
+                        }, SemanticCache.this.internalTasksExecutorService);
                     }
                 });
             }
@@ -420,8 +415,6 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                     }
 
                 }, this.internalTasksExecutorService);
-
-
             }
 
 
@@ -454,7 +447,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                                 log.error("Failed to delete graph \"{}\" from cache!", graphName, t);
                             }
 
-                        });
+                        }, SemanticCache.this.internalTasksExecutorService);
                     }
                 });
             }
@@ -493,7 +486,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                         log.error("Could not delete resource {} from cache.", graphName, e);
                     }
                 }
-            }, expiry.getTime() - System.currentTimeMillis() + DELAY_AFTER_EXPIRY, TimeUnit.MILLISECONDS));
+            }, expiry.getTime() - System.currentTimeMillis() + DELAY_AFTER_EXPIRY_MILLIS, TimeUnit.MILLISECONDS));
         }
     }
 

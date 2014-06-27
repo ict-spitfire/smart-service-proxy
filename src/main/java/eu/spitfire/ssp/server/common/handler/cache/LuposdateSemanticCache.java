@@ -1,20 +1,17 @@
 package eu.spitfire.ssp.server.common.handler.cache;
 
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.*;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFactory;
-
 import com.hp.hpl.jena.rdf.model.*;
 import com.hp.hpl.jena.sparql.core.Var;
 import com.hp.hpl.jena.sparql.engine.binding.Binding;
 import eu.spitfire.ssp.server.common.messages.ExpiringGraphStatusMessage;
 import eu.spitfire.ssp.server.common.messages.SparqlQueryResultMessage;
 import eu.spitfire.ssp.server.common.wrapper.ExpiringGraph;
-import lupos.datastructures.items.literal.*;
+import lupos.datastructures.items.literal.LiteralFactory;
+import lupos.datastructures.items.literal.URILiteral;
 import lupos.datastructures.queryresult.BooleanResult;
 import lupos.datastructures.queryresult.QueryResult;
 import lupos.endpoint.server.format.XMLFormatter;
@@ -30,10 +27,13 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import java.io.*;
 import java.net.URI;
-import java.util.*;
+import java.util.Collection;
+import java.util.Date;
+import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by olli on 17.06.14.
@@ -43,13 +43,20 @@ public class LuposdateSemanticCache extends SemanticCache {
     private static Logger log = LoggerFactory.getLogger(LuposdateSemanticCache.class.getName());
 
     private CommonCoreQueryEvaluator<Node> evaluator;
-    private ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+    private AtomicInteger startetQueries = new AtomicInteger(0);
+    private AtomicInteger finishedQueries = new AtomicInteger(0);
+
+    private ExecutorService cacheExecutor;
 
     public LuposdateSemanticCache(ExecutorService ioExecutorService,
                                   ScheduledExecutorService internalTasksExecutorService) {
 
         super(ioExecutorService, internalTasksExecutorService);
         this.initialize();
+
+        this.cacheExecutor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat(
+                "SSP Cache Thread #%d"
+        ).build());
     }
 
     private void initialize(){
@@ -79,117 +86,129 @@ public class LuposdateSemanticCache extends SemanticCache {
 
 
     @Override
-    public ListenableFuture<Boolean> containsNamedGraph(URI graphName) {
-        lock.readLock().lock();
-        SettableFuture<Boolean> containsFuture = SettableFuture.create();
-        try{
-            containsFuture.set(containsNamedGraph2(graphName));
-            return containsFuture;
-        }
-        catch(Exception ex){
-            log.error("Exception while checking whether graph {} is contained.", graphName, ex);
-            containsFuture.setException(ex);
-            return containsFuture;
-        }
-        finally {
-            lock.readLock().unlock();
-        }
+    public ListenableFuture<Boolean> containsNamedGraph(final URI graphName) {
+        final SettableFuture<Boolean> containsFuture = SettableFuture.create();
+
+        this.cacheExecutor.execute(new Runnable(){
+
+            @Override
+            public void run() {
+                try{
+                    containsFuture.set(containsNamedGraph2(graphName));
+
+                }
+                catch(Exception ex){
+                    log.error("Exception while checking whether graph {} is contained.", graphName, ex);
+                    containsFuture.setException(ex);
+                }
+            }
+        });
+
+        return containsFuture;
     }
 
 
     @Override
-    public ListenableFuture<ExpiringGraphStatusMessage> getNamedGraph(URI graphName) {
-        lock.readLock().lock();
+    public ListenableFuture<ExpiringGraphStatusMessage> getNamedGraph(final URI graphName) {
         final SettableFuture<ExpiringGraphStatusMessage> result = SettableFuture.create();
-        try{
-            if(!containsNamedGraph2(graphName)){
-                result.set(null);
-                return result;
-            }
 
-            result.set(getNamedGraph2(graphName));
-            return result;
-        }
-        catch(Exception ex){
-            result.setException(ex);
-            return result;
-        }
-        finally {
-            lock.readLock().unlock();
-        }
+        this.cacheExecutor.execute(new Runnable(){
+
+            @Override
+            public void run() {
+                try{
+                    if(!containsNamedGraph2(graphName)){
+                        result.set(null);
+                    }
+
+                    result.set(getNamedGraph2(graphName));
+                }
+                catch(Exception ex){
+                    result.setException(ex);
+                }
+            }
+        });
+
+        return result;
+
     }
 
 
     @Override
     public ListenableFuture<Void> putNamedGraphToCache(final URI graphName, final Model namedGraph) {
-        lock.writeLock().lock();
         final SettableFuture<Void> result = SettableFuture.create();
-        try{
-            putNamedGraphToCache2(graphName, namedGraph);
-            result.set(null);
-            return result;
-        }
-        catch (Exception ex){
-            log.error("Exception while putting graph {} to cache!", graphName, ex);
-            result.setException(ex);
-            return result;
-        }
-        finally {
-            lock.writeLock().unlock();
-        }
+
+        this.cacheExecutor.execute(new Runnable(){
+
+            @Override
+            public void run() {
+                try{
+                    putNamedGraphToCache2(graphName, namedGraph);
+                    result.set(null);
+                }
+                catch (Exception ex){
+                    log.error("Exception while putting graph {} to cache!", graphName, ex);
+                    result.setException(ex);
+                }
+            }
+        });
+
+        return result;
+
     }
 
 
     @Override
-    public synchronized ListenableFuture<SparqlQueryResultMessage> processSparqlQuery(Query sparqlQuery) {
-        if(sparqlQuery.isAskType() || sparqlQuery.isSelectType()){
-            lock.readLock().lock();
-        }
-        else{
-            lock.writeLock().lock();
-        }
-
+    public ListenableFuture<SparqlQueryResultMessage> processSparqlQuery(final Query sparqlQuery) {
         final SettableFuture<SparqlQueryResultMessage> resultFuture = SettableFuture.create();
 
-        try{
-            SparqlQueryResultMessage resultMessage = processSparqlQuery2(sparqlQuery);
-            resultFuture.set(resultMessage);
-            return resultFuture;
-        }
-        catch (Exception e) {
-            log.error("This should never happen.", e);
+        this.cacheExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try{
+                    log.info("Start SPARQL query (#{}): \n{}", startetQueries.incrementAndGet() ,
+                            sparqlQuery.toString());
 
-            resultFuture.setException(e);
-            return resultFuture;
-        }
-        finally {
-            if(sparqlQuery.isAskType() || sparqlQuery.isSelectType()){
-                lock.readLock().unlock();
+                    SparqlQueryResultMessage resultMessage = processSparqlQuery2(sparqlQuery);
+                    resultFuture.set(resultMessage);
+                }
+                catch (Exception e) {
+                    log.error("Exception while processing SPARQL query.", e);
+                    resultFuture.setException(e);
+                }
+                finally {
+                    log.info("Finished SPARQL query (#{}).", finishedQueries.incrementAndGet());
+                }
             }
-            else{
-                lock.writeLock().unlock();
-            }
-        }
+        });
+
+        return resultFuture;
     }
 
 
     @Override
-    public ListenableFuture<Void> deleteNamedGraph(URI graphName) {
-        SettableFuture<Void> result = SettableFuture.create();
+    public ListenableFuture<Void> deleteNamedGraph(final URI graphName) {
+        final SettableFuture<Void> result = SettableFuture.create();
 
-        try{
-            if(!deleteNamedGraph2(graphName)){
-                log.error("Could not delete graph {} from cache!", graphName);
+        this.cacheExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try{
+                    if(!deleteNamedGraph2(graphName)){
+                        log.error("Could not delete graph {} from cache!", graphName);
+                    }
+
+                    result.set(null);
+
+                }
+                catch(Exception ex){
+                    log.error("Exception while deleting graph {} from cache!", graphName, ex);
+                    result.setException(ex);
+                }
             }
+        });
 
-            result.set(null);
-            return result;
-        }
-        catch(Exception ex){
-            log.error("Exception while deleting graph {} from cache!", graphName, ex);
-            result.setException(ex);
-            return result;
-        }
+        return result;
     }
 
     private boolean containsNamedGraph2(URI graphName) throws Exception {
@@ -247,6 +266,7 @@ public class LuposdateSemanticCache extends SemanticCache {
         return new ExpiringGraphStatusMessage(HttpResponseStatus.OK, new ExpiringGraph(model, new Date()));
     }
 
+
     private boolean deleteNamedGraph2(URI graphName) throws Exception{
         if(containsNamedGraph2(graphName)){
             this.evaluator.getResult(String.format("DROP GRAPH <%s>", graphName));
@@ -260,6 +280,7 @@ public class LuposdateSemanticCache extends SemanticCache {
         final SettableFuture<SparqlQueryResultMessage> messageFuture = SettableFuture.create();
 
         QueryResult queryResult  = this.evaluator.getResult(sparqlQuery.toString());
+        log.info("Result received!");
         ListenableFuture<ResultSet> resultSetFuture = toResultSet(queryResult);
         Futures.addCallback(resultSetFuture, new FutureCallback<ResultSet>() {
             @Override
@@ -277,6 +298,7 @@ public class LuposdateSemanticCache extends SemanticCache {
 
             @Override
             public void onFailure(Throwable t) {
+                log.error("Unexpected Exception!", t);
                 messageFuture.setException(t);
             }
         });
@@ -317,44 +339,65 @@ public class LuposdateSemanticCache extends SemanticCache {
     }
 
 
-
     private ListenableFuture<ResultSet> toResultSet(final QueryResult queryResult) throws IOException {
 
         final SettableFuture<ResultSet> resultSetFuture = SettableFuture.create();
-        final PipedOutputStream outputStream = new PipedOutputStream();
-        final PipedInputStream inputStream = new PipedInputStream(outputStream);
+        final File tmpFile = File.createTempFile("queryResult", ".xml");
 
-        this.getInternalTasksExecutorService().execute(new Runnable(){
-            @Override
-            public void run() {
-                try{
-                    XMLFormatter formatter = new XMLFormatter();
-                    formatter.writeResult(outputStream, queryResult.getVariableSet(), queryResult);
-                }
-                catch(Exception ex){
-                    log.error("Error while writing SPARQL query result to output stream...", ex);
-                    resultSetFuture.setException(ex);
-                }
-            }
-        });
+        XMLFormatter formatter = new XMLFormatter();
+        formatter.writeResult(new FileOutputStream(tmpFile), queryResult.getVariableSet(), queryResult);
 
-        this.getInternalTasksExecutorService().execute(new Runnable() {
-            @Override
-            public void run() {
-                try{
-                    ResultSet result = ResultSetFactory.fromXML(inputStream);
-                    resultSetFuture.set(result);
+        ResultSet result = ResultSetFactory.fromXML(new FileInputStream(tmpFile));
+        resultSetFuture.set(result);
 
-
-                }
-                catch(Exception ex){
-                    log.error("Error while reading SPARQL query result from input stream...", ex);
-                    resultSetFuture.setException(ex);
-                }
-            }
-        });
+        tmpFile.delete();
 
         return resultSetFuture;
+
+
     }
+
+
+//    private ListenableFuture<ResultSet> toResultSet(final QueryResult queryResult) throws IOException {
+//
+//        final SettableFuture<ResultSet> resultSetFuture = SettableFuture.create();
+////        final File tmpFile = File.createTempFile("queryResult", ".xml");
+//
+//        final PipedOutputStream outputStream = new PipedOutputStream();
+//        final PipedInputStream inputStream = new PipedInputStream(outputStream);
+//
+//        this.getInternalTasksExecutorService().execute(new Runnable(){
+//            @Override
+//            public void run() {
+//                try{
+//
+//                    XMLFormatter formatter = new XMLFormatter();
+//                    formatter.writeResult(outputStream, queryResult.getVariableSet(), queryResult);
+//                }
+//                catch(Exception ex){
+//                    log.error("Error while writing SPARQL query result to output stream...", ex);
+//                    resultSetFuture.setException(ex);
+//                }
+//            }
+//        });
+//
+//        this.getInternalTasksExecutorService().execute(new Runnable() {
+//            @Override
+//            public void run() {
+//                try{
+//                    ResultSet result = ResultSetFactory.fromXML(inputStream);
+//                    resultSetFuture.set(result);
+//
+//
+//                }
+//                catch(Exception ex){
+//                    log.error("Error while reading SPARQL query result from input stream...", ex);
+//                    resultSetFuture.setException(ex);
+//                }
+//            }
+//        });
+//
+//        return resultSetFuture;
+//    }
 
 }

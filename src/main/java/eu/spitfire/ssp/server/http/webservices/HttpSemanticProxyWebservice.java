@@ -82,7 +82,7 @@ public class HttpSemanticProxyWebservice<T> extends HttpWebservice {
             }
 
             catch (IdentifierAlreadyRegisteredException e) {
-                log.warn("Could not register new data origin!", e);
+                log.warn("Data origin {} was already registered!", e.getIdentifier());
                 me.getFuture().setFailure(e);
             }
 

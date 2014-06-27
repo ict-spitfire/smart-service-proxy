@@ -22,7 +22,9 @@ import java.util.Date;
 
 
 /**
- * Created by olli on 13.04.14.
+ * A {@link eu.spitfire.ssp.backends.files.FileAccessor} is the component to read RDF data from local N3 files.
+ *
+ * @author Oliver Kleine
  */
 public class FileAccessor extends DataOriginAccessor<Path> {
 

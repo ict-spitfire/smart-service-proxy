@@ -14,6 +14,8 @@ import java.nio.file.Path;
 
 /**
  * Observer for local files
+ *
+ * @author Oliver Kleine
  */
 public class FileObserver extends DataOriginObserver<Path> {
 

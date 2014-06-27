@@ -32,14 +32,14 @@ import java.util.List;
 /**
  * Created by olli on 19.06.14.
  */
-public class HttpVirtualSensorCreatedWebservice extends HttpWebservice{
+public class HttpCreateMultipleVirtualSensorsWebservice extends HttpWebservice{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private SlseBackendComponentFactory componentFactory;
     private SlseRegistry slseRegistry;
 
-    public HttpVirtualSensorCreatedWebservice(SlseBackendComponentFactory componentFactory){
+    public HttpCreateMultipleVirtualSensorsWebservice(SlseBackendComponentFactory componentFactory){
         this.componentFactory = componentFactory;
         this.slseRegistry = (SlseRegistry) componentFactory.getDataOriginRegistry();
     }
@@ -84,7 +84,7 @@ public class HttpVirtualSensorCreatedWebservice extends HttpWebservice{
                 writeHttpResponse(channel, httpResponse, clientAddress);
             }
 
-        }, this.internalTasksExecutorService);
+        }, this.ioExecutorService);
 
 
         try{
@@ -98,7 +98,7 @@ public class HttpVirtualSensorCreatedWebservice extends HttpWebservice{
                     log.warn("Line: {}", line);
                 }
                 catch(IndexOutOfBoundsException ex){
-
+                 log.warn("Exception", ex);
                 }
 
             }
@@ -128,7 +128,7 @@ public class HttpVirtualSensorCreatedWebservice extends HttpWebservice{
                     public void onFailure(Throwable t) {
                         log.error("Could not register SLSE {}", graphName, t);
                     }
-                });
+                }, this.internalTasksExecutorService);
 
                 registrationFutures.add(registrationFuture);
             }
@@ -157,7 +157,7 @@ public class HttpVirtualSensorCreatedWebservice extends HttpWebservice{
 
                     httpResponseFuture.set(httpResponse);
                 }
-            });
+            }, this.ioExecutorService);
 
         }
 
