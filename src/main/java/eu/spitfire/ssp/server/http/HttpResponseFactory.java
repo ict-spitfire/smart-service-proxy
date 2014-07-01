@@ -1,6 +1,7 @@
 package eu.spitfire.ssp.server.http;
 
 import com.google.common.collect.Multimap;
+import com.google.gson.Gson;
 import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.server.common.messages.EmptyGraphStatusMessage;
@@ -19,10 +20,12 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.OK;
@@ -30,6 +33,7 @@ import static org.jboss.netty.handler.codec.http.HttpResponseStatus.OK;
 public class HttpResponseFactory {
 
     private static Logger log = LoggerFactory.getLogger(HttpResponseFactory.class.getName());
+    private static Gson gson = new Gson();
 
     private static SimpleDateFormat dateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
     static{
@@ -41,13 +45,31 @@ public class HttpResponseFactory {
     public static HttpResponse createHttpResponse(HttpVersion version, HttpResponseStatus status, String content){
         HttpResponse response = new DefaultHttpResponse(version, status);
 
-        String payload = status.getReasonPhrase() + "\n\n" + content;
+        String payload = "";
+//        if(!status.equals(HttpResponseStatus.OK)){
+//            payload += status.getReasonPhrase() + "\n\n";
+//        }
+        payload += content;
+
         ChannelBuffer payloadBuffer = ChannelBuffers.wrappedBuffer(payload.getBytes(Charset.forName("UTF-8")));
         response.setContent(payloadBuffer);
         response.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payloadBuffer.readableBytes());
         return response;
     }
 
+
+    public static HttpResponse createHttpJsonResponse(HttpVersion httpVersion, Map<String, String> content){
+        HttpResponse httpResponse = new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK);
+
+        ChannelBuffer payload = ChannelBuffers.wrappedBuffer(gson.toJson(content).getBytes(Charset.forName("UTF-8")));
+        httpResponse.setContent(payload);
+        httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
+
+        httpResponse.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/json");
+
+        return httpResponse;
+
+    }
 
     public static HttpResponse createHttpResponse(HttpVersion httpVersion, HttpResponseStatus status,
                                                   ChannelBuffer content, String contentType){

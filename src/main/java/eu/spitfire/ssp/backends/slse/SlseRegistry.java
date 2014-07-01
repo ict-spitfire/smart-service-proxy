@@ -4,8 +4,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
 import eu.spitfire.ssp.backends.slse.webservice.HttpCreateMultipleVirtualSensorsWebservice;
-import eu.spitfire.ssp.backends.slse.webservice.HttpVirtualSensorBatchCreation;
-import eu.spitfire.ssp.backends.slse.webservice.HttpVirtualSensorsDefinitionWebservice;
+import eu.spitfire.ssp.backends.slse.webservice.HttpVirtualSensorBatchCreator;
+import eu.spitfire.ssp.backends.slse.webservice.HttpVirtualSensorsCreator;
 import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
 import eu.spitfire.ssp.server.http.webservices.HttpWebservice;
 import org.jboss.netty.channel.ChannelFuture;
@@ -38,19 +38,19 @@ public class SlseRegistry extends DataOriginRegistry<URI> {
     public void startRegistry() throws Exception {
         //Register Webservice for Virtual Sensor creation
         this.registerWebservice(
-                new HttpVirtualSensorsDefinitionWebservice((SlseBackendComponentFactory) this.componentFactory),
-                new URI(null, null, null, -1, "/virtual-sensor-definition", null, null)
+                new HttpVirtualSensorsCreator((SlseBackendComponentFactory) this.componentFactory),
+                new URI(null, null, null, -1, "/services/semantic-entities/virtual-sensor-creation", null, null)
         );
-//
-        this.registerWebservice(
-                new HttpCreateMultipleVirtualSensorsWebservice((SlseBackendComponentFactory) this.componentFactory),
-                new URI(null, null, null, -1, "/virtual-sensor-batch-creation-old", null, null)
-        );
+////
+//        this.registerWebservice(
+//                new HttpCreateMultipleVirtualSensorsWebservice((SlseBackendComponentFactory) this.componentFactory),
+//                new URI(null, null, null, -1, "/virtual-sensor-batch-creation-old", null, null)
+//        );
 
 
         this.registerWebservice(
-                new HttpVirtualSensorBatchCreation((SlseBackendComponentFactory) this.componentFactory),
-                new URI(null, null, null, -1, "/html/virtual-sensor-batch-creation.html", null, null)
+                new HttpVirtualSensorBatchCreator((SlseBackendComponentFactory) this.componentFactory),
+                new URI(null, null, null, -1, "/services/semantic-entities/virtual-sensor-batch-creation", null, null)
         );
 
     }

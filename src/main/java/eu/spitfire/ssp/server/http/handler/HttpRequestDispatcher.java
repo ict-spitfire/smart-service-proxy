@@ -114,7 +114,9 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
         //Forward request to responsible HTTP Webservice instance
         else{
-            ctx.getChannel().getPipeline().addLast("HTTP Webservice", httpWebservice);
+            if(!(ctx.getChannel().getPipeline().getLast() instanceof HttpWebservice)){
+                ctx.getChannel().getPipeline().addLast("HTTP Webservice", httpWebservice);
+            }
             ctx.sendUpstream(me);
         }
     }

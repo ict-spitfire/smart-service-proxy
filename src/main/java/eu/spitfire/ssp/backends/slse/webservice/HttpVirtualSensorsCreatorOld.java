@@ -36,7 +36,7 @@ import java.util.Map;
 /**
  * Created by olli on 05.05.14.
  */
-public class HttpVirtualSensorsDefinitionWebservice extends HttpWebservice {
+public class HttpVirtualSensorsCreatorOld extends HttpWebservice {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -49,7 +49,7 @@ public class HttpVirtualSensorsDefinitionWebservice extends HttpWebservice {
     private SlseRegistry slseRegistry;
 
 
-    public HttpVirtualSensorsDefinitionWebservice(SlseBackendComponentFactory componentFactory){
+    public HttpVirtualSensorsCreatorOld(SlseBackendComponentFactory componentFactory){
         SSP_HOST = componentFactory.getSspHostName();
         SSP_PORT = componentFactory.getSspPort();
         SLSE_GRAPH_NAME_PREFIX = "http://" + SSP_HOST + "/virtual-sensor/";

@@ -1,5 +1,6 @@
 package eu.spitfire.ssp.server.http.webservices;
 
+import eu.spitfire.ssp.server.http.HttpResponseFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
@@ -10,21 +11,23 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 
 /**
- * Provides a list of all registered services on this proxy server.
- *
- * @author Oliver Kleine
- */
+* Provides a list of all registered services on this proxy server.
+*
+* @author Oliver Kleine
+*/
 public class HttpRootWebservice extends HttpWebservice {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
@@ -32,7 +35,7 @@ public class HttpRootWebservice extends HttpWebservice {
     private Map<String, HttpWebservice> services;
 
     /**
-     * @param webservices the {@link Set} containing the {@link URI}s to be listed in the HTTP response
+     * @param webservices the {@link java.util.Set} containing the {@link java.net.URI}s to be listed in the HTTP response
      */
     public HttpRootWebservice(Map<String, HttpWebservice> webservices){
         this.services = webservices;
@@ -43,15 +46,37 @@ public class HttpRootWebservice extends HttpWebservice {
     public void processHttpRequest(Channel channel, HttpRequest httpRequest, InetSocketAddress clientAddress) {
         log.debug("Received HTTP request for list of available services!");
 
-        HttpResponse httpResponse = new DefaultHttpResponse(httpRequest.getProtocolVersion(), HttpResponseStatus.OK);
-        httpResponse.headers().add(CONTENT_TYPE, "text/html; charset=utf-8");
+        try{
+            HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+                    HttpResponseStatus.OK, getHtmlContent(), "text/html");
 
-        ChannelBuffer payload = getHtmlListOfServices();
-        httpResponse.headers().add(CONTENT_LENGTH, payload.readableBytes());
-        httpResponse.setContent(payload);
+            writeHttpResponse(channel, httpResponse, clientAddress);
+        }
+        catch(Exception ex){
+                log.error("Internal Server Error because of exception!", ex);
+                HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+                        HttpResponseStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
 
-        writeHttpResponse(channel, httpResponse, clientAddress);
+                writeHttpResponse(channel, httpResponse, clientAddress);
+        }
     }
+
+    private ChannelBuffer getHtmlContent() throws IOException {
+        String htmlPath = "html/homepage.html";
+        InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream(htmlPath);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+
+        StringBuilder content = new StringBuilder();
+        String line = reader.readLine();
+        while(line != null){
+            content.append(line);
+            content.append("\n");
+            line = reader.readLine();
+        }
+
+        return ChannelBuffers.wrappedBuffer(content.toString().getBytes(Charset.forName("UTF-8")));
+    }
+
 
 
     private ChannelBuffer getHtmlListOfServices() {

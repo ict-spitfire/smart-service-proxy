@@ -333,22 +333,22 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                         }
                         else{
                             log.info("Graph \"{}\" not yet contained in cache!", graphName);
-
-                            Futures.addCallback(putNamedGraphToCache(graphName, ModelFactory.createDefaultModel()),
-                                    new FutureCallback<Void>() {
-
-                                @Override
-                                public void onSuccess(@Nullable Void result) {
-                                    log.error("Empty graph \"{}\" added to cache!", graphName);
-                                    me.getFuture().setSuccess();
-                                }
-
-                                @Override
-                                public void onFailure(Throwable t) {
-                                    me.getFuture().setFailure(t);
-                                }
-
-                            }, SemanticCache.this.internalTasksExecutorService);
+                            me.getFuture().setSuccess();
+//                            Futures.addCallback(putNamedGraphToCache(graphName, ModelFactory.createDefaultModel()),
+//                                    new FutureCallback<Void>() {
+//
+//                                @Override
+//                                public void onSuccess(@Nullable Void result) {
+//                                    log.info("Empty graph \"{}\" added to cache!", graphName);
+//                                    me.getFuture().setSuccess();
+//                                }
+//
+//                                @Override
+//                                public void onFailure(Throwable t) {
+//                                    me.getFuture().setFailure(t);
+//                                }
+//
+//                            }, SemanticCache.this.internalTasksExecutorService);
                         }
                     }
 

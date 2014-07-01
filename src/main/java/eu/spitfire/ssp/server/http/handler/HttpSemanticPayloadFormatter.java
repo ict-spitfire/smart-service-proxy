@@ -74,7 +74,8 @@ public class HttpSemanticPayloadFormatter extends SimpleChannelHandler {
             URI requestURI = new URI(httpRequest.getUri());
 
             //Request returns a graph to be serialized as RDF
-            if("/".equals(requestURI.getPath()) && requestURI.getQuery() != null){
+            if(("/".equals(requestURI.getPath()) && requestURI.getQuery() != null)){
+
                 if(requestURI.getQuery().contains("graph=") || requestURI.getQuery().contains("resource=")){
                     formatType = RDF_FORMAT;
                     if(acceptHeader != null){
@@ -102,7 +103,7 @@ public class HttpSemanticPayloadFormatter extends SimpleChannelHandler {
                 }
             }
 
-            else if("/sparql".equals(requestURI.getPath())){
+            else if("/services/sparql-endpoint".equals(requestURI.getPath()) && httpRequest.getMethod() == HttpMethod.POST){
                 formatType = SPARQL_RESULT_FORMAT;
                 if(acceptHeader != null){
                     Multimap<Double, String> acceptedMediaTypes = getAcceptedMediaTypes(acceptHeader);

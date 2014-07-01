@@ -14,6 +14,7 @@ import eu.spitfire.ssp.server.http.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.http.handler.MqttHandler;
 import eu.spitfire.ssp.server.http.webservices.HttpFaviconWebservice;
 import eu.spitfire.ssp.server.http.webservices.HttpRootWebservice;
+import eu.spitfire.ssp.server.http.webservices.HttpSparqlEndpoint;
 import eu.spitfire.ssp.server.http.webservices.style.HttpStyleWebservice;
 import eu.spitfire.ssp.server.http.webservices.HttpWebservice;
 import eu.spitfire.ssp.server.internal.InternalPipelineFactory;
@@ -95,6 +96,8 @@ public class Initializer {
         registerStylesheet();
         registerMainWebsite();
         registerFavicon();
+        registerSparqlEndpoint();
+
 //        registerSlseDefinitionService();
 //        registerSlseCreationService();
 //
@@ -324,6 +327,16 @@ public class Initializer {
         registerHttpWebservice(faviconUri, httpWebservice);
     }
 
+    private void registerSparqlEndpoint() throws Exception{
+        LocalServerChannel localChannel = this.localChannelFactory.newChannel(
+                this.internalPipelineFactory.getPipeline()
+        );
+
+        URI sparqlEndpointUri = new URI(null, null, null, -1, "/services/sparql-endpoint", null, null);
+        HttpWebservice httpWebservice = new HttpSparqlEndpoint(localChannel);
+
+        registerHttpWebservice(sparqlEndpointUri, httpWebservice);
+    }
 
     private void registerStylesheet() throws Exception{
         HttpWebservice httpWebservice = new HttpStyleWebservice();

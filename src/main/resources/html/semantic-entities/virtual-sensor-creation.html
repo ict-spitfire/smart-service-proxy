@@ -1,0 +1,198 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Virtual Sensors Batch Creation</title>
+    <link href="../../style/css/semantic.css" rel="stylesheet" type="text/css" />
+    <link href="../../style/css/semantic.min.css" rel="stylesheet" type="text/css"/>
+    <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Open+Sans:300italic,400,300,700'
+          rel='stylesheet' type='text/css'>
+
+    <style type="text/css">
+        :not(i){
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        *{
+            font-size: 13px;
+        }
+
+        .label{
+            font-weight: bold !important;
+
+        }
+
+        .monospace{
+            font-family: monospace;
+        }
+    </style>
+
+    <script src="../../style/javascript/jquery-1.11.1.min.js"></script>
+    <script src="../../style/javascript/semantic.min.js"></script>
+    <script src="../../style/javascript/semantic.js"></script>
+</head>
+
+<body>
+<div class="ui one column page grid">
+    <div class="column">
+        <div id="header">
+        </div>
+        <script src="../../style/javascript/ssp-menu.js"></script>
+
+        <h4 class="ui top attached header">
+            Create Single Virtual Sensor
+        </h4>
+
+        <div class="ui form segment attached">
+            <div class="ui two steps" style="margin-top: 5px; margin-bottom: 20px">
+                <div class="ui active step" id="definitionStep">
+                    1st step: Definition
+                </div>
+                <div class="ui step" id="creationStep">
+                    2nd step: Test and Creation
+                </div>
+            </div>
+
+            <div id="definitionStepContent">
+                <div class="ui secondary segment">
+                    <div class="ui small grey top left attached label">Path for graph name:</div>
+                    <input class="monospace" type="text" value="/example/path/1" id="fldGraphNamePath">
+                </div>
+
+                <div class="ui secondary segment">
+                    <div class="ui small grey top left attached label">Prefixes (if any)</div>
+                    <textarea class="sparqlPart monospace" id="fldPrefixes" style="height: 70px; min-height: 70px">
+PREFIX itm: &lt;http://example.org/itm-geo-test#&gt;
+PREFIX geo: &lt;http://www.opengis.net/ont/geosparql#&gt;
+PREFIX geof: &lt;http://www.opengis.net/def/function/geosparql/&gt;
+                    </textarea>
+                </div>
+
+                <div class="ui secondary segment">
+                    <div class="ui small grey top left attached label">Aggregate Function</div>
+                    <div class="ui selection dropdown">
+                        <input class ="sparqlPart" type="hidden" id="selAggregate">
+                        <div class="default text">COUNT</div>
+                        <i class="dropdown icon"></i>
+                        <div class="menu">
+                            <div class="item" data-value="COUNT">COUNT</div>
+                            <div class="item" data-value="MIN">MIN</div>
+                            <div class="item" data-value="MAX">MAX</div>
+                            <div class="item" data-value="AVG">AVG</div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div class="ui secondary segment">
+                    <div class="ui small grey top left attached label">WHERE clause (?val is the parameter to aggregate)</div>
+                    <!--<label style="font-size: 13px">4. Edit WHERE clause (?val is the parameter to aggregate)</label>-->
+                    <textarea class="sparqlPart monospace" id="fldWhereClause" style="height: 160px">
+?val itm:hasPointGeometry ?fGeom .
+?fGeom geo:asWKT ?fWKT .
+
+FILTER (geof:sfWithin(
+  ?fWKT,
+  "&lt;http://www.opengis.net/def/crs/OGC/1.3/CRS84&gt;Polygon ((-83.4 34.0, -83.1 34.0,-83.1 34.2, -83.4 34.2,-83.4 34.0))"^^geo:wktLiteral
+))
+                    </textarea>
+                </div>
+            </div>
+
+            <div id="creationStepContent" style="display: none">
+                <div class="ui secondary segment">
+                    <div class="ui top left attached label">Generated SPARQL Query</div>
+                    <textarea class="monospace" id="fldSparqlQuery" style="height: 300px" readonly="readonly">
+                    </textarea>
+
+                    <div class="ui buttons" id="buttons" style="margin-top: 30px">
+                        <div class="ui blue button" id="btnTest">Test Creation</div>
+                        <div class="or"></div>
+                        <div class="ui green button" id="btnCreate">Create</div>
+                    </div>
+                </div>
+
+                <div class="ui secondary segment" id="testResultContent" style="display: none">
+                    <div class="ui top left attached label">
+                            RDF Representation of Virtual Sensor
+                    </div>
+                    <div>
+                        <p id="fldDuration"></p>
+                        <textarea class="monospace" id="fldRdfResult" style="height: 200px" readonly="readonly">
+                        </textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    //Initialize dropdown
+    $('.ui.dropdown').dropdown();
+
+    $(document).ready(function(){
+        $('#selAggregate').val('COUNT');
+        setSparql();
+    });
+
+    $('.sparqlPart').on('change keyup', function(){
+        setSparql();
+    });
+
+    function setSparql(){
+        $('#fldSparqlQuery').val(
+                $('#fldPrefixes').val() + '\nSELECT (' + $('#selAggregate').val() +
+                        '(?val) AS ?aggVal) WHERE {\nGRAPH ?graph {\n' + $('#fldWhereClause').val() + '\n}}'
+        );
+    }
+
+    $('#buttons').find('div.button').click(function(event){
+        event.preventDefault();
+
+        var formData = new FormData();
+        formData.append('sparqlQuery', $('#fldSparqlQuery').val());
+        formData.append('button', $(this).attr('id'));
+        formData.append('graphNamePath', $('#fldGraphNamePath').val());
+
+        $.ajax({
+            type: "POST",
+            url: './virtual-sensor-creation',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function(e){
+                console.log(e);
+                $('#fldDuration').html('Query Execution Duration: ' + e['duration'] + ' ms.');
+                $('#fldRdfResult').val(e['sensorStatus']);
+            },
+            error: function(e){
+                console.log(e);
+                $('#fldDuration').hide();
+                $('#fldRdfResult').val(e['responseText']);
+            }
+        });
+    });
+
+    $('.steps').find('div.step').click(function(){
+        $('.steps').find('div.step').each(function(){
+            $(this).removeClass('active');
+        });
+
+        $(this).addClass('active');
+
+        if($(this).attr('id') == 'definitionStep'){
+            $('#creationStepContent').hide();
+            $('#testResultContent').hide();
+            $('#definitionStepContent').show();
+        }
+
+        else if($(this).attr('id') == 'creationStep'){
+            $('#definitionStepContent').hide();
+            $('#creationStepContent').show();
+            $('#testResultContent').show();
+        }
+    });
+</script>
+</body>
+</html>
