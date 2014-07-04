@@ -17,7 +17,7 @@
 //
 //import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
 //import eu.spitfire.ssp.backends.coap.CoapWebserviceResponseProcessor;
-//import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
+//import eu.spitfire.ssp.backends.generic.Registry;
 //import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 //
 //import org.slf4j.Logger;
@@ -41,7 +41,7 @@
 // * Time: 18:30
 // * To change this template use File | Settings | File Templates.
 // */
-//public class CoapWebserviceRegistry extends DataOriginRegistry<URI> {
+//public class CoapWebserviceRegistry extends Registry<URI> {
 //
 //    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 //
@@ -53,7 +53,7 @@
 //        super(backendComponentFactory);
 //        this.backendComponentFactory = backendComponentFactory;
 //        this.coapClientApplication = backendComponentFactory.getCoapClientApplication();
-//        this.internalTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
+//        this.internalTasksExecutorService = backendComponentFactory.getInternalTasksExecutor();
 //
 //        CoapRegistrationWebservice registrationWebservice = new CoapRegistrationWebservice(this, internalTasksExecutorService);
 //        this.backendComponentFactory.getCoapServerApplication()

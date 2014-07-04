@@ -15,10 +15,6 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
  */
 public abstract class GraphStatusMessage {
 
-//   public static enum StatusCode {
-//        OK, CHANGED, DELETED, ERROR
-//   }
-
     private HttpResponseStatus statusCode;
 
     public GraphStatusMessage(HttpResponseStatus statusCode){

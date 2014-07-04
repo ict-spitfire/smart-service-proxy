@@ -44,21 +44,65 @@
         </h4>
 
         <div class="ui form segment attached">
-            <div class="ui two steps" style="margin-top: 5px; margin-bottom: 20px">
-                <div class="ui active step" id="definitionStep">
-                    1st step: Definition
+            <div class="ui three steps" style="margin-top: 5px; margin-bottom: 20px">
+                <div class="ui active step" id="step1">
+                    1st step: Virtual Sensor Description
                 </div>
-                <div class="ui step" id="creationStep">
-                    2nd step: Test and Creation
+                <div class="ui step" id="step2">
+                    2nd step: Query for Sensor Value
+                </div>
+                <div class="ui step" id="step3">
+                    3rd step: Test and Creation
                 </div>
             </div>
 
-            <div id="definitionStepContent">
+            <div class="ui ignore blue message">
+                <i class="icon info"></i>
+                According to the <a href="http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#Sensor">SSN Ontology</a>
+                virtual sensors are computational methods that have sensing capability, i.e. observe some
+                phenomenon. Step 1 is to define phenomenon to be observed. Step 2 is to define the SPARQL query
+                that returns the sensor value.
+            </div>
+
+            <div id="step1Content">
+
                 <div class="ui secondary segment">
-                    <div class="ui small grey top left attached label">Path for graph name:</div>
-                    <input class="monospace" type="text" value="/example/path/1" id="fldGraphNamePath">
+                    <div class="ui small grey top left attached label">Graph Name:</div>
+                    <div style="font-weight: bold">PREFIX:
+                        <div class="monospace" style="font-weight: normal; display: inline">
+                            http://example.org/virtual-sensor/
+                        </div>
+                    </div>
+                    <input class="monospace triplesPart" style="margin-top: 5px" type="text" value="Sensor1"
+                           id="fldGraphNamePath">
                 </div>
 
+                <div class="ui secondary segment">
+                    <div class="ui small grey top left attached label">Feature of Interest</div>
+                    <p>
+                        According to the
+                        <a href="http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#FeatureOfInterest">SSN Ontology</a>
+                        a feature is an abstraction of real world phenomena (thing, person, event, etc).
+                    </p>
+                    <input class="monospace triplesPart" type="text" value="http://example.org/foi1"
+                           id="fldFeatureOfInterest">
+                </div>
+
+                <div class="ui secondary segment">
+                    <div class="ui small grey top left attached label">Observed Property</div>
+                    <p>
+                        According to the
+                        <a href="http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#observedProperty">SSN Ontology</a>
+                        an observed property is a relation linking an Observation to the Property that was observed.
+                        The observedProperty should be a Property (hasProperty) of the FeatureOfInterest
+                        (linked by featureOfInterest) of this observation.
+                    </p>
+                    <input class="monospace triplesPart" type="text" value="http://example.org/property1"
+                           id="fldObservedProperty">
+                </div>
+            </div>
+
+            <div id="step2Content" style="display: none">
                 <div class="ui secondary segment">
                     <div class="ui small grey top left attached label">Prefixes (if any)</div>
                     <textarea class="sparqlPart monospace" id="fldPrefixes" style="height: 70px; min-height: 70px">
@@ -70,23 +114,26 @@ PREFIX geof: &lt;http://www.opengis.net/def/function/geosparql/&gt;
 
                 <div class="ui secondary segment">
                     <div class="ui small grey top left attached label">Aggregate Function</div>
-                    <div class="ui selection dropdown">
-                        <input class ="sparqlPart" type="hidden" id="selAggregate">
-                        <div class="default text">COUNT</div>
-                        <i class="dropdown icon"></i>
-                        <div class="menu">
-                            <div class="item" data-value="COUNT">COUNT</div>
-                            <div class="item" data-value="MIN">MIN</div>
-                            <div class="item" data-value="MAX">MAX</div>
-                            <div class="item" data-value="AVG">AVG</div>
+                    <div class="monospace">
+                        SELECT (
+                        <div class="ui inline dropdown">
+                            <input class ="sparqlPart" type="hidden" id="selAggregate">
+                            <div class="text">COUNT</div>
+                            <!--<i class="dropdown icon"></i>-->
+                            <div class="menu">
+                                <div class="item" data-value="COUNT">COUNT</div>
+                                <div class="item" data-value="MIN">MIN</div>
+                                <div class="item" data-value="MAX">MAX</div>
+                                <div class="item" data-value="AVG">AVG</div>
+                            </div>
                         </div>
+                        (?val) AS ?aggVal) WHERE {...
                     </div>
                 </div>
 
 
                 <div class="ui secondary segment">
                     <div class="ui small grey top left attached label">WHERE clause (?val is the parameter to aggregate)</div>
-                    <!--<label style="font-size: 13px">4. Edit WHERE clause (?val is the parameter to aggregate)</label>-->
                     <textarea class="sparqlPart monospace" id="fldWhereClause" style="height: 160px">
 ?val itm:hasPointGeometry ?fGeom .
 ?fGeom geo:asWKT ?fWKT .
@@ -99,17 +146,23 @@ FILTER (geof:sfWithin(
                 </div>
             </div>
 
-            <div id="creationStepContent" style="display: none">
+            <div id="step3Content" style="display: none">
                 <div class="ui secondary segment">
-                    <div class="ui top left attached label">Generated SPARQL Query</div>
+                    <div class="ui top left attached label">Sensor Description (Notation 3)</div>
+                    <textarea class="monospace" id="fldTriples" readonly="readonly">
+                    </textarea>
+                </div>
+
+                <div class="ui secondary segment">
+                    <div class="ui top left attached label">SPARQL Query for sensor value</div>
                     <textarea class="monospace" id="fldSparqlQuery" style="height: 300px" readonly="readonly">
                     </textarea>
+                </div>
 
-                    <div class="ui buttons" id="buttons" style="margin-top: 30px">
-                        <div class="ui blue button" id="btnTest">Test Creation</div>
-                        <div class="or"></div>
-                        <div class="ui green button" id="btnCreate">Create</div>
-                    </div>
+                <div class="ui buttons" id="buttons">
+                    <div class="ui blue button" id="btnTest">Test Creation</div>
+                    <div class="or"></div>
+                    <div class="ui green button" id="btnCreate">Create</div>
                 </div>
 
                 <div class="ui secondary segment" id="testResultContent" style="display: none">
@@ -134,6 +187,7 @@ FILTER (geof:sfWithin(
     $(document).ready(function(){
         $('#selAggregate').val('COUNT');
         setSparql();
+        setTriples();
     });
 
     $('.sparqlPart').on('change keyup', function(){
@@ -147,13 +201,27 @@ FILTER (geof:sfWithin(
         );
     }
 
+    $('.triplesPart').on('change keyup', function(){
+        setTriples();
+    });
+
+    function setTriples(){
+        $('#fldTriples').html(
+                '@prefix ssn: &lt;http://purl.oclc.org/NET/ssnx/ssn#&gt; .\n\n' +
+                '&lt;http://example.org/virtual-sensor/' + $('#fldGraphNamePath').val() + '&gt; a  ssn:Sensor;\n' +
+                '  ssn:featureOfInterest\n    &lt;' + $('#fldFeatureOfInterest').val() + '&gt;;\n' +
+                '  ssn:observedProperty\n    &lt;' + $('#fldObservedProperty').val() + "&gt;."
+        )
+    }
+
     $('#buttons').find('div.button').click(function(event){
         event.preventDefault();
 
         var formData = new FormData();
         formData.append('sparqlQuery', $('#fldSparqlQuery').val());
+        formData.append('triples', $('#fldTriples').val());
         formData.append('button', $(this).attr('id'));
-        formData.append('graphNamePath', $('#fldGraphNamePath').val());
+//        formData.append('graphNamePath', $('#fldGraphNamePath').val());
 
         $.ajax({
             type: "POST",
@@ -163,11 +231,13 @@ FILTER (geof:sfWithin(
             processData: false,
             success: function(e){
                 console.log(e);
+                $('#testResultContent').show();
                 $('#fldDuration').html('Query Execution Duration: ' + e['duration'] + ' ms.');
                 $('#fldRdfResult').val(e['sensorStatus']);
             },
             error: function(e){
                 console.log(e);
+                $('#testResultContent').show();
                 $('#fldDuration').hide();
                 $('#fldRdfResult').val(e['responseText']);
             }
@@ -181,16 +251,22 @@ FILTER (geof:sfWithin(
 
         $(this).addClass('active');
 
-        if($(this).attr('id') == 'definitionStep'){
-            $('#creationStepContent').hide();
-            $('#testResultContent').hide();
-            $('#definitionStepContent').show();
+        if($(this).attr('id') == 'step1'){
+            $('#step1Content').show();
+            $('#step2Content').hide();
+            $('#step3Content').hide();
         }
 
-        else if($(this).attr('id') == 'creationStep'){
-            $('#definitionStepContent').hide();
-            $('#creationStepContent').show();
-            $('#testResultContent').show();
+        else if($(this).attr('id') == 'step2'){
+            $('#step1Content').hide();
+            $('#step2Content').show();
+            $('#step3Content').hide();
+        }
+
+        else if($(this).attr('id') == 'step3'){
+            $('#step1Content').hide();
+            $('#step2Content').hide();
+            $('#step3Content').show();
         }
     });
 </script>

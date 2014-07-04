@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.net.URI;
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -35,9 +34,9 @@ public class HttpResponseFactory {
     private static Logger log = LoggerFactory.getLogger(HttpResponseFactory.class.getName());
     private static Gson gson = new Gson();
 
-    private static SimpleDateFormat dateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
+    public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
     static{
-        dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+        DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
     }
 
     public static final long MILLIS_PER_YEAR = 31536000730L;
@@ -158,10 +157,10 @@ public class HttpResponseFactory {
 
         if(graphStatusMessage.getExpiringGraph().getExpiry() == null)
             httpResponse.headers().add(HttpHeaders.Names.EXPIRES,
-                    dateFormat.format(new Date(System.currentTimeMillis() + MILLIS_PER_YEAR)));
+                    DATE_FORMAT.format(new Date(System.currentTimeMillis() + MILLIS_PER_YEAR)));
         else
             httpResponse.headers().add(HttpHeaders.Names.EXPIRES,
-                    dateFormat.format(graphStatusMessage.getExpiringGraph().getExpiry()));
+                    DATE_FORMAT.format(graphStatusMessage.getExpiringGraph().getExpiry()));
 
         httpResponse.headers().add(HttpHeaders.Names.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
 
@@ -170,6 +169,7 @@ public class HttpResponseFactory {
 
         return httpResponse;
     }
+
 
     private static void setHeaders(HttpMessage httpMessage, Multimap<String, String> headers){
         for(String headerName : headers.keySet()){

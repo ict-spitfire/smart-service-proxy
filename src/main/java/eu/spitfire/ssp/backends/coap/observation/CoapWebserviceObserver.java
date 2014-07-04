@@ -15,7 +15,7 @@
 //import eu.spitfire.ssp.backends.coap.CoapBackendComponentFactory;
 //import eu.spitfire.ssp.backends.coap.CoapResourceToolbox;
 //import eu.spitfire.ssp.backends.coap.CoapWebserviceResponseProcessor;
-//import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
+//import eu.spitfire.ssp.backends.generic.Observer;
 //import eu.spitfire.ssp.backends.generic.messages.InternalRemoveResourcesMessage;
 //import org.jboss.netty.channel.Channels;
 //import org.slf4j.Logger;
@@ -48,7 +48,7 @@
 //        super(backendComponentFactory);
 //        this.dataOrigin = dataOrigin;
 //        this.coapClientApplication = backendComponentFactory.getCoapClientApplication();
-//        this.internalTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
+//        this.internalTasksExecutorService = backendComponentFactory.getInternalTasksExecutor();
 //    }
 //
 //

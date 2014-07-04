@@ -28,9 +28,9 @@ import eu.spitfire.ssp.server.common.messages.DataOriginRegistrationMessage;
 import eu.spitfire.ssp.server.common.messages.DataOriginRemovalMessage;
 import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
 import eu.spitfire.ssp.server.http.HttpResponseFactory;
-import eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice;
+import eu.spitfire.ssp.backends.generic.ProtocolConversion;
 import eu.spitfire.ssp.server.http.webservices.HttpWebservice;
-import eu.spitfire.ssp.server.http.webservices.style.HttpStyleWebservice;
+import eu.spitfire.ssp.server.http.webservices.Styles;
 import eu.spitfire.ssp.utils.exceptions.WebserviceAlreadyRegisteredException;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -60,9 +60,9 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
 	//Maps resource proxy uris to request processors
 	private Map<String, HttpWebservice> webservices;
-    private HttpStyleWebservice styleWebservice;
+    private Styles styleWebservice;
 
-    public HttpRequestDispatcher(HttpStyleWebservice styleWebservice)
+    public HttpRequestDispatcher(Styles styleWebservice)
             throws Exception {
 
         this.webservices = Collections.synchronizedMap(new TreeMap<String, HttpWebservice>());
@@ -145,7 +145,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
             URI graphName = message.getDataOrigin().getGraphName();
             Object identifier = message.getDataOrigin().getIdentifier();
-            HttpSemanticProxyWebservice proxyWebservice = message.getHttpProxyWebservice();
+            ProtocolConversion proxyWebservice = message.getHttpProxyWebservice();
 
             log.info("Try to register graph \"{}\" from data origin \"{}\" with backend \"{}\".",
                     new Object[]{graphName, identifier, proxyWebservice.getBackendName()});
@@ -183,7 +183,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 //
 ////        URI websiteUri = new URI(null, null, null, - 1, "/", null, null);
 //
-//        registerProxyWebservice("/", new HttpRootWebservice(webservices));
+//        registerProxyWebservice("/", new Homepage(webservices));
 //    }
 
 
@@ -193,7 +193,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 //        ctx.getChannel().getPipeline().addLast("HTTP Webservice", httpWebservice);
 //        ctx.sendUpstream(me);
 //    }
-//                                    HttpSemanticProxyWebservice semanticProxyWebservice){
+//                                    ProtocolConversion semanticProxyWebservice){
 //
 //        final HttpRequest httpRequest = (HttpRequest) me.getMessage();
 //        final InetSocketAddress clientAddress = (InetSocketAddress) me.getRemoteAddress();

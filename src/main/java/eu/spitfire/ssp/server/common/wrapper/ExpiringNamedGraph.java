@@ -22,6 +22,10 @@ public class ExpiringNamedGraph extends ExpiringGraph{
     }
 
 
+    public ExpiringNamedGraph(URI graphName, Model graph){
+        this(graphName, graph, new Date(System.currentTimeMillis() + MILLIS_PER_YEAR));
+    }
+
     public URI getGraphName() {
         return graphName;
     }

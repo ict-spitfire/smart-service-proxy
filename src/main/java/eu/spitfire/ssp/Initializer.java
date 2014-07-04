@@ -1,9 +1,9 @@
 package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import eu.spitfire.ssp.backends.files.FilesBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.slse.SlseBackendComponentFactory;
+import eu.spitfire.ssp.backends.n3files.N3FileBackendComponentFactory;
+import eu.spitfire.ssp.backends.virtualsensors.VirtualSensorBackendComponentFactory;
 import eu.spitfire.ssp.server.common.handler.cache.DummySemanticCache;
 import eu.spitfire.ssp.server.common.handler.cache.JenaTdbSemanticCache;
 import eu.spitfire.ssp.server.common.handler.cache.LuposdateSemanticCache;
@@ -12,11 +12,8 @@ import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
 import eu.spitfire.ssp.server.http.HttpProxyPipelineFactory;
 import eu.spitfire.ssp.server.http.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.http.handler.MqttHandler;
-import eu.spitfire.ssp.server.http.webservices.HttpFaviconWebservice;
-import eu.spitfire.ssp.server.http.webservices.HttpRootWebservice;
-import eu.spitfire.ssp.server.http.webservices.HttpSparqlEndpoint;
-import eu.spitfire.ssp.server.http.webservices.style.HttpStyleWebservice;
-import eu.spitfire.ssp.server.http.webservices.HttpWebservice;
+import eu.spitfire.ssp.server.http.webservices.*;
+import eu.spitfire.ssp.server.http.webservices.Styles;
 import eu.spitfire.ssp.server.internal.InternalPipelineFactory;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.bootstrap.ServerBootstrap;
@@ -38,7 +35,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.concurrent.*;
 
 /**
@@ -54,8 +50,8 @@ public class Initializer {
 
     private Configuration config;
 
-    private ScheduledExecutorService internalTasksExecutorService;
-    private OrderedMemoryAwareThreadPoolExecutor ioExecutorService;
+    private ScheduledExecutorService internalTasksExecutor;
+    private OrderedMemoryAwareThreadPoolExecutor ioExecutor;
     private ServerBootstrap serverBootstrap;
 
     private LocalServerChannelFactory localChannelFactory;
@@ -66,7 +62,7 @@ public class Initializer {
     private MqttHandler mqttHandler;
     private SemanticCache semanticCache;
 
-    private Collection<BackendComponentFactory> backendComponentFactories;
+    private Collection<BackendComponentFactory> componentFactories;
 
 
     public Initializer(Configuration config) throws Exception {
@@ -93,8 +89,8 @@ public class Initializer {
         createBackendComponentFactories(config);
 
         //Create and register initial Webservices
-        registerStylesheet();
-        registerMainWebsite();
+//        registerStylesheet();
+        registerHomepage();
         registerFavicon();
         registerSparqlEndpoint();
 
@@ -114,7 +110,7 @@ public class Initializer {
         int threadCount = Math.max(Runtime.getRuntime().availableProcessors() * 2,
                 config.getInt("SSP_INTERNAL_THREADS", 0));
 
-        this.internalTasksExecutorService = Executors.newScheduledThreadPool(threadCount, threadFactory);
+        this.internalTasksExecutor = Executors.newScheduledThreadPool(threadCount, threadFactory);
         log.info("Management Executor Service created with {} threads.", threadCount);
     }
 
@@ -127,7 +123,7 @@ public class Initializer {
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP I/O Thread #%d")
                 .build();
 
-        this.ioExecutorService = new OrderedMemoryAwareThreadPoolExecutor(threadCount, 0, 0, 60, TimeUnit.SECONDS,
+        this.ioExecutor = new OrderedMemoryAwareThreadPoolExecutor(threadCount, 0, 0, 60, TimeUnit.SECONDS,
                 threadFactory);
 
         log.info("I/O-Executor-Service created with {} threads", threadCount);
@@ -135,7 +131,7 @@ public class Initializer {
 
 
     private void createExecutionHandler() {
-        this.executionHandler = new ExecutionHandler(this.ioExecutorService);
+        this.executionHandler = new ExecutionHandler(this.ioExecutor);
         log.debug("Execution Handler created.");
     }
 
@@ -148,49 +144,46 @@ public class Initializer {
     }
 
 
-    public Collection<BackendComponentFactory> getBackendComponentFactories() {
-        return this.backendComponentFactories;
+    public Collection<BackendComponentFactory> getComponentFactories() {
+        return this.componentFactories;
     }
 
 
     private void createBackendComponentFactories(Configuration config) throws Exception {
         String[] enabledBackends = config.getStringArray("ENABLED_BACKEND");
+        this.componentFactories = new ArrayList<>(enabledBackends.length + 1);
 
-        this.backendComponentFactories = new ArrayList<>(enabledBackends.length);
+        //Add backend for virtual sensors (default)
+        ChannelPipeline localPipeline = internalPipelineFactory.getPipeline();
+        LocalServerChannel localChannel = localChannelFactory.newChannel(localPipeline);
+        this.componentFactories.add(new VirtualSensorBackendComponentFactory(
+                "virtualsensors", config, localChannel, this.internalTasksExecutor, this.ioExecutor)
+        );
 
+        //Add other backends
         for (String backendName : enabledBackends) {
-            ChannelPipeline localPipeline = internalPipelineFactory.getPipeline();
-            LocalServerChannel localChannel = localChannelFactory.newChannel(localPipeline);
+            localPipeline = internalPipelineFactory.getPipeline();
+            localChannel = localChannelFactory.newChannel(localPipeline);
 
-            BackendComponentFactory backendComponentFactory;
             switch (backendName) {
-
-                case "files": {
-                    backendComponentFactory = new FilesBackendComponentFactory("files", config, localChannel,
-                            this.internalTasksExecutorService, this.ioExecutorService);
-                    break;
+                case "n3files": {
+                    this.componentFactories.add(new N3FileBackendComponentFactory(
+                            "n3files", config, localChannel, this.internalTasksExecutor, this.ioExecutor)
+                    );
+                    continue;
                 }
 
-                case "slse": {
-                    backendComponentFactory = new SlseBackendComponentFactory("slse", config, localChannel,
-                            this.internalTasksExecutorService, this.ioExecutorService);
-                    break;
-                }
 //                case "coap": {
-//                    backendComponentFactory = new CoapBackendComponentFactory("coap", config,
-//                            this.internalTasksExecutorService);
+//                    componentFactory = new CoapBackendComponentFactory("coap", config,
+//                            this.internalTasksExecutor);
 //                    break;
 //                }
 
                 //Unknown backend
                 default: {
                     log.error("Config file error: Unknown backend (\"" + backendName + "\")!");
-                    continue;
                 }
             }
-
-            this.backendComponentFactories.add(backendComponentFactory);
-
         }
     }
 
@@ -239,9 +232,9 @@ public class Initializer {
 
 
     private void createHttpRequestDispatcher() throws Exception {
-        HttpStyleWebservice styleWebservice = new HttpStyleWebservice();
-        styleWebservice.setInternalTasksExecutorService(this.internalTasksExecutorService);
-        styleWebservice.setIoExecutorService(this.ioExecutorService);
+        Styles styleWebservice = new Styles(
+                this.ioExecutor, this.internalTasksExecutor, null
+        );
 
         this.httpRequestDispatcher = new HttpRequestDispatcher(styleWebservice);
         log.debug("HTTP Request Dispatcher created.");
@@ -265,7 +258,7 @@ public class Initializer {
         String cacheType = config.getString("cache");
 
         if ("dummy".equals(cacheType)) {
-            this.semanticCache = new DummySemanticCache(this.ioExecutorService, this.internalTasksExecutorService);
+            this.semanticCache = new DummySemanticCache(this.ioExecutor, this.internalTasksExecutor);
             log.info("Semantic Cache is of type {}", this.semanticCache.getClass().getSimpleName());
             return;
         }
@@ -285,14 +278,14 @@ public class Initializer {
             if(!Files.isDirectory(directoryPath))
                 throw new IllegalArgumentException("The given path for Jena TDB does not refer to a directory!");
 
-            this.semanticCache = new JenaTdbSemanticCache(this.ioExecutorService, this.internalTasksExecutorService,
+            this.semanticCache = new JenaTdbSemanticCache(this.ioExecutor, this.internalTasksExecutor,
                     directoryPath, spatialIndexDirectoryPath);
 
             return;
         }
 //
         if("luposdate".equals(cacheType)){
-            this.semanticCache = new LuposdateSemanticCache(this.ioExecutorService, this.internalTasksExecutorService);
+            this.semanticCache = new LuposdateSemanticCache(this.ioExecutor, this.internalTasksExecutor);
             return;
 
         }
@@ -301,7 +294,7 @@ public class Initializer {
 //            String jdbcUser = config.getString("cache.jenaSDB.jdbc.user");
 //            String jdbcPassword = config.getString("cache.jenaSDB.jdbc.password");
 //
-//            this.semanticCache = new JenaSdbSemanticCache(this.internalTasksExecutorService, jdbcUri, jdbcUser, jdbcPassword);
+//            this.semanticCache = new JenaSdbSemanticCache(this.internalTasksExecutor, jdbcUri, jdbcUser, jdbcPassword);
 //            return;
 //        }
 
@@ -309,66 +302,36 @@ public class Initializer {
     }
 
 
-    private void registerMainWebsite() throws Exception{
-        URI webserviceUri = new URI(null, null, null, -1, "/", null, null);
-        Map<String, HttpWebservice> webservices = this.httpRequestDispatcher.getWebservices();
-
-        registerHttpWebservice(webserviceUri, new HttpRootWebservice(webservices));
+    private void registerHomepage() throws Exception{
+        registerHttpWebservice(
+                new URI(null, null, null, -1, "/", null, null),
+                new Homepage(this.ioExecutor, this.internalTasksExecutor)
+        );
     }
 
     /**
      * Registers the service to provide the favicon.ico
      */
     private void registerFavicon() throws Exception {
-
-        URI faviconUri = new URI(null, null, null, -1, "/favicon.ico", null, null);
-        HttpWebservice httpWebservice = new HttpFaviconWebservice();
-
-        registerHttpWebservice(faviconUri, httpWebservice);
+        URI uri = new URI(null, null, null, -1, "/favicon.ico", null, null);
+        HttpWebservice httpWebservice = new Favicon(this.ioExecutor);
+        registerHttpWebservice(uri, httpWebservice);
     }
 
+
     private void registerSparqlEndpoint() throws Exception{
+        URI uri = new URI(null, null, null, -1, "/services/sparql-endpoint", null, null);
+
         LocalServerChannel localChannel = this.localChannelFactory.newChannel(
                 this.internalPipelineFactory.getPipeline()
         );
 
-        URI sparqlEndpointUri = new URI(null, null, null, -1, "/services/sparql-endpoint", null, null);
-        HttpWebservice httpWebservice = new HttpSparqlEndpoint(localChannel);
+        HttpWebservice httpWebservice = new SparqlEndpoint(
+                this.ioExecutor, this.internalTasksExecutor, localChannel
+        );
 
-        registerHttpWebservice(sparqlEndpointUri, httpWebservice);
+        registerHttpWebservice(uri, httpWebservice);
     }
-
-    private void registerStylesheet() throws Exception{
-        HttpWebservice httpWebservice = new HttpStyleWebservice();
-
-//        registerHttpWebservice(new URI(null, null, null, -1, "/style/style.style", null, null), httpWebservice);
-        registerHttpWebservice(new URI(null, null, null, -1, "/style/css/semantic.css", null, null),
-                httpWebservice);
-        registerHttpWebservice(new URI(null, null, null, -1, "/style/css/semantic.min.css", null, null),
-                httpWebservice);
-    }
-
-
-//    private void registerSlseDefinitionService() throws Exception{
-//
-//        URI webserviceUri = new URI(null, null, null, -1, "/slse-definition.html",null, null);
-//        HttpWebservice httpWebservice = new HttpSlseDefinitionWebservice();
-//
-//        registerHttpWebservice(webserviceUri, httpWebservice);
-//
-//    }
-//
-//
-//    private void registerSlseCreationService() throws Exception{
-//
-//        URI webserviceUri = new URI(null, null, null, -1, "/slse-creation",null, null);
-//        HttpWebservice httpWebservice = new HttpSlseCreationWebservice();
-//
-//        registerHttpWebservice(webserviceUri, httpWebservice);
-//
-//    }
-
-
 
 
     private void registerHttpWebservice(final URI webserviceUri, HttpWebservice httpWebservice) throws Exception{
@@ -389,8 +352,6 @@ public class Initializer {
             }
         });
 
-       httpWebservice.setIoExecutorService(this.ioExecutorService);
-       httpWebservice.setInternalTasksExecutorService(this.internalTasksExecutorService);
     }
 
 }

@@ -8,7 +8,7 @@
 //import de.uniluebeck.itm.ncoap.message.MessageType;
 //import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
 //import eu.spitfire.ssp.backends.generic.DataOriginManager;
-//import eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice;
+//import eu.spitfire.ssp.backends.generic.ProtocolConversion;
 //import eu.spitfire.ssp.backends.generic.access.DataOriginAccessException;
 //import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
 //import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -30,7 +30,7 @@
 // * Time: 23:18
 // * To change this template use File | Settings | File Templates.
 // */
-//public class HttpSemanticProxyWebserviceForCoap implements HttpSemanticProxyWebservice {
+//public class HttpSemanticProxyWebserviceForCoap implements ProtocolConversion {
 //
 //    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 //
@@ -44,7 +44,7 @@
 //        this.backendComponentFactory = backendComponentFactory;
 //        this.coapClientApplication = backendComponentFactory.getCoapClientApplication();
 //        this.dataOriginManager = backendComponentFactory.getDataOriginManager();
-//        this.internalTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
+//        this.internalTasksExecutorService = backendComponentFactory.getInternalTasksExecutor();
 //    }
 //
 //

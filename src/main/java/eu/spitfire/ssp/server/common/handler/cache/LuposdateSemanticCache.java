@@ -15,6 +15,7 @@ import lupos.datastructures.items.literal.URILiteral;
 import lupos.datastructures.queryresult.BooleanResult;
 import lupos.datastructures.queryresult.QueryResult;
 import lupos.endpoint.server.format.XMLFormatter;
+import lupos.engine.evaluators.BasicIndexQueryEvaluator;
 import lupos.engine.evaluators.CommonCoreQueryEvaluator;
 import lupos.engine.evaluators.MemoryIndexQueryEvaluator;
 import lupos.engine.operators.index.Indices;
@@ -42,7 +43,7 @@ public class LuposdateSemanticCache extends SemanticCache {
 
     private static Logger log = LoggerFactory.getLogger(LuposdateSemanticCache.class.getName());
 
-    private CommonCoreQueryEvaluator<Node> evaluator;
+    private BasicIndexQueryEvaluator evaluator;
     private AtomicInteger startetQueries = new AtomicInteger(0);
     private AtomicInteger finishedQueries = new AtomicInteger(0);
 
@@ -252,7 +253,11 @@ public class LuposdateSemanticCache extends SemanticCache {
 
         String query = queryBuilder.toString();
         log.debug("Query for inserting data:\n{}\n", query);
-        LuposdateSemanticCache.this.evaluator.getResult(query);
+        this.evaluator.getResult(query);
+
+        URILiteral uriLiteral = LiteralFactory.createURILiteralWithoutLazyLiteral("<" + graphName.toString() + ">");
+        Indices indices = this.evaluator.getDataset().getNamedGraphIndices(uriLiteral);
+        this.evaluator.getDataset().putIntoDefaultGraphs(uriLiteral, indices);
     }
 
     private ExpiringGraphStatusMessage getNamedGraph2(URI graphName) throws Exception{
@@ -366,7 +371,7 @@ public class LuposdateSemanticCache extends SemanticCache {
 //        final PipedOutputStream outputStream = new PipedOutputStream();
 //        final PipedInputStream inputStream = new PipedInputStream(outputStream);
 //
-//        this.getInternalTasksExecutorService().execute(new Runnable(){
+//        this.getInternalTasksExecutor().execute(new Runnable(){
 //            @Override
 //            public void run() {
 //                try{
@@ -381,7 +386,7 @@ public class LuposdateSemanticCache extends SemanticCache {
 //            }
 //        });
 //
-//        this.getInternalTasksExecutorService().execute(new Runnable() {
+//        this.getInternalTasksExecutor().execute(new Runnable() {
 //            @Override
 //            public void run() {
 //                try{

@@ -24,10 +24,6 @@
 */
 package eu.spitfire.ssp.backends.generic;
 
-import eu.spitfire.ssp.backends.generic.access.DataOriginAccessor;
-import eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice;
-import eu.spitfire.ssp.backends.generic.observation.DataOriginObserver;
-import eu.spitfire.ssp.backends.generic.registration.DataOriginRegistry;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -53,35 +49,35 @@ public abstract class BackendComponentFactory<T>{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    protected DataOriginRegistry<T> dataOriginRegistry;
-    protected ScheduledExecutorService internalTasksExecutorService;
-    protected ExecutorService ioExecutorService;
-    protected String backendName;
-    protected LocalServerChannel localChannel;
-    protected String sspHostName;
-    protected int sspPort;
+    private Registry<T> registry;
+    private ScheduledExecutorService internalTasksExecutor;
+    private ExecutorService ioExecutor;
+    private String backendName;
+    private LocalServerChannel localChannel;
+    private String sspHostName;
+    private int sspPort;
 
-    private HttpSemanticProxyWebservice<T> semanticProxyWebservice;
+    private ProtocolConversion<T> semanticProxyWebservice;
 
 
     /**
-     * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.BackendComponentFactory}.
+     * Creates a new instance of {@link BackendComponentFactory}.
      *
      * @param prefix the prefix of the backend in the given config (without the ".")
      * @param config the SSP config
-     * @param internalTasksExecutorService the {@link java.util.concurrent.ScheduledExecutorService} for backend tasks,
+     * @param internalTasksExecutor the {@link java.util.concurrent.ScheduledExecutorService} for backend tasks,
      *                                    e.g. translating and forwarding requests to data origins
      *
      * @throws Exception if something went terribly wrong
      */
     protected BackendComponentFactory(String prefix, Configuration config, LocalServerChannel localChannel,
-            ScheduledExecutorService internalTasksExecutorService, ExecutorService ioExecutorService)
+                                      ScheduledExecutorService internalTasksExecutor, ExecutorService ioExecutor)
         throws Exception {
 
         this.localChannel = localChannel;
         this.backendName = config.getString(prefix + ".backend.name");
-        this.internalTasksExecutorService = internalTasksExecutorService;
-        this.ioExecutorService = ioExecutorService;
+        this.internalTasksExecutor = internalTasksExecutor;
+        this.ioExecutor = ioExecutor;
         this.sspHostName = config.getString("SSP_HOST_NAME");
         this.sspPort = config.getInt("SSP_PORT", 8080);
     }
@@ -89,30 +85,29 @@ public abstract class BackendComponentFactory<T>{
 
 
     /**
-     * Initialize the components to run this backend, e.g. the {@link DataOriginRegistry}. This method is
+     * Initialize the components to run this backend, e.g. the {@link Registry}. This method is
      * automatically invoked by the SSP framework.
      */
     public final void createComponents(Configuration config) throws Exception{
 
         //Create semantic proxy Webservice
-        this.semanticProxyWebservice = new HttpSemanticProxyWebservice<>(this);
-
-        this.semanticProxyWebservice.setIoExecutorService(this.ioExecutorService);
-        this.semanticProxyWebservice.setInternalTasksExecutorService(this.internalTasksExecutorService);
+        this.semanticProxyWebservice = new ProtocolConversion<>(this);
 
         this.localChannel.getPipeline().addLast("Semantic Proxy Webservice", this.semanticProxyWebservice);
 
         //Create data origin registry
-        this.dataOriginRegistry = createDataOriginRegistry(config);
+        this.registry = createRegistry(config);
 
         this.initializeComponents();
     }
 
+
     private void initializeComponents() throws Exception {
         log.info("Initialize Components for backend: {}", this.backendName);
-        this.dataOriginRegistry.startRegistry();
+        this.registry.startRegistry();
         this.initialize();
     }
+
 
     public abstract void initialize() throws Exception;
 
@@ -131,12 +126,13 @@ public abstract class BackendComponentFactory<T>{
         return this.sspPort;
     }
 
+
     /**
      * Returns the (backend specific) {@link org.jboss.netty.channel.local.LocalChannel} to send internal messages
      *
      * @return the (backend specific) {@link org.jboss.netty.channel.local.LocalChannel} to send internal messages
      */
-    public final LocalServerChannel getLocalChannel(){
+    public LocalServerChannel getLocalChannel(){
        return this.localChannel;
     }
 
@@ -146,117 +142,74 @@ public abstract class BackendComponentFactory<T>{
      *
      * @return the {@link ScheduledExecutorService} to schedule tasks
      */
-    public final ScheduledExecutorService getInternalTasksExecutorService(){
-        return this.internalTasksExecutorService;
+    public ScheduledExecutorService getInternalTasksExecutor(){
+        return this.internalTasksExecutor;
     }
 
 
-    public final ExecutorService getIoExecutorService(){
-        return this.ioExecutorService;
+    public ExecutorService getIoExecutor(){
+        return this.ioExecutor;
     }
+
+
     /**
-     * Returns the {@link DataOriginRegistry} which is necessary to register resources from a new data origin this
+     * Returns the {@link Registry} which is necessary to register resources from a new data origin this
      * backend is responsible for.
      *
-     * @return the {@link DataOriginRegistry} which is necessary to resources from a new data origin
+     * @return the {@link Registry} which is necessary to resources from a new data origin
      */
-    public final DataOriginRegistry<T> getDataOriginRegistry() {
-        return this.dataOriginRegistry;
+    public Registry<T> getRegistry() {
+        return this.registry;
     }
 
 
     /**
-     * Returns the {@link eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
+     * Returns the {@link ProtocolConversion} which is responsible to process all incoming HTTP requests
      * for the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      *
-     * @return the {@link eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice} which is responsible to process all incoming HTTP requests
+     * @return the {@link ProtocolConversion} which is responsible to process all incoming HTTP requests
      * for the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      */
-    public HttpSemanticProxyWebservice<T> getSemanticProxyWebservice(){
+    public ProtocolConversion<T> getProtocolCastingWebservice(){
         return this.semanticProxyWebservice;
     }
 
 
-
-//    /**
-//     * Returns the {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} to access the given
-//     * {@link eu.spitfire.ssp.backends.generic.DataOrigin}
-//     *
-//     * @param dataOrigin the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to be accessed
-//     *
-//     * @return the {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} to access the given
-//     * {@link eu.spitfire.ssp.backends.generic.DataOrigin}
-//     */
-//    public abstract DataOriginAccessor<T> getDataOriginAccessor(DataOrigin<T> dataOrigin);
-
-
     /**
-     * Returns the {@link eu.spitfire.ssp.backends.generic.observation.DataOriginObserver} to observe the given
+     * Returns the {@link Observer} to observe the given
      * {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      *
      * @param dataOrigin the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to be observed
      *
-     * @return the {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} to observe the given
+     * @return the {@link Accessor} to observe the given
      * {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      */
-    public abstract DataOriginObserver<T> getDataOriginObserver(DataOrigin<T> dataOrigin);
+    public abstract Observer<T> getObserver(DataOrigin<T> dataOrigin);
 
 
     /**
-     * Returns an appropriate {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} to access the given
+     * Returns an appropriate {@link Accessor} to access the given
      * {@link eu.spitfire.ssp.backends.generic.DataOrigin} or <code>null</code> if no such
-     * {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} exists.
+     * {@link Accessor} exists.
      *
      * @param dataOrigin the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to return the associates
-     *                   {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} for
+     *                   {@link Accessor} for
      *
-     * @return an appropriate {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} to access the given
+     * @return an appropriate {@link Accessor} to access the given
      * {@link eu.spitfire.ssp.backends.generic.DataOrigin} or <code>null</code> if no such
-     * {@link eu.spitfire.ssp.backends.generic.access.DataOriginAccessor} exists.
+     * {@link Accessor} exists.
      */
-    public abstract DataOriginAccessor<T> getDataOriginAccessor(DataOrigin<T> dataOrigin);
+    public abstract Accessor<T> getAccessor(DataOrigin<T> dataOrigin);
 
-
-//    /**
-//     * Returns the {@link DataOriginManager} which is contains all resources, resp. data origins, this backend is
-//     * responible for.
-//     *
-//     * @return the {@link DataOriginManager} which is contains all resources, resp. data origins, this backend is
-//     * responible for
-//     */
-//    public final DataOriginManager<T> getDataOriginManager(){
-//        return this.dataOriginManager;
-//    }
-
-
-
-
-
-//    /**
-//     * Method automatically invoked upon construction of the gateway instance. It is considered to contain everything
-//     * that is necessary to make the gateway instance working properly.
-//     */
-//    public abstract void initialize() throws Exception;
-
-//    /**
-//     * Returns the specific prefix of this gateway. If wildcard DNS is enabled, then the prefix is used as the very
-//     * first element of the host part of all gateway specific service URIs. If wildcard DNS is disabled, then the
-//     * prefix is used as the very first path element of all gatew specific service URIs.
-//     *
-//     * @return the specific prefix of this gateway
-//     */
-//    public String getPrefix() {
-//        return prefix;
-//    }
 
     /**
-     * Inheriting classes must return an instance of {@link DataOriginRegistry} capable to perform the
+     * Inheriting classes must return an instance of {@link Registry} capable to perform the
      * registration of new data origins identified by instances of the generic type T.
      *
-     * @return an instance of {@link DataOriginRegistry} capable to perform registration of new data origins identified
+     * @return an instance of {@link Registry} capable to perform registration of new data origins identified
      * by instances of the generic type T.
      */
-    public abstract DataOriginRegistry<T> createDataOriginRegistry(Configuration config) throws Exception;
+    public abstract Registry<T> createRegistry(Configuration config) throws Exception;
 
 
     public abstract void shutdown();

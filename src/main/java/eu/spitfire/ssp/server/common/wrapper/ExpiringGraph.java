@@ -12,6 +12,8 @@ import java.util.Date;
  */
 public class ExpiringGraph {
 
+    public static final long MILLIS_PER_YEAR = 31556952000L;
+
     private Model graph;
     private Date expiry;
 
@@ -21,6 +23,10 @@ public class ExpiringGraph {
         this.expiry = expiry;
     }
 
+
+    public ExpiringGraph(Model graph){
+        this(graph, new Date(System.currentTimeMillis() + MILLIS_PER_YEAR));
+    }
 
     public Model getGraph() {
         return graph;

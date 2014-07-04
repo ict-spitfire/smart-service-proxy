@@ -1,7 +1,7 @@
 package eu.spitfire.ssp.server.common.messages;
 
 import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice;
+import eu.spitfire.ssp.backends.generic.ProtocolConversion;
 
 /**
  * Created with IntelliJ IDEA.
@@ -13,9 +13,9 @@ import eu.spitfire.ssp.server.http.webservices.HttpSemanticProxyWebservice;
 public class DataOriginRegistrationMessage<T>{
 
     private DataOrigin<T> dataOrigin;
-    private HttpSemanticProxyWebservice httpProxyWebservice;
+    private ProtocolConversion httpProxyWebservice;
 
-    public DataOriginRegistrationMessage(DataOrigin<T> dataOrigin, HttpSemanticProxyWebservice httpProxyWebservice){
+    public DataOriginRegistrationMessage(DataOrigin<T> dataOrigin, ProtocolConversion httpProxyWebservice){
 
         this.httpProxyWebservice = httpProxyWebservice;
         this.dataOrigin = dataOrigin;
@@ -26,7 +26,7 @@ public class DataOriginRegistrationMessage<T>{
     }
 
 
-    public HttpSemanticProxyWebservice getHttpProxyWebservice() {
+    public ProtocolConversion getHttpProxyWebservice() {
         return httpProxyWebservice;
     }
 

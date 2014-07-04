@@ -81,10 +81,15 @@ GRAPH ?graph {
 
                 <div class="ui green button" id="btnExecute" style="margin-top: 10px">Execute Query</div>
 
+                <div class="ui horizontal icon divider">
+                    <i class="circular code icon"></i>
+                </div>
+
                 <div class="ui secondary segment" id="sparqlResult" style="margin-top: 20px; display: none">
                     <div class="ui small grey top left attached label">Query Result</div>
                     <div id="sparqlResultContent">
-                        <textarea class="monospace" id="fldSparqlResult" style="height: 200px"></textarea>
+                        <textarea class="monospace" id="fldSparqlResult"
+                                  style="height: 200px; max-height: none !important"></textarea>
                     </div>
                     <div class="ui dimmer" id="dimmer">
                         <div class="ui text loader">Executing...</div>

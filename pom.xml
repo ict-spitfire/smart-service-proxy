@@ -157,7 +157,7 @@
                 <enabled>false</enabled>
             </releases>
             <snapshots>
-                <updatePolicy>always</updatePolicy>
+                <!--<updatePolicy>always</updatePolicy>-->
                 <enabled>true</enabled>
             </snapshots>
         </repository>

@@ -53,7 +53,7 @@
 //                                           URI resourceUri){
 //
 //        this.localServerChannel = backendComponentFactory.getLocalChannel();
-//        this.internalTasksExecutorService = backendComponentFactory.getInternalTasksExecutorService();
+//        this.internalTasksExecutorService = backendComponentFactory.getInternalTasksExecutor();
 //
 //        this.resourceStatusFuture = SettableFuture.create();
 //        this.dataOrigin = dataOrigin;

@@ -24,7 +24,6 @@
  */
 package eu.spitfire.ssp;
 
-import com.hp.hpl.jena.shared.impl.JenaParameters;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -46,8 +45,8 @@ public class Main {
         initializer.initialize();
 
         //Start the backends
-        for (BackendComponentFactory backendComponentFactory : initializer.getBackendComponentFactories()) {
-            backendComponentFactory.createComponents(config);
+        for (BackendComponentFactory componentFactory : initializer.getComponentFactories()) {
+            componentFactory.createComponents(config);
         }
 
         log.info("SSP succesfully started!");

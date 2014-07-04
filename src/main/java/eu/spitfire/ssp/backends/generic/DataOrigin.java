@@ -39,7 +39,7 @@ public abstract class DataOrigin<T> {
 
 
     /**
-     * Returns the identifier of this data origin (e.g. a path for files or a URI for Webservices). The returned value
+     * Returns the identifier of this data origin (e.g. a path for n3files or a URI for Webservices). The returned value
      * is unique among all {@link eu.spitfire.ssp.backends.generic.DataOrigin}s per local backend.
      *
      * @return the identifier of this data origin
