@@ -39,17 +39,18 @@ import java.util.concurrent.ScheduledExecutorService;
  * talking HTTP to communicate with an arbitrary server.
  *
  * Classes inheriting from {@link BackendComponentFactory} are responsible to provide the necessary components,
- * i.e. {@link eu.spitfire.ssp.server.http.webservices.HttpWebservice} instances to translate the incoming
+ * i.e. {@link eu.spitfire.ssp.server.webservices.HttpWebservice} instances to translate the incoming
  * {@link HttpRequest} to whatever (potentially proprietary) protocol the actual server talks and to enable the
  * SSP framework to produce a suitable {@link HttpResponse} which is then sent to the client.
  *
  * @author Oliver Kleine
  */
-public abstract class BackendComponentFactory<T>{
+public abstract class BackendComponentFactory<I, D extends DataOrigin<I>>{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private Registry<T> registry;
+    private Registry<I, ? extends D> registry;
+
     private ScheduledExecutorService internalTasksExecutor;
     private ExecutorService ioExecutor;
     private String backendName;
@@ -57,7 +58,7 @@ public abstract class BackendComponentFactory<T>{
     private String sspHostName;
     private int sspPort;
 
-    private ProtocolConversion<T> semanticProxyWebservice;
+    private DataOriginMapper<I, D> semanticProxyWebservice;
 
 
     /**
@@ -91,7 +92,7 @@ public abstract class BackendComponentFactory<T>{
     public final void createComponents(Configuration config) throws Exception{
 
         //Create semantic proxy Webservice
-        this.semanticProxyWebservice = new ProtocolConversion<>(this);
+        this.semanticProxyWebservice = new DataOriginMapper<>(this);
 
         this.localChannel.getPipeline().addLast("Semantic Proxy Webservice", this.semanticProxyWebservice);
 
@@ -158,19 +159,19 @@ public abstract class BackendComponentFactory<T>{
      *
      * @return the {@link Registry} which is necessary to resources from a new data origin
      */
-    public Registry<T> getRegistry() {
-        return this.registry;
+    public Registry<I, ? extends D> getRegistry() {
+       return this.registry;
     }
 
 
     /**
-     * Returns the {@link ProtocolConversion} which is responsible to process all incoming HTTP requests
+     * Returns the {@link DataOriginMapper} which is responsible to process all incoming HTTP requests
      * for the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      *
-     * @return the {@link ProtocolConversion} which is responsible to process all incoming HTTP requests
+     * @return the {@link DataOriginMapper} which is responsible to process all incoming HTTP requests
      * for the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      */
-    public ProtocolConversion<T> getProtocolCastingWebservice(){
+    public DataOriginMapper<I, D> getDataOriginMapper(){
         return this.semanticProxyWebservice;
     }
 
@@ -184,7 +185,7 @@ public abstract class BackendComponentFactory<T>{
      * @return the {@link Accessor} to observe the given
      * {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      */
-    public abstract Observer<T> getObserver(DataOrigin<T> dataOrigin);
+    public abstract Observer<I, ? extends D> getObserver(D dataOrigin);
 
 
     /**
@@ -199,7 +200,7 @@ public abstract class BackendComponentFactory<T>{
      * {@link eu.spitfire.ssp.backends.generic.DataOrigin} or <code>null</code> if no such
      * {@link Accessor} exists.
      */
-    public abstract Accessor<T> getAccessor(DataOrigin<T> dataOrigin);
+    public abstract Accessor<I, ? extends D> getAccessor(D dataOrigin);
 
 
     /**
@@ -209,7 +210,7 @@ public abstract class BackendComponentFactory<T>{
      * @return an instance of {@link Registry} capable to perform registration of new data origins identified
      * by instances of the generic type T.
      */
-    public abstract Registry<T> createRegistry(Configuration config) throws Exception;
+    public abstract Registry<I, ? extends D> createRegistry(Configuration config) throws Exception;
 
 
     public abstract void shutdown();

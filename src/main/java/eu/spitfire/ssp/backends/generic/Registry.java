@@ -1,17 +1,23 @@
 package eu.spitfire.ssp.backends.generic;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.server.common.messages.DataOriginRegistrationMessage;
-import eu.spitfire.ssp.server.common.messages.DataOriginRemovalMessage;
+import com.hp.hpl.jena.rdf.model.Model;
+import eu.spitfire.ssp.backends.DataOriginAccessResult;
+import eu.spitfire.ssp.server.internal.messages.DataOriginRegistration;
+import eu.spitfire.ssp.server.internal.messages.DataOriginUnregistration;
+import eu.spitfire.ssp.server.internal.messages.ExpiringNamedGraph;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.net.URI;
+import java.util.Date;
 
 /**
  * A {@link Registry} is the component to register new data origins, i.e. the resources from data origins.
@@ -20,13 +26,13 @@ import java.net.URI;
  *
  * @author Oliver Kleine
  */
-public abstract class Registry<T> {
+public abstract class Registry<I, D extends DataOrigin<I>> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    protected BackendComponentFactory<T> componentFactory;
+    protected BackendComponentFactory<I, D> componentFactory;
 
-    protected Registry(BackendComponentFactory<T> componentFactory) {
+    protected Registry(BackendComponentFactory<I, D> componentFactory) {
         this.componentFactory = componentFactory;
     }
 
@@ -40,78 +46,148 @@ public abstract class Registry<T> {
      * @return a {@link ListenableFuture} where {@link ListenableFuture#get()} returns the list of resource proxy URIs
      * for all resources from the given data origin / model.
      */
-    protected final ListenableFuture<Void> registerDataOrigin(final DataOrigin<T> dataOrigin){
+    public final ListenableFuture<Void> registerDataOrigin(final D dataOrigin){
 
         final SettableFuture<Void> registrationFuture = SettableFuture.create();
 
-        ProtocolConversion httpProxyWebservice = componentFactory.getProtocolCastingWebservice();
-        T identifier = dataOrigin.getIdentifier();
+        //retrieve initial status
+        Accessor<I, D> accessor = componentFactory.getAccessor(dataOrigin);
+        ListenableFuture<? extends DataOriginAccessResult> accessResultFuture = accessor.getStatus(dataOrigin);
+
+        //Await the initial status retrieval and perform the actual registration
+        Futures.addCallback(accessResultFuture, new FutureCallback<Object>() {
+            @Override
+            public void onSuccess(@Nullable Object accessResult) {
+                if(accessResult == null || !(accessResult instanceof ExpiringNamedGraph)){
+                    String message = String.format("Unexpected access result for data origin \"%s\": %s",
+                            dataOrigin.getIdentifier().toString(), accessResult == null ? null : accessResult.toString()
+                    );
+
+                    registrationFuture.setException(new Exception(message));
+                    return;
+                }
+
+                ExpiringNamedGraph expiringNamedGraph = (ExpiringNamedGraph) accessResult;
+                registerDataOrigin(
+                        dataOrigin, expiringNamedGraph.getGraph(), expiringNamedGraph.getExpiry(), registrationFuture
+                );
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                registrationFuture.setException(t);
+            }
+        });
+
+     return registrationFuture;
+    }
+
+
+    private void registerDataOrigin(final D dataOrigin, Model initialStatus, Date expiry,
+                                    final SettableFuture<Void> registrationFuture){
+
+        log.info("Try to register data origin with identifier \"{}\".", dataOrigin.getIdentifier());
 
         try{
-            //Register resource
-            final DataOriginRegistrationMessage<T> registerResourceMessage =
-                    new DataOriginRegistrationMessage<>(dataOrigin, httpProxyWebservice);
+            //Create registration message
+            DataOriginRegistration<I, D> registration = new DataOriginRegistration<>(
+                    dataOrigin, initialStatus, expiry, componentFactory.getDataOriginMapper(), registrationFuture
+            );
 
-            log.info("Try to register data origin with identifier \"{}\".", identifier);
-
-            LocalServerChannel localChannel = componentFactory.getLocalChannel();
-            ChannelFuture channelFuture = Channels.write(localChannel, registerResourceMessage);
-
+            //Send registration message
+            ChannelFuture channelFuture = Channels.write(componentFactory.getLocalChannel(), registration);
             channelFuture.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
-                    if(future.isSuccess()){
-                        registrationFuture.set(null);
+                    if(!future.isSuccess()){
+                        log.error("Exception on ChannelFuture during registration of graph {}.",
+                                dataOrigin.getGraphName(), future.getCause());
 
-                        if(dataOrigin.isObservable()){
-                            Observer<T> observer = componentFactory.getObserver(dataOrigin);
-
-                            if(observer != null){
-                                log.info("Start observation of data origin \"{}\".", dataOrigin);
-                                observer.startObservation(dataOrigin);
-                            }
-                            else{
-                                log.warn("Backend component factory did not return a data origin observer for \"{}\"",
-                                        dataOrigin.getIdentifier());
-                            }
-                        }
-                    }
-                    else
                         registrationFuture.setException(future.getCause());
+                    }
                 }
             });
 
-            return registrationFuture;
+
+            //Await registration result
+            Futures.addCallback(registrationFuture, new FutureCallback<Void>() {
+                @Override
+                public void onSuccess(@Nullable Void result) {
+                    log.info("Successfully registered new data origin \"{}\".", dataOrigin);
+
+                    //Start observation if the data origin is observable
+                    if(dataOrigin.isObservable()){
+                        Observer<I, D> observer = componentFactory.getObserver(dataOrigin);
+
+                        if(observer != null){
+                            log.info("Start observation of data origin \"{}\".", dataOrigin);
+                            observer.startObservation(dataOrigin);
+                        }
+                        else{
+                            log.warn("Backend component factory did not return a data origin observer for \"{}\"",
+                                    dataOrigin.getIdentifier());
+                        }
+                    }
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    log.error("Exception during registration of graph {}.", dataOrigin.getGraphName(), t);
+                }
+            });
         }
 
         catch (Exception ex) {
-            log.error("Registration of data origin failed!", ex);
+            log.error("Registration of data origin {} failed!", dataOrigin.getIdentifier(), ex);
             registrationFuture.setException(ex);
-
-            return registrationFuture;
         }
     }
 
 
+    public ListenableFuture<Void> unregisterDataOrigin(final I identifier){
+        final SettableFuture<Void> unregistrationFuture = SettableFuture.create();
+        log.info("Try to unregister data origin: \"{}\".", identifier);
 
-    protected ListenableFuture<Void> removeDataOrigin(DataOrigin<T> dataOrigin){
-        final SettableFuture<Void> removalFuture = SettableFuture.create();
+        DataOriginMapper<I, D> dataOriginMapper = this.componentFactory.getDataOriginMapper();
+        final D dataOrigin = dataOriginMapper.getDataOrigin(identifier);
 
-        log.info("Try to remove data origin: \"{}\".", dataOrigin);
-        DataOriginRemovalMessage<T> removalMessage = new DataOriginRemovalMessage<>(dataOrigin);
+        //If no such data origin exists
+        if(dataOrigin == null){
+            unregistrationFuture.setException(
+                    new Exception("No data origin for identifier " + identifier.toString() + " found")
+            );
 
-        Channels.write(componentFactory.getLocalChannel(), removalMessage)
-                .addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        if(future.isSuccess())
-                            removalFuture.set(null);
-                        else
-                            removalFuture.setException(future.getCause());
-                    }
-                });
+            return unregistrationFuture;
+        }
 
-        return removalFuture;
+        //Handle unregistration
+        DataOriginUnregistration<I, D> unregistration = new DataOriginUnregistration<>(dataOrigin, unregistrationFuture);
+
+        //Send the unregistration message
+        ChannelFuture channelFuture = Channels.write(componentFactory.getLocalChannel(), unregistration);
+        channelFuture.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                if (!future.isSuccess()) {
+                    unregistrationFuture.setException(future.getCause());
+                }
+            }
+        });
+
+        //Await the unregistration result
+        Futures.addCallback(unregistrationFuture, new FutureCallback<Void>() {
+            @Override
+            public void onSuccess(@Nullable Void result) {
+                log.info("Succesfully unregistered data origin \"{}\"", dataOrigin);
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                log.info("Exception during unregistration of data origin \"{}\"!", dataOrigin, t);
+            }
+        });
+
+        return unregistrationFuture;
     }
 
     /**

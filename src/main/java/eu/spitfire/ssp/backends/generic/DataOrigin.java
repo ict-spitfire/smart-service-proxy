@@ -3,10 +3,10 @@ package eu.spitfire.ssp.backends.generic;
 import java.net.URI;
 
 /**
- * A {@link eu.spitfire.ssp.backends.generic.DataOrigin} is an abstraction for an arbitrary component hosting semantic
+ * A {@link eu.spitfire.ssp.backends.generic.DataOrigin} is an wrapper for an arbitrary component hosting semantic
  * data. This can e.g. be a Webservice or a local file.
  *
- * The generic {@link T} represents the type of the identifier for this data origin. For a data origin being a
+ * The generic {@link I} represents the type of the identifier for this data origin. For a data origin being a
  * Webservice this could e.g. be {@link URI}. Then {@link #getIdentifier()} returns a {@link java.net.URI} identifying
  * this Webservice.
  *
@@ -16,17 +16,19 @@ import java.net.URI;
  *
  * @author Oliver Kleine
  */
-public abstract class DataOrigin<T> {
+public abstract class DataOrigin<I> {
 
-    private T identifier;
+    private URI graphName;
+    private I identifier;
 
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      *
      * @param identifier the identifier for this {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      */
-    protected DataOrigin(T identifier){
+    protected DataOrigin(I identifier, URI graphName){
         this.identifier = identifier;
+        this.graphName = graphName;
     }
 
     /**
@@ -44,7 +46,7 @@ public abstract class DataOrigin<T> {
      *
      * @return the identifier of this data origin
      */
-    public T getIdentifier(){
+    public final I getIdentifier(){
         return this.identifier;
     }
 
@@ -57,7 +59,9 @@ public abstract class DataOrigin<T> {
      *
      * @return the graph backendName of the model hosted by this data origin
      */
-    public abstract URI getGraphName();
+    public final URI getGraphName(){
+        return this.graphName;
+    }
 
     @Override
     public abstract int hashCode();

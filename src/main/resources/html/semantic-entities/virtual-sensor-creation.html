@@ -165,16 +165,33 @@ FILTER (geof:sfWithin(
                     <div class="ui green button" id="btnCreate">Create</div>
                 </div>
 
-                <div class="ui secondary segment" id="testResultContent" style="display: none">
-                    <div class="ui top left attached label">
-                            RDF Representation of Virtual Sensor
+                <!--Results-->
+                <div class="ui secondary segment" id="resultSegment" style="display: none">
+                    <div class="ui top left attached label" id="resultLabel">
                     </div>
-                    <div>
-                        <p id="fldDuration"></p>
-                        <textarea class="monospace" id="fldRdfResult" style="height: 200px" readonly="readonly">
-                        </textarea>
+                    <div id="resultContent">
                     </div>
                 </div>
+
+                <!--<div class="ui secondary segment" id="creationResultContent" style="display: none">-->
+                    <!--<div class="ui top left attached label">-->
+                        <!--Creation Result-->
+                    <!--</div>-->
+                    <!--<div>-->
+                        <!--<textarea class="monospace" id="fldCreationResult" style="height: 200px" readonly="readonly">-->
+                        <!--</textarea>-->
+                    <!--</div>-->
+                <!--</div>-->
+
+                <!--<div class="ui secondary segment" id="errorContent" style="display: none">-->
+                    <!--<div class="ui top left attached label">-->
+                        <!--Creation Result-->
+                    <!--</div>-->
+                    <!--<div>-->
+                        <!--<textarea class="monospace" id="fldError" style="height: 200px" readonly="readonly">-->
+                        <!--</textarea>-->
+                    <!--</div>-->
+                <!--</div>-->
             </div>
         </div>
     </div>
@@ -218,10 +235,12 @@ FILTER (geof:sfWithin(
         event.preventDefault();
 
         var formData = new FormData();
+        formData.append('graphName', 'http://example.org/virtual-sensor/' + $('#fldGraphNamePath').val());
         formData.append('sparqlQuery', $('#fldSparqlQuery').val());
         formData.append('triples', $('#fldTriples').val());
-        formData.append('button', $(this).attr('id'));
-//        formData.append('graphNamePath', $('#fldGraphNamePath').val());
+
+        var btnID = $(this).attr('id');
+        formData.append('button', btnID);
 
         $.ajax({
             type: "POST",
@@ -231,15 +250,28 @@ FILTER (geof:sfWithin(
             processData: false,
             success: function(e){
                 console.log(e);
-                $('#testResultContent').show();
-                $('#fldDuration').html('Query Execution Duration: ' + e['duration'] + ' ms.');
-                $('#fldRdfResult').val(e['sensorStatus']);
+                console.log(btnID);
+                $('#resultSegment').show().addClass('green');
+                if(btnID == 'btnTest'){
+                    $('#resultLabel').html('RDF representation of virtual sensor (Preview)');
+                    $('#resultContent').html(
+                        '<p> Query Execution Duration: ' +  e['duration'] + ' ms.</p>\n' +
+                        '<textarea class="monospace" style="height: 200px" readonly="readonly">\n' +
+                         (e['sensorStatus']) + '\n</textarea>').show();
+                }
+                else{
+                    $('#resultLabel').html('Virtual sensor Creation Result');
+                    $('#resultContent').html(
+                        '<p>Virtual Sensor succesfully created!</p>' +
+                        '<p>See <a href="/?graph=' + e['graphName'] + '">/?graph=' + e['graphName'] + '</a></p>'
+                    );
+                }
             },
             error: function(e){
                 console.log(e);
-                $('#testResultContent').show();
-                $('#fldDuration').hide();
-                $('#fldRdfResult').val(e['responseText']);
+                $('#resultSegment').show().addClass('red');
+                $('#resultLabel').html('Error');
+                $('#resultContent').html('<p>' + (e['responseText']) + '</p>');
             }
         });
     });

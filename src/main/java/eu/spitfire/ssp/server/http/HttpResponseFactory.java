@@ -4,8 +4,8 @@ import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
 import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.server.common.messages.EmptyGraphStatusMessage;
-import eu.spitfire.ssp.server.common.messages.ExpiringGraphStatusMessage;
+import eu.spitfire.ssp.backends.generic.messages.ExpiringGraphHttpResponse;
+import eu.spitfire.ssp.server.common.messages.EmptyDataAccessResult;
 import eu.spitfire.ssp.server.common.messages.GraphStatusErrorMessage;
 import eu.spitfire.ssp.server.common.messages.SparqlQueryResultMessage;
 import eu.spitfire.ssp.utils.Language;
@@ -121,7 +121,7 @@ public class HttpResponseFactory {
 
     }
 
-    public static HttpResponse createHttpResponse(HttpVersion httpVersion, EmptyGraphStatusMessage graphStatusMessage){
+    public static HttpResponse createHttpResponse(HttpVersion httpVersion, EmptyDataAccessResult graphStatusMessage){
 
         return HttpResponseFactory.createHttpResponse(httpVersion, graphStatusMessage.getStatusCode(),
                 "The operation returned with code: " + graphStatusMessage.getStatusCode().toString());
@@ -137,7 +137,7 @@ public class HttpResponseFactory {
 
 
     public static HttpResponse createHttpResponse(HttpVersion httpVersion, Language language,
-                                                  ExpiringGraphStatusMessage graphStatusMessage){
+                                                  ExpiringGraphHttpResponse graphStatusMessage){
 
         Model model = graphStatusMessage.getExpiringGraph().getGraph();
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
