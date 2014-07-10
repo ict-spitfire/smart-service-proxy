@@ -2,10 +2,9 @@ package eu.spitfire.ssp.backends.internal.vs;
 
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.Registry;
-import eu.spitfire.ssp.backends.internal.se.SemanticEntityRegistry;
 import eu.spitfire.ssp.backends.internal.vs.webservices.VirtualSensorBatchCreator;
 import eu.spitfire.ssp.backends.internal.vs.webservices.VirtualSensorCreator;
-import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
+import eu.spitfire.ssp.server.internal.messages.requests.WebserviceRegistration;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -49,7 +48,7 @@ public class VirtualSensorRegistry extends Registry<URI, VirtualSensor> {
 
     private void registerWebservice(HttpWebservice httpWebservice, URI webserviceUri){
 
-        WebserviceRegistrationMessage registrationMessage = new WebserviceRegistrationMessage(webserviceUri,
+        WebserviceRegistration registrationMessage = new WebserviceRegistration(webserviceUri,
                 httpWebservice);
 
         ChannelFuture future = Channels.write(this.componentFactory.getLocalChannel(), registrationMessage);

@@ -5,10 +5,10 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.backends.DataOriginAccessResult;
-import eu.spitfire.ssp.server.internal.messages.DataOriginRegistration;
-import eu.spitfire.ssp.server.internal.messages.DataOriginUnregistration;
-import eu.spitfire.ssp.server.internal.messages.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.messages.requests.DataOriginDeregistration;
+import eu.spitfire.ssp.server.internal.messages.responses.DataOriginInquiryResult;
+import eu.spitfire.ssp.server.internal.messages.requests.DataOriginRegistration;
+import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;
@@ -16,13 +16,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import java.net.URI;
 import java.util.Date;
 
 /**
  * A {@link Registry} is the component to register new data origins, i.e. the resources from data origins.
  * A data origin could e.g. be a Webservice whose response contains the status of at least one semantic resource. In
- * that example the generic type T would be an {@link URI}.
+ * that example the generic type T would be an {@link java.net.URI}.
  *
  * @author Oliver Kleine
  */
@@ -36,6 +35,12 @@ public abstract class Registry<I, D extends DataOrigin<I>> {
         this.componentFactory = componentFactory;
     }
 
+
+    public final ListenableFuture<Void> registerDataOrigin(final D dataOrigin, ExpiringNamedGraph initialStatus){
+        final SettableFuture<Void> registrationFuture = SettableFuture.create();
+        registerDataOrigin(dataOrigin, initialStatus.getGraph(), initialStatus.getExpiry(), registrationFuture);
+        return registrationFuture;
+    }
 
     /**
      * This method is to be called by implementing classes, i.e. registries for particular data origins,
@@ -52,7 +57,7 @@ public abstract class Registry<I, D extends DataOrigin<I>> {
 
         //retrieve initial status
         Accessor<I, D> accessor = componentFactory.getAccessor(dataOrigin);
-        ListenableFuture<? extends DataOriginAccessResult> accessResultFuture = accessor.getStatus(dataOrigin);
+        ListenableFuture<? extends DataOriginInquiryResult> accessResultFuture = accessor.getStatus(dataOrigin);
 
         //Await the initial status retrieval and perform the actual registration
         Futures.addCallback(accessResultFuture, new FutureCallback<Object>() {
@@ -63,6 +68,7 @@ public abstract class Registry<I, D extends DataOrigin<I>> {
                             dataOrigin.getIdentifier().toString(), accessResult == null ? null : accessResult.toString()
                     );
 
+                    log.error(message);
                     registrationFuture.setException(new Exception(message));
                     return;
                 }
@@ -86,7 +92,7 @@ public abstract class Registry<I, D extends DataOrigin<I>> {
     private void registerDataOrigin(final D dataOrigin, Model initialStatus, Date expiry,
                                     final SettableFuture<Void> registrationFuture){
 
-        log.info("Try to register data origin with identifier \"{}\".", dataOrigin.getIdentifier());
+        log.debug("Try to register data origin with identifier \"{}\".", dataOrigin.getIdentifier());
 
         try{
             //Create registration message
@@ -132,7 +138,8 @@ public abstract class Registry<I, D extends DataOrigin<I>> {
 
                 @Override
                 public void onFailure(Throwable t) {
-                    log.error("Exception during registration of graph {}.", dataOrigin.getGraphName(), t);
+                    log.warn("Exception during registration of graph {}.", dataOrigin.getGraphName(), t.getMessage());
+                    log.debug("Exception during registration of graph {}", dataOrigin.getGraphName(), t);
                 }
             });
         }
@@ -161,7 +168,7 @@ public abstract class Registry<I, D extends DataOrigin<I>> {
         }
 
         //Handle unregistration
-        DataOriginUnregistration<I, D> unregistration = new DataOriginUnregistration<>(dataOrigin, unregistrationFuture);
+        DataOriginDeregistration<I, D> unregistration = new DataOriginDeregistration<>(dataOrigin, unregistrationFuture);
 
         //Send the unregistration message
         ChannelFuture channelFuture = Channels.write(componentFactory.getLocalChannel(), unregistration);

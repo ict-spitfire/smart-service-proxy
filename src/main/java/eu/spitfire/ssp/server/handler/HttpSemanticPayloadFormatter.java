@@ -26,11 +26,13 @@ package eu.spitfire.ssp.server.handler;
 
 import com.google.common.collect.Multimap;
 import com.google.common.collect.TreeMultimap;
-import eu.spitfire.ssp.server.internal.messages.AccessResult;
-import eu.spitfire.ssp.backends.generic.messages.ExpiringGraphHttpResponse;
+import eu.spitfire.ssp.server.internal.messages.responses.AccessResult;
 import eu.spitfire.ssp.server.http.HttpResponseFactory;
+import eu.spitfire.ssp.server.internal.messages.responses.EmptyAccessResult;
+import eu.spitfire.ssp.server.internal.messages.responses.QueryResult;
+import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
 import eu.spitfire.ssp.utils.Language;
-import eu.spitfire.ssp.utils.SparqlResultFormat;
+import eu.spitfire.ssp.utils.QueryResultFormat;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
@@ -48,14 +50,14 @@ import java.util.Arrays;
  * For request addressed to URIs like "/?graph=..." and "/?resource=..." the supported content formats, i.e.
  * supported accept headers of HTTP requests are those defined in {@link eu.spitfire.ssp.utils.Language}. For
  * POST requests addressed to the SPARQL endpoint, i.e. URI "/sparql" the supported content formats are defined
- * in {@link eu.spitfire.ssp.utils.SparqlResultFormat}.
+ * in {@link eu.spitfire.ssp.utils.QueryResultFormat}.
  *
  * @author Oliver Kleine
  */
 public class HttpSemanticPayloadFormatter extends SimpleChannelHandler {
 
     public static final Language DEFAULT_LANGUAGE = Language.RDF_XML;
-    public static final SparqlResultFormat DEFAULT_SPARQL_RESULT_FORMAT = SparqlResultFormat.XML;
+    public static final QueryResultFormat DEFAULT_SPARQL_RESULT_FORMAT = QueryResultFormat.XML;
 
     private static final int RDF_FORMAT = 1;
     private static final int SPARQL_RESULT_FORMAT = 2;
@@ -112,7 +114,7 @@ public class HttpSemanticPayloadFormatter extends SimpleChannelHandler {
                     acceptLookup:
                     for(Double priority : acceptedMediaTypes.keySet()){
                         for(String mimeType : acceptedMediaTypes.get(priority)){
-                            acceptedFormat = SparqlResultFormat.getByHttpMimeType(mimeType);
+                            acceptedFormat = QueryResultFormat.getByHttpMimeType(mimeType);
                             if(acceptedFormat != null){
                                 break acceptLookup;
                             }
@@ -146,40 +148,40 @@ public class HttpSemanticPayloadFormatter extends SimpleChannelHandler {
         if(me.getMessage() instanceof AccessResult){
 
             if(formatType == RDF_FORMAT){
-                if(me.getMessage() instanceof EmptyDataAccessResult){
-                    EmptyDataAccessResult graphStatusMessage = (EmptyDataAccessResult) me.getMessage();
-                    httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, graphStatusMessage);
+                if(me.getMessage() instanceof EmptyAccessResult){
+                    EmptyAccessResult emptyAccessResult = (EmptyAccessResult) me.getMessage();
+                    int codeNumber = emptyAccessResult.getCode().getCodeNumber();
+                    HttpResponseStatus responseStatus = HttpResponseStatus.valueOf(codeNumber);
+                    String content = emptyAccessResult.getMessage();
+                    httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, responseStatus, content);
                 }
 
-                else if(me.getMessage() instanceof ExpiringGraphHttpResponse){
-                    ExpiringGraphHttpResponse graphStatusMessage = (ExpiringGraphHttpResponse) me.getMessage();
-                    httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, (Language) acceptedFormat,
-                            graphStatusMessage);
-                }
-
-                else if(me.getMessage() instanceof GraphStatusErrorMessage){
-                    GraphStatusErrorMessage graphStatusMessage = (GraphStatusErrorMessage) me.getMessage();
-                    httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, graphStatusMessage);
+                else if(me.getMessage() instanceof ExpiringGraph){
+                    ExpiringGraph expiringGraph = (ExpiringGraph) me.getMessage();
+                    Language format = (Language) acceptedFormat;
+                    httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, format, expiringGraph);
                 }
             }
 
             else{
-                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
-                        HttpResponseStatus.INTERNAL_SERVER_ERROR, "Format Type for GraphStatusMessage was " +
-                        formatType);
+                HttpResponseStatus status = HttpResponseStatus.INTERNAL_SERVER_ERROR;
+                String content = "Format Type for GraphStatusMessage was " + formatType;
+                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, status, content);
             }
         }
 
-        else if(me.getMessage() instanceof SparqlQueryResultMessage){
+        else if(me.getMessage() instanceof QueryResult){
             if(formatType == SPARQL_RESULT_FORMAT){
-                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
-                        (SparqlQueryResultMessage) me.getMessage(), (SparqlResultFormat) acceptedFormat);
+                QueryResult queryResult = (QueryResult) me.getMessage();
+                QueryResultFormat format = (QueryResultFormat) acceptedFormat;
+
+                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, queryResult, format);
             }
 
             else{
-                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
-                        HttpResponseStatus.INTERNAL_SERVER_ERROR, "Format Type for SparqlQueryResultMessage was " +
-                        formatType);
+                HttpResponseStatus status = HttpResponseStatus.INTERNAL_SERVER_ERROR;
+                String content = "Format Type for QueryResult was " + formatType;
+                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, status, content);
             }
         }
 
@@ -189,8 +191,9 @@ public class HttpSemanticPayloadFormatter extends SimpleChannelHandler {
 
 
         if(httpResponse == null){
-            httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
-                    HttpResponseStatus.INTERNAL_SERVER_ERROR, "Unsupported internal message " + me.getMessage());
+            HttpResponseStatus status = HttpResponseStatus.INTERNAL_SERVER_ERROR;
+            String content = "Unsupported internal message " + me.getMessage();
+            httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, status, content);
         }
 
 

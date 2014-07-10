@@ -1,6 +1,6 @@
 //package eu.spitfire.ssp.server.common.messages;
 //
-//import eu.spitfire.ssp.server.internal.messages.AccessResult;
+//import eu.spitfire.ssp.server.internal.messages.responses.AccessResult;
 //import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 //
 ///**
@@ -14,6 +14,6 @@
 //
 //    @Override
 //    public String toString(){
-//        return "[Empty Graph-Status-Message (HTTP Code: " + getStatusCode() + "]";
+//        return "[Empty Graph-Status-Message (HTTP Code: " + getCode() + "]";
 //    }
 //}

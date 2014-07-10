@@ -7,20 +7,17 @@ import com.hp.hpl.jena.query.ResultSetFactory;
 import com.hp.hpl.jena.rdf.model.*;
 import com.hp.hpl.jena.sparql.core.Var;
 import com.hp.hpl.jena.sparql.engine.binding.Binding;
-import eu.spitfire.ssp.backends.generic.messages.ExpiringGraphHttpResponse;
-import eu.spitfire.ssp.server.common.messages.SparqlQueryResultMessage;
-import eu.spitfire.ssp.server.internal.messages.ExpiringGraph;
+import eu.spitfire.ssp.server.internal.messages.responses.QueryResult;
+import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
 import lupos.datastructures.items.literal.LiteralFactory;
 import lupos.datastructures.items.literal.URILiteral;
 import lupos.datastructures.queryresult.BooleanResult;
-import lupos.datastructures.queryresult.QueryResult;
 import lupos.endpoint.server.format.XMLFormatter;
 import lupos.engine.evaluators.BasicIndexQueryEvaluator;
 import lupos.engine.evaluators.CommonCoreQueryEvaluator;
 import lupos.engine.evaluators.MemoryIndexQueryEvaluator;
 import lupos.engine.operators.index.Indices;
 import lupos.geo.geosparql.GeoFunctionRegisterer;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +60,7 @@ public class LuposdateSemanticCache extends SemanticCache {
         try{
             MemoryIndexQueryEvaluator queryEvaluator = new MemoryIndexQueryEvaluator();
             queryEvaluator.setupArguments();
-            queryEvaluator.getArgs().set("result",          QueryResult.TYPE.MEMORY);
+            queryEvaluator.getArgs().set("result",          lupos.datastructures.queryresult.QueryResult.TYPE.MEMORY);
             queryEvaluator.getArgs().set("codemap",         LiteralFactory.MapType.TRIEMAP);
             queryEvaluator.getArgs().set("distinct",        CommonCoreQueryEvaluator.DISTINCT.HASHSET);
             queryEvaluator.getArgs().set("join",            CommonCoreQueryEvaluator.JOIN.HASHMAPINDEX);
@@ -109,8 +106,8 @@ public class LuposdateSemanticCache extends SemanticCache {
 
 
     @Override
-    public ListenableFuture<ExpiringGraphHttpResponse> getNamedGraph(final URI graphName) {
-        final SettableFuture<ExpiringGraphHttpResponse> result = SettableFuture.create();
+    public ListenableFuture<ExpiringGraph> getNamedGraph(final URI graphName) {
+        final SettableFuture<ExpiringGraph> result = SettableFuture.create();
 
         this.cacheExecutor.execute(new Runnable(){
 
@@ -159,18 +156,17 @@ public class LuposdateSemanticCache extends SemanticCache {
 
 
     @Override
-    public ListenableFuture<SparqlQueryResultMessage> processSparqlQuery(final Query sparqlQuery) {
-        final SettableFuture<SparqlQueryResultMessage> resultFuture = SettableFuture.create();
+    public ListenableFuture<QueryResult> processSparqlQuery(final Query query) {
+        final SettableFuture<QueryResult> resultFuture = SettableFuture.create();
 
         this.cacheExecutor.execute(new Runnable() {
             @Override
             public void run() {
                 try{
-                    log.info("Start SPARQL query (#{}): \n{}", startetQueries.incrementAndGet() ,
-                            sparqlQuery.toString());
+                    log.info("Start SPARQL query (#{}): \n{}", startetQueries.incrementAndGet(), query.toString());
 
-                    SparqlQueryResultMessage resultMessage = processSparqlQuery2(sparqlQuery);
-                    resultFuture.set(resultMessage);
+                    QueryResult queryResult = processSparqlQuery2(query);
+                    resultFuture.set(queryResult);
                 }
                 catch (Exception e) {
                     log.error("Exception while processing SPARQL query.", e);
@@ -211,15 +207,15 @@ public class LuposdateSemanticCache extends SemanticCache {
         return result;
     }
 
-    private boolean containsNamedGraph2(URI graphName) throws Exception {
-        BooleanResult queryResult = (BooleanResult) this.evaluator.getResult(String.format(
-                "ASK {Graph <%s> {?s ?p ?o}}", graphName)
+    private synchronized boolean containsNamedGraph2(URI graphName) throws Exception {
+        BooleanResult queryResult = (BooleanResult) this.evaluator.getResult(
+                String.format("ASK {Graph <%s> {?s ?p ?o}}", graphName)
         );
 
         return queryResult.isTrue();
     }
 
-    private void putNamedGraphToCache2(URI graphName, Model namedGraph) throws Exception{
+    private synchronized void putNamedGraphToCache2(URI graphName, Model namedGraph) throws Exception{
         if(!deleteNamedGraph2(graphName))
             return;
 
@@ -256,22 +252,25 @@ public class LuposdateSemanticCache extends SemanticCache {
 
         URILiteral uriLiteral = LiteralFactory.createURILiteralWithoutLazyLiteral("<" + graphName.toString() + ">");
         Indices indices = this.evaluator.getDataset().getNamedGraphIndices(uriLiteral);
+        if(indices==null){
+            log.error("Indices was NULL for graph {}!", graphName);
+        }
         this.evaluator.getDataset().putIntoDefaultGraphs(uriLiteral, indices);
     }
 
-    private ExpiringGraphHttpResponse getNamedGraph2(URI graphName) throws Exception{
+    private synchronized ExpiringGraph getNamedGraph2(URI graphName) throws Exception{
         String query = String.format("SELECT ?s ?p ?o FROM <%s> WHERE {?s ?p ?o}", graphName);
-        QueryResult queryResult = this.evaluator.getResult(query);
+        lupos.datastructures.queryresult.QueryResult queryResult = this.evaluator.getResult(query);
 
         ListenableFuture<ResultSet> resultSetFuture = toResultSet(queryResult);
         ResultSet resultSet = resultSetFuture.get();
         Model model = toModel(resultSet);
 
-        return new ExpiringGraphHttpResponse(HttpResponseStatus.OK, new ExpiringGraph(model, new Date()));
+        return new ExpiringGraph(model, new Date());
     }
 
 
-    private boolean deleteNamedGraph2(URI graphName) throws Exception{
+    private synchronized boolean deleteNamedGraph2(URI graphName) throws Exception{
         if(containsNamedGraph2(graphName)){
             this.evaluator.getResult(String.format("DROP GRAPH <%s>", graphName));
         }
@@ -280,22 +279,21 @@ public class LuposdateSemanticCache extends SemanticCache {
     }
 
 
-    private SparqlQueryResultMessage processSparqlQuery2(Query sparqlQuery) throws Exception{
-        final SettableFuture<SparqlQueryResultMessage> messageFuture = SettableFuture.create();
+    private synchronized QueryResult processSparqlQuery2(Query sparqlQuery) throws Exception{
+        final SettableFuture<QueryResult> queryResultFuture = SettableFuture.create();
 
-        QueryResult queryResult  = this.evaluator.getResult(sparqlQuery.toString());
-        log.info("Result received!");
-        ListenableFuture<ResultSet> resultSetFuture = toResultSet(queryResult);
+        //Execute Query and make the result a JENA result set
+        ListenableFuture<ResultSet> resultSetFuture = toResultSet(this.evaluator.getResult(sparqlQuery.toString()));
         Futures.addCallback(resultSetFuture, new FutureCallback<ResultSet>() {
             @Override
             public void onSuccess(@Nullable ResultSet resultSet) {
                 try{
-                    SparqlQueryResultMessage sparqlQueryResultMessage = new SparqlQueryResultMessage(resultSet);
-                    messageFuture.set(sparqlQueryResultMessage);
+                    QueryResult queryResult = new QueryResult(resultSet);
+                    queryResultFuture.set(queryResult);
                 }
                 catch(Exception ex){
                     log.error("Exception while creating internal SPARQL query result message.", ex);
-                    messageFuture.setException(ex);
+                    queryResultFuture.setException(ex);
                 }
 
             }
@@ -303,11 +301,11 @@ public class LuposdateSemanticCache extends SemanticCache {
             @Override
             public void onFailure(Throwable t) {
                 log.error("Unexpected Exception!", t);
-                messageFuture.setException(t);
+                queryResultFuture.setException(t);
             }
         });
 
-        return messageFuture.get();
+        return queryResultFuture.get();
     }
 
     private Model toModel(ResultSet resultSet){
@@ -343,7 +341,7 @@ public class LuposdateSemanticCache extends SemanticCache {
     }
 
 
-    private ListenableFuture<ResultSet> toResultSet(final QueryResult queryResult) throws IOException {
+    private ListenableFuture<ResultSet> toResultSet(final lupos.datastructures.queryresult.QueryResult queryResult) throws IOException {
 
         final SettableFuture<ResultSet> resultSetFuture = SettableFuture.create();
         final File tmpFile = File.createTempFile("queryResult", ".xml");
@@ -362,7 +360,7 @@ public class LuposdateSemanticCache extends SemanticCache {
     }
 
 
-//    private ListenableFuture<ResultSet> toResultSet(final QueryResult queryResult) throws IOException {
+//    private ListenableFuture<ResultSet> toResultSet(final QueryExecutionSuccess queryResult) throws IOException {
 //
 //        final SettableFuture<ResultSet> resultSetFuture = SettableFuture.create();
 ////        final File tmpFile = File.createTempFile("queryResult", ".xml");

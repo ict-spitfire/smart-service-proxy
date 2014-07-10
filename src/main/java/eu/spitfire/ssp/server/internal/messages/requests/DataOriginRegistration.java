@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.server.internal.messages;
+package eu.spitfire.ssp.server.internal.messages.requests;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;

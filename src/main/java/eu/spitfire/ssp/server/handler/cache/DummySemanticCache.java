@@ -2,8 +2,10 @@ package eu.spitfire.ssp.server.handler.cache;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.backends.generic.messages.ExpiringGraphHttpResponse;
+import eu.spitfire.ssp.server.internal.messages.responses.QueryResult;
+import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,9 +32,9 @@ public class DummySemanticCache extends SemanticCache {
     }
 
     @Override
-    public ListenableFuture<ExpiringGraphHttpResponse> getNamedGraph(URI graphName) {
+    public ListenableFuture<ExpiringGraph> getNamedGraph(URI graphName) {
 
-        SettableFuture<ExpiringGraphHttpResponse> resultFuture = SettableFuture.create();
+        SettableFuture<ExpiringGraph> resultFuture = SettableFuture.create();
         resultFuture.set(null);
 
         return resultFuture;
@@ -58,6 +60,14 @@ public class DummySemanticCache extends SemanticCache {
     @Override
     public ListenableFuture<Void> deleteNamedGraph(URI graphName) {
         SettableFuture<Void> resultFuture = SettableFuture.create();
+        resultFuture.set(null);
+
+        return resultFuture;
+    }
+
+    @Override
+    public ListenableFuture<QueryResult> processSparqlQuery(Query sparqlQuery) {
+        SettableFuture<QueryResult> resultFuture = SettableFuture.create();
         resultFuture.set(null);
 
         return resultFuture;

@@ -4,8 +4,8 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.server.internal.messages.InternalCacheUpdateTask;
-import eu.spitfire.ssp.server.internal.messages.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.messages.requests.InternalCacheUpdateTask;
+import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;
@@ -17,7 +17,7 @@ import javax.annotation.Nullable;
 /**
  * An {@link Observer} is the component to observe the status of one or more instances of
  * {@link eu.spitfire.ssp.backends.generic.DataOrigin}. Whenever that status changes, the observer
- * is supposed to invoke {@link #updateCache(eu.spitfire.ssp.server.internal.messages.ExpiringNamedGraph)}.
+ * is supposed to invoke {@link #updateCache(eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph)}.
  *
  * @param <I> the type of the identifier of the {@link eu.spitfire.ssp.backends.generic.DataOrigin}
  * @param <D> the type of the {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
@@ -42,9 +42,9 @@ public abstract class Observer<I, D extends DataOrigin<I>>{
 
 
     /**
-     * Updates the cache according to the given {@link eu.spitfire.ssp.server.internal.messages.ExpiringNamedGraph}.
+     * Updates the cache according to the given {@link eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph}.
      *
-     * @param expiringNamedGraph the {@link eu.spitfire.ssp.server.internal.messages.ExpiringNamedGraph} to be used to
+     * @param expiringNamedGraph the {@link eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph} to be used to
      *                           update the cache
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} that is set with <code>null</code> if the
@@ -102,7 +102,7 @@ public abstract class Observer<I, D extends DataOrigin<I>>{
      * Starts the observation of the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      *
      * Whenever the status of the observed {@link eu.spitfire.ssp.backends.generic.DataOrigin} changes, extending
-     * classes are supposed to invoke {@link #updateCache(eu.spitfire.ssp.server.internal.messages.ExpiringNamedGraph)}.
+     * classes are supposed to invoke {@link #updateCache(eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph)}.
      *
      * If the observed {@link eu.spitfire.ssp.backends.generic.DataOrigin} is no longer available then extending classes
      * are supposed to invoke {@link eu.spitfire.ssp.backends.generic.Registry#unregisterDataOrigin(DataOrigin)} on the

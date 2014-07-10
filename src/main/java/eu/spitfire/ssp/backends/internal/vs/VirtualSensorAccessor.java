@@ -11,15 +11,13 @@ import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.rdf.model.*;
 import com.hp.hpl.jena.sparql.core.Var;
 import com.hp.hpl.jena.sparql.engine.binding.Binding;
-import eu.spitfire.ssp.backends.DataOriginAccessResult;
+import eu.spitfire.ssp.server.internal.messages.responses.DataOriginAccessError;
+import eu.spitfire.ssp.server.internal.messages.responses.DataOriginInquiryResult;
 import eu.spitfire.ssp.backends.generic.Accessor;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.internal.se.SemanticEntityAccessor;
-import eu.spitfire.ssp.server.common.messages.QueryTask;
-import eu.spitfire.ssp.server.internal.messages.AccessError;
-import eu.spitfire.ssp.server.internal.messages.AccessResult;
-import eu.spitfire.ssp.server.internal.messages.ExpiringGraph;
-import eu.spitfire.ssp.server.internal.messages.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.messages.requests.QueryTask;
+import eu.spitfire.ssp.server.internal.messages.responses.AccessResult;
+import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;
@@ -47,10 +45,10 @@ public class VirtualSensorAccessor extends Accessor<URI, VirtualSensor> {
 
 
     @Override
-    public ListenableFuture<DataOriginAccessResult> getStatus(final VirtualSensor virtualSensor){
+    public ListenableFuture<DataOriginInquiryResult> getStatus(final VirtualSensor virtualSensor){
         log.info("Try to get status for data origin with identifier {}", virtualSensor.getIdentifier());
 
-        final SettableFuture<DataOriginAccessResult> graphStatusFuture = SettableFuture.create();
+        final SettableFuture<DataOriginInquiryResult> graphStatusFuture = SettableFuture.create();
 
         Query sparqlQuery = QueryFactory.create(
                 String.format("SELECT ?s ?p ?o FROM <%s> WHERE {?s ?p ?o}", virtualSensor.getGraphName())
@@ -76,12 +74,12 @@ public class VirtualSensorAccessor extends Accessor<URI, VirtualSensor> {
             @Override
             public void onSuccess(@Nullable ResultSet resultSet) {
                 if (resultSet == null || !resultSet.hasNext()) {
-                    AccessError accessError = new AccessError(
+                    DataOriginAccessError dataOriginAccessError = new DataOriginAccessError(
                             AccessResult.Code.NOT_FOUND,
                             String.format("Graph %s not found!", virtualSensor.getGraphName())
                     );
 
-                    graphStatusFuture.set(accessError);
+                    graphStatusFuture.set(dataOriginAccessError);
                     return;
                 }
 

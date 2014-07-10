@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.server.common.messages;
+package eu.spitfire.ssp.server.internal.messages.requests;
 
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.query.Query;
@@ -17,7 +17,7 @@ public class QueryTask {
     private SettableFuture<ResultSet> resultSetFuture;
 
     /**
-     * Creates a new instance of {@link eu.spitfire.ssp.server.common.messages.QueryTask}
+     * Creates a new instance of {@link QueryTask}
      * @param query the {@link com.hp.hpl.jena.query.Query} to be executed
      * @param resultSetFuture the {@link com.google.common.util.concurrent.SettableFuture} which
      *                        is set with the result of the query execution.

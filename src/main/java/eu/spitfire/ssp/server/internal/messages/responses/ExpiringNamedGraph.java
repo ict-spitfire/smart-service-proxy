@@ -1,7 +1,6 @@
-package eu.spitfire.ssp.server.internal.messages;
+package eu.spitfire.ssp.server.internal.messages.responses;
 
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.backends.DataOriginAccessResult;
 
 import java.net.URI;
 import java.util.Date;
@@ -13,7 +12,7 @@ import java.util.Date;
  *
  * @author Oliver Kleine
  */
-public class ExpiringNamedGraph extends ExpiringGraph implements DataOriginAccessResult {
+public class ExpiringNamedGraph extends ExpiringGraph implements DataOriginInquiryResult {
 
     private URI graphName;
 

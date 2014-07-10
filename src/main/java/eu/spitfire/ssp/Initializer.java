@@ -1,16 +1,15 @@
 package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import eu.spitfire.ssp.backends.external.n3files.N3FileBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.n3files.N3FileBackendComponentFactory;
+import eu.spitfire.ssp.backends.internal.se.SemanticEntityBackendComponentFactory;
 import eu.spitfire.ssp.backends.internal.vs.VirtualSensorBackendComponentFactory;
 import eu.spitfire.ssp.server.handler.cache.DummySemanticCache;
-import eu.spitfire.ssp.server.handler.cache.JenaTdbSemanticCache;
 import eu.spitfire.ssp.server.handler.cache.LuposdateSemanticCache;
 import eu.spitfire.ssp.server.handler.cache.SemanticCache;
-import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
+import eu.spitfire.ssp.server.internal.messages.requests.WebserviceRegistration;
 import eu.spitfire.ssp.server.handler.HttpRequestDispatcher;
-import eu.spitfire.ssp.server.handler.MqttHandler;
 import eu.spitfire.ssp.server.pipelines.HttpProxyPipelineFactory;
 import eu.spitfire.ssp.server.webservices.*;
 import eu.spitfire.ssp.server.webservices.Styles;
@@ -59,7 +58,6 @@ public class Initializer {
 
     private ExecutionHandler executionHandler;
     private HttpRequestDispatcher httpRequestDispatcher;
-    private MqttHandler mqttHandler;
     private SemanticCache semanticCache;
 
     private Collection<BackendComponentFactory> componentFactories;
@@ -93,6 +91,8 @@ public class Initializer {
         registerHomepage();
         registerFavicon();
         registerSparqlEndpoint();
+
+        registerTrafficMonitoring();
 
 //        registerSlseDefinitionService();
 //        registerSlseCreationService();
@@ -153,12 +153,20 @@ public class Initializer {
         String[] enabledBackends = config.getStringArray("ENABLED_BACKEND");
         this.componentFactories = new ArrayList<>(enabledBackends.length + 1);
 
-        //Add backend for virtual sensors (default)
+        //Add backend for semantic entities (default)
         ChannelPipeline localPipeline = internalPipelineFactory.getPipeline();
         LocalServerChannel localChannel = localChannelFactory.newChannel(localPipeline);
-        this.componentFactories.add(new VirtualSensorBackendComponentFactory(
-                "virtualsensors", config, localChannel, this.internalTasksExecutor, this.ioExecutor)
+        this.componentFactories.add(new SemanticEntityBackendComponentFactory(
+                "se", config, localChannel, this.internalTasksExecutor, this.ioExecutor)
         );
+
+        //Add backend for virtual sensors (default)
+        localPipeline = internalPipelineFactory.getPipeline();
+        localChannel = localChannelFactory.newChannel(localPipeline);
+        this.componentFactories.add(new VirtualSensorBackendComponentFactory(
+                "vs", config, localChannel, this.internalTasksExecutor, this.ioExecutor)
+        );
+
 
         //Add other backends
         for (String backendName : enabledBackends) {
@@ -190,8 +198,8 @@ public class Initializer {
 
     private void createLocalPipelineFactory() {
         LinkedHashSet<ChannelHandler> handler = new LinkedHashSet<>();
-        if (!(mqttHandler == null))
-            handler.add(mqttHandler);
+//        if (!(mqttHandler == null))
+//            handler.add(mqttHandler);
 
         handler.add(semanticCache);
         handler.add(httpRequestDispatcher);
@@ -220,8 +228,8 @@ public class Initializer {
 
         handler.add(executionHandler);
 
-        if (!(mqttHandler == null))
-            handler.add(mqttHandler);
+//        if (!(mqttHandler == null))
+//            handler.add(mqttHandler);
 
         handler.add(semanticCache);
         handler.add(httpRequestDispatcher);
@@ -245,10 +253,10 @@ public class Initializer {
         if (config.getBoolean("ENABLE_MQTT", false)) {
             String mqttBrokerUri = config.getString("MQTT_BROKER_URI");
             int mqttBrokerHttpPort = config.getInt("MQTT_BROKER_HTTP_PORT");
-            this.mqttHandler = new MqttHandler(mqttBrokerUri, mqttBrokerHttpPort);
+//            this.mqttHandler = new MqttHandler(mqttBrokerUri, mqttBrokerHttpPort);
             log.debug("MQTT Handler created.");
         } else {
-            this.mqttHandler = null;
+//            this.mqttHandler = null;
             log.debug("MQTT was disabled.");
         }
     }
@@ -263,26 +271,26 @@ public class Initializer {
             return;
         }
 
-        if ("jenaTDB".equals(cacheType)) {
-            String dbDirectory = config.getString("cache.jenaTDB.dbDirectory");
-            if (dbDirectory == null)
-                throw new RuntimeException("'cache.jenaTDB.dbDirectory' missing in ssp.properties");
-
-            String spatialIndexDirectory = config.getString("cache.spatial.index.directory");
-            if (spatialIndexDirectory == null)
-                throw new RuntimeException("'cache.spatial.index.directory' missing in ssp.properties");
-
-            Path directoryPath = Paths.get(dbDirectory);
-            Path spatialIndexDirectoryPath = Paths.get(spatialIndexDirectory);
-
-            if(!Files.isDirectory(directoryPath))
-                throw new IllegalArgumentException("The given path for Jena TDB does not refer to a directory!");
-
-            this.semanticCache = new JenaTdbSemanticCache(this.ioExecutor, this.internalTasksExecutor,
-                    directoryPath, spatialIndexDirectoryPath);
-
-            return;
-        }
+//        if ("jenaTDB".equals(cacheType)) {
+//            String dbDirectory = config.getString("cache.jenaTDB.dbDirectory");
+//            if (dbDirectory == null)
+//                throw new RuntimeException("'cache.jenaTDB.dbDirectory' missing in ssp.properties");
+//
+//            String spatialIndexDirectory = config.getString("cache.spatial.index.directory");
+//            if (spatialIndexDirectory == null)
+//                throw new RuntimeException("'cache.spatial.index.directory' missing in ssp.properties");
+//
+//            Path directoryPath = Paths.get(dbDirectory);
+//            Path spatialIndexDirectoryPath = Paths.get(spatialIndexDirectory);
+//
+//            if(!Files.isDirectory(directoryPath))
+//                throw new IllegalArgumentException("The given path for Jena TDB does not refer to a directory!");
+//
+//            this.semanticCache = new JenaTdbSemanticCache(this.ioExecutor, this.internalTasksExecutor,
+//                    directoryPath, spatialIndexDirectoryPath);
+//
+//            return;
+//        }
 //
         if("luposdate".equals(cacheType)){
             this.semanticCache = new LuposdateSemanticCache(this.ioExecutor, this.internalTasksExecutor);
@@ -334,10 +342,25 @@ public class Initializer {
     }
 
 
+    private void registerTrafficMonitoring() throws Exception{
+        URI uri = new URI(null, null, null, -1, "/services/geo-views/traffic-monitoring", null, null);
+
+        LocalServerChannel localChannel = this.localChannelFactory.newChannel(
+                this.internalPipelineFactory.getPipeline()
+        );
+
+        HttpWebservice httpWebservice = new TrafficMonitoring(
+                this.ioExecutor, this.internalTasksExecutor
+        );
+
+        registerHttpWebservice(uri, httpWebservice);
+
+    }
+
     private void registerHttpWebservice(final URI webserviceUri, HttpWebservice httpWebservice) throws Exception{
 
         LocalServerChannel localChannel = localChannelFactory.newChannel(internalPipelineFactory.getPipeline());
-        WebserviceRegistrationMessage registrationMessage = new WebserviceRegistrationMessage(webserviceUri,
+        WebserviceRegistration registrationMessage = new WebserviceRegistration(webserviceUri,
                 httpWebservice);
 
         ChannelFuture future = Channels.write(localChannel, registrationMessage);

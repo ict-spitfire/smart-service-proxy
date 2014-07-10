@@ -3,10 +3,10 @@ package eu.spitfire.ssp.backends.generic;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.backends.DataOriginModificationResult;
-import eu.spitfire.ssp.server.internal.messages.AccessError;
-import eu.spitfire.ssp.server.internal.messages.AccessResult;
-import eu.spitfire.ssp.backends.DataOriginAccessResult;
+import eu.spitfire.ssp.server.internal.messages.responses.DataOriginAccessError;
+import eu.spitfire.ssp.server.internal.messages.responses.AccessResult;
+import eu.spitfire.ssp.server.internal.messages.responses.DataOriginInquiryResult;
+import eu.spitfire.ssp.server.internal.messages.responses.DataOriginModificationResult;
 
 /**
  * A {@link Accessor} is a component to access a
@@ -42,10 +42,10 @@ public abstract class Accessor<I, D extends DataOrigin<I>> {
      * @param dataOrigin the {@link eu.spitfire.ssp.backends.generic.DataOrigin} to retrieve the status from
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with the the actual
-     * {@link eu.spitfire.ssp.server.internal.messages.ExpiringNamedGraph} retrieved retrieved from the given given
+     * {@link eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph} retrieved retrieved from the given given
      * identifier of a {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
      */
-    public ListenableFuture<? extends DataOriginAccessResult> getStatus(D dataOrigin){
+    public ListenableFuture<? extends DataOriginInquiryResult> getStatus(D dataOrigin){
         return createOperationNotSupportedMessage("status retrieval");
     }
 
@@ -56,7 +56,8 @@ public abstract class Accessor<I, D extends DataOrigin<I>> {
      * @param status the supposed status of the given {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      *
      * @return  a {@link com.google.common.util.concurrent.ListenableFuture} to be set with the result of
-     * the deletion attempt, i.e. an instance of {@link eu.spitfire.ssp.backends.DataOriginModificationResult}.
+     * the deletion attempt, i.e. an instance of
+     * {@link eu.spitfire.ssp.server.internal.messages.responses.DataOriginModificationResult}.
      */
     public ListenableFuture<? extends DataOriginModificationResult> setStatus(D dataOrigin, Model status){
         return createOperationNotSupportedMessage("status changes");
@@ -70,17 +71,18 @@ public abstract class Accessor<I, D extends DataOrigin<I>> {
      *                   to be deleted.
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with the result of
-     * the deletion attempt, i.e. an instance of {@link eu.spitfire.ssp.backends.DataOriginModificationResult}.
+     * the deletion attempt, i.e. an instance of
+     * {@link eu.spitfire.ssp.server.internal.messages.responses.DataOriginModificationResult}
      */
     public ListenableFuture<? extends DataOriginModificationResult> deleteResource(D dataOrigin){
         return createOperationNotSupportedMessage("resource deletion");
     }
 
 
-    private ListenableFuture<AccessError> createOperationNotSupportedMessage(String operationName){
-        SettableFuture<AccessError> accessResultFuture = SettableFuture.create();
+    private ListenableFuture<DataOriginAccessError> createOperationNotSupportedMessage(String operationName){
+        SettableFuture<DataOriginAccessError> accessResultFuture = SettableFuture.create();
 
-        accessResultFuture.set(new AccessError(
+        accessResultFuture.set(new DataOriginAccessError(
                 AccessResult.Code.NOT_ALLOWED, "Data Origin Accessor does not support " + operationName + "."
         ));
 

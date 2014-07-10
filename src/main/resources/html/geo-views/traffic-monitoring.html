@@ -1,0 +1,133 @@
+<!DOCTYPE HTML>
+<html style="height: 100%">
+<head>
+    <meta charset="utf-8" />
+    <title>Traffic Monitoring</title>
+    <link href="../../style/css/semantic.css" rel="stylesheet" type="text/css" />
+    <link href="../../style/css/semantic.min.css" rel="stylesheet" type="text/css"/>
+    <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Open+Sans:300italic,400,300,700'
+          rel='stylesheet' type='text/css'>
+
+    <style type="text/css">
+        :not(i){
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        *{
+            font-size: 13px;
+        }
+    </style>
+
+    <script src="../../style/javascript/jquery-1.11.1.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+    <script>
+        var query = '\
+PREFIX rs: <http://example.org/road-sections#>\
+PREFIX geo: <http://www.opengis.net/ont/geosparql#>\
+PREFIX geof: <http://www.opengis.net/def/function/geosparql/>\
+SELECT ?section ?wktBounds WHERE {\
+  ?section a rs:RoadSection . \
+  ?section rs:hasBoundary ?boundary . \
+  ?boundary geo:asWKT ?wktBounds . \
+  FILTER (geof:sfWithin(\
+  ?wktBounds,\
+  "POLYGON ((53.877383 10.673484, 53.877383 10.700723, 53.854094 10.700723, 53.854094 10.673484,\
+             53.877383 10.673484))"^^geo:wktLiteral\
+  ))\
+}';
+        var map;
+        var polygons = {};
+
+        $(document).ready(function(){
+            initializeMap();
+        });
+
+        function initializeMap() {
+            var mapOptions = {
+                zoom: 15,
+                center: new google.maps.LatLng(53.868141, 10.687884),
+                mapTypeId: google.maps.MapTypeId.ROADMAP
+            };
+
+            map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+//            sendQuery();
+        }
+
+        function sendQuery(){
+
+            var latLngBounds = map.getBounds();
+            var northEast = latLngBounds.getNorthEast();
+            var southWest = latLngBounds.getSouthWest();
+
+
+            var formData = new FormData();
+            formData.append('query', query);
+
+            $.ajax({
+                type: "POST",
+                beforeSend: function (request)
+                {
+                    request.setRequestHeader("Accept", 'application/sparql-results+json');
+                },
+                url: '/services/sparql-endpoint',
+                data: formData,
+                dataType: 'json',
+                contentType: false,
+                processData: false,
+                success: function(queryResult){
+                    updateMap(queryResult);
+                },
+                error: function(e){
+                    console.log('ERROR!' + e);
+                }
+            });
+        }
+
+        function updateMap(queryResult){
+            queryResult.results.bindings.forEach(function(binding){
+
+                var secName = binding.section.value;
+                secName = secName.substr(secName.indexOf('#') + 1);
+
+                var wktBoundary = binding.wktBounds.value;
+                wktBoundary = wktBoundary.substr(wktBoundary.indexOf('((') + 2);
+
+                var gmapsPoints = [];
+                var points = wktBoundary.split(", ");
+                points.forEach(function(point){
+                    var coordinates = point.split(" ");
+                    gmapsPoints.push(new google.maps.LatLng(coordinates[0], coordinates[1]));
+                });
+
+                var gmapsPolygon = new google.maps.Polygon({
+                    paths:  gmapsPoints,
+                    strokeColor: '3cb371',
+                    strokeOpacity: 0.8,
+                    strokeWeight: 2,
+                    fillColor: '3cb371',
+                    fillOpacity: 0.35
+                });
+
+                gmapsPolygon.setMap(map);
+                polygons[secName] = gmapsPolygon;
+            });
+        }
+    </script>
+</head>
+
+<body style="height: 100%">
+<div class="ui one column page grid" style="height: 100%">
+    <div class="column" style="height: 80%">
+        <div id="header">
+        </div>
+        <script src="../../style/javascript/ssp-menu.js"></script>
+
+        <h4 class="ui top attached header">
+            Traffic Monitoring (GoogleMaps Overlay)
+        </h4>
+
+        <div class="ui segment attached" style="height: 100%">
+            <div id="map-canvas" style="height:100%; margin: 0; padding: 0"></div>
+        </div>
+    </div>
+</div>

@@ -1,17 +1,25 @@
 package eu.spitfire.ssp.backends.external.n3files;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import eu.spitfire.ssp.backends.DataOriginAccessResult;
-import eu.spitfire.ssp.server.internal.messages.ExpiringNamedGraph;
+import com.google.common.util.concurrent.ListenableFuture;
+import eu.spitfire.ssp.server.internal.messages.responses.DataOriginInquiryResult;
+import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
+import eu.spitfire.ssp.utils.exceptions.IdentifierAlreadyRegisteredException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -41,11 +49,20 @@ class N3FileWatcher {
 
 
     void startFileWatching(){
-        Path rootDirectory = new File(componentFactory.getConfig().getString("directory")).toPath();
-        preWatchDirectory(rootDirectory);
+        final Path rootDirectory = new File(componentFactory.getConfig().getString("directory")).toPath();
+        final ScheduledExecutorService internalTasksExecutor = componentFactory.getInternalTasksExecutor();
 
-        ScheduledExecutorService backendTasksExecutorService = componentFactory.getInternalTasksExecutor();
-        backendTasksExecutorService.scheduleAtFixedRate(new FileWatchingTask(), 100, 100, TimeUnit.MILLISECONDS);
+        internalTasksExecutor.execute(new Runnable(){
+
+            @Override
+            public void run() {
+                preWatchDirectory(rootDirectory);
+            }
+        });
+
+        internalTasksExecutor.scheduleAtFixedRate(
+                new FileWatchingTask(), 100, 100, TimeUnit.MILLISECONDS
+        );
     }
 
 
@@ -55,7 +72,6 @@ class N3FileWatcher {
      * @param directoryPath the directory to be observed
      */
     private void preWatchDirectory(Path directoryPath){
-        log.info("Start!");
         try{
             Files.walkFileTree(directoryPath, new SimpleFileVisitor<Path>() {
                 @Override
@@ -94,10 +110,10 @@ class N3FileWatcher {
 
     private void handleFileModification(final N3File dataOrigin){
         log.info("File {} was updated!", dataOrigin);
-        Futures.addCallback(accessor.getStatus(dataOrigin), new FutureCallback<DataOriginAccessResult>() {
+        Futures.addCallback(accessor.getStatus(dataOrigin), new FutureCallback<DataOriginInquiryResult>() {
 
             @Override
-            public void onSuccess(DataOriginAccessResult accessResult) {
+            public void onSuccess(DataOriginInquiryResult accessResult) {
                 if (accessResult instanceof ExpiringNamedGraph) {
                     observer.updateCache((ExpiringNamedGraph) accessResult);
                 }
@@ -123,48 +139,38 @@ class N3FileWatcher {
                 WatchKey watchKey = watchService.take();
                 Path directory = (Path) watchKey.watchable();
 
+                LinkedHashMultimap<N3File, WatchEvent.Kind> detectedEvents = LinkedHashMultimap.create();
+
                 for(WatchEvent event : watchKey.pollEvents()){
 
                     WatchEvent.Kind eventKind = event.kind();
                     final Path filePath = directory.resolve((Path) event.context());
 
-                    log.info("Event {} at file {}", eventKind, filePath);
-
-                    if(eventKind == StandardWatchEventKinds.ENTRY_CREATE){
-
-                        if(Files.isDirectory(filePath)){
-                            log.info("New directory \"{}\" created!", filePath);
-                            filePath.register(watchService, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
-                        }
-
-                        else if (filePath.toString().endsWith(".n3")){
-                            try{
-                                N3File n3File = new N3File(filePath, componentFactory.getSspHostName());
-                                registry.registerDataOrigin(n3File);
-                            }
-                            catch(URISyntaxException ex){
-                                log.error("This should never happen!", ex);
-                            }
-                        }
+                    //Handle events on directories
+                    if(Files.isDirectory(filePath) && eventKind == ENTRY_CREATE){
+                        log.info("New directory \"{}\" created!", filePath);
+                        filePath.register(watchService, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
+                        continue;
                     }
 
-                    else if(eventKind == StandardWatchEventKinds.ENTRY_DELETE && (filePath.toString().endsWith(".n3"))){
-                        registry.unregisterDataOrigin(filePath);
+                    //Ignore events on files whose names do not end with .n3
+                    if (!filePath.toString().endsWith(".n3")){
+                        log.debug("Event on file {} will be ignored (no *.n3)", filePath);
+                        continue;
                     }
 
-                    else if(eventKind == StandardWatchEventKinds.ENTRY_MODIFY && (filePath.toString().endsWith(".n3"))){
-                        N3File dataOrigin = componentFactory.getDataOriginMapper().getDataOrigin(filePath);
-                        handleFileModification(dataOrigin);
-                    }
-
-                    else{
-                        log.warn("Don't know what to do (Event {} on file \"{}\").", eventKind, filePath);
-                    }
+                    //Collect events on N3 files
+                    N3File n3File = new N3File(filePath, componentFactory.getSspHostName());
+                    log.debug("Event {} at file {}", eventKind, filePath);
+                    detectedEvents.put(n3File, eventKind);
                 }
+
+                //handle events on N3 files
+                handleN3FileEvents(detectedEvents);
 
                 // reset watchkey and remove from set if directory is no longer accessible
                 if(watchKey.reset()){
-                    log.info("Successfully resetted watchkey for directory {}.", directory);
+                    log.info("Successfully reseted watchkey for directory {}.", directory);
                 }
                 else{
                     log.error("Could not reset watchkey. Stop observation of directory {}", directory);
@@ -173,6 +179,73 @@ class N3FileWatcher {
             }
             catch (Exception e) {
                 log.error("This should never happen!", e);
+            }
+        }
+
+
+        private void handleN3FileEvents(LinkedHashMultimap<N3File, WatchEvent.Kind> events){
+            for(final N3File n3File : events.keySet()){
+
+                for(WatchEvent.Kind eventKind : events.get(n3File)){
+                    log.info("Event {} on N3 file {}.", eventKind, n3File);
+                }
+
+                Iterator<WatchEvent.Kind> eventIterator = events.get(n3File).iterator();
+
+                while(eventIterator.hasNext()){
+                    WatchEvent.Kind eventKind = eventIterator.next();
+
+                    if(eventKind == ENTRY_DELETE){
+                        if(eventIterator.hasNext() && eventIterator.next() == ENTRY_CREATE){
+                            log.info("N3 File {} was deleted and immediately recreated (UPDATE CACHE).", n3File);
+                            handleFileModification(n3File);
+                        }
+                        else{
+                            log.info("N3 File {} was deleted (UNREGISTER).", n3File);
+                            registry.unregisterDataOrigin(n3File.getIdentifier());
+                        }
+                    }
+
+                    else if(eventKind == ENTRY_CREATE){
+                        if(eventIterator.hasNext() && eventIterator.next() == ENTRY_DELETE){
+                            log.warn("N3 File {} was created and immediately deleted(IGNORE)!", n3File);
+                        }
+                        else if(eventIterator.hasNext() && eventIterator.next() == ENTRY_MODIFY){
+                            log.info("N3 File {} was created and modified (REGISTER).", n3File);
+                            registry.registerDataOrigin(n3File);
+                        }
+                        else{
+                            log.info("N3 File {} was created (REGISTER).", n3File);
+                            ListenableFuture<Void> regFuture = registry.registerDataOrigin(n3File);
+                            Futures.addCallback(regFuture, new FutureCallback<Void>() {
+                                @Override
+                                public void onSuccess(@Nullable Void result) {
+                                    //Nothing to do...
+                                }
+
+                                @Override
+                                public void onFailure(Throwable t) {
+                                    handleFileModification(n3File);
+                                }
+                            });
+                        }
+                    }
+
+                    else if(eventKind == ENTRY_MODIFY){
+                        if(eventIterator.hasNext() && eventIterator.next() == ENTRY_DELETE){
+                            log.warn("N3 File {} was modified and immediately deleted (UNREGISTER)!", n3File);
+                            registry.unregisterDataOrigin(n3File.getIdentifier());
+                        }
+                        else{
+                            log.info("N3 File {} was modified (UPDATE CACHE).", n3File);
+                            handleFileModification(n3File);
+                        }
+                    }
+
+                    else{
+                        log.error("Unexpected event on N3 file {}: {}", n3File, eventKind);
+                    }
+                }
             }
         }
     }

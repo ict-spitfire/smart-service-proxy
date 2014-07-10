@@ -8,7 +8,7 @@ import com.hp.hpl.jena.sparql.resultset.ResultsFormat;
  *
  * @author Oliver Kleine
  */
-public enum SparqlResultFormat {
+public enum QueryResultFormat {
 
     /**
      * Corresponds to HTTP mime type "application/sparql-results+xml"
@@ -41,23 +41,23 @@ public enum SparqlResultFormat {
     public String mimeType;
 
 
-    private SparqlResultFormat(ResultsFormat resultsFormat, String mimeType){
+    private QueryResultFormat(ResultsFormat resultsFormat, String mimeType){
         this.resultsFormat = resultsFormat;
         this.mimeType = mimeType;
     }
 
 
     /**
-     * Returns the {@link eu.spitfire.ssp.utils.SparqlResultFormat} according to the given HTTP mime type or
+     * Returns the {@link QueryResultFormat} according to the given HTTP mime type or
      * <code>null</code> if the given mime type is not supported.
      *
      * @param mimeType the HTTP mime type to lookup the corresponding {@link eu.spitfire.ssp.utils.Language} for
      *
-     * @return the {@link eu.spitfire.ssp.utils.SparqlResultFormat} according to the given HTTP mime type or
+     * @return the {@link QueryResultFormat} according to the given HTTP mime type or
      * <code>null</code> if the given mime type is not supported.
      */
-    public static SparqlResultFormat getByHttpMimeType(String mimeType){
-        for(SparqlResultFormat format : SparqlResultFormat.values()){
+    public static QueryResultFormat getByHttpMimeType(String mimeType){
+        for(QueryResultFormat format : QueryResultFormat.values()){
             if(mimeType.contains(format.mimeType))
                 return format;
         }

@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.server.internal.messages;
+package eu.spitfire.ssp.server.internal.messages.responses;
 
 /**
  *
@@ -7,7 +7,7 @@ package eu.spitfire.ssp.server.internal.messages;
 public abstract class AccessResult {
 
     public enum Code {
-        OK(200), NOT_FOUND(404), NOT_ALLOWED(405), INTERNAL_ERROR(500);
+        OK(200), BAD_REQUEST(400), NOT_FOUND(404), NOT_ALLOWED(405), INTERNAL_ERROR(500);
 
         private int codeNumber;
 
@@ -19,10 +19,11 @@ public abstract class AccessResult {
             return this.codeNumber;
         }
 
-        public boolean isErrorCode(){
-            return this.codeNumber > 400;
+        public boolean isSuccess(){
+            return this.codeNumber == 200;
         }
     }
+
 
     private Code resultCode;
 
@@ -43,7 +44,7 @@ public abstract class AccessResult {
      * @return the {@link AccessResult.Code} indicating whether the access
      * was successful or not.
      */
-    public Code getStatusCode() {
+    public Code getCode() {
         return this.resultCode;
     }
 

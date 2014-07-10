@@ -37,7 +37,7 @@ public class Favicon extends HttpWebservice {
         super(ioExecutor, null, null);
 
         try{
-            InputStream inputStream = Favicon.class.getResourceAsStream("favicon.ico");
+            InputStream inputStream = Favicon.class.getClassLoader().getResourceAsStream("html/favicon.ico") ;
             faviconBuffer = ChannelBuffers.dynamicBuffer();
             int value = inputStream.read();
             while(value != -1){

@@ -49,7 +49,7 @@ public abstract class BackendComponentFactory<I, D extends DataOrigin<I>>{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private Registry<I, ? extends D> registry;
+    private Registry<I, D> registry;
 
     private ScheduledExecutorService internalTasksExecutor;
     private ExecutorService ioExecutor;
@@ -159,7 +159,7 @@ public abstract class BackendComponentFactory<I, D extends DataOrigin<I>>{
      *
      * @return the {@link Registry} which is necessary to resources from a new data origin
      */
-    public Registry<I, ? extends D> getRegistry() {
+    public Registry<I, D> getRegistry() {
        return this.registry;
     }
 
@@ -185,7 +185,7 @@ public abstract class BackendComponentFactory<I, D extends DataOrigin<I>>{
      * @return the {@link Accessor} to observe the given
      * {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      */
-    public abstract Observer<I, ? extends D> getObserver(D dataOrigin);
+    public abstract Observer<I, D> getObserver(D dataOrigin);
 
 
     /**
@@ -200,7 +200,7 @@ public abstract class BackendComponentFactory<I, D extends DataOrigin<I>>{
      * {@link eu.spitfire.ssp.backends.generic.DataOrigin} or <code>null</code> if no such
      * {@link Accessor} exists.
      */
-    public abstract Accessor<I, ? extends D> getAccessor(D dataOrigin);
+    public abstract Accessor<I, D> getAccessor(D dataOrigin);
 
 
     /**
@@ -210,7 +210,7 @@ public abstract class BackendComponentFactory<I, D extends DataOrigin<I>>{
      * @return an instance of {@link Registry} capable to perform registration of new data origins identified
      * by instances of the generic type T.
      */
-    public abstract Registry<I, ? extends D> createRegistry(Configuration config) throws Exception;
+    public abstract Registry<I, D> createRegistry(Configuration config) throws Exception;
 
 
     public abstract void shutdown();

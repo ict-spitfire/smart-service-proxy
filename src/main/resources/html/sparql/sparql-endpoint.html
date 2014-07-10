@@ -47,20 +47,20 @@
             <div class="ui form segment attached">
                 <div class="ui secondary segment">
                     <div class="ui small grey top left attached label">Enter SPARQL query</div>
-                    <textarea class="monospace" id="fldSparqlQuery" style="height: 300px">
-PREFIX itm: &lt;http://example.org/itm-geo-test#&gt;
+                    <textarea class="monospace" id="fldQuery" style="height: 300px">
+PREFIX rs: &lt;http://example.org/road-sections#&gt;
 PREFIX geo: &lt;http://www.opengis.net/ont/geosparql#&gt;
 PREFIX geof: &lt;http://www.opengis.net/def/function/geosparql/&gt;
 
-SELECT (MIN(?val) AS ?aggVal) WHERE {
-GRAPH ?graph {
-  ?val itm:hasPointGeometry ?fGeom .
-  ?fGeom geo:asWKT ?fWKT .
+SELECT ?section ?fWKT WHERE {
+  ?section a rs:RoadSection .
+  ?section rs:hasBoundary ?boundary .
+  ?boundary geo:asWKT ?fWKT .
   FILTER (geof:sfWithin(
     ?fWKT,
-    "&lt;http://www.opengis.net/def/crs/OGC/1.3/CRS84&gt;Polygon ((-83.4 34.0, -83.1 34.0,-83.1 34.2, -83.4 34.2,-83.4 34.0))"^^geo:wktLiteral
-  ))
-}}
+    "POLYGON ((53.877383 10.673484, 53.877383 10.700723, 53.854094 10.700723, 53.854094 10.673484, 53.877383 10.673484))"^^geo:wktLiteral
+))
+}
                     </textarea>
                 </div>
 
@@ -85,10 +85,10 @@ GRAPH ?graph {
                     <i class="circular code icon"></i>
                 </div>
 
-                <div class="ui secondary segment" id="sparqlResult" style="margin-top: 20px; display: none">
+                <div class="ui secondary segment" id="queryResult" style="margin-top: 20px; display: none">
                     <div class="ui small grey top left attached label">Query Result</div>
-                    <div id="sparqlResultContent">
-                        <textarea class="monospace" id="fldSparqlResult"
+                    <div id="queryResultContent">
+                        <textarea class="monospace" id="fldQueryResult"
                                   style="height: 200px; max-height: none !important"></textarea>
                     </div>
                     <div class="ui dimmer" id="dimmer">
@@ -111,11 +111,11 @@ GRAPH ?graph {
         $('#btnExecute').click(function(event){
 
             $('#dimmer').addClass('active');
-            $('#sparqlResult').show();
+            $('#queryResult').show();
             event.preventDefault();
 
             var formData = new FormData();
-            formData.append('sparqlQuery', $('#fldSparqlQuery').val());
+            formData.append('query', $('#fldQuery').val());
 
             console.log("Accepted: " + $('#selResultFormat').val());
 
@@ -132,12 +132,12 @@ GRAPH ?graph {
                 processData: false,
                 success: function(e){
                     console.log(e);
-                    $('#fldSparqlResult').html(e);
+                    $('#fldQueryResult').html(e);
                     $('#dimmer').removeClass('active');
                 },
                 error: function(e){
                     console.log(e);
-                    $('#fldSparqlResult').html(e['responseText']);
+                    $('#fldQueryResult').html(e['responseText']);
                     $('#dimmer').removeClass('active');
                 }
             });

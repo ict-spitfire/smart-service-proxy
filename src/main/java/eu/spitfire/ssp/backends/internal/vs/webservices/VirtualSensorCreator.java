@@ -12,8 +12,8 @@ import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.backends.internal.vs.VirtualSensor;
 import eu.spitfire.ssp.backends.internal.vs.VirtualSensorBackendComponentFactory;
 import eu.spitfire.ssp.backends.internal.vs.VirtualSensorRegistry;
-import eu.spitfire.ssp.server.common.messages.QueryTask;
-import eu.spitfire.ssp.server.internal.messages.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.messages.requests.QueryTask;
+import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.http.HttpResponseFactory;
 import eu.spitfire.ssp.utils.Language;
 import org.jboss.netty.channel.Channel;
@@ -111,12 +111,38 @@ public class VirtualSensorCreator extends AbstractVirtualSensorCreator {
             throws Exception{
 
         //Add sensor value to model
-        Futures.addCallback(addSensorValueToModel(sparqlQuery, model), new FutureCallback<Model>() {
+        ListenableFuture<Model> initialStatusFuture = addSensorValueToModel(sparqlQuery, model);
+        Futures.addCallback(initialStatusFuture, new FutureCallback<Model>() {
             @Override
             public void onSuccess(@Nullable Model model) {
                 //Register virtual sensor
                 final VirtualSensor virtualSensor = new VirtualSensor(graphName, sparqlQuery);
-                registerVirtualSensor(virtualSensor, model, httpResponseFuture, httpVersion);
+                final ExpiringNamedGraph initialStatus = new ExpiringNamedGraph(graphName, model);
+
+                ListenableFuture<Void> registrationFuture = registry.registerDataOrigin(virtualSensor, initialStatus);
+                Futures.addCallback(registrationFuture, new FutureCallback<Void>() {
+                    @Override
+                    public void onSuccess(@Nullable Void result) {
+                        Map<String, String> content = new HashMap<>();
+
+                        content.put("graphName", virtualSensor.getGraphName().toASCIIString());
+                        content.put("regResult", "OK");
+
+                        httpResponseFuture.set(HttpResponseFactory.createHttpJsonResponse(httpVersion, content));
+                    }
+
+                    @Override
+                    public void onFailure(Throwable t) {
+                        Map<String, String> result = new HashMap<>();
+
+                        result.put("graphName", virtualSensor.getGraphName().toASCIIString());
+                        result.put("regResult", "OK");
+
+                        httpResponseFuture.set(HttpResponseFactory.createHttpJsonResponse(httpVersion, result));
+                    }
+                });
+
+//                registerVirtualSensor(virtualSensor, model, httpResponseFuture, httpVersion);
             }
 
             @Override
@@ -130,6 +156,7 @@ public class VirtualSensorCreator extends AbstractVirtualSensorCreator {
     private void registerVirtualSensor(final VirtualSensor virtualSensor, final Model initialStatus,
                                        final SettableFuture<HttpResponse> httpResponseFuture,
                                        final HttpVersion httpVersion){
+
 
         Futures.addCallback(this.registry.registerDataOrigin(virtualSensor), new FutureCallback<Void>() {
             @Override

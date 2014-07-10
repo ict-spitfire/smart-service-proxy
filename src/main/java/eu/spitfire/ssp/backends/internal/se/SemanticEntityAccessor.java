@@ -2,13 +2,11 @@ package eu.spitfire.ssp.backends.internal.se;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backends.DataOriginAccessResult;
+import eu.spitfire.ssp.server.internal.messages.responses.DataOriginAccessError;
+import eu.spitfire.ssp.server.internal.messages.responses.DataOriginInquiryResult;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.server.internal.messages.AccessError;
-import eu.spitfire.ssp.server.internal.messages.AccessResult;
+import eu.spitfire.ssp.server.internal.messages.responses.AccessResult;
 import eu.spitfire.ssp.backends.generic.Accessor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 
@@ -28,10 +26,10 @@ public class SemanticEntityAccessor extends Accessor<URI, SemanticEntity> {
 
 
     @Override
-    public ListenableFuture<DataOriginAccessResult> getStatus(SemanticEntity semanticEntity){
-        SettableFuture<DataOriginAccessResult> accessResultFuture = SettableFuture.create();
+    public ListenableFuture<DataOriginInquiryResult> getStatus(SemanticEntity semanticEntity){
+        SettableFuture<DataOriginInquiryResult> accessResultFuture = SettableFuture.create();
 
-        accessResultFuture.set(new AccessError(
+        accessResultFuture.set(new DataOriginAccessError(
                 AccessResult.Code.INTERNAL_ERROR,
                 "This GET request should have been answered from the cache!"
         ));
@@ -45,8 +43,8 @@ public class SemanticEntityAccessor extends Accessor<URI, SemanticEntity> {
 
 
 //    @Override
-//    public ListenableFuture<DataOriginAccessResult> getStatus(SemanticEntity semanticEntity){
-//        SettableFuture<DataOriginAccessResult> accessResultFuture = SettableFuture.create();
+//    public ListenableFuture<DataOriginInquiryResult> getStatus(SemanticEntity semanticEntity){
+//        SettableFuture<DataOriginInquiryResult> accessResultFuture = SettableFuture.create();
 //
 //        log.info("Try to get status for data origin with identifier {}", dataOrigin.getIdentifier());
 //

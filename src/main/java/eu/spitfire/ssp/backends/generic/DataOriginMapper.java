@@ -6,14 +6,14 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
-import eu.spitfire.ssp.server.internal.messages.DataOriginRegistration;
+import eu.spitfire.ssp.server.internal.messages.requests.DataOriginRegistration;
 import eu.spitfire.ssp.server.http.HttpResponseFactory;
-import eu.spitfire.ssp.server.internal.messages.AccessError;
-import eu.spitfire.ssp.server.internal.messages.AccessResult;
-import eu.spitfire.ssp.backends.DataOriginAccessResult;
+import eu.spitfire.ssp.server.internal.messages.responses.DataOriginAccessError;
+import eu.spitfire.ssp.server.internal.messages.responses.AccessResult;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import eu.spitfire.ssp.utils.Language;
 import eu.spitfire.ssp.utils.exceptions.IdentifierAlreadyRegisteredException;
+import eu.spitfire.ssp.utils.exceptions.WebserviceAlreadyRegisteredException;
 import org.jboss.netty.buffer.ChannelBufferInputStream;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -23,6 +23,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -84,44 +85,51 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
 
 
     /**
-     * Handles instances of {@link eu.spitfire.ssp.server.internal.messages.DataOriginRegistration}
+     * Handles instances of {@link eu.spitfire.ssp.server.internal.messages.requests.DataOriginRegistration}
      * @param ctx
      * @param me
      * @throws Exception
      */
     @Override
     @SuppressWarnings("unchecked")
-    public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
+    public void writeRequested(final ChannelHandlerContext ctx, final MessageEvent me) throws Exception {
 
         if(me.getMessage() instanceof DataOriginRegistration){
 
-            DataOriginRegistration<I, D> message = (DataOriginRegistration<I, D>) me.getMessage();
+            DataOriginRegistration<I, D> registration = (DataOriginRegistration<I, D>) me.getMessage();
+            SettableFuture<?> registrationFuture = registration.getRegistrationFuture();
 
-            final D dataOrigin = message.getDataOrigin();
+            final D dataOrigin = registration.getDataOrigin();
             final String proxyUri = "/?graph=" + dataOrigin.getGraphName();
 
             try{
                 addDataOrigin(proxyUri, dataOrigin);
 
-                me.getFuture().addListener(new ChannelFutureListener() {
+                Futures.addCallback(registrationFuture, new FutureCallback<Object>() {
+
                     @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        if(!future.isSuccess())
+                    public void onSuccess(@Nullable Object result) {
+                        //nothing to do...
+                    }
+
+                    @Override
+                    public void onFailure(Throwable t) {
+                        if(!(t instanceof IdentifierAlreadyRegisteredException) &&
+                                !(t instanceof WebserviceAlreadyRegisteredException)){
                             removeDataOrigin(proxyUri, dataOrigin);
+                        }
                     }
                 });
-
-                ctx.sendDownstream(me);
             }
 
-            catch (IdentifierAlreadyRegisteredException e) {
-                log.warn("Data origin {} was already registered!", e.getIdentifier());
-                me.getFuture().setFailure(e);
+            catch (IdentifierAlreadyRegisteredException ex) {
+                log.warn("Data origin {} was already registered!", ex.getIdentifier());
+                registrationFuture.setException(ex);
             }
 
         }
 
-        super.writeRequested(ctx, me);
+        ctx.sendDownstream(me);
     }
 
 
@@ -205,7 +213,7 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
                     dataOrigin.getIdentifier());
 
 
-            ListenableFuture<? extends DataOriginAccessResult> accessFuture;
+            ListenableFuture<?> accessFuture;
 
             if(httpRequest.getMethod() == HttpMethod.GET){
                 accessFuture = accessor.getStatus(dataOrigin);
@@ -223,20 +231,16 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
             }
 
             else{
-                SettableFuture<AccessError> tmpFuture = SettableFuture.create();
-                tmpFuture.set(
-                        new AccessError(
-                                AccessResult.Code.NOT_ALLOWED,
-                                "HTTP " + httpRequest.getMethod() + " is not supported. Try GET, PUT, or DELETE)"
-                        )
-                );
+                SettableFuture<DataOriginAccessError> tmpFuture = SettableFuture.create();
+                String message = "HTTP " + httpRequest.getMethod() + " is not supported. Try GET, PUT, or DELETE)";
+                tmpFuture.set(new DataOriginAccessError(AccessResult.Code.NOT_ALLOWED, message));
                 accessFuture = tmpFuture;
             }
 
-            Futures.addCallback(accessFuture, new FutureCallback<DataOriginAccessResult>() {
+            Futures.addCallback(accessFuture, new FutureCallback<Object>() {
 
                 @Override
-                public void onSuccess(DataOriginAccessResult accessResult) {
+                public void onSuccess(Object accessResult) {
                     ChannelFuture future = Channels.write(channel, accessResult, clientAddress);
                     future.addListener(ChannelFutureListener.CLOSE);
 

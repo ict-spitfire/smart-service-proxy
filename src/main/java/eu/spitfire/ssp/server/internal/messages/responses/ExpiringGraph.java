@@ -1,7 +1,6 @@
-package eu.spitfire.ssp.server.internal.messages;
+package eu.spitfire.ssp.server.internal.messages.responses;
 
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.server.handler.cache.CacheAccessResult;
 
 import java.util.Date;
 
@@ -11,7 +10,7 @@ import java.util.Date;
  *
  * @author Oliver Kleine
  */
-public class ExpiringGraph extends SuccessfulAccessResult implements CacheAccessResult{
+public class ExpiringGraph extends AccessResult {
 
     /**
      * The number of milliseconds per century.

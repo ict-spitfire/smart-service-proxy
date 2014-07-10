@@ -4,12 +4,11 @@ import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
 import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.backends.generic.messages.ExpiringGraphHttpResponse;
-import eu.spitfire.ssp.server.common.messages.EmptyDataAccessResult;
-import eu.spitfire.ssp.server.common.messages.GraphStatusErrorMessage;
-import eu.spitfire.ssp.server.common.messages.SparqlQueryResultMessage;
+import eu.spitfire.ssp.server.internal.messages.responses.EmptyAccessResult;
+import eu.spitfire.ssp.server.internal.messages.responses.QueryResult;
+import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
 import eu.spitfire.ssp.utils.Language;
-import eu.spitfire.ssp.utils.SparqlResultFormat;
+import eu.spitfire.ssp.utils.QueryResultFormat;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferOutputStream;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -22,7 +21,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
@@ -41,24 +39,18 @@ public class HttpResponseFactory {
 
     public static final long MILLIS_PER_YEAR = 31536000730L;
 
+
     public static HttpResponse createHttpResponse(HttpVersion version, HttpResponseStatus status, String content){
         HttpResponse response = new DefaultHttpResponse(version, status);
-
-        String payload = "";
-//        if(!status.equals(HttpResponseStatus.OK)){
-//            payload += status.getReasonPhrase() + "\n\n";
-//        }
-        payload += content;
-
-        ChannelBuffer payloadBuffer = ChannelBuffers.wrappedBuffer(payload.getBytes(Charset.forName("UTF-8")));
+        ChannelBuffer payloadBuffer = ChannelBuffers.wrappedBuffer(content.getBytes(Charset.forName("UTF-8")));
         response.setContent(payloadBuffer);
         response.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payloadBuffer.readableBytes());
         return response;
     }
 
 
-    public static HttpResponse createHttpJsonResponse(HttpVersion httpVersion, Map<String, String> content){
-        HttpResponse httpResponse = new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK);
+    public static HttpResponse createHttpJsonResponse(HttpVersion version, Map<String, String> content){
+        HttpResponse httpResponse = new DefaultHttpResponse(version, HttpResponseStatus.OK);
 
         ChannelBuffer payload = ChannelBuffers.wrappedBuffer(gson.toJson(content).getBytes(Charset.forName("UTF-8")));
         httpResponse.setContent(payload);
@@ -70,10 +62,10 @@ public class HttpResponseFactory {
 
     }
 
-    public static HttpResponse createHttpResponse(HttpVersion httpVersion, HttpResponseStatus status,
+    public static HttpResponse createHttpResponse(HttpVersion version, HttpResponseStatus status,
                                                   ChannelBuffer content, String contentType){
 
-        HttpResponse httpResponse = new DefaultHttpResponse(httpVersion, status);
+        HttpResponse httpResponse = new DefaultHttpResponse(version, status);
         httpResponse.setContent(content);
 
         httpResponse.headers().set(HttpHeaders.Names.CONTENT_LENGTH, content.readableBytes());
@@ -92,54 +84,48 @@ public class HttpResponseFactory {
         return createHttpResponse(version, status, errors.toString());
     }
 
-    public static HttpResponse createHttpResponse(HttpVersion version, HttpResponseStatus status,
-                                                  Multimap<String, String> headers, ChannelBuffer payload){
-
-        HttpResponse response = new DefaultHttpResponse(version, status);
-        setHeaders(response, headers);
-
-        response.setContent(payload);
-        response.headers().add("Content-Length", payload.readableBytes());
-        return response;
-    }
-
-    public static HttpResponse createHttpResponse(HttpVersion httpVersion, SparqlQueryResultMessage queryResultMessage,
-                                                  SparqlResultFormat sparqlResultFormat){
+//    public static HttpResponse createHttpResponse(HttpVersion version, HttpResponseStatus status,
+//                                                  Multimap<String, String> headers, ChannelBuffer payload){
+//
+//        HttpResponse response = new DefaultHttpResponse(version, status);
+//        setHeaders(response, headers);
+//
+//        response.setContent(payload);
+//        response.headers().add("Content-Length", payload.readableBytes());
+//        return response;
+//    }
+//
+    public static HttpResponse createHttpResponse(HttpVersion version, QueryResult queryResult,
+                                                  QueryResultFormat queryResultFormat){
 
         ChannelBuffer payload = ChannelBuffers.dynamicBuffer();
         ChannelBufferOutputStream outputStream = new ChannelBufferOutputStream(payload);
 
-        ResultSetFormatter.output(outputStream, queryResultMessage.getQueryResult(), sparqlResultFormat.resultsFormat);
+        ResultSetFormatter.output(outputStream, queryResult.getResultSet(), queryResultFormat.resultsFormat);
 
-        HttpResponse httpResponse = new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK);
+        HttpResponse httpResponse = new DefaultHttpResponse(version, HttpResponseStatus.OK);
         httpResponse.setContent(payload);
 
-        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, sparqlResultFormat.mimeType);
+        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, queryResultFormat.mimeType);
         httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
 
         return httpResponse;
 
     }
 
-    public static HttpResponse createHttpResponse(HttpVersion httpVersion, EmptyDataAccessResult graphStatusMessage){
+    public static HttpResponse createHttpResponse(HttpVersion version, EmptyAccessResult emptyAccessResult){
 
-        return HttpResponseFactory.createHttpResponse(httpVersion, graphStatusMessage.getStatusCode(),
-                "The operation returned with code: " + graphStatusMessage.getStatusCode().toString());
+        int codeNumber = emptyAccessResult.getCode().getCodeNumber();
+
+        return HttpResponseFactory.createHttpResponse(
+                version, HttpResponseStatus.valueOf(codeNumber), emptyAccessResult.getMessage()
+        );
     }
 
 
-    public static HttpResponse createHttpResponse(HttpVersion httpVersion,
-                                                  GraphStatusErrorMessage graphStatusErrorMessage){
+    public static HttpResponse createHttpResponse(HttpVersion version, Language language, ExpiringGraph expiringGraph){
 
-        return HttpResponseFactory.createHttpResponse(httpVersion, graphStatusErrorMessage.getStatusCode(),
-                graphStatusErrorMessage.getErrorMessage());
-    }
-
-
-    public static HttpResponse createHttpResponse(HttpVersion httpVersion, Language language,
-                                                  ExpiringGraphHttpResponse graphStatusMessage){
-
-        Model model = graphStatusMessage.getExpiringGraph().getGraph();
+        Model model = expiringGraph.getGraph();
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
         log.info("Model to be serialized{}", model);
@@ -147,25 +133,18 @@ public class HttpResponseFactory {
         //Serialize the model associated with the resource and write on OutputStream
         model.write(byteArrayOutputStream, language.lang);
 
-        HttpResponse httpResponse = new DefaultHttpResponse(httpVersion, OK);
+        HttpResponse httpResponse = new DefaultHttpResponse(version, OK);
 
         ChannelBuffer payload = ChannelBuffers.wrappedBuffer(byteArrayOutputStream.toByteArray());
         httpResponse.setContent(payload);
 
+        //Set HTTP response headers
         httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, language.mimeType);
         httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
-
-        if(graphStatusMessage.getExpiringGraph().getExpiry() == null)
-            httpResponse.headers().add(HttpHeaders.Names.EXPIRES,
-                    DATE_FORMAT.format(new Date(System.currentTimeMillis() + MILLIS_PER_YEAR)));
-        else
-            httpResponse.headers().add(HttpHeaders.Names.EXPIRES,
-                    DATE_FORMAT.format(graphStatusMessage.getExpiringGraph().getExpiry()));
-
+        httpResponse.headers().add(HttpHeaders.Names.EXPIRES, DATE_FORMAT.format(expiringGraph.getExpiry()));
         httpResponse.headers().add(HttpHeaders.Names.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
-
-        httpResponse.headers().add("Access-Control-Allow-Origin", "*");
-        httpResponse.headers().add("Access-Control-Allow-Credentials", "true");
+//        httpResponse.headers().add("Access-Control-Allow-Origin", "*");
+//        httpResponse.headers().add("Access-Control-Allow-Credentials", "true");
 
         return httpResponse;
     }

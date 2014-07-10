@@ -1,4 +1,5 @@
-package eu.spitfire.ssp.backends;
+package eu.spitfire.ssp.server.internal.messages.responses;
+
 
 /**
  * Empty interface implemented by all classes whose instances are allowed as results on access to a
@@ -6,4 +7,8 @@ package eu.spitfire.ssp.backends;
  *
  * @author Oliver Kleine
  */
-public interface DataOriginAccessResult {}
+public interface DataOriginInquiryResult {
+
+//    public AccessResult.Code getCode();
+
+}

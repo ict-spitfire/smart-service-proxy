@@ -2,7 +2,7 @@ package eu.spitfire.ssp.backends.internal.se;
 
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.Registry;
-import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
+import eu.spitfire.ssp.server.internal.messages.requests.WebserviceRegistration;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -28,23 +28,5 @@ public class SemanticEntityRegistry extends Registry<URI, SemanticEntity>{
     @Override
     public void startRegistry() throws Exception {
         //TODO register SE creation services
-    }
-
-    private void registerWebservice(HttpWebservice httpWebservice, URI webserviceUri){
-
-        WebserviceRegistrationMessage registrationMessage = new WebserviceRegistrationMessage(webserviceUri,
-                httpWebservice);
-
-        ChannelFuture future = Channels.write(this.componentFactory.getLocalChannel(), registrationMessage);
-
-        future.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                if(future.isSuccess())
-                    log.info("Succesfully registered Webservice to create virtual sensors!");
-                else
-                    log.error("Could not register Webservice to create virtual sensors!", future.getCause());
-            }
-        });
     }
 }

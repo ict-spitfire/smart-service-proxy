@@ -8,19 +8,13 @@ import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.rdf.model.*;
-import eu.spitfire.ssp.backends.DataOriginAccessResult;
-import eu.spitfire.ssp.backends.generic.Accessor;
+import eu.spitfire.ssp.server.internal.messages.responses.DataOriginInquiryResult;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.generic.DataOrigin;
-import eu.spitfire.ssp.backends.internal.se.SemanticEntity;
-import eu.spitfire.ssp.backends.internal.se.SemanticEntityBackendComponentFactory;
-import eu.spitfire.ssp.server.internal.messages.AccessResult;
 import eu.spitfire.ssp.backends.generic.Observer;
-import eu.spitfire.ssp.server.common.messages.QueryTask;
-import eu.spitfire.ssp.server.internal.messages.ExpiringGraph;
-import eu.spitfire.ssp.server.internal.messages.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.messages.requests.QueryTask;
+import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
+import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
 import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +57,7 @@ public class VirtualSensorObserver extends Observer<URI, VirtualSensor> {
         @Override
         public void run() {
             try{
-                ListenableFuture<DataOriginAccessResult> cachedStatusFuture = this.getCachedStatus();
+                ListenableFuture<DataOriginInquiryResult> cachedStatusFuture = this.getCachedStatus();
                 ListenableFuture<RDFNode> sensorValueFuture = this.getActualSensorValue();
 
                 ListenableFuture<List<Object>> combinedFuture = Futures.allAsList(cachedStatusFuture, sensorValueFuture);
@@ -124,7 +118,7 @@ public class VirtualSensorObserver extends Observer<URI, VirtualSensor> {
         }
 
 
-        private ListenableFuture<DataOriginAccessResult> getCachedStatus(){
+        private ListenableFuture<DataOriginInquiryResult> getCachedStatus(){
             VirtualSensorAccessor accessor = (VirtualSensorAccessor) componentFactory.getAccessor(virtualSensor);
 
             return accessor.getStatus(virtualSensor);

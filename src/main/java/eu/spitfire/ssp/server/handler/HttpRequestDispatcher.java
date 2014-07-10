@@ -24,13 +24,17 @@
  */
 package eu.spitfire.ssp.server.handler;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backends.generic.DataOriginMapper;
-import eu.spitfire.ssp.server.internal.messages.DataOriginRegistration;
-import eu.spitfire.ssp.server.internal.messages.DataOriginUnregistration;
-import eu.spitfire.ssp.server.common.messages.WebserviceRegistrationMessage;
+import eu.spitfire.ssp.server.internal.messages.requests.DataOriginDeregistration;
+import eu.spitfire.ssp.server.internal.messages.requests.DataOriginRegistration;
+import eu.spitfire.ssp.server.internal.messages.requests.WebserviceRegistration;
 import eu.spitfire.ssp.server.http.HttpResponseFactory;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import eu.spitfire.ssp.server.webservices.Styles;
+import eu.spitfire.ssp.utils.exceptions.IdentifierAlreadyRegisteredException;
 import eu.spitfire.ssp.utils.exceptions.WebserviceAlreadyRegisteredException;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -40,6 +44,7 @@ import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Collections;
@@ -126,8 +131,8 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
         log.debug("Downstream: {}.", me.getMessage());
 
-        if(me.getMessage() instanceof WebserviceRegistrationMessage){
-            WebserviceRegistrationMessage message = (WebserviceRegistrationMessage) me.getMessage();
+        if(me.getMessage() instanceof WebserviceRegistration){
+            WebserviceRegistration message = (WebserviceRegistration) me.getMessage();
 
             String webserviceUri = message.getLocalUri().toString();
             if(webservices.containsKey(webserviceUri)){
@@ -141,26 +146,44 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         }
 
         else if(me.getMessage() instanceof DataOriginRegistration){
-            DataOriginRegistration message = (DataOriginRegistration) me.getMessage();
+            final DataOriginRegistration registration = (DataOriginRegistration) me.getMessage();
 
-            URI graphName = message.getDataOrigin().getGraphName();
-            Object identifier = message.getDataOrigin().getIdentifier();
-            DataOriginMapper proxyWebservice = message.getHttpProxyWebservice();
+            URI graphName = registration.getDataOrigin().getGraphName();
+            Object identifier = registration.getDataOrigin().getIdentifier();
+            DataOriginMapper proxyWebservice = registration.getHttpProxyWebservice();
 
             log.info("Try to register graph \"{}\" from data origin \"{}\" with backend \"{}\".",
                     new Object[]{graphName, identifier, proxyWebservice.getBackendName()});
 
-            boolean success = registerProxyWebservice("/?graph=" + graphName, message.getHttpProxyWebservice());
+            boolean success = registerProxyWebservice("/?graph=" + graphName, registration.getHttpProxyWebservice());
 
+            SettableFuture<?> registrationFuture = registration.getRegistrationFuture();
             if(!success){
                 URI proxyURI = new URI("/?graph=" + graphName);
-                me.getFuture().setFailure(new WebserviceAlreadyRegisteredException(proxyURI));
+                registrationFuture.setException(new WebserviceAlreadyRegisteredException(proxyURI));
+                me.getFuture().setSuccess();
                 return;
             }
+
+            Futures.addCallback(registrationFuture, new FutureCallback<Object>() {
+                @Override
+                public void onSuccess(@Nullable Object result) {
+                    //nothing to do
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    if(!(t instanceof IdentifierAlreadyRegisteredException) &&
+                            !(t instanceof WebserviceAlreadyRegisteredException)){
+
+                        unregisterProxyWebservice("/?graph=" + registration.getDataOrigin().getGraphName());
+                    }
+                }
+            });
         }
 
-        else if(me.getMessage() instanceof DataOriginUnregistration){
-            DataOriginUnregistration removalMessage = (DataOriginUnregistration) me.getMessage();
+        else if(me.getMessage() instanceof DataOriginDeregistration){
+            DataOriginDeregistration removalMessage = (DataOriginDeregistration) me.getMessage();
             String proxyUri = "/?graph=" + removalMessage.getDataOrigin().getGraphName();
 
             unregisterProxyWebservice(proxyUri);
