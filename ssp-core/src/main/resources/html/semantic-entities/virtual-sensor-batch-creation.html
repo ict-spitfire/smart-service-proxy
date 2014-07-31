@@ -60,7 +60,7 @@
                 </form>
             </div>
 
-            <div id="result" style="margin-top: 40px; display:none">
+            <div class="ui segment" id="result" style="margin-top: 40px; display:none">
                 <h4 class="ui top attached header">
                     Creation Result
                 </h4>
@@ -75,6 +75,9 @@
                     <tbody id="tableBody">
                     </tbody>
                 </table>
+                <div class="ui dimmer active" id="dimmer">
+                    <div class="ui text loader">Executing...</div>
+                </div>
             </div>
         </div>
     </div>
@@ -95,6 +98,8 @@
                 return;
             }
 
+            $('#result').show();
+            $('#dimmer').addClass('active');
             console.log(files[0]);
             var data = new FormData();
             data.append('xmlFile', files[0]);
@@ -113,7 +118,7 @@
                     }
                     console.log(content);
                     $('#tableBody').html(content);
-                    $('#result').show();
+                    $('#dimmer').removeClass('active');
                 }
             });
         });
