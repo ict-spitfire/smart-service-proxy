@@ -1,123 +1,26 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>eu.spitfire_project</groupId>
-    <artifactId>smart_service_proxy</artifactId>
+    <groupId>eu.spitfire</groupId>
+    <artifactId>ssp-complete</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <packaging>jar</packaging>
-    <name>smart_service_proxy</name>
+    <packaging>pom</packaging>
+    <name>Smart Service Proxy (Complete)</name>
     <url>http://maven.apache.org</url>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <dependencies>
-
-        <dependency>
-            <groupId>de.uniluebeck.itm</groupId>
-            <artifactId>ncoap-core</artifactId>
-            <version>1.8.1</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>17.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>3.8.1</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <version>1.6.6</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty</artifactId>
-            <version>3.9.0.Final</version>
-        </dependency>
-
-        <dependency>
-          <groupId>com.google.code.gson</groupId>
-          <artifactId>gson</artifactId>
-          <version>2.2.4</version>
-        </dependency>
-
-      <!--<dependency>-->
-            <!--<groupId>org.apache.jena</groupId>-->
-            <!--<artifactId>jena-sdb</artifactId>-->
-            <!--<version>1.3.6</version>-->
-        <!--</dependency>-->
-
-      <!--<dependency>-->
-      <!--<groupId>mysql</groupId>-->
-      <!--<artifactId>mysql-connector-java</artifactId>-->
-      <!--<version>5.1.26</version>-->
-      <!--</dependency>-->
-
-        <dependency>
-            <groupId>org.apache.jena</groupId>
-            <artifactId>jena-tdb</artifactId>
-            <version>1.0.1</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.jena</groupId>
-            <artifactId>jena-spatial</artifactId>
-            <version>1.0.2</version>
-        </dependency>
-
-        <dependency>
-          <groupId>com.vividsolutions</groupId>
-          <artifactId>jts</artifactId>
-          <version>1.13</version>
-        </dependency>
-
-      <dependency>
-        <groupId>de.uniluebeck.ifis</groupId>
-        <artifactId>luposdate.core</artifactId>
-        <version>1.0-SNAPSHOT</version>
-      </dependency>
-
-      <dependency>
-            <groupId>commons-configuration</groupId>
-            <artifactId>commons-configuration</artifactId>
-            <version>1.9</version>
-        </dependency>
-
-        <dependency>
-            <groupId>de.uniluebeck.itm</groupId>
-            <artifactId>httpobserveovermqttlib</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
-        </dependency>
-
-      <dependency>
-        <groupId>de.uniluebeck.ifis</groupId>
-        <artifactId>luposdate.geosparql</artifactId>
-        <version>1.0-SNAPSHOT</version>
-      </dependency>
-
-      <dependency>
-        <groupId>de.uniluebeck.ifis</groupId>
-        <artifactId>luposdate.endpoint</artifactId>
-        <version>1.0-SNAPSHOT</version>
-      </dependency>
-
-      <dependency>
-        <groupId>de.uniluebeck.itm</groupId>
-        <artifactId>jaxb4slse</artifactId>
-        <version>1.0-SNAPSHOT</version>
-      </dependency>
-
-    </dependencies>
+    <modules>
+      <module>ssp-core</module>
+      <module>ssp-luposdate</module>
+      <module>ssp-jena-tdb</module>
+      <module>ssp-jena-sdb</module>
+      <module>ssp-parliament</module>
+      <module>ssp-dummy-cache</module>
+      <module>ssp-luposdate-p2p</module>
+    </modules>
 
     <repositories>
 
@@ -157,7 +60,6 @@
                 <enabled>false</enabled>
             </releases>
             <snapshots>
-                <!--<updatePolicy>always</updatePolicy>-->
                 <enabled>true</enabled>
             </snapshots>
         </repository>
@@ -194,19 +96,19 @@
                 </executions>
             </plugin>
 
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>2.4</version>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <addClasspath>true</addClasspath>
-                            <mainClass>eu.spitfire.ssp.Main</mainClass>
-                        </manifest>
-                    </archive>
-                </configuration>
-            </plugin>
+            <!--<plugin>-->
+                <!--<groupId>org.apache.maven.plugins</groupId>-->
+                <!--<artifactId>maven-jar-plugin</artifactId>-->
+                <!--<version>2.4</version>-->
+                <!--<configuration>-->
+                    <!--<archive>-->
+                        <!--<manifest>-->
+                            <!--<addClasspath>true</addClasspath>-->
+                            <!--<mainClass>eu.spitfire.ssp.Main</mainClass>-->
+                        <!--</manifest>-->
+                    <!--</archive>-->
+                <!--</configuration>-->
+            <!--</plugin>-->
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

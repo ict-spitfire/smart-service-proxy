@@ -1,0 +1,205 @@
+<!DOCTYPE HTML>
+<html style="height: 100%">
+<head>
+    <meta charset="utf-8" />
+    <title>Traffic Monitoring</title>
+    <link href="../../style/css/semantic.css" rel="stylesheet" type="text/css" />
+    <link href="../../style/css/semantic.min.css" rel="stylesheet" type="text/css"/>
+    <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Open+Sans:300italic,400,300,700'
+          rel='stylesheet' type='text/css'>
+
+    <style type="text/css">
+        :not(i){
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        *{
+            font-size: 13px;
+        }
+    </style>
+
+    <script src="../../style/javascript/jquery-1.11.1.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+    <script>
+        var query = '\
+PREFIX rs: <http://example.org/road-sections#>\
+PREFIX geo: <http://www.opengis.net/ont/geosparql#>\
+PREFIX geof: <http://www.opengis.net/def/function/geosparql/>\
+PREFIX vs: <http://example.org/virtual-sensors#>\
+PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>\
+\
+SELECT ?section ?length ?taperedBoundary ?vehicleCount WHERE {\
+  ?section a rs:RoadSection .\
+  ?section rs:hasLengthInMeter ?length .\
+  ?section rs:hasTaperedBoundary ?taperedBoundary .\
+  ?section rs:hasBoundary ?boundary .\
+  ?boundary geo:asWKT ?fWKT .\
+  ?obs ssn:observedBy ?sensor .\
+  ?sensor a vs:VirtualTrafficDensitySensor .\
+  ?obs ssn:featureOfInterest ?section .\
+  ?obs ssn:observedResult ?obsResult .\
+  ?obsResult ssn:hasValue ?vehicleCount .\
+  FILTER (geof:sfWithin(\
+    ?fWKT,\
+    "POLYGON ((10.670866 53.850284, 10.707601 53.850284, 10.707601 53.882068, 10.670866 53.882068,\
+    10.670866 53.850284))"^^geo:wktLiteral\
+  ))\
+}';
+        var map;
+        var mapReady;
+        var polygons = {};
+
+        $(document).ready(function(){
+            initializeMap();
+        });
+
+        function initializeMap() {
+            var mapOptions = {
+                zoom: 15,
+                center: new google.maps.LatLng(53.868141, 10.687884),
+                mapTypeId: google.maps.MapTypeId.ROADMAP
+            };
+
+            map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+
+
+
+//            google.maps.event.addListener(map, 'click', function(event) {
+//                alert('Point.X.Y: ' + event.latLng);
+//            });
+
+            mapReady = true;
+            setInterval(sendQuery, 5000);
+        }
+
+
+        function drawBoundingBox(){
+            var gmapsPoints = [];
+            gmapsPoints.push(new google.maps.LatLng(53.850284, 10.670866));
+            gmapsPoints.push(new google.maps.LatLng(53.850284, 10.707601));
+            gmapsPoints.push(new google.maps.LatLng(53.882068, 10.707601));
+            gmapsPoints.push(new google.maps.LatLng(53.882068, 10.670866));
+            gmapsPoints.push(new google.maps.LatLng(53.850284, 10.670866));
+
+            var gmapsPolygon = new google.maps.Polygon({
+                paths:  gmapsPoints,
+                strokeColor: '8b1a1a',
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: '8b1a1a',
+                fillOpacity: 0.0
+            });
+
+            gmapsPolygon.setMap(map);
+        }
+
+        function sendQuery(){
+//            drawBoundingBox();
+            if(mapReady == false){
+                return;
+            }
+            mapReady = false;
+            console.log("Send Query");
+
+            var formData = new FormData();
+            formData.append('query', query);
+
+            $.ajax({
+                type: "POST",
+                beforeSend: function (request)
+                {
+                    request.setRequestHeader("Accept", 'application/sparql-results+json');
+                },
+                url: '/services/sparql-endpoint',
+                data: formData,
+                dataType: 'json',
+                contentType: false,
+                processData: false,
+                success: function(queryResult){
+                    console.log("Query result received!");
+                    updateMap(queryResult);
+                    mapReady = true;
+                },
+                error: function(e){
+                    console.log('ERROR!' + e);
+                    mapReady = true;
+                }
+            });
+        }
+
+
+        function updateMap(queryResult){
+
+            queryResult.results.bindings.forEach(function(binding){
+
+                var secName = binding.section.value;
+                secName = secName.substr(secName.indexOf('#') + 1);
+
+                var length = binding.length.value;
+
+                var vehicleCount = binding.vehicleCount.value;
+
+                var wktBoundary = binding.taperedBoundary.value;
+
+                var gmapsPoints = [];
+                var points = wktBoundary.split(", ");
+                points.forEach(function(point){
+                    var coordinates = point.split(" ");
+                    gmapsPoints.push(new google.maps.LatLng(coordinates[1], coordinates[0]));
+                });
+
+                var hexColor;
+
+                if(vehicleCount == 0){
+                    hexColor = '#00800d'
+                }
+                else{
+                    var density = length / vehicleCount;
+
+                    if(density < 20){
+                        hexColor = '#8b1a1a'
+                    }
+                    else if(density < 40){
+                        hexColor = '#ffa500'
+                    }
+                    else{
+                        hexColor = '#00800d';
+                    }
+                }
+
+                var gmapsPolygon = new google.maps.Polygon({
+                    paths:  gmapsPoints,
+                    strokeColor: hexColor,
+                    strokeOpacity: 0.8,
+                    strokeWeight: 2,
+                    fillColor: hexColor,
+                    fillOpacity: 0.35
+                });
+
+                if(polygons[secName] !== undefined){
+                    polygons[secName].setMap(null);
+                }
+
+                gmapsPolygon.setMap(map);
+                polygons[secName] = gmapsPolygon;
+            });
+        }
+    </script>
+</head>
+
+<body style="height: 100%">
+<div class="ui one column page grid" style="height: 100%">
+    <div class="column" style="height: 80%">
+        <div id="header">
+        </div>
+        <script src="../../style/javascript/ssp-menu.js"></script>
+
+        <h4 class="ui top attached header">
+            Traffic Monitoring (GoogleMaps Overlay)
+        </h4>
+
+        <div class="ui segment attached" style="height: 100%">
+            <div id="map-canvas" style="height:100%; margin: 0; padding: 0"></div>
+        </div>
+    </div>
+</div>

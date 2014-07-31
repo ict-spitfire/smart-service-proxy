@@ -1,0 +1,152 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Virtual Sensors Batch Creation</title>
+    <link href="../../style/css/semantic.css" rel="stylesheet" type="text/css" />
+    <link href="../../style/css/semantic.min.css" rel="stylesheet" type="text/css"/>
+    <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Open+Sans:300italic,400,300,700'
+          rel='stylesheet' type='text/css'>
+
+    <style type="text/css">
+        :not(i){
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        *{
+            font-size: 13px;
+        }
+
+        .label{
+            font-weight: bold !important;
+
+        }
+
+        .monospace{
+            font-family: monospace;
+        }
+    </style>
+
+    <script src="../../style/javascript/jquery-1.11.1.min.js"></script>
+    <script src="../../style/javascript/semantic.min.js"></script>
+    <script src="../../style/javascript/semantic.js"></script>
+
+</head>
+
+<body>
+    <div class="ui one column page grid">
+        <div class="column">
+            <div id="header">
+            </div>
+            <script src="../../style/javascript/ssp-menu.js"></script>
+
+            <h4 class="ui top attached header">
+                SPARQL Endpoint
+            </h4>
+
+            <div class="ui form segment attached">
+                <div class="ui secondary segment">
+                    <div class="ui small grey top left attached label">Enter SPARQL query</div>
+                    <textarea class="monospace" id="fldQuery" style="height: 300px">
+PREFIX rs: &lt;http://example.org/road-sections#&gt;
+PREFIX geo: &lt;http://www.opengis.net/ont/geosparql#&gt;
+PREFIX geof: &lt;http://www.opengis.net/def/function/geosparql/&gt;
+PREFIX vs: &lt;http://example.org/virtual-sensors#&gt;
+PREFIX ssn: &lt;http://purl.oclc.org/NET/ssnx/ssn#&gt;
+
+SELECT ?section ?length ?taperedBoundary ?vehicleCount WHERE {
+  ?section a rs:RoadSection .
+  ?section rs:hasTaperedBoundary ?taperedBoundary .
+  ?section rs:hasBoundary ?boundary .
+  ?boundary geo:asWKT ?fWKT .
+  ?obs ssn:observedBy ?sensor .
+  ?sensor a vs:VirtualTrafficDensitySensor .
+  ?obs ssn:featureOfInterest ?section .
+  ?obs ssn:observedResult ?obsResult .
+  ?obsResult ssn:hasValue ?vehicleCount .
+  FILTER (geof:sfWithin(
+    ?fWKT,
+    "POLYGON ((10.670866 53.850284, 10.707601 53.850284, 10.707601 53.882068, 10.670866 53.882068, 10.670866 53.850284))"^^geo:wktLiteral
+  ))
+}
+                    </textarea>
+                </div>
+
+                <div class="ui secondary segment">
+                    <div class="ui small grey top left attached label">Select SPARQL result format</div>
+                    <div class="ui selection dropdown">
+                        <input type="hidden" id="selResultFormat">
+                        <div class="default text">Default (XML)</div>
+                        <i class="dropdown icon"></i>
+                        <div class="menu">
+                            <div class="item" data-value="application/sparql-results+json">JSON</div>
+                            <div class="item" data-value="text/csv">CSV</div>
+                            <div class="item" data-value="text/tab-separated-values">TSV</div>
+                            <div class="item" data-value="application/sparql-results+xml">XML</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ui green button" id="btnExecute" style="margin-top: 10px">Execute Query</div>
+
+                <div class="ui horizontal icon divider">
+                    <i class="circular code icon"></i>
+                </div>
+
+                <div class="ui secondary segment" id="queryResult" style="margin-top: 20px; display: none">
+                    <div class="ui small grey top left attached label">Query Result</div>
+                    <div id="queryResultContent">
+                        <textarea class="monospace" id="fldQueryResult"
+                                  style="height: 200px; max-height: none !important"></textarea>
+                    </div>
+                    <div class="ui dimmer" id="dimmer">
+                        <div class="ui text loader">Executing...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        //Initialize dropdown
+        $('.ui.dropdown').dropdown();
+
+        $(document).ready(function(){
+            $('#selResultFormat').val('JSON');
+        });
+
+
+        $('#btnExecute').click(function(event){
+
+            $('#dimmer').addClass('active');
+            $('#queryResult').show();
+            event.preventDefault();
+
+            var formData = new FormData();
+            formData.append('query', $('#fldQuery').val());
+
+            $.ajax({
+                type: "POST",
+                beforeSend: function (request)
+                {
+                    request.setRequestHeader("Accept", $('#selResultFormat').val());
+                },
+                url: '/services/sparql-endpoint',
+                data: formData,
+                dataType: 'text',
+                contentType: false,
+                processData: false,
+                success: function(e){
+                    $('#fldQueryResult').html(e);
+                    $('#dimmer').removeClass('active');
+                },
+                error: function(e){
+                    console.log(e);
+                    $('#fldQueryResult').html(e['responseText']);
+                    $('#dimmer').removeClass('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
