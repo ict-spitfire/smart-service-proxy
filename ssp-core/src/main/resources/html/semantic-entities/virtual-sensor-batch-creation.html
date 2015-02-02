@@ -1,0 +1,129 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Virtual Sensors Batch Creation</title>
+    <link href="../../style/css/semantic.css" rel="stylesheet" type="text/css" />
+    <link href="../../style/css/semantic.min.css" rel="stylesheet" type="text/css"/>
+    <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Open+Sans:300italic,400,300,700'
+          rel='stylesheet' type='text/css'>
+
+    <style type="text/css">
+        :not(i){
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        *{
+            font-size: 13px;
+        }
+    </style>
+
+    <script src="../../style/javascript/jquery-1.11.1.min.js"></script>
+
+</head>
+
+<body>
+    <div class="ui one column page grid">
+        <div class="column">
+            <div id="header">
+            </div>
+            <script src="../../style/javascript/ssp-menu.js"></script>
+
+            <h4 class="ui top attached header">
+                Create Virtual Sensors from XML file
+            </h4>
+
+            <div class="ui segment attached">
+                <p>
+                    Choose an XML file from your local filesystem which is valid against
+                    <a href="http://media.itm.uni-luebeck.de/people/kleine/xsd/slse/jaxb/slse.xsd">
+                        this schema.
+                    </a>
+                </p>
+                <form action="./virtual-sensor-batch-creation" method="post" enctype="multipart/form-data"
+                      class="ui form">
+
+                    <div class="ui action input" style="width:350px">
+                        <input type="text" placeholder="Choose XML file..." name="filename" id="filename"
+                               readonly="readonly"/>
+
+                        <label for="fldHiddenFileInput" class="ui black icon button" style="width:40px">
+                            <i class="attachment icon"></i>
+                            &nbsp;Browse
+                        </label>
+
+                        <input type="file" id="fldHiddenFileInput" style="display:none"/>
+                    </div>
+
+                    <input type="submit" value="Send" class="ui green submit button" style="margin-top:30px"
+                            id="btnSend"/>
+                </form>
+            </div>
+
+            <div class="ui segment" id="result" style="margin-top: 40px; display:none">
+                <h4 class="ui top attached header">
+                    Creation Result
+                </h4>
+
+                <table class="ui table segment attached">
+                    <thead>
+                        <tr>
+                            <th>Graph Name</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
+                <div class="ui dimmer active" id="dimmer">
+                    <div class="ui text loader">Executing...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $('#fldHiddenFileInput').change(function(){
+            var fileName = $(this).val().split('\\').pop();
+            $('#filename').val(fileName);
+        });
+
+        $('#btnSend').click(function(e){
+            e.preventDefault();
+
+            var files = $('#fldHiddenFileInput')[0].files;
+
+            if (files.length == 0){
+                alert("No file selected!");
+                return;
+            }
+
+            $('#result').show();
+            $('#dimmer').addClass('active');
+            console.log(files[0]);
+            var data = new FormData();
+            data.append('xmlFile', files[0]);
+
+            $.ajax({
+                type: "POST",
+                url: './virtual-sensor-batch-creation',
+                data: data,
+                contentType: false,
+                processData: false,
+                success: function(e){
+                    var content = '';
+                    for(var key in e){
+                        var clazz = e[key] =='OK' ? 'positive' : 'negative';
+                        content += '<tr class="' + clazz + '"><td>' + key + '</td><td>' + e[key] + '</td></tr>';
+                    }
+                    console.log(content);
+                    $('#tableBody').html(content);
+                    $('#dimmer').removeClass('active');
+                }
+            });
+        });
+
+        $('#result').hide();
+    </script>
+</body>
+</html>

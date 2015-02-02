@@ -1,0 +1,16 @@
+@prefix geo: <http://www.opengis.net/ont/geosparql#> .
+@prefix rs: <http://example.org/road-sections#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sf: <http://www.opengis.net/ont/sf#> .
+
+rs:RoadSection a rdfs:Class;
+    rdfs:subClassOf geo:Feature .
+
+rs:hasBoundary a rdf:Property;
+    rdfs:subPropertyOf gsp:hasGeometry .
+
+rs:A a rs:RoadSection;
+    rs:hasBoundary rs:ABoundary;
+
+rs:ABoundary a sf:Polygon;
+    gsp:asWKT "<http://www.opengis.net/def/crs/OGC/1.3/CRS84>Polygon((53.8701205 10.681784, 53.8701467 10.6816365, 53.8701458 10.6815856, 53.8702028 10.6812369, 53.8702428 10.6811704, 53.8702956 10.6808021, 53.8704273 10.6803345, 53.87041431620022 10.680323980832686, 53.87028161824482 10.680796334179954, 53.870229789529475 10.681157858488357, 53.87018995023524 10.68122408904081, 53.8701314173425 10.681586331506374, 53.87013224678158 10.681633264368825, 53.870106722504175 10.681776960525449, 53.8701205 10.681784))"^^gsp:wktLiteral.
