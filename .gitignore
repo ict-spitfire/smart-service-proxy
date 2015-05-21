@@ -5,6 +5,7 @@ target
 .classpath
 .settings
 ssp.properties
+*~
 *.iml
 *.log
 *.ipr

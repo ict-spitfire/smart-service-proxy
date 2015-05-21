@@ -331,7 +331,7 @@ public abstract class Initializer {
      */
     private void registerFavicon() throws Exception {
         URI uri = new URI(null, null, null, -1, "/favicon.ico", null, null);
-        HttpWebservice httpWebservice = new Favicon(this.ioExecutor);
+        HttpWebservice httpWebservice = new Favicon(this.ioExecutor, this.internalTasksExecutor);
         registerHttpWebservice(uri, httpWebservice);
     }
 

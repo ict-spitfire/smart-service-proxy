@@ -13,6 +13,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * This is the {@link HttpWebservice} instance to provide the /favicon.ico service
@@ -32,9 +33,9 @@ public class Favicon extends HttpWebservice {
      * Reads the favicon.ico file at <code>resources/eu/spitfire/ssp/core/webservice/favicon.ico</code> and provides
      * this image as favicon service.
      */
-    public Favicon(ExecutorService ioExecutor){
+    public Favicon(ExecutorService ioExecutor, ScheduledExecutorService internalTasksExecutor){
 
-        super(ioExecutor, null, null);
+        super(ioExecutor, internalTasksExecutor, null);
 
         try{
             InputStream inputStream = Favicon.class.getClassLoader().getResourceAsStream("html/favicon.ico") ;
