@@ -76,10 +76,18 @@ public class DummySemanticCache extends SemanticCache {
     }
 
     @Override
-    public ListenableFuture<QueryResult> processSparqlQuery(Query sparqlQuery) {
+    public ListenableFuture<QueryResult> processSparqlQuery(String sparqlQuery) {
         SettableFuture<QueryResult> resultFuture = SettableFuture.create();
         resultFuture.set(new QueryResult(new ResultSetMem()));
 
         return resultFuture;
     }
+
+//    @Override
+//    public ListenableFuture<QueryResult> processSparqlQuery(Query sparqlQuery) {
+//        SettableFuture<QueryResult> resultFuture = SettableFuture.create();
+//        resultFuture.set(new QueryResult(new ResultSetMem()));
+//
+//        return resultFuture;
+//    }
 }

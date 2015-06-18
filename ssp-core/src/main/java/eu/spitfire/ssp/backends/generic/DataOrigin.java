@@ -7,11 +7,11 @@ import java.net.URI;
  * data. This can e.g. be a Webservice or a local file.
  *
  * The generic {@link I} represents the type of the identifier for this data origin. For a data origin being a
- * Webservice this could e.g. be {@link URI}. Then {@link #getIdentifier()} returns a {@link java.net.URI} identifying
- * this Webservice.
+ * Web Resource this could e.g. be {@link URI}. Then {@link #getIdentifier()} returns a {@link java.net.URI} identifying
+ * this Web Resource.
  *
  * The complete RDF information provided by an instance of {@link eu.spitfire.ssp.backends.generic.DataOrigin} is
- * represented as a named graph. This is to give the whole set of triples provided by a single data origin an unique
+ * represented as a named graph. This is to give the whole set of triples provided by a single data origin a unique
  * name, e.g. to limit the amount of data to process a SPARQL query on.
  *
  * @author Oliver Kleine

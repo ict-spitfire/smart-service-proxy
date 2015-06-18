@@ -103,7 +103,7 @@ public class VirtualSensorCreator extends AbstractVirtualSensorCreator {
             @Override
             public void onSuccess(Model model) {
                 //Register virtual sensor
-                final VirtualSensor virtualSensor = new VirtualSensor(graphName, sparqlQuery);
+                final VirtualSensor virtualSensor = new VirtualSensor(graphName, sparqlQuery, localChannel, getInternalTasksExecutor());
                 final ExpiringNamedGraph initialStatus = new ExpiringNamedGraph(graphName, model);
 
                 ListenableFuture<Void> registrationFuture = registry.registerDataOrigin(virtualSensor, initialStatus);

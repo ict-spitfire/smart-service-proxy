@@ -31,8 +31,6 @@ public abstract class HttpWebservice extends SimpleChannelHandler {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-
-
     private ExecutorService ioExecutor;
     private ScheduledExecutorService internalTasksExecutor;
     private String htmlResourcePath;
@@ -195,7 +193,7 @@ public abstract class HttpWebservice extends SimpleChannelHandler {
                     public void operationComplete(ChannelFuture future) throws Exception {
 
                         if(future.isSuccess())
-                            log.debug("Succesfully written HTTP response to {}", clientAddress);
+                            log.debug("Successfully written HTTP response to {}", clientAddress);
                         else
                             log.error("Could not send HTTP response to {}!", clientAddress, future.getCause());
 

@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>Virtual Sensors Batch Creation</title>
+    <title>Virtual Sensor Creation</title>
     <link href="../../style/css/semantic.css" rel="stylesheet" type="text/css" />
     <link href="../../style/css/semantic.min.css" rel="stylesheet" type="text/css"/>
     <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Open+Sans:300italic,400,300,700'
@@ -73,7 +73,7 @@
                             http://example.org/virtual-sensors#
                         </div>
                     </div>
-                    <input class="monospace triplesPart" style="margin-top: 5px" type="text" value="Sensor1"
+                    <input class="monospace triplesPart" style="margin-top: 5px" type="text" value="5837598-4-1-Sensor"
                            id="fldSensorName">
                 </div>
 
@@ -88,7 +88,7 @@
                             http://example.org/virtual-sensors#
                         </div>
                     </div>
-                    <input class="monospace triplesPart" style="margin-top: 5px" type="text" value="SensorType1"
+                    <input class="monospace triplesPart" style="margin-top: 5px" type="text" value="VirtualTrafficDensitySensor"
                            id="fldTypeName">
                 </div>
 
@@ -99,7 +99,7 @@
                         <a href="http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#FeatureOfInterest">SSN Ontology</a>
                         a feature is an abstraction of real world phenomena (thing, person, event, etc).
                     </p>
-                    <input class="monospace triplesPart" type="text" value="http://example.org/foi1"
+                    <input class="monospace triplesPart" type="text" value="http://example.org/road-sections#5837598-4-1"
                            id="fldFeatureOfInterest">
                 </div>
 
@@ -121,9 +121,13 @@
                 <div class="ui secondary segment">
                     <div class="ui small grey top left attached label">Prefixes (if any)</div>
                     <textarea class="sparqlPart monospace" id="fldPrefixes" style="height: 70px; min-height: 70px">
-PREFIX itm: &lt;http://example.org/itm-geo-test#&gt;
+PREFIX rs: &lt;http://example.org/road-sections#&gt;
+PREFIX phone: &lt;http://example.org/phones#&gt;
 PREFIX geo: &lt;http://www.opengis.net/ont/geosparql#&gt;
 PREFIX geof: &lt;http://www.opengis.net/def/function/geosparql/&gt;
+PREFIX rdf: &lt;http://www.w3.org/1999/02/22-rdf-syntax-ns#&gt;
+PREFIX ssn: &lt;http://purl.oclc.org/NET/ssnx/ssn#&gt;
+PREFIX veh: &lt;http://example.org/vehicles#&gt;
                     </textarea>
                 </div>
 
@@ -150,13 +154,12 @@ PREFIX geof: &lt;http://www.opengis.net/def/function/geosparql/&gt;
                 <div class="ui secondary segment">
                     <div class="ui small grey top left attached label">WHERE clause (?val is the parameter to aggregate)</div>
                     <textarea class="sparqlPart monospace" id="fldWhereClause" style="height: 160px">
-?val itm:hasPointGeometry ?fGeom .
-?fGeom geo:asWKT ?fWKT .
-
-FILTER (geof:sfWithin(
-  ?fWKT,
-  "&lt;http://www.opengis.net/def/crs/OGC/1.3/CRS84&gt;Polygon ((-83.4 34.0, -83.1 34.0,-83.1 34.2, -83.4 34.2,-83.4 34.0))"^^geo:wktLiteral
-))
+?val rdf:type veh:Vehicle .
+?val ssn:attachedSystem ?phone .
+?phone phone:hasLocation ?loc .
+?loc geo:asWKT ?fWKT .
+rs:5837598-4-1-Boundary geo:asWKT ?boundary
+FILTER (geof:sfWithin(?fWKT, ?boundary))
                     </textarea>
                 </div>
             </div>

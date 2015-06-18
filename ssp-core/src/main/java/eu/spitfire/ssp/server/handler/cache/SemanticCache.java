@@ -135,7 +135,8 @@ public abstract class SemanticCache extends SimpleChannelHandler {
             @Override
             public void run() {
                 try{
-                    Query query = QueryFactory.create("SELECT ?p ?o WHERE {<" + resourceName + "> ?p ?o .}");
+                    String query = "SELECT ?p ?o WHERE {<" + resourceName + "> ?p ?o .}";
+                    //Query query = QueryFactory.create("SELECT ?p ?o WHERE {<" + resourceName + "> ?p ?o .}");
                     ListenableFuture<QueryResult> queryExecutionFuture  = processSparqlQuery(query);
 
                     Futures.addCallback(queryExecutionFuture, new FutureCallback<QueryResult>(){
@@ -254,6 +255,10 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
             else if (me.getMessage() instanceof QueryTask) {
                 handleQueryTask((QueryTask) me.getMessage());
+            }
+
+            else if (me.getMessage() instanceof QueryStringTask) {
+                handleQueryStringTask((QueryStringTask) me.getMessage());
             }
 
             ctx.sendDownstream(me);
@@ -405,7 +410,8 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
     private void handleQueryTask(final QueryTask queryTask){
         log.debug("Received Query Task: " + queryTask.getQuery());
-        ListenableFuture<QueryResult> queryResultFuture = processSparqlQuery(queryTask.getQuery());
+        Query query = QueryFactory.create(queryTask.getQuery());
+        ListenableFuture<QueryResult> queryResultFuture = processSparqlQuery(query.toString());
         Futures.addCallback(queryResultFuture, new FutureCallback<QueryResult>() {
 
                     @Override
@@ -419,6 +425,24 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                     }
 
                 });
+    }
+
+    private void handleQueryStringTask(final QueryStringTask queryTask){
+        log.debug("Received Query Task: " + queryTask.getQuery());
+        ListenableFuture<QueryResult> queryResultFuture = processSparqlQuery(queryTask.getQuery());
+        Futures.addCallback(queryResultFuture, new FutureCallback<QueryResult>() {
+
+            @Override
+            public void onSuccess(QueryResult result) {
+                queryTask.getResultSetFuture().set(result.getResultSet());
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                queryTask.getResultSetFuture().setException(t);
+            }
+
+        });
     }
 
     private void scheduleNamedGraphExpiry(final URI graphName, Date expiry) {
@@ -517,6 +541,6 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with an instance of
      * {@link eu.spitfire.ssp.server.internal.messages.responses.AccessResult}.
      */
-    public abstract ListenableFuture<QueryResult> processSparqlQuery(Query sparqlQuery);
+    public abstract ListenableFuture<QueryResult> processSparqlQuery(String sparqlQuery);
 }
 

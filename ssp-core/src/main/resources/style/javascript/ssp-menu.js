@@ -11,6 +11,9 @@ var semanticEntitiyLayer2Menu = '\
         <a class="item" href="/services/semantic-entities/virtual-sensor-batch-creation">\
             Create Virtual Sensors from XML\
         </a>\
+        <a class="item" href="/services/semantic-entities/virtual-sensors-editor">\
+            Edit Virtual Sensors\
+        </a>\
         <a class="item">\
             Create Semantic Entity\
         </a>\
@@ -70,7 +73,7 @@ function createHeader(){
                 <i class="grid layout icon"></i>Semantic Entities\
             </a>\
             <a class="item" href="/services/sparql-endpoint" id="btnSparqlSearch">\
-                <i class="search icon"></i>&nbsp;SPARQL Search\
+                <i class="search icon"></i>&nbsp;SPARQL\
             </a>\
             <a class="item" id="btnGeoViews">\
                 <i class="globe icon"></i>Geo Views\

@@ -4,6 +4,7 @@ import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.Registry;
 import eu.spitfire.ssp.backends.internal.vs.webservices.VirtualSensorBatchCreator;
 import eu.spitfire.ssp.backends.internal.vs.webservices.VirtualSensorCreator;
+import eu.spitfire.ssp.backends.internal.vs.webservices.VirtualSensorsEditor;
 import eu.spitfire.ssp.server.internal.messages.requests.WebserviceRegistration;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import org.jboss.netty.channel.ChannelFuture;
@@ -42,6 +43,11 @@ public class VirtualSensorRegistry extends Registry<URI, VirtualSensor> {
         this.registerWebservice(
                 new VirtualSensorBatchCreator((VirtualSensorBackendComponentFactory) this.componentFactory),
                 new URI(null, null, null, -1, "/services/semantic-entities/virtual-sensor-batch-creation", null, null)
+        );
+
+        this.registerWebservice(
+                new VirtualSensorsEditor((VirtualSensorBackendComponentFactory) this.componentFactory),
+                new URI(null, null, null, -1, "/services/semantic-entities/virtual-sensors-editor", null, null)
         );
 
     }

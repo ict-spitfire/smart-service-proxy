@@ -13,6 +13,7 @@ import lupos.endpoint.server.format.XMLFormatter;
 import lupos.engine.evaluators.BasicIndexQueryEvaluator;
 import lupos.engine.evaluators.CommonCoreQueryEvaluator;
 import lupos.engine.evaluators.MemoryIndexQueryEvaluator;
+import lupos.engine.evaluators.QueryEvaluator;
 import lupos.engine.operators.index.Indices;
 import lupos.geo.geosparql.GeoFunctionRegisterer;
 import org.slf4j.Logger;
@@ -73,6 +74,7 @@ public class LuposdateSemanticCache extends SemanticCache {
             uriLiterals.add(LiteralFactory.createStringURILiteral("<inlinedata:>"));
             queryEvaluator.prepareInputData(uriLiterals, new LinkedList<URILiteral>());
 
+            //queryEvaluator.getDataset().addNamedGraph(LiteralFactory.createStringURILiteral("<nameofgraph>"), LiteralFactory.createStringURILiteral("<inlinedata:<a> <b> <c>>"), false, false);
             GeoFunctionRegisterer.registerGeoFunctions();
         }
         catch (Exception ex){
@@ -150,7 +152,7 @@ public class LuposdateSemanticCache extends SemanticCache {
 
 
     @Override
-    public ListenableFuture<QueryResult> processSparqlQuery(final Query query) {
+    public ListenableFuture<QueryResult> processSparqlQuery(final String query) {
         final SettableFuture<QueryResult> resultFuture = SettableFuture.create();
 
         int waiting = waitingOperations.incrementAndGet();
@@ -160,7 +162,7 @@ public class LuposdateSemanticCache extends SemanticCache {
             @Override
             public void process() {
                 try{
-                    log.debug("Start SPARQL query: \n{}", query.toString());
+                    log.debug("Start SPARQL query: \n{}", query);
                     long startTime = System.currentTimeMillis();
                     QueryResult queryResult = processSparqlQuery2(query);
                     resultFuture.set(queryResult);
@@ -253,11 +255,11 @@ public class LuposdateSemanticCache extends SemanticCache {
     }
 
 
-    private QueryResult processSparqlQuery2(Query sparqlQuery) throws Exception{
+    private QueryResult processSparqlQuery2(String sparqlQuery) throws Exception{
         final SettableFuture<QueryResult> queryResultFuture = SettableFuture.create();
 
         //Execute Query and make the result a JENA result set
-        ListenableFuture<ResultSet> resultSetFuture = toResultSet(this.evaluator.getResult(sparqlQuery.toString()));
+        ListenableFuture<ResultSet> resultSetFuture = toResultSet(this.evaluator.getResult(sparqlQuery));
         Futures.addCallback(resultSetFuture, new FutureCallback<ResultSet>() {
             @Override
             public void onSuccess(@Nullable ResultSet resultSet) {

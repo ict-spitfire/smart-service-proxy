@@ -7,6 +7,7 @@ import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryFactory;
 import com.hp.hpl.jena.query.ResultSet;
 import eu.spitfire.ssp.server.http.HttpResponseFactory;
+import eu.spitfire.ssp.server.internal.messages.requests.QueryStringTask;
 import eu.spitfire.ssp.server.internal.messages.requests.QueryTask;
 import eu.spitfire.ssp.server.internal.messages.responses.QueryResult;
 import org.jboss.netty.channel.Channel;
@@ -45,7 +46,8 @@ public class SparqlEndpoint extends HttpWebservice{
 
         //Decode SPARQL query from POST request
         HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(httpRequest);
-        Query query = QueryFactory.create(((MixedAttribute) decoder.getBodyHttpData("query")).getValue());
+        String query = ((MixedAttribute) decoder.getBodyHttpData("query")).getValue();
+        //Query query = QueryFactory.create(((MixedAttribute) decoder.getBodyHttpData("query")).getValue());
 
         //Execute SPARQL query, await the result and send it to the client
         Futures.addCallback(executeQuery(query), new FutureCallback<ResultSet>() {
@@ -69,10 +71,10 @@ public class SparqlEndpoint extends HttpWebservice{
     }
 
 
-    private SettableFuture<ResultSet> executeQuery(Query query) throws Exception{
+    private SettableFuture<ResultSet> executeQuery(String query) throws Exception{
 
         SettableFuture<ResultSet> resultSetFuture = SettableFuture.create();
-        QueryTask queryTask = new QueryTask(query, resultSetFuture);
+        QueryStringTask queryTask = new QueryStringTask(query, resultSetFuture);
         Channels.write(this.localChannel, queryTask);
 
         return resultSetFuture;

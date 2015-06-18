@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>Semantic Entities Editor</title>
+    <title>Virtual Sensors Editor</title>
     <link href="../../style/css/semantic.css" rel="stylesheet" type="text/css" />
     <link href="../../style/css/semantic.min.css" rel="stylesheet" type="text/css"/>
     <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Open+Sans:300italic,400,300,700'
@@ -30,18 +30,19 @@
         <script src="../../style/javascript/ssp-menu.js"></script>
 
         <h4 class="ui top attached header">
-            List of available resources
+            List of Virtual Sensors
         </h4>
 
         <div class="ui form segment attached">
             <table class="ui basic table">
                 <thead>
                     <tr>
-                        <th>Resource Name</th>
-                        <th>&nbsp;</th>
+                        <th>Sensor Name</th>
+                        <th>Sensor Output</th>
+                        <th>Edit</th>
                     </tr>
                 </thead>
-                <tbody id="semanticEntities">
+                <tbody id="virtualSensors">
                 </tbody>
             </table>
         </div>
@@ -54,7 +55,17 @@
 
         var formData = new FormData();
         //formData.append('query', 'SELECT DISTINCT ?g WHERE { GRAPH ?g {?s ?p ?o} } ORDER BY ASC(?g)');
-        formData.append('query', 'SELECT DISTINCT ?s WHERE {?s ?p ?o} ORDER BY ASC(?s)');
+        formData.append('query', '' +
+        'PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n' +
+        'PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n' +
+        'PREFIX vs: <http://example.org/virtual-sensors#>\n' +
+        'PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>\n' +
+        'SELECT DISTINCT ?s ?r WHERE {\n' +
+        '  ?s rdf:type ?t .\n' +
+        '  ?t rdfs:subClassOf vs:VirtualSensor .\n' +
+        '  ?o ssn:observedBy ?s .' +
+        '  ?o ssn:observedResult ?r' +
+        '} ORDER BY ASC(?s)');
 
         $.ajax({
             type: "POST",
@@ -71,15 +82,17 @@
                 var parsedJSON = JSON.parse(e);
                 var seListContent = '';
                 parsedJSON['results']['bindings'].forEach(function(graph){
-                    var graphName = graph['s']['value'];
+                    var vSensorName = graph['s']['value'];
+                    var vSensorResult = graph['r']['value'];
                     seListContent += '<tr>\
-                            <td><a href="/?resource=' + encodeURIComponent(graphName) + '">' + graphName + '</a></td>\
+                            <td><a href="/?resource=' + encodeURIComponent(vSensorName) + '">' + vSensorName + '</a></td>\
+                            <td><a href="/?resource=' + encodeURIComponent(vSensorResult) + '">' + vSensorResult + '</a></td>\
                             <td>\
                                 <div class="ui small icon button"><i class="edit icon"></i></div>\
                                 <div class="ui small red icon button"><i class="trash icon"></i></div>\
                             </td></tr>\n';
                 });
-                $('#semanticEntities').html(seListContent);
+                $('#virtualSensors').html(seListContent);
             },
             error: function(e){
                 console.log('ERROR!' + e);

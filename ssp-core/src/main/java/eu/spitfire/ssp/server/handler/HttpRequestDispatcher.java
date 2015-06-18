@@ -112,7 +112,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         if(httpWebservice == null){
             log.warn("No HttpWebservice found for {}. Send error response.", proxyUri);
             HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
-                    HttpResponseStatus.NOT_FOUND, proxyUri);
+                    HttpResponseStatus.NOT_FOUND, "404 Not Found: " + proxyUri);
             writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
         }
 

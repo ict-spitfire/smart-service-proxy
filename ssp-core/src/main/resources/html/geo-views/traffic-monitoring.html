@@ -28,10 +28,11 @@ PREFIX geof: <http://www.opengis.net/def/function/geosparql/>\
 PREFIX vs: <http://example.org/virtual-sensors#>\
 PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>\
 \
-SELECT ?section ?length ?taperedBoundary ?vehicleCount WHERE {\
+SELECT ?section ?length ?taperedCoords ?vehicleCount WHERE {\
   ?section a rs:RoadSection .\
   ?section rs:hasLengthInMeter ?length .\
   ?section rs:hasTaperedBoundary ?taperedBoundary .\
+  ?taperedBoundary geo:asWKT ?taperedCoords .\
   ?section rs:hasBoundary ?boundary .\
   ?boundary geo:asWKT ?fWKT .\
   ?obs ssn:observedBy ?sensor .\
@@ -129,7 +130,7 @@ SELECT ?section ?length ?taperedBoundary ?vehicleCount WHERE {\
 
 
         function updateMap(queryResult){
-
+            drawBoundingBox();
             queryResult.results.bindings.forEach(function(binding){
 
                 var secName = binding.section.value;
@@ -139,7 +140,7 @@ SELECT ?section ?length ?taperedBoundary ?vehicleCount WHERE {\
 
                 var vehicleCount = binding.vehicleCount.value;
 
-                var wktBoundary = binding.taperedBoundary.value;
+                var wktBoundary = binding.taperedCoords.value;
 
                 var gmapsPoints = [];
                 var points = wktBoundary.split(", ");
