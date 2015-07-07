@@ -6,10 +6,8 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryFactory;
 import com.hp.hpl.jena.query.ResultSet;
-import eu.spitfire.ssp.server.http.HttpResponseFactory;
-import eu.spitfire.ssp.server.internal.messages.requests.QueryStringTask;
-import eu.spitfire.ssp.server.internal.messages.requests.QueryTask;
-import eu.spitfire.ssp.server.internal.messages.responses.QueryResult;
+import eu.spitfire.ssp.server.internal.messages.requests.InternalQueryRequest;
+import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -46,15 +44,15 @@ public class SparqlEndpoint extends HttpWebservice{
 
         //Decode SPARQL query from POST request
         HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(httpRequest);
-        String query = ((MixedAttribute) decoder.getBodyHttpData("query")).getValue();
-        //Query query = QueryFactory.create(((MixedAttribute) decoder.getBodyHttpData("query")).getValue());
+        //String query = ((MixedAttribute) decoder.getBodyHttpData("query")).getValue();
+        Query query = QueryFactory.create(((MixedAttribute) decoder.getBodyHttpData("query")).getValue());
 
         //Execute SPARQL query, await the result and send it to the client
+
         Futures.addCallback(executeQuery(query), new FutureCallback<ResultSet>() {
             @Override
             public void onSuccess(ResultSet resultSet) {
-                QueryResult queryResult = new QueryResult(resultSet);
-                ChannelFuture future = Channels.write(channel, queryResult, clientAddress);
+                ChannelFuture future = Channels.write(channel, resultSet, clientAddress);
                 future.addListener(ChannelFutureListener.CLOSE);
             }
 
@@ -71,11 +69,10 @@ public class SparqlEndpoint extends HttpWebservice{
     }
 
 
-    private SettableFuture<ResultSet> executeQuery(String query) throws Exception{
+    private SettableFuture<ResultSet> executeQuery(Query query) throws Exception{
 
         SettableFuture<ResultSet> resultSetFuture = SettableFuture.create();
-        QueryStringTask queryTask = new QueryStringTask(query, resultSetFuture);
-        Channels.write(this.localChannel, queryTask);
+        Channels.write(this.localChannel, new InternalQueryRequest(query, resultSetFuture));
 
         return resultSetFuture;
     }

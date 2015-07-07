@@ -2,22 +2,21 @@ package eu.spitfire.ssp.server.handler.cache;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import com.hp.hpl.jena.query.Query;
+import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.sparql.resultset.ResultSetMem;
-import eu.spitfire.ssp.server.internal.messages.responses.QueryResult;
+import eu.spitfire.ssp.server.handler.SemanticCache;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * A dummy implementation of {@link eu.spitfire.ssp.server.handler.cache.SemanticCache} which actually does not
+ * A dummy implementation of {@link eu.spitfire.ssp.server.handler.SemanticCache} which actually does not
  * perform any caching but only extends the abstract class.
  *
  * This is supposed to be used for debugging purposes.
@@ -76,9 +75,9 @@ public class DummySemanticCache extends SemanticCache {
     }
 
     @Override
-    public ListenableFuture<QueryResult> processSparqlQuery(String sparqlQuery) {
-        SettableFuture<QueryResult> resultFuture = SettableFuture.create();
-        resultFuture.set(new QueryResult(new ResultSetMem()));
+    public ListenableFuture<ResultSet> processSparqlQuery(String sparqlQuery) {
+        SettableFuture<ResultSet> resultFuture = SettableFuture.create();
+        resultFuture.set(new ResultSetMem());
 
         return resultFuture;
     }

@@ -1,7 +1,7 @@
 package eu.spitfire.ssp;
 
 import eu.spitfire.ssp.server.handler.cache.DummySemanticCache;
-import eu.spitfire.ssp.server.handler.cache.SemanticCache;
+import eu.spitfire.ssp.server.handler.SemanticCache;
 import org.apache.commons.configuration.Configuration;
 
 /**

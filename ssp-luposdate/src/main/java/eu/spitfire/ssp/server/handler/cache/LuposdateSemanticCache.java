@@ -1,25 +1,26 @@
 package eu.spitfire.ssp.server.handler.cache;
 
 import com.google.common.util.concurrent.*;
-import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFactory;
-import com.hp.hpl.jena.rdf.model.*;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.RDFNode;
+import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.rdf.model.StmtIterator;
+import eu.spitfire.ssp.server.handler.SemanticCache;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
-import eu.spitfire.ssp.server.internal.messages.responses.QueryResult;
 import lupos.datastructures.items.literal.LiteralFactory;
 import lupos.datastructures.items.literal.URILiteral;
+import lupos.datastructures.queryresult.QueryResult;
 import lupos.endpoint.server.format.XMLFormatter;
 import lupos.engine.evaluators.BasicIndexQueryEvaluator;
 import lupos.engine.evaluators.CommonCoreQueryEvaluator;
 import lupos.engine.evaluators.MemoryIndexQueryEvaluator;
-import lupos.engine.evaluators.QueryEvaluator;
 import lupos.engine.operators.index.Indices;
 import lupos.geo.geosparql.GeoFunctionRegisterer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -152,8 +153,8 @@ public class LuposdateSemanticCache extends SemanticCache {
 
 
     @Override
-    public ListenableFuture<QueryResult> processSparqlQuery(final String query) {
-        final SettableFuture<QueryResult> resultFuture = SettableFuture.create();
+    public ListenableFuture<ResultSet> processSparqlQuery(final String query) {
+        final SettableFuture<ResultSet> resultFuture = SettableFuture.create();
 
         int waiting = waitingOperations.incrementAndGet();
         log.debug("Wait for DB thread (now waiting: {})", waiting);
@@ -164,8 +165,7 @@ public class LuposdateSemanticCache extends SemanticCache {
                 try{
                     log.debug("Start SPARQL query: \n{}", query);
                     long startTime = System.currentTimeMillis();
-                    QueryResult queryResult = processSparqlQuery2(query);
-                    resultFuture.set(queryResult);
+                    resultFuture.set(processSparqlQuery2(query));
                     log.debug("Query execution finished (duration: {} millis)", System.currentTimeMillis() - startTime);
                 }
                 catch (Exception e) {
@@ -255,33 +255,10 @@ public class LuposdateSemanticCache extends SemanticCache {
     }
 
 
-    private QueryResult processSparqlQuery2(String sparqlQuery) throws Exception{
-        final SettableFuture<QueryResult> queryResultFuture = SettableFuture.create();
-
+    private ResultSet processSparqlQuery2(String query) throws Exception{
         //Execute Query and make the result a JENA result set
-        ListenableFuture<ResultSet> resultSetFuture = toResultSet(this.evaluator.getResult(sparqlQuery));
-        Futures.addCallback(resultSetFuture, new FutureCallback<ResultSet>() {
-            @Override
-            public void onSuccess(@Nullable ResultSet resultSet) {
-                try{
-                    QueryResult queryResult = new QueryResult(resultSet);
-                    queryResultFuture.set(queryResult);
-                }
-                catch(Exception ex){
-                    log.error("Exception while creating internal SPARQL query result message.", ex);
-                    queryResultFuture.setException(ex);
-                }
-
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                log.error("Unexpected Exception!", t);
-                queryResultFuture.setException(t);
-            }
-        });
-
-        return queryResultFuture.get();
+        QueryResult queryResult = this.evaluator.getResult(query);
+        return toResultSet(queryResult);
     }
 
 
@@ -318,23 +295,22 @@ public class LuposdateSemanticCache extends SemanticCache {
 //    }
 
 
-    private ListenableFuture<ResultSet> toResultSet(final lupos.datastructures.queryresult.QueryResult queryResult) throws IOException {
+    private ResultSet toResultSet(final QueryResult queryResult) throws IOException {
         long start = System.currentTimeMillis();
-        final SettableFuture<ResultSet> resultSetFuture = SettableFuture.create();
+
         final File tmpFile = File.createTempFile("queryResult", ".xml");
 
         XMLFormatter formatter = new XMLFormatter();
         formatter.writeResult(new FileOutputStream(tmpFile), queryResult.getVariableSet(), queryResult);
 
-        ResultSet result = ResultSetFactory.fromXML(new FileInputStream(tmpFile));
-        resultSetFuture.set(result);
+        ResultSet resultSet = ResultSetFactory.fromXML(new FileInputStream(tmpFile));
 
         if(!tmpFile.delete()){
             log.error("Temporary file {} could not deleted...", tmpFile.getAbsolutePath());
         }
 
         log.debug("Time to re-format result-set: {} millis", System.currentTimeMillis() - start);
-        return resultSetFuture;
+        return resultSet;
     }
 
     

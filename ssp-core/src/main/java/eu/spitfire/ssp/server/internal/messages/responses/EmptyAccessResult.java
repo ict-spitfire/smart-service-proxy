@@ -2,7 +2,7 @@ package eu.spitfire.ssp.server.internal.messages.responses;
 
 /**
  * Instances of this class represent the result of an attempt to access a resource either in the
- * {@link eu.spitfire.ssp.server.handler.cache.SemanticCache} or the
+ * {@link eu.spitfire.ssp.server.handler.SemanticCache} or the
  * {@link eu.spitfire.ssp.backends.generic.DataOrigin}.
  *
  * @author Oliver Kleine

@@ -26,11 +26,11 @@ package eu.spitfire.ssp.server.handler;
 
 import com.google.common.collect.Multimap;
 import com.google.common.collect.TreeMultimap;
+import com.hp.hpl.jena.query.ResultSet;
 import eu.spitfire.ssp.server.internal.messages.responses.AccessResult;
-import eu.spitfire.ssp.server.http.HttpResponseFactory;
 import eu.spitfire.ssp.server.internal.messages.responses.EmptyAccessResult;
-import eu.spitfire.ssp.server.internal.messages.responses.QueryResult;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
+import eu.spitfire.ssp.utils.HttpResponseFactory;
 import eu.spitfire.ssp.utils.Language;
 import eu.spitfire.ssp.utils.QueryResultFormat;
 import org.jboss.netty.channel.*;
@@ -170,12 +170,12 @@ public class HttpSemanticPayloadFormatter extends SimpleChannelHandler {
             }
         }
 
-        else if(me.getMessage() instanceof QueryResult){
+        else if(me.getMessage() instanceof ResultSet){
             if(formatType == SPARQL_RESULT_FORMAT){
-                QueryResult queryResult = (QueryResult) me.getMessage();
+                ResultSet resultSet = (ResultSet) me.getMessage();
                 QueryResultFormat format = (QueryResultFormat) acceptedFormat;
 
-                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, queryResult, format);
+                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, resultSet, format);
             }
 
             else{

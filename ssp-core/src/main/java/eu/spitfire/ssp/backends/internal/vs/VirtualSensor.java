@@ -7,11 +7,12 @@ import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.rdf.model.Literal;
-import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.rdf.model.ResourceFactory;
+import com.hp.hpl.jena.update.UpdateFactory;
+import com.hp.hpl.jena.update.UpdateRequest;
 import eu.spitfire.ssp.backends.internal.se.SemanticEntity;
-import eu.spitfire.ssp.server.internal.messages.requests.QueryStringTask;
-import eu.spitfire.ssp.server.internal.messages.requests.QueryTask;
+import eu.spitfire.ssp.server.internal.messages.requests.InternalUpdateRequest;
+import eu.spitfire.ssp.server.internal.messages.requests.InternalQueryRequest;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.Channels;
 import org.slf4j.Logger;
@@ -29,7 +30,7 @@ public class VirtualSensor extends SemanticEntity{
 
     private static Logger log = LoggerFactory.getLogger(VirtualSensor.class.getName());
 
-    private final Query sparqlQuery;
+    private VirtualSensorUpdateTask updateTask;
     private ScheduledFuture executionFuture;
 
     /**
@@ -37,96 +38,31 @@ public class VirtualSensor extends SemanticEntity{
      *
      * @param identifier the identifier for this {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      */
-    public VirtualSensor(final URI identifier, final Query sparqlQuery, final Channel localChannel,
+    public VirtualSensor(final URI identifier, final Query query, final Channel localChannel,
                          ScheduledExecutorService internalTasksExecutor){
         super(identifier);
-        this.sparqlQuery = sparqlQuery;
 
-        this.executionFuture = internalTasksExecutor.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                SettableFuture<ResultSet> sparqlResultFuture = SettableFuture.create();
-                QueryTask queryTask = new QueryTask(VirtualSensor.this.sparqlQuery, sparqlResultFuture);
-                Channels.write(localChannel, queryTask);
-
-                Futures.addCallback(sparqlResultFuture, new FutureCallback<ResultSet>() {
-                    @Override
-                    public void onSuccess(ResultSet resultSet) {
-
-                        String sensorValue;
-
-                        if (resultSet.hasNext()) {
-                            QuerySolution querySolution = resultSet.nextSolution();
-                            Literal tmp = querySolution.get("?aggVal").asLiteral();
-                            sensorValue = "\"" + tmp.getValue().toString() + "\"^^<" + tmp.getDatatypeURI() + ">";
-//                            sensorValue = ResourceFactory.createPlainLiteral(
-//                                    querySolution.get("?aggVal").toString()
-//                            );
-                        } else {
-                            sensorValue = ResourceFactory.createPlainLiteral("UNDEFINED").toString();
-                        }
-
-                        String fragment = identifier.getRawFragment();
-                        String updateQuery = "PREFIX vs: <http://example.org/virtual-sensors#>\n" +
-                                "PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>\n" +
-                                "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n" +
-                                "\n" +
-                                "DELETE {vs:" + fragment + "-SensorOutput ssn:hasValue ?o}\n" +
-                                "INSERT {vs:" + fragment + "-SensorOutput ssn:hasValue " + sensorValue + "}\n" +
-                                "WHERE  {vs:" + fragment + "-SensorOutput ssn:hasValue ?o}";
-
-
-                        SettableFuture<ResultSet> updateFuture = SettableFuture.create();
-
-                        Futures.addCallback(updateFuture, new FutureCallback<ResultSet>() {
-                            @Override
-                            public void onSuccess(ResultSet resultSet) {
-                                log.info("Updated Virtual Sensor Value!");
-                            }
-
-                            @Override
-                            public void onFailure(Throwable throwable) {
-                                log.error("Failed to update Virtual Sensor Value!", throwable);
-                            }
-                        });
-
-                        QueryStringTask sensorValueUpdate = new QueryStringTask(updateQuery, updateFuture);
-
-                        Channels.write(localChannel, sensorValueUpdate);
-                    }
-
-                    @Override
-                    public void onFailure(Throwable throwable) {
-
-                    }
-                });
-
-            }
-        }, 4, 4, TimeUnit.SECONDS);
-
+        this.updateTask = new VirtualSensorUpdateTask(query, localChannel);
+        this.executionFuture = internalTasksExecutor.scheduleAtFixedRate(this.updateTask,  4, 4, TimeUnit.SECONDS);
     }
 
     public VirtualSensor(URI identifier, final Query sparqlQuery){
         this(identifier, sparqlQuery, null, null);
     }
 
+
     @Override
     public boolean isObservable() {
         return true;
     }
-
-//    private SettableFuture<ResultSet> executeSparqlQuery(Query sparqlQuery){
-//
-//
-//    }
 
 
     /**
      * Returns the {@link com.hp.hpl.jena.query.Query} which is used to retrieve the actual sensor value.
      * @return the {@link com.hp.hpl.jena.query.Query} which is used to retrieve the actual sensor value.
      */
-    public Query getSparqlQuery() {
-        return this.sparqlQuery;
+    public Query getQuery() {
+        return this.updateTask.getQuery();
     }
 
     @Override
@@ -144,6 +80,80 @@ public class VirtualSensor extends SemanticEntity{
         return other.getGraphName().equals(this.getGraphName());
     }
 
+
+    private class VirtualSensorUpdateTask implements Runnable{
+
+        private Query query;
+        private Channel localChannel;
+
+        private VirtualSensorUpdateTask(Query query, Channel localChannel){
+            this.query = query;
+            this.localChannel = localChannel;
+        }
+
+        private Query getQuery(){
+            return this.query;
+        }
+
+        @Override
+        public void run() {
+            SettableFuture<ResultSet> queryResultFuture = SettableFuture.create();
+            InternalQueryRequest internalQueryRequest = new InternalQueryRequest(query, queryResultFuture);
+            Channels.write(localChannel, internalQueryRequest);
+
+            //Await the result of the query execution
+            Futures.addCallback(queryResultFuture, new FutureCallback<ResultSet>() {
+                @Override
+                public void onSuccess(ResultSet resultSet) {
+
+                    String sensorValue;
+
+                    if (resultSet.hasNext()) {
+                        QuerySolution querySolution = resultSet.nextSolution();
+                        Literal tmp = querySolution.get("?aggVal").asLiteral();
+                        sensorValue = "\"" + tmp.getValue().toString() + "\"^^<" + tmp.getDatatypeURI() + ">";
+                    }
+                    else {
+                        sensorValue = ResourceFactory.createPlainLiteral("UNDEFINED").toString();
+                    }
+
+                    //Update sensor value in cache
+                    String fragment = getIdentifier().getRawFragment();
+                    String updateQuery = "PREFIX vs: <http://example.org/virtual-sensors#>\n" +
+                            "PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>\n" +
+                            "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n" +
+                            "\n" +
+                            "DELETE {vs:" + fragment + "-SensorOutput ssn:hasValue ?o}\n" +
+                            "INSERT {vs:" + fragment + "-SensorOutput ssn:hasValue " + sensorValue + "}\n" +
+                            "WHERE  {vs:" + fragment + "-SensorOutput ssn:hasValue ?o}";
+
+
+                    UpdateRequest updateRequest = UpdateFactory.create(updateQuery);
+                    InternalUpdateRequest internalUpdateRequest = new InternalUpdateRequest(updateRequest);
+
+                    Futures.addCallback(internalUpdateRequest.getUpdateFuture(), new FutureCallback<Void>() {
+                        @Override
+                        public void onSuccess(Void v) {
+                            log.info("Updated Virtual Sensor Value!");
+                        }
+
+                        @Override
+                        public void onFailure(Throwable throwable) {
+                            log.error("Failed to update Virtual Sensor Value!", throwable);
+                        }
+                    });
+
+                    Channels.write(localChannel, internalUpdateRequest);
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+                    log.error("Failed to retrieve Virtual Sensor Value!", throwable);
+                }
+            });
+
+        }
+    }
 
 
 }

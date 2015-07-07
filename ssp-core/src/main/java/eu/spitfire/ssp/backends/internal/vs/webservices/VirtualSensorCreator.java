@@ -11,7 +11,7 @@ import eu.spitfire.ssp.backends.internal.vs.VirtualSensor;
 import eu.spitfire.ssp.backends.internal.vs.VirtualSensorBackendComponentFactory;
 import eu.spitfire.ssp.backends.internal.vs.VirtualSensorRegistry;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
-import eu.spitfire.ssp.server.http.HttpResponseFactory;
+import eu.spitfire.ssp.utils.HttpResponseFactory;
 import eu.spitfire.ssp.utils.Language;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.local.LocalServerChannel;

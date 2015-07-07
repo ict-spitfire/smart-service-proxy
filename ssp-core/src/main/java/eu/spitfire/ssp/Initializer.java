@@ -6,7 +6,7 @@ import eu.spitfire.ssp.backends.external.n3files.N3FileBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.internal.se.SemanticEntityBackendComponentFactory;
 import eu.spitfire.ssp.backends.internal.vs.VirtualSensorBackendComponentFactory;
-import eu.spitfire.ssp.server.handler.cache.*;
+import eu.spitfire.ssp.server.handler.SemanticCache;
 import eu.spitfire.ssp.server.internal.messages.requests.WebserviceRegistration;
 import eu.spitfire.ssp.server.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.pipelines.HttpProxyPipelineFactory;
@@ -26,7 +26,6 @@ import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.ArrayList;

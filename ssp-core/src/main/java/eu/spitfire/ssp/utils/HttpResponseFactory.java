@@ -1,14 +1,12 @@
-package eu.spitfire.ssp.server.http;
+package eu.spitfire.ssp.utils;
 
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
+import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.server.internal.messages.responses.EmptyAccessResult;
-import eu.spitfire.ssp.server.internal.messages.responses.QueryResult;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
-import eu.spitfire.ssp.utils.Language;
-import eu.spitfire.ssp.utils.QueryResultFormat;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferOutputStream;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -95,13 +93,13 @@ public class HttpResponseFactory {
 //        return response;
 //    }
 //
-    public static HttpResponse createHttpResponse(HttpVersion version, QueryResult queryResult,
+    public static HttpResponse createHttpResponse(HttpVersion version, ResultSet resultSet,
                                                   QueryResultFormat queryResultFormat){
 
         ChannelBuffer payload = ChannelBuffers.dynamicBuffer();
         ChannelBufferOutputStream outputStream = new ChannelBufferOutputStream(payload);
 
-        ResultSetFormatter.output(outputStream, queryResult.getResultSet(), queryResultFormat.resultsFormat);
+        ResultSetFormatter.output(outputStream, resultSet, queryResultFormat.resultsFormat);
 
         HttpResponse httpResponse = new DefaultHttpResponse(version, HttpResponseStatus.OK);
         httpResponse.setContent(payload);

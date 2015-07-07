@@ -5,29 +5,33 @@ import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.ResultSet;
 
 /**
- * Created by olli on 18.06.15.
+ * Wrapper class to combine a {@link com.hp.hpl.jena.query.Query} with a
+ * {@link com.google.common.util.concurrent.SettableFuture} which contains the result of the
+ * query after its execution.
+ *
+ * @author Oliver Kleine
  */
-public class QueryStringTask {
+public class InternalQueryRequest {
 
-    private String query;
+    private Query query;
     private SettableFuture<ResultSet> resultSetFuture;
 
     /**
-     * Creates a new instance of {@link QueryTask}
+     * Creates a new instance of {@link InternalQueryRequest}
      * @param query the {@link com.hp.hpl.jena.query.Query} to be executed
      * @param resultSetFuture the {@link com.google.common.util.concurrent.SettableFuture} which
      *                        is set with the result of the query execution.
      */
-    public QueryStringTask(String query, SettableFuture<ResultSet> resultSetFuture) {
+    public InternalQueryRequest(Query query, SettableFuture<ResultSet> resultSetFuture) {
         this.query = query;
         this.resultSetFuture = resultSetFuture;
     }
 
     /**
-     * Returns the query to be executed.
-     * @return the query to be executed.
+     * Returns the {@link com.hp.hpl.jena.query.Query} to be executed.
+     * @return the {@link com.hp.hpl.jena.query.Query} to be executed.
      */
-    public String getQuery() {
+    public Query getQuery() {
         return query;
     }
 
@@ -40,5 +44,4 @@ public class QueryStringTask {
     public SettableFuture<ResultSet> getResultSetFuture() {
         return resultSetFuture;
     }
-
 }

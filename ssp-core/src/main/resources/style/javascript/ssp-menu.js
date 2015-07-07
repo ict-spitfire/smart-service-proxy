@@ -15,13 +15,13 @@ var semanticEntitiyLayer2Menu = '\
             Edit Virtual Sensors\
         </a>\
         <a class="item">\
-            Create Semantic Entity\
+            Create (loose) Graph\
         </a>\
         <a class="item">\
-            Create Semantic Entities from XML\
+            Create Graphs from XML\
         </a>\
         <a class="item" href="/services/semantic-entities/semantic-entities-editor">\
-            Edit Semantic Entities\
+            Edit (loose) Graphs\
         </a>';
 
 var geoViewsLayer2Menu = '\
