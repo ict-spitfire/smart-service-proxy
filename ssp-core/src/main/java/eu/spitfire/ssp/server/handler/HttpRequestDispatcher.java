@@ -28,8 +28,8 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backends.generic.DataOriginMapper;
-import eu.spitfire.ssp.server.internal.messages.requests.DataOriginDeregistration;
-import eu.spitfire.ssp.server.internal.messages.requests.DataOriginRegistration;
+import eu.spitfire.ssp.server.internal.messages.requests.DataOriginDeregistrationRequest;
+import eu.spitfire.ssp.server.internal.messages.requests.DataOriginRegistrationRequest;
 import eu.spitfire.ssp.server.internal.messages.requests.WebserviceRegistration;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import eu.spitfire.ssp.server.webservices.Styles;
@@ -144,8 +144,8 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             return;
         }
 
-        else if(me.getMessage() instanceof DataOriginRegistration){
-            final DataOriginRegistration registration = (DataOriginRegistration) me.getMessage();
+        else if(me.getMessage() instanceof DataOriginRegistrationRequest){
+            final DataOriginRegistrationRequest registration = (DataOriginRegistrationRequest) me.getMessage();
 
             URI graphName = registration.getDataOrigin().getGraphName();
             Object identifier = registration.getDataOrigin().getIdentifier();
@@ -181,8 +181,8 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
             });
         }
 
-        else if(me.getMessage() instanceof DataOriginDeregistration){
-            DataOriginDeregistration removalMessage = (DataOriginDeregistration) me.getMessage();
+        else if(me.getMessage() instanceof DataOriginDeregistrationRequest){
+            DataOriginDeregistrationRequest removalMessage = (DataOriginDeregistrationRequest) me.getMessage();
             String proxyUri = "/?graph=" + removalMessage.getDataOrigin().getGraphName();
 
             unregisterProxyWebservice(proxyUri);

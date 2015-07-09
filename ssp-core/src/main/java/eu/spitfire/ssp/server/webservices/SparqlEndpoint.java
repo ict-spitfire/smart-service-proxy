@@ -6,7 +6,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryFactory;
 import com.hp.hpl.jena.query.ResultSet;
-import eu.spitfire.ssp.server.internal.messages.requests.InternalQueryRequest;
+import eu.spitfire.ssp.server.internal.messages.requests.QueryProcessingRequest;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
@@ -72,7 +72,7 @@ public class SparqlEndpoint extends HttpWebservice{
     private SettableFuture<ResultSet> executeQuery(Query query) throws Exception{
 
         SettableFuture<ResultSet> resultSetFuture = SettableFuture.create();
-        Channels.write(this.localChannel, new InternalQueryRequest(query, resultSetFuture));
+        Channels.write(this.localChannel, new QueryProcessingRequest(query, resultSetFuture));
 
         return resultSetFuture;
     }

@@ -13,6 +13,7 @@ import com.hp.hpl.jena.tdb.TDB;
 import com.hp.hpl.jena.tdb.TDBFactory;
 import eu.spitfire.ssp.server.handler.SemanticCache;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
+import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -36,11 +37,10 @@ import java.util.concurrent.ScheduledExecutorService;
 
 
 /**
-* Created with IntelliJ IDEA.
-* User: olli
-* Date: 05.09.13
-* Time: 09:43
-* To change this template use File | Settings | File Templates.
+ * The Jena TDB Cache does *NOT* support GeoSPARQL but "Jena Spatial", i.e. a subset of the GeoSPARL features with a
+ * different vocabulary!
+ *
+ * @author Oliver Kleine
 */
 public class JenaTdbSemanticCache extends SemanticCache {
 
@@ -75,11 +75,10 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
         assert oldFiles != null;
         for (File dbFile : oldFiles) {
-                if(!dbFile.delete()){
-                    log.error("Could not delete old DB file: {}", dbFile);
-                };
+            if(!dbFile.delete()){
+                log.error("Could not delete old DB file: {}", dbFile);
+            }
         }
-
 
 		Dataset tmpDataset = TDBFactory.createDataset(dbDirectory.toString());
 		TDB.getContext().set(TDB.symUnionDefaultGraph, true);
@@ -171,9 +170,9 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
 
 	@Override
-	public ListenableFuture<ExpiringGraph> getNamedGraph(URI graphName) {
+	public ListenableFuture<ExpiringNamedGraph> getNamedGraph(URI graphName) {
 
-        SettableFuture<ExpiringGraph> resultFuture = SettableFuture.create();
+        SettableFuture<ExpiringNamedGraph> resultFuture = SettableFuture.create();
 
         try {
             dataset.begin(ReadWrite.READ);
@@ -198,7 +197,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
                 model.add(dbModel);
 
 //                ExpiringNamedGraph expiringNamedGraph = new ExpiringNamedGraph(graphName, model, new Date());
-                resultFuture.set(new ExpiringGraph(model, new Date()));
+                resultFuture.set(new ExpiringNamedGraph(graphName, model, new Date()));
             }
 
             return resultFuture;

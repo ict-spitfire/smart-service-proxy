@@ -15,7 +15,7 @@ import eu.spitfire.ssp.server.internal.messages.responses.DataOriginAccessError;
 import eu.spitfire.ssp.server.internal.messages.responses.DataOriginInquiryResult;
 import eu.spitfire.ssp.backends.generic.Accessor;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.server.internal.messages.requests.InternalQueryRequest;
+import eu.spitfire.ssp.server.internal.messages.requests.QueryProcessingRequest;
 import eu.spitfire.ssp.server.internal.messages.responses.AccessResult;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
 import org.jboss.netty.channel.ChannelFuture;
@@ -60,7 +60,7 @@ public class VirtualSensorAccessor extends Accessor<URI, VirtualSensor> {
         SettableFuture<ResultSet> resultSetFuture = SettableFuture.create();
 
         ChannelFuture channelFuture = Channels.write(
-                this.getComponentFactory().getLocalChannel(), new InternalQueryRequest(sparqlQuery, resultSetFuture)
+                this.getComponentFactory().getLocalChannel(), new QueryProcessingRequest(sparqlQuery, resultSetFuture)
         );
 
         channelFuture.addListener(new ChannelFutureListener() {

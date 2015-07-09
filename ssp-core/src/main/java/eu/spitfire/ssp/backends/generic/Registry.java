@@ -5,9 +5,9 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.server.internal.messages.requests.DataOriginDeregistration;
+import eu.spitfire.ssp.server.internal.messages.requests.DataOriginDeregistrationRequest;
 import eu.spitfire.ssp.server.internal.messages.responses.DataOriginInquiryResult;
-import eu.spitfire.ssp.server.internal.messages.requests.DataOriginRegistration;
+import eu.spitfire.ssp.server.internal.messages.requests.DataOriginRegistrationRequest;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -95,7 +95,7 @@ public abstract class Registry<I, D extends DataOrigin<I>> {
 
         try{
             //Create registration message
-            DataOriginRegistration<I, D> registration = new DataOriginRegistration<>(
+            DataOriginRegistrationRequest<I, D> registration = new DataOriginRegistrationRequest<>(
                     dataOrigin, initialStatus, expiry, componentFactory.getDataOriginMapper(), registrationFuture
             );
 
@@ -167,7 +167,7 @@ public abstract class Registry<I, D extends DataOrigin<I>> {
         }
 
         //Handle unregistration
-        DataOriginDeregistration<I, D> unregistration = new DataOriginDeregistration<>(dataOrigin, unregistrationFuture);
+        DataOriginDeregistrationRequest<I, D> unregistration = new DataOriginDeregistrationRequest<>(dataOrigin, unregistrationFuture);
 
         //Send the unregistration message
         ChannelFuture channelFuture = Channels.write(componentFactory.getLocalChannel(), unregistration);

@@ -2,7 +2,7 @@ package eu.spitfire.ssp.backends.generic;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.server.internal.messages.requests.InternalCacheUpdateTask;
+import eu.spitfire.ssp.server.internal.messages.requests.InternalCacheUpdateRequest;
 import eu.spitfire.ssp.server.internal.messages.requests.SensorValueUpdate;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
 import org.jboss.netty.channel.ChannelFuture;
@@ -49,18 +49,18 @@ public abstract class Observer<I, D extends DataOrigin<I>>{
      * update was successful or with a {@link java.lang.Throwable} if the update failed for some reason.
      */
     public final ListenableFuture<Void> updateCache(final ExpiringNamedGraph expiringNamedGraph){
-        InternalCacheUpdateTask cacheUpdateTask = new InternalCacheUpdateTask(expiringNamedGraph);
+        InternalCacheUpdateRequest cacheUpdateTask = new InternalCacheUpdateRequest(expiringNamedGraph);
         return updateCache(cacheUpdateTask);
     }
 
 
-    public final ListenableFuture<Void> updateCache(final SensorValueUpdate sensorValueUpdate){
-        InternalCacheUpdateTask cacheUpdateTask = new InternalCacheUpdateTask(sensorValueUpdate);
-        return updateCache(cacheUpdateTask);
-    }
+//    public final ListenableFuture<Void> updateCache(final SensorValueUpdate sensorValueUpdate){
+//        InternalCacheUpdateRequest cacheUpdateTask = new InternalCacheUpdateRequest(sensorValueUpdate);
+//        return updateCache(cacheUpdateTask);
+//    }
 
 
-    private ListenableFuture<Void> updateCache(final InternalCacheUpdateTask cacheUpdateTask){
+    private ListenableFuture<Void> updateCache(final InternalCacheUpdateRequest cacheUpdateTask){
         log.info("Try to update cached status for named graph {}.", cacheUpdateTask.getGraphName());
 
         final SettableFuture<Void> cacheUpdateFuture = cacheUpdateTask.getCacheUpdateFuture();

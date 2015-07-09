@@ -10,7 +10,7 @@ import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.backends.internal.vs.VirtualSensorBackendComponentFactory;
 import eu.spitfire.ssp.backends.internal.vs.VirtualSensorRegistry;
-import eu.spitfire.ssp.server.internal.messages.requests.InternalQueryRequest;
+import eu.spitfire.ssp.server.internal.messages.requests.QueryProcessingRequest;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import eu.spitfire.ssp.utils.Language;
 import org.jboss.netty.channel.Channels;
@@ -113,8 +113,8 @@ public abstract class AbstractVirtualSensorCreator extends HttpWebservice{
     private SettableFuture<ResultSet> executeSparqlQuery(Query sparqlQuery){
 
         SettableFuture<ResultSet> sparqlResultFuture = SettableFuture.create();
-        InternalQueryRequest internalQueryRequest = new InternalQueryRequest(sparqlQuery, sparqlResultFuture);
-        Channels.write(this.localChannel, internalQueryRequest);
+        QueryProcessingRequest queryProcessingRequest = new QueryProcessingRequest(sparqlQuery, sparqlResultFuture);
+        Channels.write(this.localChannel, queryProcessingRequest);
 
         return sparqlResultFuture;
     }

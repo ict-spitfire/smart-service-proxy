@@ -10,7 +10,7 @@ import java.util.Date;
 /**
  * Internal message to be send downstream
  */
-public class DataOriginRegistration<I, D extends DataOrigin<I>>{
+public class DataOriginRegistrationRequest<I, D extends DataOrigin<I>>{
 
     private D dataOrigin;
     private Date expiry;
@@ -18,8 +18,8 @@ public class DataOriginRegistration<I, D extends DataOrigin<I>>{
     private Model initialStatus;
     private SettableFuture<Void> registrationFuture;
 
-    public DataOriginRegistration(D dataOrigin, Model initialStatus, Date expiry, DataOriginMapper httpProxyWebservice,
-                                  SettableFuture<Void> registrationFuture){
+    public DataOriginRegistrationRequest(D dataOrigin, Model initialStatus, Date expiry, DataOriginMapper httpProxyWebservice,
+                                         SettableFuture<Void> registrationFuture){
 
         this.dataOrigin = dataOrigin;
         this.initialStatus = initialStatus;

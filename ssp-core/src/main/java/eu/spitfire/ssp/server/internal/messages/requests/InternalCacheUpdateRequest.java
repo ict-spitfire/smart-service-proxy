@@ -8,22 +8,22 @@ import java.net.URI;
 /**
  * Created by olli on 07.07.14.
  */
-public class InternalCacheUpdateTask {
+public class InternalCacheUpdateRequest {
 
     private final SettableFuture<Void> cacheUpdateFuture;
 
     private ExpiringNamedGraph expiringNamedGraph;
     private SensorValueUpdate sensorValueUpdate;
 
-    public InternalCacheUpdateTask(ExpiringNamedGraph expiringNamedGraph) {
+    public InternalCacheUpdateRequest(ExpiringNamedGraph expiringNamedGraph) {
         this(expiringNamedGraph, null);
     }
 
-    public InternalCacheUpdateTask(SensorValueUpdate sensorValueUpdate){
+    public InternalCacheUpdateRequest(SensorValueUpdate sensorValueUpdate){
         this(null, sensorValueUpdate);
     }
 
-    private InternalCacheUpdateTask(ExpiringNamedGraph expiringNamedGraph, SensorValueUpdate sensorValueUpdate){
+    private InternalCacheUpdateRequest(ExpiringNamedGraph expiringNamedGraph, SensorValueUpdate sensorValueUpdate){
         this.expiringNamedGraph = expiringNamedGraph;
         this.sensorValueUpdate = sensorValueUpdate;
         this.cacheUpdateFuture = SettableFuture.create();

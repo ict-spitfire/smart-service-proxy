@@ -24,10 +24,7 @@
  */
 package eu.spitfire.ssp.server.handler;
 
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.*;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
@@ -43,15 +40,13 @@ import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Checks whether the incoming {@link HttpRequest} can be answered with cached information. This depends on the
@@ -64,21 +59,22 @@ import java.util.concurrent.TimeUnit;
 public abstract class SemanticCache extends SimpleChannelHandler {
 
     public static final int DELAY_AFTER_EXPIRY_MILLIS = 10000;
+    private static Logger LOG = LoggerFactory.getLogger(SemanticCache.class.getName());
+    private static final TimeUnit MILLIS = TimeUnit.MILLISECONDS;
 
-    private Logger log = LoggerFactory.getLogger(SemanticCache.class.getName());
-    private Map<URI, ScheduledFuture> expiryFutures = Collections.synchronizedMap(new HashMap<URI, ScheduledFuture>());
+    private Map<URI, ScheduledFuture> namedGraphExpiryFutures = Collections.synchronizedMap(new HashMap<>());
 
-    private ScheduledExecutorService internalTasksExecutorService;
-    private ExecutorService ioExecutorService;
+    private ListeningScheduledExecutorService internalTasksExecutor;
+    private ExecutorService ioTasksExecutor;
 
-    protected SemanticCache(ExecutorService ioExecutorService, ScheduledExecutorService internalTasksExecutorService) {
-        this.ioExecutorService = ioExecutorService;
-        this.internalTasksExecutorService = internalTasksExecutorService;
+    protected SemanticCache(ExecutorService ioTasksExecutor, ScheduledExecutorService internalTasksExecutor) {
+        this.ioTasksExecutor = ioTasksExecutor;
+        this.internalTasksExecutor = MoreExecutors.listeningDecorator(internalTasksExecutor);
     }
 
 
-    protected ScheduledExecutorService getInternalTasksExecutorService(){
-        return this.internalTasksExecutorService;
+    protected ScheduledExecutorService getInternalTasksExecutor(){
+        return this.internalTasksExecutor;
     }
 
     /**
@@ -94,24 +90,23 @@ public abstract class SemanticCache extends SimpleChannelHandler {
     @Override
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
 
-        if (me.getMessage() instanceof HttpRequest){
+        if (me.getMessage() instanceof HttpRequest) {
             HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
-            if(httpRequest.getMethod() == HttpMethod.GET){
+            if (httpRequest.getMethod() == HttpMethod.GET) {
                 String uriQuery = new URI(httpRequest.getUri()).getQuery();
 
-                if(uriQuery != null){
+                if (uriQuery != null) {
                     String[] queryParts = uriQuery.split("&");
-                    for(String queryPart : queryParts){
-                        if(queryPart.startsWith("graph=")){
+                    for (String queryPart : queryParts) {
+                        if (queryPart.startsWith("graph=")) {
                             URI graphName = new URI(queryPart.substring(6).replace(" ", "%20"));
-                            graphRequestReceived(ctx, me, graphName);
+                            internalTasksExecutor.execute(new GraphRequestHandler(graphName, ctx, me));
                             return;
                         }
-
-                        else if(queryPart.startsWith("resource=")){
+                        else if (queryPart.startsWith("resource=")) {
                             URI resourceName = new URI(queryPart.substring(9));
-                            resourceRequestReceived(ctx, me, resourceName);
+                            internalTasksExecutor.execute(new ResourceRequestHandler(resourceName, ctx, me));
                             return;
                         }
                     }
@@ -122,348 +117,149 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         ctx.sendUpstream(me);
     }
 
-    private void resourceRequestReceived(final ChannelHandlerContext ctx, final MessageEvent me,
-                                         final URI resourceName){
-
-        log.debug("Lookup resource with name: {}", resourceName);
-
-        this.internalTasksExecutorService.execute(new Runnable(){
-
-            @Override
-            public void run() {
-                try{
-                    String query = "SELECT ?p ?o WHERE {<" + resourceName + "> ?p ?o .}";
-                    //Query query = QueryFactory.create("SELECT ?p ?o WHERE {<" + resourceName + "> ?p ?o .}");
-                    ListenableFuture<ResultSet> queryExecutionFuture  = processSparqlQuery(query);
-
-                    Futures.addCallback(queryExecutionFuture, new FutureCallback<ResultSet>(){
-
-                        @Override
-                        public void onSuccess(ResultSet queryResult) {
-                            log.debug("Result for lookup resource \"{}\": {}", resourceName, queryResult);
-
-                            Model resultGraph = ModelFactory.createDefaultModel();
-                            QuerySolution solution;
-                            while((solution = queryResult.nextSolution()) != null){
-
-                                Statement statement = resultGraph.createStatement(
-                                        resultGraph.createResource(resourceName.toString()),
-                                        resultGraph.createProperty(solution.getResource("?p").getURI()),
-                                        solution.get("?o")
-                                );
-
-                                resultGraph.add(statement);
-                            }
-
-                            //Send expiring graph
-                            ExpiringGraph expiringGraph = new ExpiringGraph(resultGraph, new Date());
-                            ChannelFuture channelFuture = Channels.future(ctx.getChannel());
-                            Channels.write(ctx, channelFuture, expiringGraph, me.getRemoteAddress());
-                            channelFuture.addListener(ChannelFutureListener.CLOSE);
-                        }
-
-                        @Override
-                        public void onFailure(Throwable t) {
-                            HttpVersion httpVersion = ((HttpRequest) me.getMessage()).getProtocolVersion();
-                            HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
-                                    HttpResponseStatus.INTERNAL_SERVER_ERROR, t.getMessage());
-
-                            ChannelFuture channelFuture = Channels.future(ctx.getChannel());
-                            Channels.write(ctx, channelFuture, httpResponse, me.getRemoteAddress());
-
-                            channelFuture.addListener(ChannelFutureListener.CLOSE);
-                        }
-
-                    }, SemanticCache.this.ioExecutorService);
-                }
-
-                catch(Exception ex){
-                    HttpVersion httpVersion = ((HttpRequest) me.getMessage()).getProtocolVersion();
-                    HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
-                            HttpResponseStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
-
-                    ChannelFuture channelFuture = Channels.future(ctx.getChannel());
-                    Channels.write(ctx, channelFuture, httpResponse, me.getRemoteAddress());
-
-                    channelFuture.addListener(ChannelFutureListener.CLOSE);
-                }
-            }
-        });
-    }
 
 
-    private void graphRequestReceived(final ChannelHandlerContext ctx, final MessageEvent me, final URI graphName)
-            throws Exception{
+    private class ResourceRequestHandler implements Runnable{
 
-        log.debug("Lookup graph \"{}\".", graphName);
+        private URI resourceName;
+        private ChannelHandlerContext ctx;
+        private InetSocketAddress remoteAdress;
+        private HttpVersion httpVersion;
 
-        this.internalTasksExecutorService.execute(new Runnable(){
+        private ResourceRequestHandler(URI resourceName, ChannelHandlerContext ctx, MessageEvent me){
+            this.resourceName = resourceName;
+            this.ctx = ctx;
+            this.httpVersion = ((HttpRequest) me.getMessage()).getProtocolVersion();
+            this.remoteAdress = (InetSocketAddress) me.getRemoteAddress();
+        }
 
-            @Override
-            public void run() {
-
-                Futures.addCallback(getNamedGraph(graphName), new FutureCallback<ExpiringGraph>() {
+        @Override
+        public void run() {
+            try {
+                Query query = QueryFactory.create("SELECT ?p ?o WHERE {<" + resourceName + "> ?p ?o .}");
+                ListenableFuture<ResultSet> queryResultFuture = processSparqlQuery(query);
+                Futures.addCallback(queryResultFuture, new FutureCallback<ResultSet>() {
 
                     @Override
-                    public void onSuccess(ExpiringGraph expiringGraph) {
-                        if(expiringGraph == null){
-                            log.warn("Graph {} NOT FOUND in cache!", graphName);
-                            ctx.sendUpstream(me);
-                        }
-                        else{
-                            ChannelFuture future = Channels.future(ctx.getChannel());
-                            Channels.write(ctx, future, expiringGraph, me.getRemoteAddress());
+                    public void onSuccess(ResultSet queryResult) {
+                        LOG.debug("Result for lookup resource \"{}\": {}", resourceName, queryResult);
 
-                            future.addListener(ChannelFutureListener.CLOSE);
+                        Model resultGraph = ModelFactory.createDefaultModel();
+                        QuerySolution solution;
+                        while (queryResult.hasNext()) {
+                            solution = queryResult.nextSolution();
+                            Statement statement = resultGraph.createStatement(
+                                    resultGraph.createResource(resourceName.toString()),
+                                    resultGraph.createProperty(solution.getResource("?p").getURI()),
+                                    solution.get("?o")
+                            );
+
+                            resultGraph.add(statement);
                         }
+
+                        //Send expiring graph
+                        ExpiringGraph expiringGraph = new ExpiringGraph(resultGraph, new Date());
+                        ChannelFuture channelFuture = Channels.future(ctx.getChannel());
+                        Channels.write(ctx, channelFuture, expiringGraph, remoteAdress);
+                        channelFuture.addListener(ChannelFutureListener.CLOSE);
                     }
 
                     @Override
                     public void onFailure(Throwable t) {
-                        log.error("Error while inquiring graph \"{}\" in cache!", graphName, t);
+                        HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
+                                HttpResponseStatus.INTERNAL_SERVER_ERROR, t.getMessage());
+
+                        ChannelFuture channelFuture = Channels.future(ctx.getChannel());
+                        Channels.write(ctx, channelFuture, httpResponse, remoteAdress);
+
+                        channelFuture.addListener(ChannelFutureListener.CLOSE);
+                    }
+
+                }, ioTasksExecutor);
+            }
+            catch (Exception ex) {
+                ioTasksExecutor.execute(new Runnable(){
+
+                    @Override
+                    public void run() {
+                        HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
+                                HttpResponseStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+
+                        ChannelFuture channelFuture = Channels.future(ctx.getChannel());
+                        Channels.write(ctx, channelFuture, httpResponse, remoteAdress);
+
+                        channelFuture.addListener(ChannelFutureListener.CLOSE);
+                    }
+                });
+            }
+        }
+    }
+
+
+    private class GraphRequestHandler implements Runnable{
+
+        private URI graphName;
+        private final ChannelHandlerContext ctx;
+        private final MessageEvent me;
+
+        private GraphRequestHandler(URI graphName, ChannelHandlerContext ctx, MessageEvent me){
+            this.graphName = graphName;
+            this.ctx = ctx;
+            this.me = me;
+        }
+
+        @Override
+        public void run() {
+            LOG.debug("Lookup graph \"{}\".", graphName);
+            Futures.addCallback(getNamedGraph(graphName), new FutureCallback<ExpiringGraph>() {
+
+                @Override
+                public void onSuccess(ExpiringGraph expiringGraph) {
+                    if (expiringGraph == null) {
+                        LOG.warn("Graph \"{}\" NOT FOUND in cache!", graphName);
                         ctx.sendUpstream(me);
-                    }
+                    } else {
+                        ChannelFuture future = Channels.future(ctx.getChannel());
+                        Channels.write(ctx, future, expiringGraph, me.getRemoteAddress());
 
-                }, SemanticCache.this.ioExecutorService);
-            }
-        });
-    }
-
-
-    @Override
-    public void writeRequested(ChannelHandlerContext ctx, final MessageEvent me) {
-
-        try {
-            if(me.getMessage() instanceof DataOriginRegistration){
-                handleDataOriginRegistration((DataOriginRegistration) me.getMessage());
-            }
-
-            else if(me.getMessage() instanceof DataOriginDeregistration){
-                handleDataOriginDeregistration((DataOriginDeregistration) me.getMessage());
-            }
-
-            else if (me.getMessage() instanceof ExpiringNamedGraph) {
-                handleExpiringNamedGraph((ExpiringNamedGraph) me.getMessage());
-            }
-
-            else if (me.getMessage() instanceof InternalCacheUpdateTask){
-                handleInternalCacheUpdateTask((InternalCacheUpdateTask) me.getMessage());
-            }
-
-            else if (me.getMessage() instanceof InternalQueryRequest) {
-                handleQueryRequest((InternalQueryRequest) me.getMessage());
-            }
-
-//            else if (me.getMessage() instanceof QueryStringTask) {
-//                handleQueryStringTask((QueryStringTask) me.getMessage());
-//            }
-
-            ctx.sendDownstream(me);
-        }
-
-        catch (Exception e) {
-          log.error("Cache error! ", e);
-          me.getFuture().setFailure(e);
-        }
-    }
-
-    private void handleInternalCacheUpdateTask(final InternalCacheUpdateTask cacheUpdateTask){
-        ListenableFuture<Void> cacheUpdateFuture;
-
-        if(cacheUpdateTask.getExpiringNamedGraph() != null){
-            ExpiringNamedGraph expiringNamedGraph = cacheUpdateTask.getExpiringNamedGraph();
-            cacheUpdateFuture = putNamedGraphToCache(expiringNamedGraph.getGraphName(), expiringNamedGraph.getGraph());
-        }
-        else{
-            SensorValueUpdate sensorValueUpdate = cacheUpdateTask.getSensorValueUpdate();
-            cacheUpdateFuture = updateSensorValue(sensorValueUpdate.getSensorGraphName(), sensorValueUpdate.getValue());
-        }
-
-        Futures.addCallback(cacheUpdateFuture, new FutureCallback<Void>() {
-            @Override
-            public void onSuccess(Void result) {
-                cacheUpdateTask.getCacheUpdateFuture().set(null);
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                cacheUpdateTask.getCacheUpdateFuture().setException(t);
-            }
-        });
-
-    }
-
-
-    private void handleDataOriginRegistration(final DataOriginRegistration registration){
-        final URI graphName = registration.getDataOrigin().getGraphName();
-
-        //Check whether the desired graph name is already registered
-        ListenableFuture<Boolean> alreadyContainedFuture = containsNamedGraph(graphName);
-        Futures.addCallback(alreadyContainedFuture, new FutureCallback<Boolean>() {
-
-            @Override
-            public void onSuccess(Boolean alreadyContained) {
-                if(alreadyContained){
-                    log.warn("Graph \"{}\" was already contained in cache!", graphName);
-                    registration.getRegistrationFuture().setException(new GraphNameAlreadyExistsException(graphName));
-                }
-                else{
-                    log.debug("Graph \"{}\" not yet contained in cache!", graphName);
-
-                    //Add new graph with initial status to cache
-                    final Model status = registration.getInitialStatus();
-                    ListenableFuture<Void> insertionFuture = putNamedGraphToCache(graphName, status);
-                    Futures.addCallback(insertionFuture, new FutureCallback<Void>() {
-
-                        @Override
-                        public void onSuccess(Void result) {
-                            log.debug("Initial graph \"{}\" added to cache!", graphName);
-                            SettableFuture<?> registrationFuture = registration.getRegistrationFuture();
-                            registrationFuture.set(null);
-                        }
-
-                        @Override
-                        public void onFailure(Throwable t) {
-                            log.error("Could not add graph \"{}\" to cache!", graphName, t);
-                            registration.getRegistrationFuture().setException(t);
-                        }
-
-                    }, SemanticCache.this.internalTasksExecutorService);
-                }
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                log.error("Failed to register graph \"{}\"!", graphName, t);
-                registration.getRegistrationFuture().setException(t);
-            }
-
-        }, this.internalTasksExecutorService);
-    }
-
-    private void handleDataOriginDeregistration(final DataOriginDeregistration deregistration){
-        final URI graphName = deregistration.getDataOrigin().getGraphName();
-
-        //Delete the named graph from cache
-        final ListenableFuture<Void> deleteFuture = deleteNamedGraph(graphName);
-        Futures.addCallback(deleteFuture, new FutureCallback<Void>() {
-
-            @Override
-            public void onSuccess(Void result) {
-                log.info("Successfully deleted graph {} from cache!", graphName);
-
-                ScheduledFuture timeoutFuture = expiryFutures.remove(graphName);
-                if (timeoutFuture != null){
-                    if(timeoutFuture.cancel(false)){
-                        log.debug("Expiry for graph \"{}\" canceled.", graphName);
-                    }
-                    else{
-                        log.error("Failed to cancel expiry for graph \"{}\"!", graphName);
+                        future.addListener(ChannelFutureListener.CLOSE);
                     }
                 }
 
-                SettableFuture<?> deregistrationFuture = deregistration.getDeregistrationFuture();
-                deregistrationFuture.set(null);
-            }
+                @Override
+                public void onFailure(Throwable t) {
+                    LOG.error("Error while inquiring graph \"{}\" in cache!", graphName, t);
+                    ctx.sendUpstream(me);
+                }
 
-            @Override
-            public void onFailure(Throwable t) {
-                log.error("Failed to delete graph \"{}\" from cache!", graphName, t);
-                deregistration.getDeregistrationFuture().setException(t);
-            }
-        });
+            }, ioTasksExecutor);
+        }
     }
 
-    private void handleExpiringNamedGraph(final ExpiringNamedGraph expiringNamedGraph){
-//        internalTasksExecutorService.execute(new Runnable(){
-//
-//            @Override
-//            public void run() {
-                //Schedule new expiry
-                final URI graphName = expiringNamedGraph.getGraphName();
-                Date expiry = expiringNamedGraph.getExpiry();
-                scheduleNamedGraphExpiry(graphName,  expiry);
 
-                //Update cache
-                log.debug("Start put graph \"{}\" to cache.", graphName);
-                ListenableFuture<Void> updateFuture = putNamedGraphToCache(graphName, expiringNamedGraph.getGraph());
-
-                Futures.addCallback(updateFuture, new FutureCallback<Void>() {
-
-                    @Override
-                    public void onSuccess(Void result) {
-                        log.debug("Successfully put graph \"{}\" to cache ", graphName);
-                    }
-
-                    @Override
-                    public void onFailure(Throwable t) {
-                        log.error("Failed to put graph \"{}\" to cache!", graphName, t);
-                    }
-
-                }, SemanticCache.this.internalTasksExecutorService);
-//            }
-//        });
-    }
-
-    private void handleQueryRequest(final InternalQueryRequest queryRequest){
-        log.debug("Received Query Request: " + queryRequest.getQuery().toString(Syntax.syntaxSPARQL));
-        Query query = QueryFactory.create(queryRequest.getQuery());
-        ListenableFuture<ResultSet> queryResultFuture = processSparqlQuery(query.toString());
-        Futures.addCallback(queryResultFuture, new FutureCallback<ResultSet>() {
-
-            @Override
-            public void onSuccess(ResultSet resultSet) {
-                queryRequest.getResultSetFuture().set(resultSet);
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                queryRequest.getResultSetFuture().setException(t);
-            }
-
-        });
-    }
-
-//    private void handleQueryStringTask(final QueryStringTask queryTask){
-//        log.debug("Received Query Task: " + queryTask.getQuery());
-//        ListenableFuture<QueryResult> queryResultFuture = processSparqlQuery(queryTask.getQuery());
-//        Futures.addCallback(queryResultFuture, new FutureCallback<QueryResult>() {
-//
-//            @Override
-//            public void onSuccess(QueryResult result) {
-//                queryTask.getResultSetFuture().set(result.getResultSet());
-//            }
-//
-//            @Override
-//            public void onFailure(Throwable t) {
-//                queryTask.getResultSetFuture().setException(t);
-//            }
-//
-//        });
-//    }
 
     private void scheduleNamedGraphExpiry(final URI graphName, Date expiry) {
-        log.info("Received new status of {} (expiry: {})", graphName, expiry);
+        LOG.info("Received new status of {} (expiry: {})", graphName, expiry);
         Long startTime = System.currentTimeMillis();
-        log.debug("Schedule timeout for resource {}.", graphName);
+        LOG.debug("Schedule timeout for resource {}.", graphName);
 
         //Cancel old expiry (if existing)
-        ScheduledFuture timeoutFuture = expiryFutures.remove(graphName);
+        ScheduledFuture timeoutFuture = namedGraphExpiryFutures.remove(graphName);
         if (timeoutFuture != null)
             timeoutFuture.cancel(false);
 
-        log.debug("Canceled timeout after {} millis for resource {}", System.currentTimeMillis() - startTime,
+        LOG.debug("Canceled timeout after {} millis for resource {}", System.currentTimeMillis() - startTime,
                 graphName);
 
         //Set new expiry (if not null)
         if (expiry != null) {
-            expiryFutures.put(graphName, internalTasksExecutorService.schedule(new Runnable() {
+            namedGraphExpiryFutures.put(graphName, internalTasksExecutor.schedule(new Runnable() {
                 @Override
                 public void run() {
                     try {
                         deleteNamedGraph(graphName);
                     } catch (Exception e) {
-                        log.error("Could not delete resource {} from cache.", graphName, e);
+                        LOG.error("Could not delete resource {} from cache.", graphName, e);
                     }
                 }
             }, expiry.getTime() - System.currentTimeMillis() + DELAY_AFTER_EXPIRY_MILLIS, TimeUnit.MILLISECONDS));
@@ -496,7 +292,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * @return the {@link Model} containing the graph with the given name or <code>null</code> if no such graph is
      * contained in the cache.
      */
-    public abstract ListenableFuture<ExpiringGraph> getNamedGraph(URI graphName);
+    public abstract ListenableFuture<ExpiringNamedGraph> getNamedGraph(URI graphName);
 
 
     /**
@@ -533,11 +329,244 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * {@link SemanticCache} should override this method in order to support
      * SPAQRL queries.
      *
-     * @param sparqlQuery the {@link com.hp.hpl.jena.query.Query} to be processed.
+     * @param query the {@link com.hp.hpl.jena.query.Query} to be processed.
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with an instance of
      * {@link eu.spitfire.ssp.server.internal.messages.responses.AccessResult}.
      */
-    public abstract ListenableFuture<ResultSet> processSparqlQuery(String sparqlQuery);
+    public abstract ListenableFuture<ResultSet> processSparqlQuery(Query query);
+
+    @Override
+    public void writeRequested(ChannelHandlerContext ctx, final MessageEvent me) {
+
+        try {
+            if(me.getMessage() instanceof DataOriginRegistrationRequest){
+                DataOriginRegistrationRequest request = (DataOriginRegistrationRequest) me.getMessage();
+                DataOriginRegistrationTask task = new DataOriginRegistrationTask(request);
+                MoreExecutors.directExecutor().execute(task);
+            }
+
+            else if(me.getMessage() instanceof DataOriginDeregistrationRequest){
+                DataOriginDeregistrationRequest request = (DataOriginDeregistrationRequest) me.getMessage();
+                DataOriginDeregistrationTask task = new DataOriginDeregistrationTask(request);
+                MoreExecutors.directExecutor().execute(task);
+            }
+
+            else if (me.getMessage() instanceof ExpiringNamedGraph) {
+                ExpiringNamedGraph graph = (ExpiringNamedGraph) me.getMessage();
+                PutExpiringNamedGraphToCacheTask task = new PutExpiringNamedGraphToCacheTask(graph);
+                this.internalTasksExecutor.execute(task);
+            }
+
+            else if (me.getMessage() instanceof InternalCacheUpdateRequest){
+                handleInternalCacheUpdateTask((InternalCacheUpdateRequest) me.getMessage());
+            }
+
+            else if (me.getMessage() instanceof QueryProcessingRequest) {
+                QueryProcessingTask task = new QueryProcessingTask((QueryProcessingRequest) me.getMessage());
+                MoreExecutors.directExecutor().execute(task);
+            }
+
+            ctx.sendDownstream(me);
+        }
+
+        catch (Exception e) {
+          LOG.error("Cache error! ", e);
+          me.getFuture().setFailure(e);
+        }
+    }
+
+
+    private class DataOriginRegistrationTask implements Runnable{
+
+        private URI graphName;
+        private Model initialGraph;
+        private SettableFuture<?> registrationFuture;
+
+        private DataOriginRegistrationTask(DataOriginRegistrationRequest registrationRequest){
+            this.graphName = registrationRequest.getDataOrigin().getGraphName();
+            this.initialGraph = registrationRequest.getInitialStatus();
+            this.registrationFuture = registrationRequest.getRegistrationFuture();
+        }
+
+        @Override
+        public void run() {
+            //Check whether the desired graph name is already registered
+            ListenableFuture<Boolean> alreadyContainedFuture = containsNamedGraph(graphName);
+
+            //Deal with the result of the "already-contained" check...
+            Futures.addCallback(alreadyContainedFuture, new FutureCallback<Boolean>() {
+
+                @Override
+                public void onSuccess(Boolean alreadyContained) {
+                    if(alreadyContained){
+                        LOG.warn("Graph \"{}\" was already contained in cache!", graphName);
+                        registrationFuture.setException(new GraphNameAlreadyExistsException(graphName));
+                    }
+                    else{
+                        LOG.debug("Graph \"{}\" not yet contained in cache!", graphName);
+
+                        //Add new graph with initial status to cache
+                        ListenableFuture<Void> insertionFuture = putNamedGraphToCache(graphName, initialGraph);
+                        Futures.addCallback(insertionFuture, new FutureCallback<Void>() {
+
+                            @Override
+                            public void onSuccess(Void result) {
+                                LOG.debug("Initial graph \"{}\" added to cache!", graphName);
+                                registrationFuture.set(null);
+                            }
+
+                            @Override
+                            public void onFailure(Throwable throwable) {
+                                LOG.error("Could not add graph \"{}\" to cache!", graphName, throwable);
+                                registrationFuture.setException(throwable);
+                            }
+
+                        }, internalTasksExecutor);
+                    }
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    LOG.error("Failed to register graph \"{}\"!", graphName, t);
+                    registrationFuture.setException(t);
+                }
+
+            }, internalTasksExecutor);
+        }
+    }
+
+    private void handleInternalCacheUpdateTask(final InternalCacheUpdateRequest cacheUpdateTask){
+        ListenableFuture<Void> cacheUpdateFuture;
+
+        if(cacheUpdateTask.getExpiringNamedGraph() != null){
+            ExpiringNamedGraph expiringNamedGraph = cacheUpdateTask.getExpiringNamedGraph();
+            cacheUpdateFuture = putNamedGraphToCache(expiringNamedGraph.getGraphName(), expiringNamedGraph.getGraph());
+        }
+        else{
+            SensorValueUpdate sensorValueUpdate = cacheUpdateTask.getSensorValueUpdate();
+            cacheUpdateFuture = updateSensorValue(sensorValueUpdate.getSensorGraphName(), sensorValueUpdate.getValue());
+        }
+
+        Futures.addCallback(cacheUpdateFuture, new FutureCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                cacheUpdateTask.getCacheUpdateFuture().set(null);
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                cacheUpdateTask.getCacheUpdateFuture().setException(t);
+            }
+        });
+
+    }
+
+    private class DataOriginDeregistrationTask implements Runnable{
+
+        private URI graphName;
+        private SettableFuture<?> deregistrationFuture;
+
+        private DataOriginDeregistrationTask(DataOriginDeregistrationRequest deregistrationRequest){
+            this.graphName = deregistrationRequest.getDataOrigin().getGraphName();
+            this.deregistrationFuture = deregistrationRequest.getDeregistrationFuture();
+        }
+
+        @Override
+        public void run() {
+
+            //Delete the named graph from cache
+            final ListenableFuture<Void> deleteFuture = deleteNamedGraph(graphName);
+            Futures.addCallback(deleteFuture, new FutureCallback<Void>() {
+
+                @Override
+                public void onSuccess(Void result) {
+                    LOG.info("Successfully deleted graph {} from cache!", graphName);
+
+                    ScheduledFuture expiryFuture = namedGraphExpiryFutures.remove(graphName);
+                    if (expiryFuture != null){
+                        if(expiryFuture.cancel(false)){
+                            LOG.debug("Expiry for graph \"{}\" canceled.", graphName);
+                        }
+                        else{
+                            LOG.error("Failed to cancel expiry for graph \"{}\"!", graphName);
+                        }
+                    }
+
+                    deregistrationFuture.set(null);
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    LOG.error("Failed to delete graph \"{}\" from cache!", graphName, t);
+                    deregistrationFuture.setException(t);
+                }
+            }, internalTasksExecutor);
+        }
+    }
+
+    private class PutExpiringNamedGraphToCacheTask implements Runnable{
+
+        private final URI graphName;
+        private final Model graph;
+        private final Date expiry;
+
+        private PutExpiringNamedGraphToCacheTask(ExpiringNamedGraph expiringNamedGraph){
+            this.graphName = expiringNamedGraph.getGraphName();
+            this.graph = expiringNamedGraph.getGraph();
+            this.expiry = expiringNamedGraph.getExpiry();
+        }
+
+        @Override
+        public void run() {
+
+            //Update cache
+            LOG.debug("Start put graph \"{}\" to cache.", graphName);
+            ListenableFuture<Void> updateFuture = putNamedGraphToCache(graphName, graph);
+
+            Futures.addCallback(updateFuture, new FutureCallback<Void>() {
+
+                @Override
+                public void onSuccess(Void result) {
+                    scheduleNamedGraphExpiry(graphName,  expiry);
+                    LOG.info("Successfully put graph \"{}\" to cache ", graphName);
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    LOG.error("Failed to put graph \"{}\" to cache!", graphName, t);
+                }
+
+            }, getInternalTasksExecutor());
+        }
+    }
+
+    private class QueryProcessingTask implements Runnable{
+
+        private Query query;
+        private SettableFuture<ResultSet> queryResultFuture;
+
+        private QueryProcessingTask(QueryProcessingRequest request){
+            this.query = request.getQuery();
+            this.queryResultFuture = request.getResultSetFuture();
+        }
+
+        @Override
+        public void run() {
+            LOG.debug("Received Query Request: " + query.toString(Syntax.syntaxSPARQL));
+            Futures.addCallback(processSparqlQuery(query), new FutureCallback<ResultSet>() {
+
+                @Override
+                public void onSuccess(ResultSet resultSet) {
+                    queryResultFuture.set(resultSet);
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+                    queryResultFuture.setException(throwable);
+                }
+            }, MoreExecutors.directExecutor());
+        }
+    }
 }
 

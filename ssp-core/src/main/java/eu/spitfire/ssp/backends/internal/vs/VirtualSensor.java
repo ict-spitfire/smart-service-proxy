@@ -12,7 +12,7 @@ import com.hp.hpl.jena.update.UpdateFactory;
 import com.hp.hpl.jena.update.UpdateRequest;
 import eu.spitfire.ssp.backends.internal.se.SemanticEntity;
 import eu.spitfire.ssp.server.internal.messages.requests.InternalUpdateRequest;
-import eu.spitfire.ssp.server.internal.messages.requests.InternalQueryRequest;
+import eu.spitfire.ssp.server.internal.messages.requests.QueryProcessingRequest;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.Channels;
 import org.slf4j.Logger;
@@ -98,8 +98,8 @@ public class VirtualSensor extends SemanticEntity{
         @Override
         public void run() {
             SettableFuture<ResultSet> queryResultFuture = SettableFuture.create();
-            InternalQueryRequest internalQueryRequest = new InternalQueryRequest(query, queryResultFuture);
-            Channels.write(localChannel, internalQueryRequest);
+            QueryProcessingRequest queryProcessingRequest = new QueryProcessingRequest(query, queryResultFuture);
+            Channels.write(localChannel, queryProcessingRequest);
 
             //Await the result of the query execution
             Futures.addCallback(queryResultFuture, new FutureCallback<ResultSet>() {

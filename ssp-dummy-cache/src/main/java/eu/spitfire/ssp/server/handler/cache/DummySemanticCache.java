@@ -2,6 +2,7 @@ package eu.spitfire.ssp.server.handler.cache;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.RDFNode;
@@ -75,7 +76,7 @@ public class DummySemanticCache extends SemanticCache {
     }
 
     @Override
-    public ListenableFuture<ResultSet> processSparqlQuery(String sparqlQuery) {
+    public ListenableFuture<ResultSet> processSparqlQuery(Query query) {
         SettableFuture<ResultSet> resultFuture = SettableFuture.create();
         resultFuture.set(new ResultSetMem());
 

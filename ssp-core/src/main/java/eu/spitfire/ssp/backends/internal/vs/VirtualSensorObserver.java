@@ -11,7 +11,7 @@ import com.hp.hpl.jena.rdf.model.*;
 import eu.spitfire.ssp.server.internal.messages.responses.DataOriginInquiryResult;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.Observer;
-import eu.spitfire.ssp.server.internal.messages.requests.InternalQueryRequest;
+import eu.spitfire.ssp.server.internal.messages.requests.QueryProcessingRequest;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
 import org.jboss.netty.channel.Channels;
@@ -145,7 +145,7 @@ public class VirtualSensorObserver extends Observer<URI, VirtualSensor> {
             Query sparqlQuery = virtualSensor.getQuery();
             SettableFuture<ResultSet> queryResultFuture = SettableFuture.create();
             Channels.write(
-                    componentFactory.getLocalChannel(), new InternalQueryRequest(sparqlQuery, queryResultFuture)
+                    componentFactory.getLocalChannel(), new QueryProcessingRequest(sparqlQuery, queryResultFuture)
             );
 
             Futures.addCallback(queryResultFuture, new FutureCallback<ResultSet>() {

@@ -11,18 +11,18 @@ import com.hp.hpl.jena.query.ResultSet;
  *
  * @author Oliver Kleine
  */
-public class InternalQueryRequest {
+public class QueryProcessingRequest {
 
     private Query query;
     private SettableFuture<ResultSet> resultSetFuture;
 
     /**
-     * Creates a new instance of {@link InternalQueryRequest}
+     * Creates a new instance of {@link QueryProcessingRequest}
      * @param query the {@link com.hp.hpl.jena.query.Query} to be executed
      * @param resultSetFuture the {@link com.google.common.util.concurrent.SettableFuture} which
      *                        is set with the result of the query execution.
      */
-    public InternalQueryRequest(Query query, SettableFuture<ResultSet> resultSetFuture) {
+    public QueryProcessingRequest(Query query, SettableFuture<ResultSet> resultSetFuture) {
         this.query = query;
         this.resultSetFuture = resultSetFuture;
     }

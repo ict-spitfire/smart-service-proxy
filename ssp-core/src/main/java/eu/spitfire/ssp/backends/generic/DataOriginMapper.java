@@ -6,7 +6,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
-import eu.spitfire.ssp.server.internal.messages.requests.DataOriginRegistration;
+import eu.spitfire.ssp.server.internal.messages.requests.DataOriginRegistrationRequest;
 import eu.spitfire.ssp.server.internal.messages.responses.DataOriginAccessError;
 import eu.spitfire.ssp.server.internal.messages.responses.AccessResult;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
@@ -84,7 +84,7 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
 
 
     /**
-     * Handles instances of {@link eu.spitfire.ssp.server.internal.messages.requests.DataOriginRegistration}
+     * Handles instances of {@link eu.spitfire.ssp.server.internal.messages.requests.DataOriginRegistrationRequest}
      * @param ctx
      * @param me
      * @throws Exception
@@ -93,9 +93,9 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
     @SuppressWarnings("unchecked")
     public void writeRequested(final ChannelHandlerContext ctx, final MessageEvent me) throws Exception {
 
-        if(me.getMessage() instanceof DataOriginRegistration){
+        if(me.getMessage() instanceof DataOriginRegistrationRequest){
 
-            DataOriginRegistration<I, D> registration = (DataOriginRegistration<I, D>) me.getMessage();
+            DataOriginRegistrationRequest<I, D> registration = (DataOriginRegistrationRequest<I, D>) me.getMessage();
             SettableFuture<?> registrationFuture = registration.getRegistrationFuture();
 
             final D dataOrigin = registration.getDataOrigin();
