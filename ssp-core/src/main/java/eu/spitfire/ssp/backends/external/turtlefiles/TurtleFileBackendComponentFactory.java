@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.external.n3files;
+package eu.spitfire.ssp.backends.external.turtlefiles;
 
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import org.apache.commons.configuration.Configuration;
@@ -14,12 +14,12 @@ import java.util.concurrent.ScheduledExecutorService;
 /**
  * Created by olli on 11.04.14.
  */
-public class N3FileBackendComponentFactory extends BackendComponentFactory<Path, N3File> {
+public class TurtleFileBackendComponentFactory extends BackendComponentFactory<Path, TurtleFile> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private N3FileAccessor n3FileAccessor;
-    private N3FileObserver n3FileObserver;
+    private TurtleFileAccessor turtleFileAccessor;
+    private TurtleFileObserver turtleFileObserver;
     private Path directoryPath;
 
     /**
@@ -31,42 +31,42 @@ public class N3FileBackendComponentFactory extends BackendComponentFactory<Path,
      *
      * @throws Exception if something went terribly wrong
      */
-    public N3FileBackendComponentFactory(Configuration config, LocalServerChannel localChannel,
-                                         ScheduledExecutorService backendTasksExecutorService, ExecutorService ioExecutorService) throws Exception {
+    public TurtleFileBackendComponentFactory(Configuration config, LocalServerChannel localChannel,
+                                             ScheduledExecutorService backendTasksExecutorService, ExecutorService ioExecutorService) throws Exception {
 
-        super("n3files", config, localChannel, backendTasksExecutorService, ioExecutorService);
-        this.directoryPath = new File(config.getString("n3files.directory")).toPath();
+        super("turtlefiles", config, localChannel, backendTasksExecutorService, ioExecutorService);
+        this.directoryPath = new File(config.getString("turtlefiles.directory")).toPath();
     }
 
 
     @Override
     public void initialize() throws Exception{
-        this.n3FileAccessor = new N3FileAccessor(this);
-        this.n3FileObserver = new N3FileObserver(this);
-        new N3FileWatcher(this).startFileWatching(directoryPath);
+        this.turtleFileAccessor = new TurtleFileAccessor(this);
+        this.turtleFileObserver = new TurtleFileObserver(this);
+        new TurtleFileWatcher(this).startFileWatching(directoryPath);
     }
 
 
     @Override
-    public N3FileObserver getObserver(N3File dataOrigin) {
-        return this.n3FileObserver;
+    public TurtleFileObserver getObserver(TurtleFile dataOrigin) {
+        return this.turtleFileObserver;
     }
 
 
     @Override
-    public N3FileAccessor getAccessor(N3File dataOrigin) {
-        return this.n3FileAccessor;
+    public TurtleFileAccessor getAccessor(TurtleFile dataOrigin) {
+        return this.turtleFileAccessor;
     }
 
     @Override
-    public N3FileRegistry getRegistry() {
-        return (N3FileRegistry) super.getRegistry();
+    public TurtleFileRegistry getRegistry() {
+        return (TurtleFileRegistry) super.getRegistry();
     }
 
 
     @Override
-    public N3FileRegistry createRegistry(Configuration config) throws Exception {
-        return new N3FileRegistry(this);
+    public TurtleFileRegistry createRegistry(Configuration config) throws Exception {
+        return new TurtleFileRegistry(this);
     }
 
 

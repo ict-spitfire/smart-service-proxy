@@ -2,7 +2,7 @@ package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import eu.spitfire.ssp.backends.external.coap.CoapBackendComponentFactory;
-import eu.spitfire.ssp.backends.external.n3files.N3FileBackendComponentFactory;
+import eu.spitfire.ssp.backends.external.turtlefiles.TurtleFileBackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.internal.se.SemanticEntityBackendComponentFactory;
 import eu.spitfire.ssp.backends.internal.vs.VirtualSensorBackendComponentFactory;
@@ -106,7 +106,7 @@ public abstract class Initializer {
             componentFactory.createComponents(config);
         }
 
-        log.info("SSP succesfully started!");
+        log.info("SSP successfully started!");
     }
 
 
@@ -115,8 +115,7 @@ public abstract class Initializer {
         int threads = this.config.getInt("ssp.threads.internal", 0);
 
         //Scheduled Executor Service for management tasks, i.e. everything that is not I/O
-        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP Internal Thread #%d")
-                .build();
+        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP Internal Thread #%d").build();
 
         int threadCount = Math.max(Runtime.getRuntime().availableProcessors() * 2, threads);
 
@@ -131,8 +130,7 @@ public abstract class Initializer {
 
         int threadCount = Math.max(Runtime.getRuntime().availableProcessors() * 2, threads);
 
-        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP I/O Thread #%d")
-                .build();
+        ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("SSP I/O Thread #%d").build();
 
         this.ioExecutor = new OrderedMemoryAwareThreadPoolExecutor(threadCount, 0, 0, 60, TimeUnit.SECONDS,
                 threadFactory);
@@ -177,12 +175,12 @@ public abstract class Initializer {
                 this.config, localChannel, this.internalTasksExecutor, this.ioExecutor)
         );
 
-        //Add N3 file backend
-        if(this.config.getBoolean("n3files.enabled", false)){
+        //Add Turtle file backend
+        if(this.config.getBoolean("turtlefiles.enabled", false)){
             localPipeline = internalPipelineFactory.getPipeline();
             localChannel = localChannelFactory.newChannel(localPipeline);
 
-            this.componentFactories.add(new N3FileBackendComponentFactory(
+            this.componentFactories.add(new TurtleFileBackendComponentFactory(
                     this.config, localChannel, this.internalTasksExecutor, this.ioExecutor)
             );
         }

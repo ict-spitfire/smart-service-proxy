@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.external.n3files;
+package eu.spitfire.ssp.backends.external.turtlefiles;
 
 import eu.spitfire.ssp.backends.generic.Registry;
 
@@ -7,9 +7,9 @@ import java.nio.file.Path;
 /**
  * Created by olli on 13.04.14.
  */
-public class N3FileRegistry extends Registry<Path, N3File> {
+public class TurtleFileRegistry extends Registry<Path, TurtleFile> {
 
-    public N3FileRegistry(N3FileBackendComponentFactory componentFactory) throws Exception {
+    public TurtleFileRegistry(TurtleFileBackendComponentFactory componentFactory) throws Exception {
         super(componentFactory);
     }
 

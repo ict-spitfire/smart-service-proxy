@@ -7,7 +7,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryFactory;
 import com.hp.hpl.jena.rdf.model.Model;
-import de.uniluebeck.itm.xsd.vs.tools.VirtualSensorsUnmarshaller;
+import de.uzl.itm.ssp.jaxb4vs.tools.VirtualSensorsUnmarshaller;
 import eu.spitfire.ssp.backends.internal.vs.VirtualSensorBackendComponentFactory;
 import eu.spitfire.ssp.backends.internal.vs.VirtualSensor;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
@@ -40,7 +40,6 @@ public class VirtualSensorBatchCreator extends AbstractVirtualSensorCreator {
     public VirtualSensorBatchCreator(VirtualSensorBackendComponentFactory componentFactory){
         super(
                 componentFactory,
-                "http://" + componentFactory.getSspHostName() + "/virtual-sensor",
                 "html/semantic-entities/virtual-sensor-batch-creation.html"
         );
     }
@@ -50,32 +49,28 @@ public class VirtualSensorBatchCreator extends AbstractVirtualSensorCreator {
             throws Exception {
 
         InputStream xmlInputStream = getXMLInputStream(httpRequest);
-        final List<de.uniluebeck.itm.xsd.vs.jaxb.VirtualSensor> virtualSensors =
+        final List<de.uzl.itm.ssp.jaxb4vs.jaxb.VirtualSensor> virtualSensors =
                 VirtualSensorsUnmarshaller.unmarshal(xmlInputStream).getVirtualSensors();
 
         final Map<URI, ListenableFuture<Void>> registrationFutures = new LinkedHashMap<>(virtualSensors.size());
 
         //Register all semantic entities one by one
-        for(de.uniluebeck.itm.xsd.vs.jaxb.VirtualSensor jaxbVirtualSensor : virtualSensors){
+        for(de.uzl.itm.ssp.jaxb4vs.jaxb.VirtualSensor vs : virtualSensors){
 
-            String sensorName = jaxbVirtualSensor.getSensorName();
-            final URI graphName =  new URI("http://example.org/virtual-sensors#" + sensorName);
-            Query query = QueryFactory.create(jaxbVirtualSensor.getQuery());
+            String sensorName = vs.getName();
+            String sensorType = vs.getType();
+            URI foi = new URI(vs.getFoi());
+            Query query = QueryFactory.create(vs.getQuery());
 
-            final VirtualSensor virtualSensor = new VirtualSensor(graphName, query);
+            final URI graphName =  createGraphName(sensorName);
 
-            ListenableFuture<Model> initialStatusFuture = addSensorValueToModel(
-                    sensorName, createModel(jaxbVirtualSensor.getOntology()), query
-            );
+            ListenableFuture<Void> creationFuture = createVirtualSensor(sensorName, sensorType, foi, query);
 
-            Futures.addCallback(initialStatusFuture, new FutureCallback<Model>() {
+            Futures.addCallback(creationFuture, new FutureCallback<Void>() {
                 @Override
-                public void onSuccess(Model initialStatus) {
-                    ExpiringNamedGraph expiringNamedGraph = new ExpiringNamedGraph(graphName, initialStatus);
-                    registrationFutures.put(
-                            virtualSensor.getGraphName(),
-                            getVirtualSensorRegistry().registerDataOrigin(virtualSensor, expiringNamedGraph)
-                    );
+                public void onSuccess(Void v) {
+                    //ExpiringNamedGraph expiringNamedGraph = new ExpiringNamedGraph(graphName, initialStatus);
+                    registrationFutures.put(graphName, creationFuture);
 
                     if(registrationFutures.size() == virtualSensors.size()){
                         sendRegistrationResult(registrationFutures, channel, httpRequest, clientAddress);

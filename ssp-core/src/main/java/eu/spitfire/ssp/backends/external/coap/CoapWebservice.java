@@ -5,7 +5,7 @@ import eu.spitfire.ssp.backends.generic.DataOrigin;
 import java.net.URI;
 
 /**
- * Wrapper class to make external CoAP Web Services that act as data origins for the SSPs cache.
+ * Wrapper class to make external CoAP Web Services act as data origins for the SSPs cache.
  *
  * @author Oliver Kleine
  */
@@ -42,5 +42,10 @@ public class CoapWebservice extends DataOrigin<URI> {
 
         CoapWebservice other = (CoapWebservice) object;
         return this.getIdentifier().equals(other.getIdentifier());
+    }
+
+    @Override
+    public boolean shutdown() {
+        return true;
     }
 }

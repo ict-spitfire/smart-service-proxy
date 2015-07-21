@@ -56,7 +56,7 @@ import java.util.Arrays;
  */
 public class HttpSemanticPayloadFormatter extends SimpleChannelHandler {
 
-    public static final Language DEFAULT_LANGUAGE = Language.RDF_XML;
+    public static final Language DEFAULT_LANGUAGE = Language.RDF_TURTLE;
     public static final QueryResultFormat DEFAULT_SPARQL_RESULT_FORMAT = QueryResultFormat.XML;
 
     private static final int RDF_FORMAT = 1;

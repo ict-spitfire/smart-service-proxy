@@ -44,4 +44,9 @@ public class SemanticEntity extends DataOrigin<URI> {
         SemanticEntity other = (SemanticEntity) object;
         return other.getGraphName().equals(this.getGraphName());
     }
+
+    @Override
+    public boolean shutdown() {
+        return true;
+    }
 }

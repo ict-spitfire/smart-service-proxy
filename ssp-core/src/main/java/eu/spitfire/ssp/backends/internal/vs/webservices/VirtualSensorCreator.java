@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,18 +37,14 @@ import java.util.Map;
 public class VirtualSensorCreator extends AbstractVirtualSensorCreator {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
-    private LocalServerChannel localChannel;
-    private VirtualSensorRegistry registry;
+//    private LocalServerChannel localChannel;
+//    private VirtualSensorRegistry registry;
 
     public VirtualSensorCreator(VirtualSensorBackendComponentFactory componentFactory){
-        super(
-                componentFactory,
-                "http://" + componentFactory.getSspHostName() + "/virtual-sensor",
-                "html/semantic-entities/virtual-sensor-creation.html"
-        );
+        super(componentFactory, "html/semantic-entities/virtual-sensor-creation.html");
 
-        this.localChannel = componentFactory.getLocalChannel();
-        this.registry = componentFactory.getRegistry();
+//        this.localChannel = componentFactory.getLocalChannel();
+//        this.registry = componentFactory.getRegistry();
     }
 
 
@@ -76,133 +73,81 @@ public class VirtualSensorCreator extends AbstractVirtualSensorCreator {
 
         HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(httpRequest);
 
-        Query sparqlQuery = QueryFactory.create(((MixedAttribute) decoder.getBodyHttpData("query")).getValue());
-        Model model = createModel(((MixedAttribute) decoder.getBodyHttpData("ontology")).getValue());
+        Query query = QueryFactory.create(((MixedAttribute) decoder.getBodyHttpData("query")).getValue());
+        //Model model = createModel(((MixedAttribute) decoder.getBodyHttpData("ontology")).getValue());
         String sensorName = ((MixedAttribute) decoder.getBodyHttpData("sensorName")).getValue();
+        String sensorType = ((MixedAttribute) decoder.getBodyHttpData("sensorType")).getValue();
+        URI foi = new URI(((MixedAttribute) decoder.getBodyHttpData("foi")).getValue());
         String buttonID = ((MixedAttribute) decoder.getBodyHttpData("button")).getValue();
 
         if("btnTest".equals(buttonID)){
-            handlePostTestRequest(httpResponseFuture, sensorName, model, sparqlQuery, httpRequest.getProtocolVersion());
+            handlePostTestRequest(httpResponseFuture, sensorName, sensorType, foi, query, httpRequest.getProtocolVersion());
         }
 
         else if("btnCreate".equals(buttonID)){
-            handlePostCreationRequest(httpResponseFuture, sensorName, model, sparqlQuery, httpRequest.getProtocolVersion());
+            handlePostCreationRequest(httpResponseFuture, sensorName, sensorType, foi, query, httpRequest.getProtocolVersion());
         }
     }
 
 
+
+
     private void handlePostCreationRequest(final SettableFuture<HttpResponse> httpResponseFuture, final String sensorName,
-                                           final Model model, final Query sparqlQuery, final HttpVersion httpVersion)
+            final String sensorType, final URI foi,  final Query query, final HttpVersion httpVersion)
             throws Exception{
 
-        final URI graphName = new URI("http://example.org/virtual-sensors#" + sensorName);
+//        Model model = createModel(sensorName, sensorType, foi);
+        final URI graphName = createGraphName(sensorName);
 
-        //Add sensor value to model
-        ListenableFuture<Model> initialStatusFuture = addSensorValueToModel(sensorName, model, sparqlQuery);
-        Futures.addCallback(initialStatusFuture, new FutureCallback<Model>() {
+        ListenableFuture<Void> registrationFuture = createVirtualSensor(sensorName, sensorType, foi, query);
+
+        Futures.addCallback(registrationFuture, new FutureCallback<Void>() {
             @Override
-            public void onSuccess(Model model) {
-                //Register virtual sensor
-                final VirtualSensor virtualSensor = new VirtualSensor(graphName, sparqlQuery, localChannel, getInternalTasksExecutor());
-                final ExpiringNamedGraph initialStatus = new ExpiringNamedGraph(graphName, model);
+            public void onSuccess(Void result) {
+                Map<String, String> content = new HashMap<>();
 
-                ListenableFuture<Void> registrationFuture = registry.registerDataOrigin(virtualSensor, initialStatus);
-                Futures.addCallback(registrationFuture, new FutureCallback<Void>() {
-                    @Override
-                    public void onSuccess(Void result) {
-                        Map<String, String> content = new HashMap<>();
+                content.put("graphName", graphName.toASCIIString());
+                content.put("regResult", "OK");
 
-                        content.put("graphName", virtualSensor.getGraphName().toASCIIString());
-                        content.put("regResult", "OK");
-
-                        httpResponseFuture.set(HttpResponseFactory.createHttpJsonResponse(httpVersion, content));
-                    }
-
-                    @Override
-                    public void onFailure(Throwable t) {
-                        Map<String, String> result = new HashMap<>();
-
-                        result.put("graphName", virtualSensor.getGraphName().toASCIIString());
-                        result.put("regResult", "OK");
-
-                        httpResponseFuture.set(HttpResponseFactory.createHttpJsonResponse(httpVersion, result));
-                    }
-                });
-
-//                registerVirtualSensor(virtualSensor, model, httpResponseFuture, httpVersion);
+                httpResponseFuture.set(HttpResponseFactory.createHttpJsonResponse(httpVersion, content));
             }
 
             @Override
             public void onFailure(Throwable t) {
-                httpResponseFuture.setException(t);
+                Map<String, String> result = new HashMap<>();
+
+                result.put("graphName", graphName.toASCIIString());
+                result.put("regResult", "OK");
+
+                httpResponseFuture.set(HttpResponseFactory.createHttpJsonResponse(httpVersion, result));
             }
         });
     }
 
 
-//    private void registerVirtualSensor(final VirtualSensor virtualSensor, final Model initialStatus,
-//                                       final SettableFuture<HttpResponse> httpResponseFuture,
-//                                       final HttpVersion httpVersion){
-//
-//
-//        Futures.addCallback(this.registry.registerDataOrigin(virtualSensor), new FutureCallback<Void>() {
-//            @Override
-//            public void onSuccess(Void pVoid) {
-//                try{
-//                    //Cache initial status
-//                    ExpiringNamedGraph statusMessage = new ExpiringNamedGraph(
-//                            virtualSensor.getGraphName(), initialStatus
-//                    );
-//
-//                    ChannelFuture future = Channels.write(localChannel, statusMessage);
-//
-//                    Map<String, String> result = new HashMap<>();
-//
-//                    result.put("graphName", virtualSensor.getGraphName().toASCIIString());
-//                    result.put("regResult", "OK");
-//
-//                    httpResponseFuture.set(
-//                            HttpResponseFactory.createHttpJsonResponse(httpVersion, result)
-//                    );
-//                }
-//
-//                catch(Exception ex){
-//                    HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
-//                            HttpResponseStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
-//
-//                    httpResponseFuture.set(httpResponse);
-//                }
-//            }
-//
-//            @Override
-//            public void onFailure(Throwable t) {
-//                HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(
-//                        httpVersion, HttpResponseStatus.UNPROCESSABLE_ENTITY, t.getMessage()
-//                );
-//
-//                httpResponseFuture.set(httpResponse);
-//            }
-//        });
-//    }
-
 
     private void handlePostTestRequest(final SettableFuture<HttpResponse> httpResponseFuture, final String sensorName,
-            final Model model, final Query sparqlQuery, final HttpVersion httpVersion) throws Exception{
+            final String sensorType, final URI foi, final Query query, final HttpVersion httpVersion) throws Exception{
+
+        Model model = createModel(sensorName, sensorType, foi);
+        final URI graphName = createGraphName(sensorName);
 
         final long startTime = System.currentTimeMillis();
 
-        Futures.addCallback(addSensorValueToModel(sensorName, model, sparqlQuery), new FutureCallback<Model>() {
+        ListenableFuture<Model> modelFuture = addSensorValueToModel(graphName, model, query);
+
+        Futures.addCallback(modelFuture, new FutureCallback<Model>() {
             @Override
             public void onSuccess(Model model) {
                 HttpResponse httpResponse;
 
                 try{
-                    StringWriter n3Writer = new StringWriter();
-                    model.write(n3Writer, Language.RDF_N3.lang);
+                    StringWriter writer = new StringWriter();
+                    model.write(writer, Language.RDF_TURTLE.lang);
 
                     Map<String, String> result = new HashMap<>();
 
-                    result.put("sensorStatus", n3Writer.toString());
+                    result.put("sensorStatus", writer.toString());
                     result.put("duration", String.valueOf(System.currentTimeMillis() - startTime));
 
                     httpResponse = HttpResponseFactory.createHttpJsonResponse(httpVersion, result);
@@ -219,7 +164,7 @@ public class VirtualSensorCreator extends AbstractVirtualSensorCreator {
 
             @Override
             public void onFailure(Throwable t) {
-                log.warn("Exception while executing SPARQL query: {}", sparqlQuery, t);
+                log.error("Exception while executing SPARQL query: {}", query, t);
 
                 HttpResponse httpResponse;
 
@@ -231,7 +176,7 @@ public class VirtualSensorCreator extends AbstractVirtualSensorCreator {
                 catch (Exception e) {
                     log.error("This should never happen.", e);
                     httpResponse = HttpResponseFactory.createHttpResponse(httpVersion,
-                            HttpResponseStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+                            HttpResponseStatus.INTERNAL_SERVER_ERROR, e.getMessage() == null ? e.toString() : e.getMessage());
                 }
 
                 httpResponseFuture.set(httpResponse);

@@ -53,8 +53,8 @@
     $(document).ready(function(){
 
         var formData = new FormData();
-        //formData.append('query', 'SELECT DISTINCT ?g WHERE { GRAPH ?g {?s ?p ?o} } ORDER BY ASC(?g)');
-        formData.append('query', 'SELECT DISTINCT ?s WHERE {?s ?p ?o} ORDER BY ASC(?s)');
+        formData.append('query', 'SELECT DISTINCT ?g WHERE { GRAPH ?g {?s ?p ?o} } ORDER BY ASC(?g)');
+        //formData.append('query', 'SELECT DISTINCT ?s WHERE {?s ?p ?o} ORDER BY ASC(?s)');
 
         $.ajax({
             type: "POST",
@@ -71,9 +71,9 @@
                 var parsedJSON = JSON.parse(e);
                 var seListContent = '';
                 parsedJSON['results']['bindings'].forEach(function(graph){
-                    var graphName = graph['s']['value'];
+                    var graphName = graph['g']['value'];
                     seListContent += '<tr>\
-                            <td><a href="/?resource=' + encodeURIComponent(graphName) + '">' + graphName + '</a></td>\
+                            <td><a href="/?graph=' + encodeURIComponent(graphName) + '">' + graphName + '</a></td>\
                             <td>\
                                 <div class="ui small icon button"><i class="edit icon"></i></div>\
                                 <div class="ui small red icon button"><i class="trash icon"></i></div>\

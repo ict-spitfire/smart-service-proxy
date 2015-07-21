@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.external.n3files;
+package eu.spitfire.ssp.backends.external.turtlefiles;
 
 import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backends.generic.Observer;
@@ -10,15 +10,15 @@ import java.nio.file.Path;
  *
  * @author Oliver Kleine
  */
-public class N3FileObserver extends Observer<Path, N3File> {
+public class TurtleFileObserver extends Observer<Path, TurtleFile> {
 
-    public N3FileObserver(BackendComponentFactory<Path, N3File> componentFactory) {
+    public TurtleFileObserver(BackendComponentFactory<Path, TurtleFile> componentFactory) {
         super(componentFactory);
     }
 
 
     @Override
-    public void startObservation(N3File dataOrigin) {
+    public void startObservation(TurtleFile dataOrigin) {
         //nothing to do (all files in the directory are automatically observed)
     }
 }

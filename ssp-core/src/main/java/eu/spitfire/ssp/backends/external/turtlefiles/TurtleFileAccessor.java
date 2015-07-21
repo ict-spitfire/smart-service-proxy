@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.external.n3files;
+package eu.spitfire.ssp.backends.external.turtlefiles;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -20,24 +20,24 @@ import java.nio.file.Path;
 
 
 /**
- * A {@link N3FileAccessor} is the component to read RDF data from local N3 n3files.
+ * A {@link TurtleFileAccessor} is the component to read RDF data from local turtle files.
  *
  * @author Oliver Kleine
  */
-public class N3FileAccessor extends Accessor<Path, N3File> {
+public class TurtleFileAccessor extends Accessor<Path, TurtleFile> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private String sspHost;
 
-    public N3FileAccessor(N3FileBackendComponentFactory componentFactory) {
+    public TurtleFileAccessor(TurtleFileBackendComponentFactory componentFactory) {
         super(componentFactory);
         this.sspHost = this.getComponentFactory().getSspHostName();
     }
 
 
     @Override
-    public ListenableFuture<DataOriginInquiryResult> getStatus(N3File dataOrigin){
+    public ListenableFuture<DataOriginInquiryResult> getStatus(TurtleFile dataOrigin){
         SettableFuture<DataOriginInquiryResult> statusFuture = SettableFuture.create();
 
         try{
@@ -49,7 +49,7 @@ public class N3FileAccessor extends Accessor<Path, N3File> {
                 BufferedReader fileReader = new BufferedReader(new FileReader(dataOrigin.getIdentifier().toString()));
 
                 Model model = ModelFactory.createDefaultModel();
-                model.read(fileReader, null, Language.RDF_N3.lang);
+                model.read(fileReader, null, Language.RDF_TURTLE.lang);
 
                 URI graphName = new URI("file", null, sspHost, -1, dataOrigin.getIdentifier().toString(), null, null);
 

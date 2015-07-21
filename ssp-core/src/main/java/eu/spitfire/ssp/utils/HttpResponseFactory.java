@@ -7,6 +7,9 @@ import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.hp.hpl.jena.rdf.model.Model;
 import eu.spitfire.ssp.server.internal.messages.responses.EmptyAccessResult;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.riot.RDFFormat;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferOutputStream;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -124,16 +127,20 @@ public class HttpResponseFactory {
     public static HttpResponse createHttpResponse(HttpVersion version, Language language, ExpiringGraph expiringGraph){
 
         Model model = expiringGraph.getGraph();
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        StringWriter writer = new StringWriter();
+        model.write(writer, language.lang);
+
+        //ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
         log.info("Model to be serialized{}", model);
 
         //Serialize the model associated with the resource and write on OutputStream
-        model.write(byteArrayOutputStream, language.lang);
+        //model.write(byteArrayOutputStream, language.lang);
+        //RDFDataMgr.write(byteArrayOutputStream, model, Lang.RDFXML);
 
         HttpResponse httpResponse = new DefaultHttpResponse(version, OK);
 
-        ChannelBuffer payload = ChannelBuffers.wrappedBuffer(byteArrayOutputStream.toByteArray());
+        ChannelBuffer payload = ChannelBuffers.wrappedBuffer(writer.toString().getBytes(Charset.forName("UTF-8")));
         httpResponse.setContent(payload);
 
         //Set HTTP response headers

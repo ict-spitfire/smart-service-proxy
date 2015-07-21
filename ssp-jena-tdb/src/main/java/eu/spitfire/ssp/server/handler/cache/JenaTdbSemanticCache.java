@@ -4,13 +4,13 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.ontology.OntModel;
 import com.hp.hpl.jena.query.*;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.RDFNode;
+import com.hp.hpl.jena.rdf.model.*;
 import com.hp.hpl.jena.reasoner.Reasoner;
+import com.hp.hpl.jena.shared.Lock;
 import com.hp.hpl.jena.shared.impl.JenaParameters;
 import com.hp.hpl.jena.tdb.TDB;
 import com.hp.hpl.jena.tdb.TDBFactory;
+import com.hp.hpl.jena.update.*;
 import eu.spitfire.ssp.server.handler.SemanticCache;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
@@ -44,6 +44,8 @@ import java.util.concurrent.ScheduledExecutorService;
 */
 public class JenaTdbSemanticCache extends SemanticCache {
 
+    private static Logger log = LoggerFactory.getLogger(JenaTdbSemanticCache.class.getName());
+
 	private static final String SPT_SOURCE = "http://spitfire-project.eu/ontology.rdf";
 	private static final String SPTSN_SOURCE = "http://spitfire-project.eu/sn.rdf";
 	private static final String RULE_FILE_PROPERTY_KEY = "RULE_FILE";
@@ -52,7 +54,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
 	private static OntModel ontologyBaseModel = null;
 
-	private Logger log = LoggerFactory.getLogger(this.getClass().getName());
+
 
     private Dataset dataset;
 
@@ -80,22 +82,22 @@ public class JenaTdbSemanticCache extends SemanticCache {
             }
         }
 
-		Dataset tmpDataset = TDBFactory.createDataset(dbDirectory.toString());
+		dataset = TDBFactory.createDataset(dbDirectory.toString());
 		TDB.getContext().set(TDB.symUnionDefaultGraph, true);
 
 
-        try{
-            EntityDefinition entityDefinition = new EntityDefinition("entityField", "geoField");
-            entityDefinition.setSpatialContextFactory(SpatialQuery.JTS_SPATIAL_CONTEXT_FACTORY_CLASS);
-
-            SpatialQuery.init();
-            Directory dir = FSDirectory.open(spatialIndexDirectory.toFile());
-            dataset = SpatialDatasetFactory.createLucene(tmpDataset, dir, entityDefinition);
-        }
-
-        catch (IOException e) {
-            log.error("This should never happen.", e);
-        }
+//        try{
+//            EntityDefinition entityDefinition = new EntityDefinition("entityField", "geoField");
+//            entityDefinition.setSpatialContextFactory(SpatialQuery.JTS_SPATIAL_CONTEXT_FACTORY_CLASS);
+//
+//            SpatialQuery.init();
+//            Directory dir = FSDirectory.open(spatialIndexDirectory.toFile());
+//            dataset = SpatialDatasetFactory.createLucene(tmpDataset, dir, entityDefinition);
+//        }
+//
+//        catch (IOException e) {
+//            log.error("This should never happen.", e);
+//        }
 
 		//Collect the SPITFIRE vocabularies
 //		if (ontologyBaseModel == null) {
@@ -245,25 +247,31 @@ public class JenaTdbSemanticCache extends SemanticCache {
         SettableFuture<Void> resultFuture = SettableFuture.create();
 
         try {
-            dataset.begin(ReadWrite.WRITE);
+            //dataset.begin(ReadWrite.WRITE);
 
-			Model model = dataset.getNamedModel(graphName.toString());
-			model.removeAll();
-//			model.add(ModelFactory.createInfModel(reasoner, namedGraph));
-            model.add(namedGraph);
-//            InfModel im = ModelFactory.createInfModel(reasoner, resourceStatus);
-//			InfModel im = ModelFactory.createInfModel(reasoner, resourceStatus);
-			// force starting the rule execution
-//			im.prepare();
-//			model.add(im);
-			dataset.commit();
-			log.debug("Added status for resource {}", graphName);
+//            long start = System.currentTimeMillis();
+//
+//			Model model = dataset.getNamedModel(graphName.toString());
+//			model.removeAll();
+////			model.add(ModelFactory.createInfModel(reasoner, namedGraph));
+//            model.add(namedGraph);
+////            InfModel im = ModelFactory.createInfModel(reasoner, resourceStatus);
+////			InfModel im = ModelFactory.createInfModel(reasoner, resourceStatus);
+//			// force starting the rule execution
+////			im.prepare();
+////			model.add(im);
+//			dataset.commit();
+//            log.info("Deleted old and inserted new graph \"{}\" ({} ms)", graphName, System.currentTimeMillis() - start);
+//			log.debug("Added status for resource {}", graphName);
+
+			putNamedGraphToCache2(graphName, namedGraph);
 
             resultFuture.set(null);
             return resultFuture;
 		}
 
         catch(Exception ex){
+			//dataset.end();
             resultFuture.setException(ex);
             return resultFuture;
         }
@@ -271,6 +279,62 @@ public class JenaTdbSemanticCache extends SemanticCache {
         finally {
 			dataset.end();
 		}
+	}
+
+	private void putNamedGraphToCache2(URI graphName, Model graph) throws Exception{
+
+		long start = System.currentTimeMillis();
+
+		//GraphStore graphStore = GraphStoreFactory.create(dataset) ;
+
+		//delete old triples
+		UpdateRequest request = UpdateFactory.create();
+		request.add(createDeleteQuery(graphName));
+		request.add(createInsertQuery(graphName, graph));
+
+		try {
+			dataset.begin(ReadWrite.WRITE);
+			UpdateAction.execute(request, dataset);
+			//dataset.commit();
+		}
+		finally {
+			dataset.end();
+		}
+
+		log.info("Deleted old and inserted new graph \"{}\" ({} ms)", graphName, System.currentTimeMillis() - start);
+	}
+
+	private static String createDeleteQuery(URI graphName){
+		return "DELETE { " + "GRAPH <" + graphName + "> { ?s ?p ?o }" + " ?s ?p ?o } WHERE { ?s ?p ?o }";
+	}
+
+	private static String createInsertQuery(URI graphName, Model graph){
+
+		//create triples to be inserted
+		StmtIterator statements = graph.listStatements();
+		StringBuilder triples = new StringBuilder();
+		while(statements.hasNext()){
+			Statement statement = statements.nextStatement();
+			triples.append("\t<").append(statement.getSubject().toString()).append("> <")
+					.append(statement.getPredicate().toString()).append("> ");
+
+			if(statement.getObject().isLiteral()){
+				if(statement.getObject().toString().contains("^^")){
+					String[] parts = statement.getObject().toString().split("\\^\\^");
+					triples.append("\"").append(parts[0]).append("\"^^<").append(parts[1]).append("> .\n");
+				}
+				else{
+					triples.append("\"").append(statement.getObject().toString()).append("\" .\n");
+				}
+			}
+
+			else{
+				triples.append("<").append(statement.getObject().toString()).append("> .\n");
+			}
+		}
+
+		return "INSERT DATA { GRAPH <" + graphName + "> { " + triples.toString() + " } " + triples.toString() + " } ";
+
 	}
 
     @Override
@@ -356,7 +420,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
 //			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			try {
                 resultFuture.set(queryExecution.execSelect());
-
+				log.info("SPARQL query successfully executed!");
 //                while(resultSet.hasNext()){
 //                    QuerySolution querySolution = resultSet.next();
 //                    Statement statement = resultGraph.createStatement(

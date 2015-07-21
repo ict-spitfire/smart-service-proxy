@@ -34,7 +34,7 @@ import eu.spitfire.ssp.server.internal.messages.requests.*;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
-import eu.spitfire.ssp.utils.exceptions.GraphNameAlreadyExistsException;
+//import eu.spitfire.ssp.utils.exceptions.GraphNameAlreadyExistsException;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
@@ -391,49 +391,70 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
         @Override
         public void run() {
-            //Check whether the desired graph name is already registered
-            ListenableFuture<Boolean> alreadyContainedFuture = containsNamedGraph(graphName);
-
-            //Deal with the result of the "already-contained" check...
-            Futures.addCallback(alreadyContainedFuture, new FutureCallback<Boolean>() {
+            //Add new graph with initial status to cache
+            ListenableFuture<Void> insertionFuture = putNamedGraphToCache(graphName, initialGraph);
+            Futures.addCallback(insertionFuture, new FutureCallback<Void>() {
 
                 @Override
-                public void onSuccess(Boolean alreadyContained) {
-                    if(alreadyContained){
-                        LOG.warn("Graph \"{}\" was already contained in cache!", graphName);
-                        registrationFuture.setException(new GraphNameAlreadyExistsException(graphName));
-                    }
-                    else{
-                        LOG.debug("Graph \"{}\" not yet contained in cache!", graphName);
-
-                        //Add new graph with initial status to cache
-                        ListenableFuture<Void> insertionFuture = putNamedGraphToCache(graphName, initialGraph);
-                        Futures.addCallback(insertionFuture, new FutureCallback<Void>() {
-
-                            @Override
-                            public void onSuccess(Void result) {
-                                LOG.debug("Initial graph \"{}\" added to cache!", graphName);
-                                registrationFuture.set(null);
-                            }
-
-                            @Override
-                            public void onFailure(Throwable throwable) {
-                                LOG.error("Could not add graph \"{}\" to cache!", graphName, throwable);
-                                registrationFuture.setException(throwable);
-                            }
-
-                        }, internalTasksExecutor);
-                    }
+                public void onSuccess(Void result) {
+                    LOG.debug("Initial graph \"{}\" added to cache!", graphName);
+                    registrationFuture.set(null);
                 }
 
                 @Override
-                public void onFailure(Throwable t) {
-                    LOG.error("Failed to register graph \"{}\"!", graphName, t);
-                    registrationFuture.setException(t);
+                public void onFailure(Throwable throwable) {
+                    LOG.error("Could not add graph \"{}\" to cache!", graphName, throwable);
+                    registrationFuture.setException(throwable);
                 }
 
             }, internalTasksExecutor);
         }
+
+//        @Override
+//        public void run() {
+//            //Check whether the desired graph name is already registered
+//            ListenableFuture<Boolean> alreadyContainedFuture = containsNamedGraph(graphName);
+//
+//            //Deal with the result of the "already-contained" check...
+//            Futures.addCallback(alreadyContainedFuture, new FutureCallback<Boolean>() {
+//
+//                @Override
+//                public void onSuccess(Boolean alreadyContained) {
+//                    if(alreadyContained){
+//                        LOG.warn("Graph \"{}\" was already contained in cache!", graphName);
+//                        registrationFuture.setException(new GraphNameAlreadyExistsException(graphName));
+//                    }
+//                    else{
+//                        LOG.debug("Graph \"{}\" not yet contained in cache!", graphName);
+//
+//                        //Add new graph with initial status to cache
+//                        ListenableFuture<Void> insertionFuture = putNamedGraphToCache(graphName, initialGraph);
+//                        Futures.addCallback(insertionFuture, new FutureCallback<Void>() {
+//
+//                            @Override
+//                            public void onSuccess(Void result) {
+//                                LOG.debug("Initial graph \"{}\" added to cache!", graphName);
+//                                registrationFuture.set(null);
+//                            }
+//
+//                            @Override
+//                            public void onFailure(Throwable throwable) {
+//                                LOG.error("Could not add graph \"{}\" to cache!", graphName, throwable);
+//                                registrationFuture.setException(throwable);
+//                            }
+//
+//                        }, internalTasksExecutor);
+//                    }
+//                }
+//
+//                @Override
+//                public void onFailure(Throwable t) {
+//                    LOG.error("Failed to register graph \"{}\"!", graphName, t);
+//                    registrationFuture.setException(t);
+//                }
+//
+//            }, internalTasksExecutor);
+//        }
     }
 
     private void handleInternalCacheUpdateTask(final InternalCacheUpdateRequest cacheUpdateTask){

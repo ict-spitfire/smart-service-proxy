@@ -21,94 +21,158 @@
     <script src="../../style/javascript/jquery-1.11.1.min.js"></script>
     <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
     <script>
-        var query = '\
-PREFIX rs: <http://example.org/road-sections#>\
-PREFIX geo: <http://www.opengis.net/ont/geosparql#>\
-PREFIX geof: <http://www.opengis.net/def/function/geosparql/>\
-PREFIX vs: <http://example.org/virtual-sensors#>\
-PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>\
-\
-SELECT ?section ?length ?taperedCoords ?vehicleCount WHERE {\
-  ?section a rs:RoadSection .\
-  ?section rs:hasLengthInMeter ?length .\
-  ?section rs:hasTaperedBoundary ?taperedBoundary .\
-  ?taperedBoundary geo:asWKT ?taperedCoords .\
-  ?section rs:hasBoundary ?boundary .\
-  ?boundary geo:asWKT ?fWKT .\
-  ?obs ssn:observedBy ?sensor .\
-  ?sensor a vs:VirtualTrafficDensitySensor .\
-  ?obs ssn:featureOfInterest ?section .\
-  ?obs ssn:observedResult ?obsResult .\
-  ?obsResult ssn:hasValue ?vehicleCount .\
-  FILTER (geof:sfWithin(\
-    ?fWKT,\
-    "POLYGON ((10.670866 53.850284, 10.707601 53.850284, 10.707601 53.882068, 10.670866 53.882068,\
-    10.670866 53.850284))"^^geo:wktLiteral\
-  ))\
-}';
+        var query;
+        var northWest;
+        var northEast;
+        var southWest;
+        var southEast;
+
         var map;
         var mapReady;
-        var polygons = {};
+
+        var lanes = {};
+
+        var strokeWeight = 1;
 
         $(document).ready(function(){
-            initializeMap();
+            initializeA();
         });
 
-        function initializeMap() {
+        function initializeA() {
+
+            var stylez = [
+                {
+                    featureType: "all",
+                    elementType: "all",
+                    stylers: [
+                        { saturation: -90 } // <-- THIS
+                    ]
+                },
+                {
+                    featureType: "poi",
+                    elementType: "labels",
+                    stylers: [
+                        { visibility: "off" }
+                    ]
+                }
+            ];
+
             var mapOptions = {
                 zoom: 15,
-                center: new google.maps.LatLng(53.868141, 10.687884),
-                mapTypeId: google.maps.MapTypeId.ROADMAP
+                center: new google.maps.LatLng(53.865382, 10.687259),
+                mapTypeControlOptions: {
+                    mapTypeIds: [google.maps.MapTypeId.ROADMAP, 'tehgrayz']
+                }
             };
 
             map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
 
+            var mapType = new google.maps.StyledMapType(stylez, { name:"Low Saturation" });
+            map.mapTypes.set('tehgrayz', mapType);
+            map.setMapTypeId('tehgrayz');
 
-
-//            google.maps.event.addListener(map, 'click', function(event) {
-//                alert('Point.X.Y: ' + event.latLng);
-//            });
-
-            mapReady = true;
-            setInterval(sendQuery, 5000);
+            initializeB();
         }
 
+        function initializeB(){
+            if(map.getBounds() == undefined){
+                window.setTimeout(initializeB, 10);
+                return;
+            }
 
-        function drawBoundingBox(){
-            var gmapsPoints = [];
-            gmapsPoints.push(new google.maps.LatLng(53.850284, 10.670866));
-            gmapsPoints.push(new google.maps.LatLng(53.850284, 10.707601));
-            gmapsPoints.push(new google.maps.LatLng(53.882068, 10.707601));
-            gmapsPoints.push(new google.maps.LatLng(53.882068, 10.670866));
-            gmapsPoints.push(new google.maps.LatLng(53.850284, 10.670866));
+            updateStrokeWeight();
+            updateMapCorners();
 
-            var gmapsPolygon = new google.maps.Polygon({
-                paths:  gmapsPoints,
-                strokeColor: '8b1a1a',
-                strokeOpacity: 0.8,
-                strokeWeight: 2,
-                fillColor: '8b1a1a',
-                fillOpacity: 0.0
+            google.maps.event.addListener(map, 'bounds_changed', function() {
+                updateMapCorners();
+                //console.log("Zoom changed to level: " + map.zoom);
+                updateStrokeWeight();
+                //console.log("New stroke weight: " + strokeWeight);
+                redrawOverlay();
             });
 
-            gmapsPolygon.setMap(map);
+            mapReady = true;
+            //sendQuery();
+            sendQuery();
+            //setInterval(sendQuery, 10000);
         }
 
+        function updateMapCorners(){
+            var bounds = map.getBounds();
+            northEast = bounds.getNorthEast();
+            southWest = bounds.getSouthWest();
+
+            northWest = new google.maps.LatLng(northEast.lat(), southWest.lng());
+            southEast = new google.maps.LatLng(southWest.lat(), northEast.lng());
+
+            //console.log("NE: " + northEast + ", SW: " + southWest);
+        }
+
+        function updateStrokeWeight(){
+            strokeWeight = Math.pow(1.5, map.zoom - 14);
+        }
+
+//        function drawBoundingBox(){
+//            var gmapsPoints = [];
+//            gmapsPoints.push(new google.maps.LatLng(53.850284, 10.670866));
+//            gmapsPoints.push(new google.maps.LatLng(53.850284, 10.707601));
+//            gmapsPoints.push(new google.maps.LatLng(53.882068, 10.707601));
+//            gmapsPoints.push(new google.maps.LatLng(53.882068, 10.670866));
+//            gmapsPoints.push(new google.maps.LatLng(53.850284, 10.670866));
+//
+//            var gmapsPolygon = new google.maps.Polygon({
+//                paths:  gmapsPoints,
+//                strokeColor: '8b1a1a',
+//                strokeOpacity: 0.8,
+//                strokeWeight: 2,
+//                fillColor: '8b1a1a',
+//                fillOpacity: 0.0
+//            });
+//
+//            gmapsPolygon.setMap(map);
+//        }
+
         function sendQuery(){
-//            drawBoundingBox();
             if(mapReady == false){
                 return;
             }
+
+            query = 'PREFIX osm: <http://example.org/osm#>\n' +
+                    'PREFIX geo: <http://www.opengis.net/ont/geosparql#>\n' +
+                    'PREFIX geof: <http://www.opengis.net/def/function/geosparql/>\n' +
+                    'PREFIX vs: <http://example.org/virtual-sensors#>\n' +
+                    'PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>\n\n' +
+
+                    'SELECT ?lane ?density ?linestring WHERE {\n\t' +
+                        '?obs a ssn:Observation .\n\t' +
+                        '?obs ssn:featureOfInterest ?lane .\n\t' +
+                        '?obs ssn:observedResult ?output .\n\t' +
+                        '?output ssn:hasValue ?density .\n\t' +
+                        '?lane osm:centerLine ?line .\n\t' +
+                        '?line geo:asWKT ?linestring\n\t' +
+                        'FILTER (geof:sfWithin(?linestring, "POLYGON(( ' +
+                        northWest.lng() + ' ' + northWest.lat() + ', ' +
+                        northEast.lng() + ' ' + northEast.lat() + ', ' +
+                        southEast.lng() + ' ' + southEast.lat() + ', ' +
+                        southWest.lng() + ' ' + southWest.lat() + ', ' +
+                        northWest.lng() + ' ' + northWest.lat() + ' ))"^^geo:wktLiteral) ||\n\t' +
+                        'geof:sfTouches(?linestring, "POLYGON(( ' +
+                        northWest.lng() + ' ' + northWest.lat() + ', ' +
+                        northEast.lng() + ' ' + northEast.lat() + ', ' +
+                        southEast.lng() + ' ' + southEast.lat() + ', ' +
+                        southWest.lng() + ' ' + southWest.lat() + ', ' +
+                        northWest.lng() + ' ' + northWest.lat() + ' ))"^^geo:wktLiteral))\n' +
+                    '}';
+
             mapReady = false;
-            console.log("Send Query");
+            console.log("Send Query:\n" + query);
 
             var formData = new FormData();
             formData.append('query', query);
 
             $.ajax({
                 type: "POST",
-                beforeSend: function (request)
-                {
+                beforeSend: function (request){
                     request.setRequestHeader("Accept", 'application/sparql-results+json');
                 },
                 url: '/services/sparql-endpoint',
@@ -117,8 +181,8 @@ SELECT ?section ?length ?taperedCoords ?vehicleCount WHERE {\
                 contentType: false,
                 processData: false,
                 success: function(queryResult){
-                    console.log("Query result received!");
-                    updateMap(queryResult);
+                    //console.log("Query result received!");
+                    updatePolylines(queryResult);
                     mapReady = true;
                 },
                 error: function(e){
@@ -129,61 +193,72 @@ SELECT ?section ?length ?taperedCoords ?vehicleCount WHERE {\
         }
 
 
-        function updateMap(queryResult){
-            drawBoundingBox();
+        function updatePolylines(queryResult){
+
             queryResult.results.bindings.forEach(function(binding){
 
-                var secName = binding.section.value;
-                secName = secName.substr(secName.indexOf('#') + 1);
+                var lane = binding.lane.value;
+                var density = binding.density.value;
+                var linestring = binding.linestring.value;
 
-                var length = binding.length.value;
-
-                var vehicleCount = binding.vehicleCount.value;
-
-                var wktBoundary = binding.taperedCoords.value;
+                linestring = linestring.substring(linestring.indexOf('(') + 1, linestring.indexOf(')'));
 
                 var gmapsPoints = [];
-                var points = wktBoundary.split(", ");
+                var points = linestring.split(", ");
                 points.forEach(function(point){
                     var coordinates = point.split(" ");
+                    //console.log("LAT: " + coordinates[1] + " LON: " + coordinates[0]);
                     gmapsPoints.push(new google.maps.LatLng(coordinates[1], coordinates[0]));
                 });
 
                 var hexColor;
 
-                if(vehicleCount == 0){
-                    hexColor = '#00800d'
+                if(density == 0){
+                    hexColor = '#00800d';
                 }
                 else{
-                    var density = length / vehicleCount;
-
-                    if(density < 20){
-                        hexColor = '#8b1a1a'
+                    if(density > 2){
+                        hexColor = '#8b1a1a';
                     }
-                    else if(density < 40){
-                        hexColor = '#ffa500'
+                    else if(density > 1){
+                        hexColor = '#ffa500';
                     }
                     else{
                         hexColor = '#00800d';
                     }
                 }
 
-                var gmapsPolygon = new google.maps.Polygon({
-                    paths:  gmapsPoints,
+                var polyOptions = {
+                    path:  gmapsPoints,
+                    geodesic: true,
                     strokeColor: hexColor,
-                    strokeOpacity: 0.8,
-                    strokeWeight: 2,
-                    fillColor: hexColor,
-                    fillOpacity: 0.35
-                });
+                    strokeOpacity: 0.6,
+                    strokeWeight: strokeWeight
+                };
 
-                if(polygons[secName] !== undefined){
-                    polygons[secName].setMap(null);
+                var gmapsPolyline = new google.maps.Polyline(polyOptions);
+
+                if(lanes[lane] !== undefined){
+                    lanes[lane].setMap(null);
+                    delete lanes.lane;
                 }
 
-                gmapsPolygon.setMap(map);
-                polygons[secName] = gmapsPolygon;
+                gmapsPolyline.setMap(map);
+                lanes[lane] = gmapsPolyline;
             });
+
+            console.log("No of Lanes: " + Object.keys(lanes).length);
+        }
+
+        function redrawOverlay(){
+            //console.log("Redraw");
+            for (var lane in lanes) {
+                if (lanes.hasOwnProperty(lane)) {
+                    lanes[lane].strokeWeight = strokeWeight;
+                    lanes[lane].setMap(null);
+                    lanes[lane].setMap(map);
+                }
+            }
         }
     </script>
 </head>
@@ -196,11 +271,13 @@ SELECT ?section ?length ?taperedCoords ?vehicleCount WHERE {\
         <script src="../../style/javascript/ssp-menu.js"></script>
 
         <h4 class="ui top attached header">
-            Traffic Monitoring (GoogleMaps Overlay)
+            Traffic Monitoring
         </h4>
 
-        <div class="ui segment attached" style="height: 100%">
+        <div class="ui segment attached" style="height:100%">
             <div id="map-canvas" style="height:100%; margin: 0; padding: 0"></div>
         </div>
+
+
     </div>
 </div>

@@ -60,8 +60,8 @@
                 <i class="icon info"></i>
                 According to the <a href="http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#Sensor">SSN Ontology</a>
                 virtual sensors are computational methods that have sensing capability, i.e. observe some
-                phenomenon. Step 1 is to define phenomenon to be observed. Step 2 is to define the SPARQL query
-                that returns the sensor value.
+                phenomenon. Step 1 is to define the phenomenon to be observed. Step 2 is to define the SPARQL query
+                that returns the sensor value. Step 3 is to test and create the defined sensor.
             </div>
 
             <div id="step1Content">
@@ -73,8 +73,8 @@
                             http://example.org/virtual-sensors#
                         </div>
                     </div>
-                    <input class="monospace triplesPart" style="margin-top: 5px" type="text" value="5837598-4-1-Sensor"
-                           id="fldSensorName">
+                    <input class="monospace triplesPart" style="margin-top: 5px" type="text"
+                            value="TrafficDensitySensor-80735580-1-1" id="fldSensorName">
                 </div>
 
                 <div class="ui secondary segment">
@@ -99,8 +99,8 @@
                         <a href="http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#FeatureOfInterest">SSN Ontology</a>
                         a feature is an abstraction of real world phenomena (thing, person, event, etc).
                     </p>
-                    <input class="monospace triplesPart" type="text" value="http://example.org/road-sections#5837598-4-1"
-                           id="fldFeatureOfInterest">
+                    <input class="monospace triplesPart" type="text"
+                            value="http://example.org/osm#WaySectionLane-151585372-1-1" id="fldFeatureOfInterest">
                 </div>
 
                 <!--<div class="ui secondary segment">-->
@@ -119,63 +119,27 @@
 
             <div id="step2Content" style="display: none">
                 <div class="ui secondary segment">
-                    <div class="ui small grey top left attached label">Prefixes (if any)</div>
-                    <textarea class="sparqlPart monospace" id="fldPrefixes" style="height: 70px; min-height: 70px">
-PREFIX rs: &lt;http://example.org/road-sections#&gt;
-PREFIX phone: &lt;http://example.org/phones#&gt;
+                    <div class="ui small grey top left attached label">Complete SPAQRL Query (incl. Prefixes)</div>
+                    <textarea class="sparqlPart monospace" id="fldQuery" style="height: 500px; min-height: 70px">
+PREFIX veh: &lt;http://example.org/vehicles#&gt;
+PREFIX osm: &lt;http://example.org/osm#&gt;
 PREFIX geo: &lt;http://www.opengis.net/ont/geosparql#&gt;
 PREFIX geof: &lt;http://www.opengis.net/def/function/geosparql/&gt;
-PREFIX rdf: &lt;http://www.w3.org/1999/02/22-rdf-syntax-ns#&gt;
-PREFIX ssn: &lt;http://purl.oclc.org/NET/ssnx/ssn#&gt;
-PREFIX veh: &lt;http://example.org/vehicles#&gt;
-                    </textarea>
-                </div>
 
-                <div class="ui secondary segment">
-                    <div class="ui small grey top left attached label">Aggregate Function</div>
-                    <div class="monospace">
-                        SELECT (
-                        <div class="ui inline dropdown">
-                            <input class ="sparqlPart" type="hidden" id="selAggregate">
-                            <div class="text">COUNT</div>
-                            <!--<i class="dropdown icon"></i>-->
-                            <div class="menu">
-                                <div class="item" data-value="COUNT">COUNT</div>
-                                <div class="item" data-value="MIN">MIN</div>
-                                <div class="item" data-value="MAX">MAX</div>
-                                <div class="item" data-value="AVG">AVG</div>
-                            </div>
-                        </div>
-                        (?val) AS ?aggVal) WHERE {...
-                    </div>
-                </div>
-
-
-                <div class="ui secondary segment">
-                    <div class="ui small grey top left attached label">WHERE clause (?val is the parameter to aggregate)</div>
-                    <textarea class="sparqlPart monospace" id="fldWhereClause" style="height: 160px">
-?val rdf:type veh:Vehicle .
-?val ssn:attachedSystem ?phone .
-?phone phone:hasLocation ?loc .
-?loc geo:asWKT ?fWKT .
-rs:5837598-4-1-Boundary geo:asWKT ?boundary
-FILTER (geof:sfWithin(?fWKT, ?boundary))
-                    </textarea>
+SELECT ((COUNT(?val) / (?length / 40)) AS ?aggVal) WHERE {
+  ?val a veh:Vehicle .
+  ?val veh:hasLocation ?loc .
+  ?loc geo:asWKT ?point .
+  osm:WaySectionLane-80735580-1-1 osm:boundary ?bound .
+  osm:WaySectionLane-80735580-1-1 osm:hasLengthInMeter ?length .
+  ?bound geo:asWKT ?polygon
+  FILTER (geof:sfWithin(?point, ?polygon))
+}
+GROUP BY ?length</textarea>
                 </div>
             </div>
 
             <div id="step3Content" style="display: none">
-                <div class="ui secondary segment">
-                    <div class="ui top left attached label">Sensor Description (Notation 3)</div>
-                    <textarea class="monospace" id="fldOntology" readonly="readonly">
-                    </textarea>
-                </div>
-
-                <div class="ui secondary segment">
-                    <div class="ui top left attached label">SPARQL Query for sensor value</div>
-                    <textarea class="monospace" id="fldQuery" style="height: 300px" readonly="readonly">
-                    </textarea>
-                </div>
 
                 <div class="ui buttons" id="buttons">
                     <div class="ui blue button" id="btnTest">Test Creation</div>
@@ -191,25 +155,16 @@ FILTER (geof:sfWithin(?fWKT, ?boundary))
                     </div>
                 </div>
 
-                <!--<div class="ui secondary segment" id="creationResultContent" style="display: none">-->
-                    <!--<div class="ui top left attached label">-->
-                        <!--Creation Result-->
-                    <!--</div>-->
-                    <!--<div>-->
-                        <!--<textarea class="monospace" id="fldCreationResult" style="height: 200px" readonly="readonly">-->
-                        <!--</textarea>-->
-                    <!--</div>-->
+                <!--<div class="ui secondary segment" id="vsTestResult" style="display: none">-->
+                    <!--<div class="ui top left attached label">Test Result: Sensor Description (Turtle)</div>-->
+                    <!--<textarea class="monospace" id="fldOntology" readonly="readonly">-->
+                    <!--</textarea>-->
                 <!--</div>-->
 
-                <!--<div class="ui secondary segment" id="errorContent" style="display: none">-->
-                    <!--<div class="ui top left attached label">-->
-                        <!--Creation Result-->
-                    <!--</div>-->
-                    <!--<div>-->
-                        <!--<textarea class="monospace" id="fldError" style="height: 200px" readonly="readonly">-->
-                        <!--</textarea>-->
-                    <!--</div>-->
-                <!--</div>-->
+
+
+
+
             </div>
         </div>
     </div>
@@ -217,82 +172,24 @@ FILTER (geof:sfWithin(?fWKT, ?boundary))
 
 <script>
     //Initialize dropdown
-    $('.ui.dropdown').dropdown();
+    //$('.ui.dropdown').dropdown();
 
-    $(document).ready(function(){
-        $('#selAggregate').val('COUNT');
-        setSparql();
-        setTriples();
-    });
-
-    $('.sparqlPart').on('change keyup', function(){
-        setSparql();
-    });
-
-    function setSparql(){
-        $('#fldQuery').val(
-                $('#fldPrefixes').val() + '\nSELECT (' + $('#selAggregate').val() +
-                        '(?val) AS ?aggVal) WHERE {\n' + $('#fldWhereClause').val() + '\n}'
-        );
-    }
-
-    $('.triplesPart').on('change keyup', function(){
-        setTriples();
-    });
-
-    function setTriples(){
-        //var typeName = $('#fldType').val();
-//        var graphNamePostfix = $('#fldGraphName').val();
-//        var fullGraphName = '&lt;http://example.org/virtual-sensors#' + graphNamePostfix + + '&gt;';
-//        var observationName = 'vs'
-
-        $('#fldOntology').html('' +
-'@prefix rs: &lt;http://example.org/road-sections#&gt; .\n' +
-'@prefix rdf: &lt;http://www.w3.org/1999/02/22-rdf-syntax-ns#&gt; .\n' +
-'@prefix rdfs: &lt;http://www.w3.org/2000/01/rdf-schema#&gt; .\n' +
-'@prefix vs: &lt;http://example.org/virtual-sensors#&gt; .\n' +
-'@prefix ssn: &lt;http://purl.oclc.org/NET/ssnx/ssn#&gt; . \n\n' +
-
-'vs:VirtualSensor a rdfs:Class ;\n' +
-'  rdfs:subClassOf ssn:Sensor .\n\n' +
-
-'vs:VirtualSensorOutput a rdfs:Class ;\n' +
-'  rdfs:subClassOf ssn:SensorOutput .\n\n' +
-
-'vs:virtualProperty a rdf:Property ;\n' +
-'  rdfs:subPropertyOf ssn:hasProperty .\n\n' +
-
-'vs:VirtualProperty a rdfs:Class ;\n' +
-'  rdfs:subClassOf ssn:Property .\n\n' +
-
-'vs:' + $('#fldTypeName').val() + ' a rdfs:Class ;\n' +
-'  rdfs:subClassOf vs:VirtualSensor .\n\n' +
-
-'vs:' + $('#fldSensorName').val() + ' a ' + 'vs:' + $('#fldTypeName').val() + ' .\n\n' +
-
-'vs:' + $('#fldSensorName').val() + '-Observation a ssn:Observation ;\n' +
-'  ssn:featureOfInterest &lt;' + $('#fldFeatureOfInterest').val() + '&gt; ;\n' +
-'  ssn:observedProperty vs:' +  $('#fldSensorName').val() + '-VirtualProperty ;\n' +
-'  ssn:observedBy vs:' + $('#fldSensorName').val() + ' ;\n' +
-'  ssn:observedResult vs:' + $('#fldSensorName').val() + '-SensorOutput .\n\n' +
-
-'&lt;' + $('#fldFeatureOfInterest').val() + '&gt; a ssn:FeatureOfInterest;\n' +
-'  vs:virtualProperty vs:' +  $('#fldSensorName').val() + '-VirtualProperty .\n\n' +
-
-'vs:' +  $('#fldSensorName').val() + '-VirtualProperty a vs:VirtualProperty .\n\n' +
-
-'vs:' + $('#fldSensorName').val() + '-SensorOutput a vs:VirtualSensorOutput ;\n' +
-'  ssn:hasValue "SPARQL-RESULT" .'
-        );
-    }
+//    $(document).ready(function(){
+//        //$('#selAggregate').val('COUNT');
+//        //setSparql();
+//        //setTriples();
+//    });
 
     $('#buttons').find('div.button').click(function(event){
         event.preventDefault();
 
         var formData = new FormData();
         formData.append('sensorName', $('#fldSensorName').val());
+        formData.append('sensorType', $('#fldTypeName').val());
+        formData.append('foi', $('#fldFeatureOfInterest').val());
         formData.append('query', $('#fldQuery').val());
-        formData.append('ontology', $('#fldOntology').val());
+
+        //formData.append('ontology', $('#fldOntology').val());
 
         var btnID = $(this).attr('id');
         formData.append('button', btnID);
@@ -308,10 +205,10 @@ FILTER (geof:sfWithin(?fWKT, ?boundary))
                 console.log(btnID);
                 $('#resultSegment').show().addClass('green');
                 if(btnID == 'btnTest'){
-                    $('#resultLabel').html('RDF representation of virtual sensor (Preview)');
+                    $('#resultLabel').html('RDF representation of virtual sensor (Turtle-Preview)');
                     $('#resultContent').html(
                         '<p> Query Execution Duration: ' +  e['duration'] + ' ms.</p>\n' +
-                        '<textarea class="monospace" style="height: 200px" readonly="readonly">\n' +
+                        '<textarea class="monospace" style="height: 700px" readonly="readonly">\n' +
                          (e['sensorStatus']) + '\n</textarea>').show();
                 }
                 else{

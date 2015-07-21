@@ -12,21 +12,20 @@ var semanticEntitiyLayer2Menu = '\
             Create Virtual Sensors from XML\
         </a>\
         <a class="item" href="/services/semantic-entities/virtual-sensors-editor">\
-            Edit Virtual Sensors\
-        </a>\
-        <a class="item">\
-            Create (loose) Graph\
-        </a>\
-        <a class="item">\
-            Create Graphs from XML\
+            List Virtual Sensors\
         </a>\
         <a class="item" href="/services/semantic-entities/semantic-entities-editor">\
-            Edit (loose) Graphs\
+            List Graphs\
         </a>';
-
+//<a class="item">\
+//Create (loose) Graph\
+//</a>\
+//<a class="item">\
+//Create Graphs from XML\
+//</a>\
 var geoViewsLayer2Menu = '\
-        <a class="item" href="/services/geo-views/traffic-monitoring">\
-            Traffic Monitoring\
+        <a class="item icon" href="/services/geo-views/traffic-monitoring">\
+            <i class="road icon"></i> Traffic Monitoring\
         </a>';
 
 //function openTrafficWindow(){

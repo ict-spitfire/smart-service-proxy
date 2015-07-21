@@ -47,8 +47,8 @@
       </dependency>
 
       <dependency>
-        <groupId>de.uniluebeck.itm</groupId>
-        <artifactId>jaxb4virtualsensors</artifactId>
+        <groupId>de.uzl.itm</groupId>
+        <artifactId>jaxb4vs</artifactId>
         <version>1.0-SNAPSHOT</version>
       </dependency>
 

@@ -37,7 +37,7 @@ public class DataOriginRegistrationRequest<I, D extends DataOrigin<I>>{
         return initialStatus;
     }
 
-    public DataOriginMapper getHttpProxyWebservice() {
+    public DataOriginMapper getHttpProxyService() {
         return httpProxyWebservice;
     }
 

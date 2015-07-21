@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.external.n3files;
+package eu.spitfire.ssp.backends.external.turtlefiles;
 
 import eu.spitfire.ssp.backends.generic.DataOrigin;
 
@@ -7,19 +7,19 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 
 /**
- * A {@link N3File} represents a local file that contains RDF data in the form of N3.
+ * A {@link TurtleFile} represents a local file that contains RDF data in the form of Turtle.
  *
  * @author Oliver Kleine
  */
-public class N3File extends DataOrigin<Path> {
+public class TurtleFile extends DataOrigin<Path> {
 
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backends.generic.DataOrigin}
      *
      * @param identifier the identifier for this {@link eu.spitfire.ssp.backends.generic.DataOrigin}
-     * @param hostName the host name of the SSP the N3 file is located on (according to the ssp.properties)
+     * @param hostName the host name of the SSP the Turtle file is located on (according to the ssp.properties)
      */
-    public N3File(Path identifier, String hostName) throws URISyntaxException{
+    public TurtleFile(Path identifier, String hostName) throws URISyntaxException{
         super(
                 identifier.isAbsolute() ? identifier : identifier.toAbsolutePath().normalize(),
                 new URI("file", null, hostName, -1, identifier.toString(), null, null)
@@ -43,11 +43,16 @@ public class N3File extends DataOrigin<Path> {
 
     @Override
     public boolean equals(Object object) {
-        if(object == null || !(object instanceof N3File))
+        if(object == null || !(object instanceof TurtleFile))
             return false;
 
-        N3File other = (N3File) object;
+        TurtleFile other = (TurtleFile) object;
 
         return this.getGraphName().equals(other.getGraphName()) && this.getIdentifier().equals(other.getIdentifier());
+    }
+
+    @Override
+    public boolean shutdown() {
+        return true;
     }
 }

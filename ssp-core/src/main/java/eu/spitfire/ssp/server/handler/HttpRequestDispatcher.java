@@ -34,8 +34,8 @@ import eu.spitfire.ssp.server.internal.messages.requests.WebserviceRegistration;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import eu.spitfire.ssp.server.webservices.Styles;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
-import eu.spitfire.ssp.utils.exceptions.IdentifierAlreadyRegisteredException;
-import eu.spitfire.ssp.utils.exceptions.WebserviceAlreadyRegisteredException;
+//import eu.spitfire.ssp.utils.exceptions.IdentifierAlreadyRegisteredException;
+//import eu.spitfire.ssp.utils.exceptions.WebserviceAlreadyRegisteredException;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
@@ -62,14 +62,14 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-	//Maps resource proxy uris to request processors
-	private Map<String, HttpWebservice> webservices;
+	//Maps graph URI prefixes with WebServices to handle incoming HTTP requests
+	private Map<URI, HttpWebservice> webservices;
     private Styles styleWebservice;
 
     public HttpRequestDispatcher(Styles styleWebservice)
             throws Exception {
 
-        this.webservices = Collections.synchronizedMap(new TreeMap<String, HttpWebservice>());
+        this.webservices = Collections.synchronizedMap(new TreeMap<>());
         this.styleWebservice = styleWebservice;
     }
 
@@ -96,23 +96,25 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
         //Create resource proxy uri from request
-        String proxyUri = httpRequest.getUri();
-        log.info("Received HTTP request for proxy Webservice {}", proxyUri);
+//        String proxyUri = httpRequest.getUri();
+        URI proxyURI = new URI(httpRequest.getUri());
+
+        log.info("Received HTTP request for proxy Webservice {}", proxyURI.toString());
 
         HttpWebservice httpWebservice;
-        if(proxyUri.startsWith("/style")){
+        if(proxyURI.getPath().startsWith("/style")){
             httpWebservice = styleWebservice;
         }
         else{
             //Lookup proper http request processor
-            httpWebservice = webservices.get(proxyUri);
+            httpWebservice = webservices.get(proxyURI);
         }
 
         //Send NOT FOUND if there is no proper processor
         if(httpWebservice == null){
-            log.warn("No HttpWebservice found for {}. Send error response.", proxyUri);
+            log.warn("No HttpWebservice found for {}. Send error response.", proxyURI);
             HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
-                    HttpResponseStatus.NOT_FOUND, "404 Not Found: " + proxyUri);
+                    HttpResponseStatus.NOT_FOUND, "404 Not Found: " + proxyURI);
             writeHttpResponse(ctx.getChannel(), httpResponse, (InetSocketAddress) me.getRemoteAddress());
         }
 
@@ -125,6 +127,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         }
     }
 
+//    private HttpWebservice getHttpWebservice(String proxyURI)
 
     @Override
     public void writeRequested(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
@@ -133,11 +136,12 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         if(me.getMessage() instanceof WebserviceRegistration){
             WebserviceRegistration message = (WebserviceRegistration) me.getMessage();
 
-            String webserviceUri = message.getLocalUri().toString();
-            if(webservices.containsKey(webserviceUri)){
-                me.getFuture().setFailure(new WebserviceAlreadyRegisteredException(message.getLocalUri()));
-                return;
-            }
+            URI webserviceUri = message.getLocalUri();
+            //TODO
+//            if(webservices.containsKey(webserviceUri)){
+//                me.getFuture().setFailure(new WebserviceAlreadyRegisteredException(message.getLocalUri()));
+//                return;
+//            }
 
             registerProxyWebservice(webserviceUri, message.getHttpWebservice());
             me.getFuture().setSuccess();
@@ -145,24 +149,25 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         }
 
         else if(me.getMessage() instanceof DataOriginRegistrationRequest){
-            final DataOriginRegistrationRequest registration = (DataOriginRegistrationRequest) me.getMessage();
+            final DataOriginRegistrationRequest request = (DataOriginRegistrationRequest) me.getMessage();
 
-            URI graphName = registration.getDataOrigin().getGraphName();
-            Object identifier = registration.getDataOrigin().getIdentifier();
-            DataOriginMapper proxyWebservice = registration.getHttpProxyWebservice();
+            URI graphName = request.getDataOrigin().getGraphName();
+            Object identifier = request.getDataOrigin().getIdentifier();
+            DataOriginMapper proxyWebservice = request.getHttpProxyService();
 
             log.info("Try to register graph \"{}\" from data origin \"{}\" with backend \"{}\".",
                     new Object[]{graphName, identifier, proxyWebservice.getBackendName()});
 
-            boolean success = registerProxyWebservice("/?graph=" + graphName, registration.getHttpProxyWebservice());
+            final URI proxyURI = new URI("/?graph=" + graphName);
+            registerProxyWebservice(proxyURI, request.getHttpProxyService());
 
-            SettableFuture<?> registrationFuture = registration.getRegistrationFuture();
-            if(!success){
-                URI proxyURI = new URI("/?graph=" + graphName);
-                registrationFuture.setException(new WebserviceAlreadyRegisteredException(proxyURI));
-                me.getFuture().setSuccess();
-                return;
-            }
+            SettableFuture<?> registrationFuture = request.getRegistrationFuture();
+//            if(!success){
+//                URI proxyURI = new URI("/?graph=" + graphName);
+//                registrationFuture.setException(new WebserviceAlreadyRegisteredException(proxyURI));
+//                me.getFuture().setSuccess();
+//                return;
+//            }
 
             Futures.addCallback(registrationFuture, new FutureCallback<Object>() {
                 @Override
@@ -172,18 +177,18 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
                 @Override
                 public void onFailure(Throwable t) {
-                    if(!(t instanceof IdentifierAlreadyRegisteredException) &&
-                            !(t instanceof WebserviceAlreadyRegisteredException)){
+//                    if(!(t instanceof IdentifierAlreadyRegisteredException) &&
+//                            !(t instanceof WebserviceAlreadyRegisteredException)){
 
-                        unregisterProxyWebservice("/?graph=" + registration.getDataOrigin().getGraphName());
+                        unregisterProxyWebservice(proxyURI);
                     }
-                }
+//                }
             });
         }
 
         else if(me.getMessage() instanceof DataOriginDeregistrationRequest){
             DataOriginDeregistrationRequest removalMessage = (DataOriginDeregistrationRequest) me.getMessage();
-            String proxyUri = "/?graph=" + removalMessage.getDataOrigin().getGraphName();
+            URI proxyUri = new URI("/?graph=" + removalMessage.getDataOrigin().getGraphName());
 
             unregisterProxyWebservice(proxyUri);
         }
@@ -311,17 +316,18 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
     }
 
 
-    private synchronized boolean registerProxyWebservice(String proxyUri, HttpWebservice httpWebservice){
+    private void registerProxyWebservice(URI proxyUri, HttpWebservice httpWebservice){
         if(webservices.containsKey(proxyUri))
-            return false;
+            return;
 
-        webservices.put(proxyUri, httpWebservice);
-        log.info("Registered new Webservice: {}", proxyUri);
-        return true;
+        synchronized (this) {
+            webservices.put(proxyUri, httpWebservice);
+            log.info("Registered new Webservice: {}", proxyUri);
+        }
     }
 
 
-    private boolean unregisterProxyWebservice(String proxyUri){
+    private boolean unregisterProxyWebservice(URI proxyUri){
 
         if(webservices.remove(proxyUri) != null){
             log.info("Successfully removed proxy Webservice \"{}\".", proxyUri);
@@ -354,7 +360,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         }
     }
 
-    public Map<String, HttpWebservice> getWebservices(){
+    public Map<URI, HttpWebservice> getWebservices(){
         return this.webservices;
     }
 }

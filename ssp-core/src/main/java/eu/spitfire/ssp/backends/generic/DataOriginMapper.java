@@ -12,8 +12,8 @@ import eu.spitfire.ssp.server.internal.messages.responses.AccessResult;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import eu.spitfire.ssp.utils.Language;
-import eu.spitfire.ssp.utils.exceptions.IdentifierAlreadyRegisteredException;
-import eu.spitfire.ssp.utils.exceptions.WebserviceAlreadyRegisteredException;
+//import eu.spitfire.ssp.utils.exceptions.IdentifierAlreadyRegisteredException;
+//import eu.spitfire.ssp.utils.exceptions.WebserviceAlreadyRegisteredException;
 import org.jboss.netty.buffer.ChannelBufferInputStream;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -39,7 +39,7 @@ import java.util.Map;
  */
 public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice {
 
-    private Logger log = LoggerFactory.getLogger(this.getClass().getName());
+    private static Logger LOG = LoggerFactory.getLogger(DataOriginMapper.class.getName());
 
     private final Object monitor = new Object();
     private Map<String, D> proxyUriToDataOrigin;
@@ -101,30 +101,30 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
             final D dataOrigin = registration.getDataOrigin();
             final String proxyUri = "/?graph=" + dataOrigin.getGraphName();
 
-            try{
-                addDataOrigin(proxyUri, dataOrigin);
+            addDataOrigin(proxyUri, dataOrigin);
 
-                Futures.addCallback(registrationFuture, new FutureCallback<Object>() {
+            Futures.addCallback(registrationFuture, new FutureCallback<Object>() {
 
-                    @Override
-                    public void onSuccess(Object result) {
-                        //nothing to do...
-                    }
+                @Override
+                public void onSuccess(Object result) {
+                    //nothing to do...
+                }
 
-                    @Override
-                    public void onFailure(Throwable t) {
-                        if(!(t instanceof IdentifierAlreadyRegisteredException) &&
-                                !(t instanceof WebserviceAlreadyRegisteredException)){
-                            removeDataOrigin(proxyUri, dataOrigin);
-                        }
-                    }
-                });
-            }
-
-            catch (IdentifierAlreadyRegisteredException ex) {
-                log.warn("Data origin {} was already registered!", ex.getIdentifier());
-                registrationFuture.setException(ex);
-            }
+                @Override
+                public void onFailure(Throwable throwable) {
+                    LOG.error("Error in registration of {}", proxyUri, throwable);
+//                    if(!(th instanceof IdentifierAlreadyRegisteredException) &&
+//                            !(th instanceof WebserviceAlreadyRegisteredException)){
+                    removeDataOrigin(proxyUri, dataOrigin);
+//                    }
+                }
+            });
+//            }
+//
+//            catch (IdentifierAlreadyRegisteredException ex) {
+//                LOG.warn("Data origin {} was already registered!", ex.getIdentifier());
+//                registrationFuture.setException(ex);
+//            }
 
         }
 
@@ -132,28 +132,29 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
     }
 
 
-    private void addDataOrigin(String proxyUri, D dataOrigin) throws IdentifierAlreadyRegisteredException{
+    private void addDataOrigin(String proxyUri, D dataOrigin){
 
         I identifier = dataOrigin.getIdentifier();
 
-        if(!identifierToDataOrigin.containsKey(identifier)){
-            synchronized (monitor){
-                if(!identifierToDataOrigin.containsKey(identifier)){
-                    identifierToDataOrigin.put(identifier, dataOrigin);
-                    proxyUriToDataOrigin.put(proxyUri, dataOrigin);
+//        if(identifierToDataOrigin.containsKey(identifier)) {
+//            return;
+//        }
 
-                    log.info("Added graph \"{}\" from data origin \"{}\" to backend \"{}\"",
-                            new Object[]{dataOrigin.getGraphName(), identifier, this.getBackendName()});
+        try {
+            synchronized (monitor) {
+                DataOrigin old = identifierToDataOrigin.put(identifier, dataOrigin);
+                proxyUriToDataOrigin.put(proxyUri, dataOrigin);
+
+                if(old != null){
+                    old.shutdown();
                 }
 
-                else{
-                    throw new IdentifierAlreadyRegisteredException(identifier);
-                }
+                LOG.info("Added graph \"{}\" from data origin \"{}\" to backend \"{}\"",
+                        new Object[]{dataOrigin.getGraphName(), identifier, this.getBackendName()});
             }
         }
-
-        else{
-            throw new IdentifierAlreadyRegisteredException(identifier);
+        catch(Exception ex){
+            LOG.error("This should never happen!", ex);
         }
     }
 
@@ -191,7 +192,7 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
                 return;
             }
 
-            log.debug("Found data origin for proxy URI {} (identifier: \"{}\")", proxyUri, dataOrigin.getIdentifier());
+            LOG.debug("Found data origin for proxy URI {} (identifier: \"{}\")", proxyUri, dataOrigin.getIdentifier());
 
             //Look up appropriate accessor for proxy URI
             Accessor<I, D> accessor = this.componentFactory.getAccessor(dataOrigin);
@@ -208,7 +209,7 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
                 return;
             }
 
-            log.debug("Found data origin accessor for proxy URI {} (identifier: \"{}\")", proxyUri,
+            LOG.debug("Found data origin accessor for proxy URI {} (identifier: \"{}\")", proxyUri,
                     dataOrigin.getIdentifier());
 
 
@@ -243,11 +244,11 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
                     ChannelFuture future = Channels.write(channel, accessResult, clientAddress);
                     future.addListener(ChannelFutureListener.CLOSE);
 
-                    if(log.isDebugEnabled()){
+                    if(LOG.isDebugEnabled()){
                         future.addListener(new ChannelFutureListener() {
                             @Override
                             public void operationComplete(ChannelFuture future) throws Exception {
-                                log.debug("Succesfully written status of graph {} to !",
+                                LOG.debug("Succesfully written status of graph {} to !",
                                         dataOrigin.getGraphName(), clientAddress);
                             }
                         });
@@ -274,7 +275,7 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
             HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
                     HttpResponseStatus.INTERNAL_SERVER_ERROR, ex);
 
-            log.error("Exception while processing HTTP proxy request!", ex);
+            LOG.error("Exception while processing HTTP proxy request!", ex);
             writeHttpResponse(channel, httpResponse, clientAddress);
         }
     }

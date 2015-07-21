@@ -7,6 +7,7 @@ import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.rdf.model.Literal;
+import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.rdf.model.ResourceFactory;
 import com.hp.hpl.jena.update.UpdateFactory;
 import com.hp.hpl.jena.update.UpdateRequest;
@@ -19,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.util.Locale;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -43,12 +45,12 @@ public class VirtualSensor extends SemanticEntity{
         super(identifier);
 
         this.updateTask = new VirtualSensorUpdateTask(query, localChannel);
-        this.executionFuture = internalTasksExecutor.scheduleAtFixedRate(this.updateTask,  4, 4, TimeUnit.SECONDS);
+        this.executionFuture = internalTasksExecutor.scheduleAtFixedRate(this.updateTask,  30, 30, TimeUnit.MINUTES);
     }
 
-    public VirtualSensor(URI identifier, final Query sparqlQuery){
-        this(identifier, sparqlQuery, null, null);
-    }
+//    public VirtualSensor(URI identifier, final Query sparqlQuery){
+//        this(identifier, sparqlQuery, null, null);
+//    }
 
 
     @Override
@@ -56,6 +58,17 @@ public class VirtualSensor extends SemanticEntity{
         return true;
     }
 
+    @Override
+    public boolean shutdown(){
+        boolean result = this.executionFuture.cancel(true);
+        if(result){
+            log.info("Virtual Sensor " + this.getGraphName() + "shut down!");
+        }
+        else{
+            log.error("Failed to shut down Virtual Sensor " + this.getGraphName() + "!");
+        }
+        return result;
+    }
 
     /**
      * Returns the {@link com.hp.hpl.jena.query.Query} which is used to retrieve the actual sensor value.
@@ -80,8 +93,37 @@ public class VirtualSensor extends SemanticEntity{
         return other.getGraphName().equals(this.getGraphName());
     }
 
+    private static final String DELETE_QUERY_TEMPLATE =
+            "DELETE {\n\t" +
+                    "GRAPH <%s> { ?s ?p ?o }\n\t" +
+                    "?s ?p ?o\n" +
+                    "} WHERE {\n\t" +
+                    "GRAPH <%s> {?s ?p ?o }\n" +
+                    "}";
+
+    private static final String UPDATE_QUERY_TEMPLATE =
+            "PREFIX vs: <http://example.org/virtual-sensors#>\n" +
+            "PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>\n" +
+            "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n" +
+            "\n" +
+            "DELETE {\n\t" +
+                "GRAPH <%s> { vs:%s-Result ssn:hasValue ?o }\n\t" +
+                "vs:%s-Result ssn:hasValue ?o\n" +
+            "} INSERT {\n\t" +
+                "GRAPH <%s> { vs:%s-Result ssn:hasValue %s }\n\t" +
+                "vs:%s-Result ssn:hasValue %s\n" +
+            "} WHERE {\n\t" +
+                "GRAPH <%s> { vs:%s ssn:hasValue ?o }\n\t" +
+            "}";
+
+    private static String createUpdateQuery(URI graphName, String sensorName, String sensorValue){
+        return String.format(Locale.ENGLISH, UPDATE_QUERY_TEMPLATE, graphName.toString(), sensorName, sensorName,
+                graphName.toString(), sensorName, sensorValue, sensorName, sensorValue, graphName, sensorName);
+    }
 
     private class VirtualSensorUpdateTask implements Runnable{
+
+
 
         private Query query;
         private Channel localChannel;
@@ -106,27 +148,29 @@ public class VirtualSensor extends SemanticEntity{
                 @Override
                 public void onSuccess(ResultSet resultSet) {
 
-                    String sensorValue;
+                    Literal sensorValue;
 
                     if (resultSet.hasNext()) {
                         QuerySolution querySolution = resultSet.nextSolution();
-                        Literal tmp = querySolution.get("?aggVal").asLiteral();
-                        sensorValue = "\"" + tmp.getValue().toString() + "\"^^<" + tmp.getDatatypeURI() + ">";
+                        if(querySolution.contains("?aggVal")){
+                            sensorValue = querySolution.getLiteral("?aggVal");
+                        }
+                        else{
+                            sensorValue = ResourceFactory.createTypedLiteral(0.0);
+                        }
                     }
-                    else {
-                        sensorValue = ResourceFactory.createPlainLiteral("UNDEFINED").toString();
+                    else{
+                        sensorValue = ResourceFactory.createTypedLiteral(0.0);
                     }
+
 
                     //Update sensor value in cache
-                    String fragment = getIdentifier().getRawFragment();
-                    String updateQuery = "PREFIX vs: <http://example.org/virtual-sensors#>\n" +
-                            "PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>\n" +
-                            "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n" +
-                            "\n" +
-                            "DELETE {vs:" + fragment + "-SensorOutput ssn:hasValue ?o}\n" +
-                            "INSERT {vs:" + fragment + "-SensorOutput ssn:hasValue " + sensorValue + "}\n" +
-                            "WHERE  {vs:" + fragment + "-SensorOutput ssn:hasValue ?o}";
+                    String sensorName = getIdentifier().getRawFragment();
+                    String value = "\"" + sensorValue.getLexicalForm() + "\"^^xsd:double";
 
+                    String updateQuery = createUpdateQuery(getGraphName(), sensorName, value);
+
+                    log.info(updateQuery);
 
                     UpdateRequest updateRequest = UpdateFactory.create(updateQuery);
                     InternalUpdateRequest internalUpdateRequest = new InternalUpdateRequest(updateRequest);
@@ -151,7 +195,6 @@ public class VirtualSensor extends SemanticEntity{
                     log.error("Failed to retrieve Virtual Sensor Value!", throwable);
                 }
             });
-
         }
     }
 

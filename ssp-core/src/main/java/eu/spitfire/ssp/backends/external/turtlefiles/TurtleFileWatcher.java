@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.backends.external.n3files;
+package eu.spitfire.ssp.backends.external.turtlefiles;
 
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.util.concurrent.FutureCallback;
@@ -9,7 +9,6 @@ import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.*;
@@ -23,18 +22,18 @@ import static java.nio.file.StandardWatchEventKinds.*;
 /**
  * Created by olli on 15.04.14.
  */
-class N3FileWatcher {
+class TurtleFileWatcher {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private N3FileRegistry registry;
-    private N3FileObserver observer;
-    private N3FileAccessor accessor;
+    private TurtleFileRegistry registry;
+    private TurtleFileObserver observer;
+    private TurtleFileAccessor accessor;
 
     private WatchService watchService;
-    private N3FileBackendComponentFactory componentFactory;
+    private TurtleFileBackendComponentFactory componentFactory;
 
-    public N3FileWatcher(N3FileBackendComponentFactory componentFactory) throws Exception {
+    public TurtleFileWatcher(TurtleFileBackendComponentFactory componentFactory) throws Exception {
         this.componentFactory = componentFactory;
         this.watchService = FileSystems.getDefault().newWatchService();
         this.registry = componentFactory.getRegistry();
@@ -81,17 +80,17 @@ class N3FileWatcher {
 
                 @Override
                 public FileVisitResult visitFile(Path filePath, BasicFileAttributes attr) throws IOException {
-                    if(filePath.toString().endsWith(".n3")){
+                    if(filePath.toString().endsWith(".ttl")){
                         try{
-                            N3File n3File = new N3File(filePath, componentFactory.getSspHostName());
-                            registry.registerDataOrigin(n3File);
+                            TurtleFile turtleFile = new TurtleFile(filePath, componentFactory.getSspHostName());
+                            registry.registerDataOrigin(turtleFile);
                         }
                         catch(URISyntaxException ex){
                             log.error("This should never happen!", ex);
                         }
                     }
                     else
-                        log.debug("No N3 file: \"{}\"", filePath);
+                        log.debug("No Turtle file: \"{}\"", filePath);
 
                     return FileVisitResult.CONTINUE;
                 }
@@ -103,7 +102,7 @@ class N3FileWatcher {
     }
 
 
-    private void handleFileModification(final N3File dataOrigin){
+    private void handleFileModification(final TurtleFile dataOrigin){
         log.info("File {} was updated!", dataOrigin);
         Futures.addCallback(accessor.getStatus(dataOrigin), new FutureCallback<DataOriginInquiryResult>() {
 
@@ -134,7 +133,7 @@ class N3FileWatcher {
                 WatchKey watchKey = watchService.take();
                 Path directory = (Path) watchKey.watchable();
 
-                LinkedHashMultimap<N3File, WatchEvent.Kind> detectedEvents = LinkedHashMultimap.create();
+                LinkedHashMultimap<TurtleFile, WatchEvent.Kind> detectedEvents = LinkedHashMultimap.create();
 
                 for(WatchEvent event : watchKey.pollEvents()){
 
@@ -148,20 +147,20 @@ class N3FileWatcher {
                         continue;
                     }
 
-                    //Ignore events on files whose names do not end with .n3
-                    if (!filePath.toString().endsWith(".n3")){
-                        log.debug("Event on file {} will be ignored (no *.n3)", filePath);
+                    //Ignore events on files whose names do not end with ".ttl"
+                    if (!filePath.toString().endsWith(".ttl")){
+                        log.debug("Event on file {} will be ignored (no *.ttl)", filePath);
                         continue;
                     }
 
-                    //Collect events on N3 files
-                    N3File n3File = new N3File(filePath, componentFactory.getSspHostName());
+                    //Collect events on turtle files
+                    TurtleFile turtleFile = new TurtleFile(filePath, componentFactory.getSspHostName());
                     log.debug("Event {} at file {}", eventKind, filePath);
-                    detectedEvents.put(n3File, eventKind);
+                    detectedEvents.put(turtleFile, eventKind);
                 }
 
-                //handle events on N3 files
-                handleN3FileEvents(detectedEvents);
+                //handle events on turtle files
+                handleTurtleFileEvents(detectedEvents);
 
                 // reset watchkey and remove from set if directory is no longer accessible
                 if(watchKey.reset()){
@@ -178,40 +177,40 @@ class N3FileWatcher {
         }
 
 
-        private void handleN3FileEvents(LinkedHashMultimap<N3File, WatchEvent.Kind> events){
-            for(final N3File n3File : events.keySet()){
+        private void handleTurtleFileEvents(LinkedHashMultimap<TurtleFile, WatchEvent.Kind> events){
+            for(final TurtleFile turtleFile : events.keySet()){
 
-                for(WatchEvent.Kind eventKind : events.get(n3File)){
-                    log.info("Event {} on N3 file {}.", eventKind, n3File);
+                for(WatchEvent.Kind eventKind : events.get(turtleFile)){
+                    log.info("Event {} on turtle file {}.", eventKind, turtleFile);
                 }
 
-                Iterator<WatchEvent.Kind> eventIterator = events.get(n3File).iterator();
+                Iterator<WatchEvent.Kind> eventIterator = events.get(turtleFile).iterator();
 
                 while(eventIterator.hasNext()){
                     WatchEvent.Kind eventKind = eventIterator.next();
 
                     if(eventKind == ENTRY_DELETE){
                         if(eventIterator.hasNext() && eventIterator.next() == ENTRY_CREATE){
-                            log.info("N3 File {} was deleted and immediately recreated (UPDATE CACHE).", n3File);
-                            handleFileModification(n3File);
+                            log.info("Turtle File {} was deleted and immediately recreated (UPDATE CACHE).", turtleFile);
+                            handleFileModification(turtleFile);
                         }
                         else{
-                            log.info("N3 File {} was deleted (UNREGISTER).", n3File);
-                            registry.unregisterDataOrigin(n3File.getIdentifier());
+                            log.info("Turtle File {} was deleted (UNREGISTER).", turtleFile);
+                            registry.unregisterDataOrigin(turtleFile.getIdentifier());
                         }
                     }
 
                     else if(eventKind == ENTRY_CREATE){
                         if(eventIterator.hasNext() && eventIterator.next() == ENTRY_DELETE){
-                            log.warn("N3 File {} was created and immediately deleted(IGNORE)!", n3File);
+                            log.warn("Turtle File {} was created and immediately deleted(IGNORE)!", turtleFile);
                         }
                         else if(eventIterator.hasNext() && eventIterator.next() == ENTRY_MODIFY){
-                            log.info("N3 File {} was created and modified (REGISTER).", n3File);
-                            registry.registerDataOrigin(n3File);
+                            log.info("Turtle File {} was created and modified (REGISTER).", turtleFile);
+                            registry.registerDataOrigin(turtleFile);
                         }
                         else{
-                            log.info("N3 File {} was created (REGISTER).", n3File);
-                            ListenableFuture<Void> regFuture = registry.registerDataOrigin(n3File);
+                            log.info("Turtle File {} was created (REGISTER).", turtleFile);
+                            ListenableFuture<Void> regFuture = registry.registerDataOrigin(turtleFile);
                             Futures.addCallback(regFuture, new FutureCallback<Void>() {
                                 @Override
                                 public void onSuccess(Void result) {
@@ -220,7 +219,7 @@ class N3FileWatcher {
 
                                 @Override
                                 public void onFailure(Throwable t) {
-                                    handleFileModification(n3File);
+                                    handleFileModification(turtleFile);
                                 }
                             });
                         }
@@ -228,17 +227,17 @@ class N3FileWatcher {
 
                     else if(eventKind == ENTRY_MODIFY){
                         if(eventIterator.hasNext() && eventIterator.next() == ENTRY_DELETE){
-                            log.warn("N3 File {} was modified and immediately deleted (UNREGISTER)!", n3File);
-                            registry.unregisterDataOrigin(n3File.getIdentifier());
+                            log.warn("Turtle File {} was modified and immediately deleted (UNREGISTER)!", turtleFile);
+                            registry.unregisterDataOrigin(turtleFile.getIdentifier());
                         }
                         else{
-                            log.info("N3 File {} was modified (UPDATE CACHE).", n3File);
-                            handleFileModification(n3File);
+                            log.info("Turtle File {} was modified (UPDATE CACHE).", turtleFile);
+                            handleFileModification(turtleFile);
                         }
                     }
 
                     else{
-                        log.error("Unexpected event on N3 file {}: {}", n3File, eventKind);
+                        log.error("Unexpected event on Turtle file {}: {}", turtleFile, eventKind);
                     }
                 }
             }

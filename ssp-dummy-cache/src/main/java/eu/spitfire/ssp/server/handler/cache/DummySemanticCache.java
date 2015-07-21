@@ -9,6 +9,7 @@ import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.sparql.resultset.ResultSetMem;
 import eu.spitfire.ssp.server.handler.SemanticCache;
 import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
+import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,9 +34,9 @@ public class DummySemanticCache extends SemanticCache {
     }
 
     @Override
-    public ListenableFuture<ExpiringGraph> getNamedGraph(URI graphName) {
+    public ListenableFuture<ExpiringNamedGraph> getNamedGraph(URI graphName) {
 
-        SettableFuture<ExpiringGraph> resultFuture = SettableFuture.create();
+        SettableFuture<ExpiringNamedGraph> resultFuture = SettableFuture.create();
         resultFuture.set(null);
 
         return resultFuture;
