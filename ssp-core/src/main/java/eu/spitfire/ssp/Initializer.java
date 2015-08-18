@@ -97,6 +97,7 @@ public abstract class Initializer {
         registerHomepage();
         registerFavicon();
         registerSparqlEndpoint();
+        registerResourceList();
 
         //this is just an example on what is possible...
         registerTrafficMonitoring();
@@ -347,6 +348,12 @@ public abstract class Initializer {
         registerHttpWebservice(uri, httpWebservice);
     }
 
+    private void registerResourceList() throws Exception{
+        registerHttpWebservice(
+                new URI(null, null, null, -1, "/services/semantic-entities/resource-list", null, null),
+                new ResourceList(this.ioExecutor, this.internalTasksExecutor)
+        );
+    }
 
     private void registerTrafficMonitoring() throws Exception{
         URI uri = new URI(null, null, null, -1, "/services/geo-views/traffic-monitoring", null, null);

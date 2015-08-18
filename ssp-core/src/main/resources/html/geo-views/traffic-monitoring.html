@@ -59,9 +59,12 @@
 
             var mapOptions = {
                 zoom: 15,
+                maxZoom: 21,
+                minZoom: 15,
                 center: new google.maps.LatLng(53.865382, 10.687259),
+                scaleControl: true,
                 mapTypeControlOptions: {
-                    mapTypeIds: [google.maps.MapTypeId.ROADMAP, 'tehgrayz']
+                    mapTypeIds: [] //'tehgrayz'
                 }
             };
 

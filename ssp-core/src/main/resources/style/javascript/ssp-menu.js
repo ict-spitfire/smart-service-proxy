@@ -16,6 +16,9 @@ var semanticEntitiyLayer2Menu = '\
         </a>\
         <a class="item" href="/services/semantic-entities/semantic-entities-editor">\
             List Graphs\
+        </a>\
+        <a class="item" href="/services/semantic-entities/resource-list">\
+            List Resources\
         </a>';
 //<a class="item">\
 //Create (loose) Graph\
