@@ -9,6 +9,6 @@ import java.util.concurrent.ScheduledExecutorService;
 public class TrafficMonitoring extends HttpWebservice{
 
     public TrafficMonitoring(ExecutorService ioExecutor, ScheduledExecutorService internalTasksExecutor) {
-        super(ioExecutor, internalTasksExecutor, "html/geo-views/traffic-monitoring.html");
+        super(ioExecutor, internalTasksExecutor, "html/applications/traffic-monitoring.html");
     }
 }

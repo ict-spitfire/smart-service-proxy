@@ -1,6 +1,7 @@
 package eu.spitfire.ssp.utils;
 
 import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
+import org.apache.jena.riot.RDFFormat;
 
 /**
  * A wrapper class for the internal representation of content format names in the JENA framework and corresponding
@@ -12,31 +13,31 @@ public enum Language{
     /**
      * Corresponds to HTTP mime type "application/rdf+xml"
      */
-    RDF_XML("RDF/XML", "application/rdf+xml"),
+    RDF_XML(RDFFormat.RDFXML_ABBREV, "application/rdf+xml"),
 
     /**
      * Corresponds to HTTP mime type "application/n3"
      */
-    RDF_N3 ("N3", "application/n3"),
+    RDF_N3 (RDFFormat.TURTLE_BLOCKS, "application/n3"),
 
     /**
      * Corresponds to HTTP mime type "application/turtle"
      */
-    RDF_TURTLE("TURTLE", "application/turtle");
+    RDF_TURTLE(RDFFormat.TURTLE_BLOCKS, "application/turtle");
 
     /**
      * A String representing the JENA name of the language
      */
-    public String lang;
+    private RDFFormat rdfFormat;
 
     /**
      * A String representing the HTTP mime type of the language
      */
-    public String mimeType;
+    private String mimeType;
 
 
-    private Language(String lang, String mimeType) {
-        this.lang = lang;
+    private Language(RDFFormat rdfFormat, String mimeType) {
+        this.rdfFormat = rdfFormat;
         this.mimeType = mimeType;
     }
 
@@ -58,6 +59,10 @@ public enum Language{
         return null;
     }
 
+    public static boolean isSupported(String mimeType){
+        return getByHttpMimeType(mimeType) == null;
+    }
+
     public static Language getByCoapContentFormat(long contentFormat){
 
         if(contentFormat == ContentFormat.APP_RDF_XML)
@@ -70,12 +75,21 @@ public enum Language{
         return null;
     }
 
-    public static Language getByName(String name){
-        for(Language language : Language.values()){
-            if(name.equals(language.lang))
-                return language;
-        }
 
-        return null;
+//    public static Language getByName(String name){
+//        for(Language language : Language.values()){
+//            if(name.equals(language.lang))
+//                return language;
+//        }
+//
+//        return null;
+//    }
+
+    public String getMimeType(){
+        return this.mimeType;
+    }
+
+    public RDFFormat getRdfFormat(){
+        return this.rdfFormat;
     }
 }

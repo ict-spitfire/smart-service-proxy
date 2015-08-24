@@ -1,0 +1,226 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>VS Creation</title>
+    <link href="../../../style/css/semantic.css" rel="stylesheet" type="text/css" />
+    <link href="../../../style/css/semantic.min.css" rel="stylesheet" type="text/css"/>
+    <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Open+Sans:300italic,400,300,700'
+          rel='stylesheet' type='text/css'>
+
+    <style type="text/css">
+        :not(i){
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        *{
+            font-size: 13px;
+        }
+
+        .label{
+            font-weight: bold !important;
+
+        }
+
+        .monospace{
+            font-family: monospace;
+        }
+    </style>
+
+    <script src="../../../style/javascript/jquery-1.11.1.min.js"></script>
+    <script src="../../../style/javascript/semantic.min.js"></script>
+    <script src="../../../style/javascript/semantic.js"></script>
+</head>
+
+<body>
+<div class="ui one column page grid">
+    <div class="column">
+        <div id="header">
+        </div>
+        <script src="../../../style/javascript/ssp-menu.js"></script>
+
+        <h4 class="ui top attached header">
+            Create Single Virtual Sensor
+        </h4>
+
+        <div class="ui form segment attached">
+            <div class="ui three steps" style="margin-top: 5px; margin-bottom: 20px">
+                <div class="ui active step" id="step1">
+                    1st step: Virtual Sensor Description
+                </div>
+                <div class="ui step" id="step2">
+                    2nd step: Query for Sensor Value
+                </div>
+                <div class="ui step" id="step3">
+                    3rd step: Preview and Creation
+                </div>
+            </div>
+
+            <!-- HTML content for step 1 (URIs) -->
+            <div id="step1Content">
+                <div class="ui secondary segment">
+                    <div class="ui small grey top left attached label">Sensor Name (POSTFIX):</div>
+                    <div style="font-weight: bold">PREFIX:
+                        <div class="monospace" style="font-weight: normal; display: inline">
+                            http://ssp.example.org/vs# (will be automatically generated)
+                        </div>
+                    </div>
+                    <input class="monospace triplesPart" style="margin-top: 5px" type="text"
+                            value="TripleCounter" id="fldSensorName">
+                </div>
+
+                <div class="ui secondary segment">
+                    <div class="ui small grey top left attached label">Sensor Type</div>
+                    <p>
+                        The URI to identify the sensor type (some subclass of
+                        <a href="http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#Sensor">ssn:Sensor</a>)
+                    </p>
+                    <input class="monospace triplesPart" style="margin-top: 5px" type="text"
+                        value="http://purl.oclc.org/NET/ssnx/ssn#Sensor" id="fldTypeName">
+                </div>
+
+                <div class="ui secondary segment">
+                    <div class="ui small grey top left attached label">Feature of Interest</div>
+                    <p>
+                        The URI to identify the thing, whose property is to be observed by this sensor (see
+                        <a href="http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#FeatureOfInterest">ssn:FeatureOfInterest</a>)
+                    </p>
+                    <input class="monospace triplesPart" type="text"
+                            value="http://example.org/ssp#ID" id="fldFeatureOfInterest">
+                </div>
+
+                <div class="ui secondary segment">
+                    <div class="ui small grey top left attached label">Observed Property</div>
+                    <p>
+                        The URI to identify the property of the FOI that is to be observed by this sensor (see
+                        <a href="http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#Property">ssn:Property</a>)
+                    </p>
+                    <input class="monospace triplesPart" type="text"
+                           value="http://example.org/ssp#numberOfTriples" id="fldProperty">
+                </div>
+            </div>
+
+            <!-- HTML content for step 2 (SPARQL) -->
+            <div id="step2Content" style="display: none">
+                <div class="ui secondary segment">
+                    <div class="ui small grey top left attached label">
+                        SPAQRL Query
+                    </div>
+                    <div style="font-weight: bold">Note:
+                        <div style="font-weight: normal; display: inline">
+                           The query MUST return a value for parameter ?val! The (first) value of paramter ?val is
+                           taken as <a href="http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#ObservationValue">
+                           ssn:ObservationValue</a>.
+                        </div>
+                    </div>
+                    <textarea class="sparqlPart monospace" id="fldQuery"  style="margin-top: 5px; height: 500px; min-height: 70px">
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT (xsd:int(COUNT(?s)) AS ?val) WHERE {
+  ?s ?p ?o
+}</textarea>
+                </div>
+            </div>
+
+            <!-- HTML content for step 3 (Preview and Creation) -->
+            <div id="step3Content" style="display: none">
+
+                <div class="ui buttons" id="buttons" style="margin-top: 10px; margin-bottom: 10px">
+                    <div class="ui blue button" id="btnPreview">Preview</div>
+                    <div class="or"></div>
+                    <div class="ui green button" id="btnCreate">Create</div>
+                </div>
+
+                <!--Results (to be shown when content available)-->
+                <div class="ui secondary segment" id="resultSegment" style="display: none">
+                    <div class="ui top left attached label" id="resultLabel">
+                    </div>
+                    <div id="resultContent">
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    $('#buttons').find('div.button').click(function(event){
+        event.preventDefault();
+
+        $('#resultSegment').hide();
+        var formData = new FormData();
+        formData.append('sensorName', $('#fldSensorName').val());
+        formData.append('sensorType', $('#fldTypeName').val());
+        formData.append('foi', $('#fldFeatureOfInterest').val());
+        formData.append('property', $('#fldProperty').val());
+        formData.append('query', $('#fldQuery').val());
+
+        //formData.append('ontology', $('#fldOntology').val());
+
+        var btnID = $(this).attr('id');
+        formData.append('button', btnID);
+
+        $.ajax({
+            type: "POST",
+            url: './virtual-sensor-creation',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function(e){
+                console.log(e);
+                console.log(btnID);
+                $('#resultSegment').show();
+                if(btnID == 'btnPreview'){
+                    $('#resultLabel').html('RDF representation of virtual sensor (Turtle-Preview)').removeClass('red');
+                    $('#resultContent').html(
+                        '<p> Query Execution Duration: ' +  e['duration'] + ' ms.</p>\n' +
+                        '<textarea class="monospace" style="height: 800px" readonly="readonly">\n' +
+                         (e['sensorStatus']) + '\n</textarea>').show();
+                }
+                else{
+                    $('#resultLabel').html('Virtual sensor Creation Result').removeClass('red');
+                    $('#resultContent').html(
+                        '<p>Virtual Sensor succesfully created!</p>' +
+                        '<p>See <a href="/?graph=' + encodeURIComponent(e['graphName']) + '">/?graph=' + e['graphName'] + '</a></p>'
+                    );
+                }
+            },
+            error: function(e){
+                console.log(e);
+                $('#resultSegment').show();
+                $('#resultLabel').html('Some error occured...').addClass('red');
+                $('#resultContent').html('<p>' + (e['responseText']) + '</p>');
+            }
+        });
+    });
+
+    $('.steps').find('div.step').click(function(){
+        $('.steps').find('div.step').each(function(){
+            $(this).removeClass('active');
+        });
+
+        $(this).addClass('active');
+
+        if($(this).attr('id') == 'step1'){
+            $('#step1Content').show();
+            $('#step2Content').hide();
+            $('#step3Content').hide();
+        }
+
+        else if($(this).attr('id') == 'step2'){
+            $('#step1Content').hide();
+            $('#step2Content').show();
+            $('#step3Content').hide();
+        }
+
+        else if($(this).attr('id') == 'step3'){
+            $('#step1Content').hide();
+            $('#step2Content').hide();
+            $('#step3Content').show();
+        }
+    });
+</script>
+</body>
+</html>

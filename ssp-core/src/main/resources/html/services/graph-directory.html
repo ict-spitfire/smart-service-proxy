@@ -1,0 +1,91 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Named Graphs</title>
+    <link href="../../../style/css/semantic.css" rel="stylesheet" type="text/css" />
+    <link href="../../../style/css/semantic.min.css" rel="stylesheet" type="text/css"/>
+    <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Open+Sans:300italic,400,300,700'
+          rel='stylesheet' type='text/css'>
+
+    <style type="text/css">
+        :not(i){
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        *{
+            font-size: 13px;
+        }
+    </style>
+
+    <script src="../../../style/javascript/jquery-1.11.1.min.js"></script>
+
+</head>
+
+<body>
+<div class="ui one column page grid">
+    <div class="column">
+        <div id="header">
+        </div>
+        <script src="../../../style/javascript/ssp-menu.js"></script>
+
+        <h4 class="ui top attached header">
+            Named Graphs
+        </h4>
+
+        <div class="ui form segment attached">
+            <table class="ui basic table">
+                <thead>
+                    <tr>
+                        <th>Graph Name</th>
+                        <th>&nbsp;</th>
+                    </tr>
+                </thead>
+                <tbody id="semanticEntities">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    $(document).ready(function(){
+
+        var formData = new FormData();
+        formData.append('query', 'SELECT DISTINCT ?g WHERE { GRAPH ?g {?s ?p ?o} } ORDER BY ASC(?g)');
+        //formData.append('query', 'SELECT DISTINCT ?s WHERE {?s ?p ?o} ORDER BY ASC(?s)');
+
+        $.ajax({
+            type: "POST",
+            beforeSend: function (request)
+            {
+                request.setRequestHeader("Accept", 'application/sparql-results+json');
+            },
+            url: '/services/sparql-endpoint',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function(e){
+                console.log(e);
+                var parsedJSON = JSON.parse(e['results']);
+                var seListContent = '';
+                parsedJSON['results']['bindings'].forEach(function(graph){
+                    var graphName = graph['g']['value'];
+                    seListContent += '<tr>\
+                            <td><a href="/?graph=' + encodeURIComponent(graphName) + '">' + graphName + '</a></td>\
+                            <td>\
+                                <div class="ui small icon button"><i class="edit icon"></i></div>\
+                                <div class="ui small red icon button"><i class="trash icon"></i></div>\
+                            </td></tr>\n';
+                });
+                $('#semanticEntities').html(seListContent);
+            },
+            error: function(e){
+                console.log('ERROR!' + e);
+            }
+        });
+    });
+</script>
+</body>
+</html>

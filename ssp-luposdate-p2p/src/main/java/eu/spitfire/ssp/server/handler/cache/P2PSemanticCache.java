@@ -2,7 +2,7 @@
 //
 //import com.hp.hpl.jena.rdf.model.Model;
 //import com.hp.hpl.jena.rdf.model.Statement;
-//import eu.spitfire.ssp.backends.generic.messages.InternalResourceStatusMessage;
+//import eu.spitfire.ssp.backend.generic.message.InternalResourceStatusMessage;
 //
 //import java.net.URI;
 //import java.util.Date;

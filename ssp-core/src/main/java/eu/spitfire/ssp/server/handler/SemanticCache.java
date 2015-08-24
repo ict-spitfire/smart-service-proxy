@@ -25,16 +25,18 @@
 package eu.spitfire.ssp.server.handler;
 
 import com.google.common.util.concurrent.*;
-import com.hp.hpl.jena.query.*;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.RDFNode;
-import com.hp.hpl.jena.rdf.model.Statement;
-import eu.spitfire.ssp.server.internal.messages.requests.*;
-import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
-import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.ExpiringGraph;
+import eu.spitfire.ssp.server.internal.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.QueryExecutionResults;
+import eu.spitfire.ssp.server.internal.message.*;
+import eu.spitfire.ssp.utils.Converter;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
-//import eu.spitfire.ssp.utils.exceptions.GraphNameAlreadyExistsException;
+import org.apache.jena.query.Query;
+import org.apache.jena.query.QueryFactory;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.query.Syntax;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.RDFNode;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
@@ -46,7 +48,12 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
+//import eu.spitfire.ssp.utils.exceptions.GraphNameAlreadyExistsException;
 
 /**
  * Checks whether the incoming {@link HttpRequest} can be answered with cached information. This depends on the
@@ -80,7 +87,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
     /**
      * This method is invoked for upstream {@link MessageEvent}s and handles incoming {@link HttpRequest}s.
      * It tries to find a fresh status of the requested resource (identified using the requests target URI) in its
-     * internal cache. If a fresh status is found, it sends this status (as an instance of {@link Model})
+     * internal cache. If a fresh status is found, it sends this status (as an instance of {@link org.apache.jena.rdf.model.Model})
      * downstream to the {@link eu.spitfire.ssp.server.handler.HttpSemanticPayloadFormatter}.
      *
      * @param ctx The {@link ChannelHandlerContext} to relate this handler with its current {@link Channel}
@@ -137,28 +144,31 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         public void run() {
             try {
                 Query query = QueryFactory.create("SELECT ?p ?o WHERE {<" + resourceName + "> ?p ?o .}");
-                ListenableFuture<ResultSet> queryResultFuture = processSparqlQuery(query);
-                Futures.addCallback(queryResultFuture, new FutureCallback<ResultSet>() {
+
+                Futures.addCallback(processSparqlQuery(query), new FutureCallback<QueryExecutionResults>() {
 
                     @Override
-                    public void onSuccess(ResultSet queryResult) {
-                        LOG.debug("Result for lookup resource \"{}\": {}", resourceName, queryResult);
+                    public void onSuccess(QueryExecutionResults results) {
+                        ResultSet resultSet = results.getResultSet();
+                        LOG.debug("Result for lookup resource \"{}\": {}", resourceName, resultSet);
 
-                        Model resultGraph = ModelFactory.createDefaultModel();
-                        QuerySolution solution;
-                        while (queryResult.hasNext()) {
-                            solution = queryResult.nextSolution();
-                            Statement statement = resultGraph.createStatement(
-                                    resultGraph.createResource(resourceName.toString()),
-                                    resultGraph.createProperty(solution.getResource("?p").getURI()),
-                                    solution.get("?o")
-                            );
+//                        Model resultGraph = ModelFactory.createDefaultModel();
+//                        QuerySolution solution;
+//                        while (resultSet.hasNext()) {
+//                            solution = resultSet.nextSolution();
+//                            Statement statement = resultGraph.createStatement(
+//                                    resultGraph.createResource(resourceName.toString()),
+//                                    resultGraph.createProperty(solution.getResource("?p").getURI()),
+//                                    solution.get("?o")
+//                            );
+//
+//                            resultGraph.add(statement);
+//                        }
 
-                            resultGraph.add(statement);
-                        }
+                        Model model = Converter.toModel(resultSet, resourceName.toString());
 
                         //Send expiring graph
-                        ExpiringGraph expiringGraph = new ExpiringGraph(resultGraph, new Date());
+                        ExpiringGraph expiringGraph = new ExpiringGraph(model, new Date());
                         ChannelFuture channelFuture = Channels.future(ctx.getChannel());
                         Channels.write(ctx, channelFuture, expiringGraph, remoteAdress);
                         channelFuture.addListener(ChannelFutureListener.CLOSE);
@@ -284,8 +294,8 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
     /**
      * Method to retrieve a named graph from the cache. The returned future must be set with an instance of
-     * {@link eu.spitfire.ssp.server.internal.messages.responses.AccessResult} representing the result of the operation, i.e.
-     * either a {@link eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph}.
+     * {@link eu.spitfire.ssp.server.internal.ExpiringNamedGraph} representing the result of the operation, i.e.
+     * either a {@link eu.spitfire.ssp.server.internal.ExpiringGraph}.
      *
      * @param graphName the name of the graph to be looked up
      *
@@ -329,12 +339,12 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * {@link SemanticCache} should override this method in order to support
      * SPAQRL queries.
      *
-     * @param query the {@link com.hp.hpl.jena.query.Query} to be processed.
+     * @param query the {@link org.apache.jena.query.Query} to be processed.
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with an instance of
-     * {@link eu.spitfire.ssp.server.internal.messages.responses.AccessResult}.
+     * {@link eu.spitfire.ssp.server.internal.QueryExecutionResults}.
      */
-    public abstract ListenableFuture<ResultSet> processSparqlQuery(Query query);
+    public abstract ListenableFuture<QueryExecutionResults> processSparqlQuery(Query query);
 
     @Override
     public void writeRequested(ChannelHandlerContext ctx, final MessageEvent me) {
@@ -359,11 +369,15 @@ public abstract class SemanticCache extends SimpleChannelHandler {
             }
 
             else if (me.getMessage() instanceof InternalCacheUpdateRequest){
-                handleInternalCacheUpdateTask((InternalCacheUpdateRequest) me.getMessage());
+                InternalCacheUpdateRequest request = (InternalCacheUpdateRequest) me.getMessage();
+                PutExpiringNamedGraphToCacheTask task = new PutExpiringNamedGraphToCacheTask(
+                        request.getExpiringNamedGraph(), request.getCacheUpdateFuture()
+                );
+                this.internalTasksExecutor.execute(task);
             }
 
-            else if (me.getMessage() instanceof QueryProcessingRequest) {
-                QueryProcessingTask task = new QueryProcessingTask((QueryProcessingRequest) me.getMessage());
+            else if (me.getMessage() instanceof InternalQueryExecutionRequest) {
+                QueryProcessingTask task = new QueryProcessingTask((InternalQueryExecutionRequest) me.getMessage());
                 MoreExecutors.directExecutor().execute(task);
             }
 
@@ -457,31 +471,31 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 //        }
     }
 
-    private void handleInternalCacheUpdateTask(final InternalCacheUpdateRequest cacheUpdateTask){
-        ListenableFuture<Void> cacheUpdateFuture;
-
-        if(cacheUpdateTask.getExpiringNamedGraph() != null){
-            ExpiringNamedGraph expiringNamedGraph = cacheUpdateTask.getExpiringNamedGraph();
-            cacheUpdateFuture = putNamedGraphToCache(expiringNamedGraph.getGraphName(), expiringNamedGraph.getGraph());
-        }
-        else{
-            SensorValueUpdate sensorValueUpdate = cacheUpdateTask.getSensorValueUpdate();
-            cacheUpdateFuture = updateSensorValue(sensorValueUpdate.getSensorGraphName(), sensorValueUpdate.getValue());
-        }
-
-        Futures.addCallback(cacheUpdateFuture, new FutureCallback<Void>() {
-            @Override
-            public void onSuccess(Void result) {
-                cacheUpdateTask.getCacheUpdateFuture().set(null);
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                cacheUpdateTask.getCacheUpdateFuture().setException(t);
-            }
-        });
-
-    }
+//    private void handleInternalCacheUpdateTask(final InternalCacheUpdateRequest cacheUpdateTask){
+//        ListenableFuture<Void> cacheUpdateFuture;
+//
+//        if(cacheUpdateTask.getExpiringNamedGraph() != null){
+//            ExpiringNamedGraph expiringNamedGraph = cacheUpdateTask.getExpiringNamedGraph();
+//            cacheUpdateFuture = putNamedGraphToCache(expiringNamedGraph.getGraphName(), expiringNamedGraph.getModel());
+//        }
+//        else{
+//            SensorValueUpdate sensorValueUpdate = cacheUpdateTask.getSensorValueUpdate();
+//            cacheUpdateFuture = updateSensorValue(sensorValueUpdate.getSensorGraphName(), sensorValueUpdate.getValue());
+//        }
+//
+//        Futures.addCallback(cacheUpdateFuture, new FutureCallback<Void>() {
+//            @Override
+//            public void onSuccess(Void result) {
+//                cacheUpdateTask.getCacheUpdateFuture().set(null);
+//            }
+//
+//            @Override
+//            public void onFailure(Throwable t) {
+//                cacheUpdateTask.getCacheUpdateFuture().setException(t);
+//            }
+//        });
+//
+//    }
 
     private class DataOriginDeregistrationTask implements Runnable{
 
@@ -531,11 +545,17 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         private final URI graphName;
         private final Model graph;
         private final Date expiry;
+        private final SettableFuture<Void> future;
 
-        private PutExpiringNamedGraphToCacheTask(ExpiringNamedGraph expiringNamedGraph){
-            this.graphName = expiringNamedGraph.getGraphName();
-            this.graph = expiringNamedGraph.getGraph();
-            this.expiry = expiringNamedGraph.getExpiry();
+        private PutExpiringNamedGraphToCacheTask(ExpiringNamedGraph graph){
+            this(graph, null);
+        }
+
+        private PutExpiringNamedGraphToCacheTask(ExpiringNamedGraph graph, SettableFuture<Void> future){
+            this.graphName = graph.getGraphName();
+            this.graph = graph.getModel();
+            this.expiry = graph.getExpiry();
+            this.future = future;
         }
 
         @Override
@@ -549,6 +569,9 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
                 @Override
                 public void onSuccess(Void result) {
+                    if(future != null){
+                        future.set(null);
+                    }
                     scheduleNamedGraphExpiry(graphName,  expiry);
                     LOG.info("Successfully put graph \"{}\" to cache ", graphName);
                 }
@@ -562,29 +585,30 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         }
     }
 
+
     private class QueryProcessingTask implements Runnable{
 
         private Query query;
-        private SettableFuture<ResultSet> queryResultFuture;
+        private SettableFuture<QueryExecutionResults> resultsFuture;
 
-        private QueryProcessingTask(QueryProcessingRequest request){
+        private QueryProcessingTask(InternalQueryExecutionRequest request){
             this.query = request.getQuery();
-            this.queryResultFuture = request.getResultSetFuture();
+            this.resultsFuture = request.getResultsFuture();
         }
 
         @Override
         public void run() {
             LOG.debug("Received Query Request: " + query.toString(Syntax.syntaxSPARQL));
-            Futures.addCallback(processSparqlQuery(query), new FutureCallback<ResultSet>() {
+            Futures.addCallback(processSparqlQuery(query), new FutureCallback<QueryExecutionResults>() {
 
                 @Override
-                public void onSuccess(ResultSet resultSet) {
-                    queryResultFuture.set(resultSet);
+                public void onSuccess(QueryExecutionResults results) {
+                    resultsFuture.set(results);
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    queryResultFuture.setException(throwable);
+                    resultsFuture.setException(throwable);
                 }
             }, MoreExecutors.directExecutor());
         }

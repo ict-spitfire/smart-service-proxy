@@ -5,35 +5,30 @@
 var path = window.location.href.toString().split(window.location.host)[1];
 
 var semanticEntitiyLayer2Menu = '\
-        <a class="item" href="/services/semantic-entities/virtual-sensor-creation">\
+        <a class="item" href="/services/virtual-sensor-creation">\
             Create Virtual Sensor\
         </a>\
-        <a class="item" href="/services/semantic-entities/virtual-sensor-batch-creation">\
+        <a class="item" href="/services/virtual-sensor-batch-creation">\
             Create Virtual Sensors from XML\
         </a>\
-        <a class="item" href="/services/semantic-entities/virtual-sensors-editor">\
+        <a class="item" href="/services/virtual-sensor-directory">\
             List Virtual Sensors\
         </a>\
-        <a class="item" href="/services/semantic-entities/semantic-entities-editor">\
+        <a class="item" href="/services/graph-directory">\
             List Graphs\
         </a>\
-        <a class="item" href="/services/semantic-entities/resource-list">\
+        <a class="item" href="/services/resource-directory">\
             List Resources\
         </a>';
-//<a class="item">\
-//Create (loose) Graph\
-//</a>\
-//<a class="item">\
-//Create Graphs from XML\
-//</a>\
-var geoViewsLayer2Menu = '\
-        <a class="item icon" href="/services/geo-views/traffic-monitoring">\
+
+var applicationsLayer2Menu = '\
+        <a class="item icon" href="/applications/traffic-monitoring">\
             <i class="road icon"></i> Traffic Monitoring\
         </a>';
 
 //function openTrafficWindow(){
 //   console.log("Geklickt!");
-//   window.open("/services/geo-views/traffic-monitoring", "_blank", "height=800,width=600,location=0");
+//   window.open("/services/applications/traffic-monitoring", "_blank", "height=800,width=600,location=0");
 //   return false;
 //}
 
@@ -42,10 +37,10 @@ $(document).ready(function(){
         $('#btnSemanticEntities').addClass('active');
     }
     else if(path == '/services/sparql-endpoint'){
-        $('#btnSparqlSearch').addClass('active');
+        $('#btnSparql').addClass('active');
     }
-    else if(path.substring(0, 20) == '/services/geo-views/'){
-        $('#btnGeoViews').addClass('active');
+    else if(path.substring(0, 20) == '/services/applications/'){
+        $('#btnApplications').addClass('active');
     }
     else if(path == '/'){
         $('#btnHomepage').addClass('active');
@@ -64,7 +59,7 @@ function createHeader(){
     return '\
     <h2 class="ui dividing black header">\
         <img class="ui small right floated image" src="/style/images/ssp.png"/>\
-    Smart Service Proxy\
+        Smart Service Proxy\
     </h2>\
     <div class="ui tiered menu">\
         <div class="menu" id="menuLayer1">\
@@ -74,26 +69,30 @@ function createHeader(){
             <a class="item" id="btnSemanticEntities">\
                 <i class="grid layout icon"></i>Semantic Entities\
             </a>\
-            <a class="item" href="/services/sparql-endpoint" id="btnSparqlSearch">\
+            <a class="item" href="/services/sparql-endpoint" id="btnSparql">\
                 <i class="search icon"></i>&nbsp;SPARQL\
             </a>\
-            <a class="item" id="btnGeoViews">\
-                <i class="globe icon"></i>Geo Views\
+            <a class="item" id="btnApplications">\
+                <i class="globe icon"></i>Applications\
             </a>\
         </div>\
         <div class="ui sub menu" id="menuLayer2">' +
-        getMenuLayer2Content() +
+            getMenuLayer2Content() +
         '</div>\
     </div>';
 }
 
 function getMenuLayer2Content(){
-    if(path.substring(0, 28) == '/services/semantic-entities/'){
+    if(path == '/services/sparql-endpoint'){
+        return '<a class="item">&nbsp</a>';
+    }
+
+    if(path.substring(0, 10) == '/services/'){
         return semanticEntitiyLayer2Menu;
     }
 
-    else if(path.substring(0, 20) == '/services/geo-views/'){
-        return geoViewsLayer2Menu;
+    else if(path.substring(0, 14) == '/applications/'){
+        return applicationsLayer2Menu;
     }
     else {
         return '<a class="item">&nbsp</a>';
@@ -104,9 +103,11 @@ $('#btnSemanticEntities').click(function(){
     $('#menuLayer2').html(semanticEntitiyLayer2Menu)
 });
 
-$('#btnGeoViews').click(function(){
-    $('#menuLayer2').html(geoViewsLayer2Menu)
+
+$('#btnApplications').click(function(){
+    $('#menuLayer2').html(applicationsLayer2Menu)
 });
+
 
 $('#menuLayer1').find('a').click(function(){
     $('#menuLayer1').find('a').each(function(){
@@ -115,15 +116,7 @@ $('#menuLayer1').find('a').click(function(){
 
     $(this).addClass('active');
 });
-//
-//
-//$('#menuLayer2').find('a').click(function(){
-//    $('#menuLayer2').find('a').each(function(){
-//        $(this).removeClass('active');
-//    });
-//
-//    $(this).addClass('active');
-//});
+
 
 
 

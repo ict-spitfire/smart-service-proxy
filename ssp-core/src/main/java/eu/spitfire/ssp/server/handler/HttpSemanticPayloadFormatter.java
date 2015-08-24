@@ -26,21 +26,26 @@ package eu.spitfire.ssp.server.handler;
 
 import com.google.common.collect.Multimap;
 import com.google.common.collect.TreeMultimap;
-import com.hp.hpl.jena.query.ResultSet;
-import eu.spitfire.ssp.server.internal.messages.responses.AccessResult;
-import eu.spitfire.ssp.server.internal.messages.responses.EmptyAccessResult;
-import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
+import eu.spitfire.ssp.server.internal.ExpiringGraph;
+import eu.spitfire.ssp.server.internal.QueryExecutionResults;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
 import eu.spitfire.ssp.utils.Language;
-import eu.spitfire.ssp.utils.QueryResultFormat;
+import eu.spitfire.ssp.utils.QueryResultsFormat;
+import org.apache.jena.query.ResultSetFormatter;
+import org.jboss.netty.buffer.ChannelBufferOutputStream;
 import org.jboss.netty.channel.*;
-import org.jboss.netty.handler.codec.http.*;
+import org.jboss.netty.handler.codec.http.HttpHeaders;
+import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URI;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The {@link HttpSemanticPayloadFormatter} recognizes the requested mimetype from the incoming {@link HttpRequest}.
@@ -50,167 +55,286 @@ import java.util.Arrays;
  * For request addressed to URIs like "/?graph=..." and "/?resource=..." the supported content formats, i.e.
  * supported accept headers of HTTP requests are those defined in {@link eu.spitfire.ssp.utils.Language}. For
  * POST requests addressed to the SPARQL endpoint, i.e. URI "/sparql" the supported content formats are defined
- * in {@link eu.spitfire.ssp.utils.QueryResultFormat}.
+ * in {@link eu.spitfire.ssp.utils.QueryResultsFormat}.
  *
  * @author Oliver Kleine
  */
 public class HttpSemanticPayloadFormatter extends SimpleChannelHandler {
 
     public static final Language DEFAULT_LANGUAGE = Language.RDF_TURTLE;
-    public static final QueryResultFormat DEFAULT_SPARQL_RESULT_FORMAT = QueryResultFormat.XML;
+    public static final QueryResultsFormat DEFAULT_SPARQL_RESULT_FORMAT = QueryResultsFormat.XML;
 
-    private static final int RDF_FORMAT = 1;
-    private static final int SPARQL_RESULT_FORMAT = 2;
+//    private static final int RDF = 1;
+//    private static final int SPARQL_RESULT = 2;
 
-    private static Logger log = LoggerFactory.getLogger(HttpSemanticPayloadFormatter.class.getName());
+    private static Logger LOG = LoggerFactory.getLogger(HttpSemanticPayloadFormatter.class.getName());
 
-    private int formatType;
-    private Object acceptedFormat;
-    private HttpVersion httpVersion;
+//    private int responseFormatType;
+//    private Object acceptedFormat;
+//    private HttpVersion httpVersion;
+
+//    private Object format;
+
+    private HttpRequest httpRequest;
+
+//    private static Object findJenaLanguage(Multimap<Double, String> acceptedMediaTypes){
+//        Object format;
+//        for(Double priority : acceptedMediaTypes.keySet()){
+//            for(String mimeType : acceptedMediaTypes.get(priority)){
+//                format = Language.getByHttpMimeType(mimeType);
+//                if(format == null){
+//                    format = QueryResultsFormat.getByHttpMimeType(mimeType);
+//                }
+//                if(format != null){
+//                    return format;
+//                }
+//            }
+//        }
+//        return null;
+//    }
+
 
 	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) throws Exception {
 
-        if(me.getMessage() instanceof HttpRequest) {
-            HttpRequest httpRequest = (HttpRequest) me.getMessage();
-            String acceptHeader = httpRequest.headers().get(HttpHeaders.Names.ACCEPT);
-            URI requestURI = new URI(httpRequest.getUri());
+        if (me.getMessage() instanceof HttpRequest) {
+            this.httpRequest = (HttpRequest) me.getMessage();
+        }
 
-            //Request returns a graph to be serialized as RDF
-            if(("/".equals(requestURI.getPath()) && requestURI.getQuery() != null)){
+        ctx.sendUpstream(me);
+    }
+//            // define format of response content
+//            String acceptHeader = httpRequest.headers().get(HttpHeaders.Names.ACCEPT);
+//            if(acceptHeader != null) {
+//                this.format = identifyResponseContentFormat(getAcceptedMediaTypes(acceptHeader));
+//            }
+//
+//
+//            URI requestURI = new URI(httpRequest.getUri());
+//
+//
+//
+//
+//            //Request returns a graph to be serialized as RDF
+//            if(("/".equals(requestURI.getPath()) && requestURI.getQuery() != null)){
+//
+//                if(requestURI.getQuery().contains("graph=") || requestURI.getQuery().contains("resource=")){
+//                    responseFormatType = RDF;
+//                    if(acceptHeader != null){
+//                        Multimap<Double, String> acceptedMediaTypes = getAcceptedMediaTypes(acceptHeader);
+//
+//                        acceptLookup:
+//                        for(Double priority : acceptedMediaTypes.keySet()){
+//                            for(String mimeType : acceptedMediaTypes.get(priority)){
+//                                acceptedFormat = Language.getByHttpMimeType(mimeType);
+//                                if(acceptedFormat != null){
+//                                    break acceptLookup;
+//                                }
+//                            }
+//                        }
+//                    }
+//
+//                    if(acceptedFormat == null){
+//                        acceptedFormat = DEFAULT_LANGUAGE;
+//                        LOG.info("Could not find any language, which is both, accepted and supported. Use default ({})",
+//                                DEFAULT_LANGUAGE);
+//                    }
+//                    else{
+//                        LOG.info("Language with highest priority which is both, accepted and supported: {}", acceptedFormat);
+//                    }
+//                }
+//            }
+//
+//            else if("/services/sparql-endpoint".equals(requestURI.getPath()) && httpRequest.getMethod() == HttpMethod.POST){
+//                responseFormatType = SPARQL_RESULT;
+//                if(acceptHeader != null){
+//                    Multimap<Double, String> acceptedMediaTypes = getAcceptedMediaTypes(acceptHeader);
+//
+//                    acceptLookup:
+//                    for(Double priority : acceptedMediaTypes.keySet()){
+//                        for(String mimeType : acceptedMediaTypes.get(priority)){
+//                            acceptedFormat = QueryResultsFormat.getByHttpMimeType(mimeType);
+//                            if(acceptedFormat != null){
+//                                break acceptLookup;
+//                            }
+//                        }
+//                    }
+//                }
+//
+//                if(acceptedFormat == null){
+//                    acceptedFormat = DEFAULT_SPARQL_RESULT_FORMAT;
+//                    LOG.info("Could not find any SPARQL result format, which is both, accepted and supported. Use " +
+//                            "default ({})", DEFAULT_SPARQL_RESULT_FORMAT);
+//                }
+//                else{
+//                    LOG.info("SPARQL result format with highest priority which is both, accepted and supported: {}",
+//                            acceptedFormat);
+//                }
+//            }
+//
+//            httpVersion = httpRequest.getProtocolVersion();
+//		}
+//
+//		ctx.sendUpstream(me);
+//	}
 
-                if(requestURI.getQuery().contains("graph=") || requestURI.getQuery().contains("resource=")){
-                    formatType = RDF_FORMAT;
-                    if(acceptHeader != null){
-                        Multimap<Double, String> acceptedMediaTypes = getAcceptedMediaTypes(acceptHeader);
-
-                        acceptLookup:
-                        for(Double priority : acceptedMediaTypes.keySet()){
-                            for(String mimeType : acceptedMediaTypes.get(priority)){
-                                acceptedFormat = Language.getByHttpMimeType(mimeType);
-                                if(acceptedFormat != null){
-                                    break acceptLookup;
-                                }
-                            }
-                        }
-                    }
-
-                    if(acceptedFormat == null){
-                        acceptedFormat = DEFAULT_LANGUAGE;
-                        log.info("Could not find any language, which is both, accepted and supported. Use default ({})",
-                                DEFAULT_LANGUAGE);
-                    }
-                    else{
-                        log.info("Language with highest priority which is both, accepted and supported: {}", acceptedFormat);
-                    }
+    private static Language getFavouredLanguage(Multimap<Double, String> acceptedMediaTypes){
+        Language language;
+        for(Double priority : acceptedMediaTypes.keySet()){
+            for(String mimeType : acceptedMediaTypes.get(priority)){
+                language = Language.getByHttpMimeType(mimeType);
+                if(language != null){
+                    return language;
                 }
             }
+        }
+        return null;
+    }
 
-            else if("/services/sparql-endpoint".equals(requestURI.getPath()) && httpRequest.getMethod() == HttpMethod.POST){
-                formatType = SPARQL_RESULT_FORMAT;
-                if(acceptHeader != null){
-                    Multimap<Double, String> acceptedMediaTypes = getAcceptedMediaTypes(acceptHeader);
-
-                    acceptLookup:
-                    for(Double priority : acceptedMediaTypes.keySet()){
-                        for(String mimeType : acceptedMediaTypes.get(priority)){
-                            acceptedFormat = QueryResultFormat.getByHttpMimeType(mimeType);
-                            if(acceptedFormat != null){
-                                break acceptLookup;
-                            }
-                        }
-                    }
-                }
-
-                if(acceptedFormat == null){
-                    acceptedFormat = DEFAULT_SPARQL_RESULT_FORMAT;
-                    log.info("Could not find any SPARQL result format, which is both, accepted and supported. Use " +
-                            "default ({})", DEFAULT_SPARQL_RESULT_FORMAT);
-                }
-                else{
-                    log.info("SPARQL result format with highest priority which is both, accepted and supported: {}",
-                            acceptedFormat);
+    private static QueryResultsFormat getFavouredResultsFormat(Multimap<Double, String> acceptedMediaTypes) {
+        QueryResultsFormat resultsFormat;
+        for(Double priority : acceptedMediaTypes.keySet()){
+            for(String mimeType : acceptedMediaTypes.get(priority)){
+                resultsFormat = QueryResultsFormat.getByHttpMimeType(mimeType);
+                if(resultsFormat != null){
+                    return resultsFormat;
                 }
             }
-
-            httpVersion = httpRequest.getProtocolVersion();
-		}
-
-		ctx.sendUpstream(me);
-	}
+        }
+        return null;
+    }
 
 	@Override
 	public void writeRequested(ChannelHandlerContext ctx, final MessageEvent me) throws Exception {
-        log.debug("Downstream: {}", me.getMessage());
+        LOG.debug("Downstream: {}", me.getMessage());
 
-        HttpResponse httpResponse = null;
-
-        if(me.getMessage() instanceof AccessResult){
-
-            if(formatType == RDF_FORMAT){
-                if(me.getMessage() instanceof EmptyAccessResult){
-                    EmptyAccessResult emptyAccessResult = (EmptyAccessResult) me.getMessage();
-                    int codeNumber = emptyAccessResult.getCode().getCodeNumber();
-                    HttpResponseStatus responseStatus = HttpResponseStatus.valueOf(codeNumber);
-                    String content = emptyAccessResult.getMessage();
-                    httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, responseStatus, content);
-                }
-
-                else if(me.getMessage() instanceof ExpiringGraph){
-                    ExpiringGraph expiringGraph = (ExpiringGraph) me.getMessage();
-                    Language format = (Language) acceptedFormat;
-                    httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, format, expiringGraph);
-                }
-            }
-
-            else{
-                HttpResponseStatus status = HttpResponseStatus.INTERNAL_SERVER_ERROR;
-                String content = "Format Type for GraphStatusMessage was " + formatType;
-                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, status, content);
-            }
+        if(me.getMessage() instanceof HttpResponse){
+            ctx.sendDownstream(me);
+            return;
         }
 
-        else if(me.getMessage() instanceof ResultSet){
-            if(formatType == SPARQL_RESULT_FORMAT){
-                ResultSet resultSet = (ResultSet) me.getMessage();
-                QueryResultFormat format = (QueryResultFormat) acceptedFormat;
+        HttpResponse httpResponse;
 
-                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, resultSet, format);
+        String acceptHeader = httpRequest.headers().get(HttpHeaders.Names.ACCEPT);
+
+        // serialize RDF graph in HTTP response
+        if (me.getMessage() instanceof ExpiringGraph) {
+            Language language = null;
+            if (acceptHeader != null) {
+                language = getFavouredLanguage(getAcceptedMediaTypes(acceptHeader));
+            }
+            if (language == null) {
+                language = DEFAULT_LANGUAGE;
+            }
+            httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(), language,
+                    ((ExpiringGraph) me.getMessage()));
+        }
+
+        // serialize SPARQL results in HTTP response
+        else if (me.getMessage() instanceof QueryExecutionResults) {
+            QueryResultsFormat resultsFormat = null;
+            if (acceptHeader != null) {
+                resultsFormat = getFavouredResultsFormat(getAcceptedMediaTypes(acceptHeader));
+            }
+            if (resultsFormat == null) {
+                resultsFormat = DEFAULT_SPARQL_RESULT_FORMAT;
             }
 
-            else{
-                HttpResponseStatus status = HttpResponseStatus.INTERNAL_SERVER_ERROR;
-                String content = "Format Type for QueryResult was " + formatType;
-                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, status, content);
-            }
+            QueryExecutionResults results = (QueryExecutionResults) me.getMessage();
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            ResultSetFormatter.output(outputStream, results.getResultSet(), resultsFormat.getResultsFormat());
+
+            // create the HTTP response
+            Map<String, String> content = new HashMap<>();
+            content.put("results", outputStream.toString());
+            content.put("duration", String.valueOf(results.getDuration()));
+
+            httpResponse = HttpResponseFactory.createHttpJsonResponse(httpRequest.getProtocolVersion(), content);
         }
 
-        else if(me.getMessage() instanceof HttpResponse){
-            httpResponse = (HttpResponse) me.getMessage();
+        // some unexpected error (should never happen!)
+        else {
+            httpResponse = HttpResponseFactory.createHttpResponse(httpRequest.getProtocolVersion(),
+                    HttpResponseStatus.INTERNAL_SERVER_ERROR, "Some unexpected error occurred!\n\n" +
+                            "I know! All errors are unexpected, smart ass :-) ...");
         }
 
-
-        if(httpResponse == null){
-            HttpResponseStatus status = HttpResponseStatus.INTERNAL_SERVER_ERROR;
-            String content = "Unsupported internal message " + me.getMessage();
-            httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, status, content);
-        }
-
-
-        httpResponse.headers().add("Access-Control-Allow-Origin", "*");
-        httpResponse.headers().add("Access-Control-Allow-Credentials", "true");
-
+        // send formatted response
         Channels.write(ctx, me.getFuture(), httpResponse, me.getRemoteAddress());
-
-        if(log.isInfoEnabled()){
+        if(LOG.isInfoEnabled()){
             me.getFuture().addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
-                    log.info("HTTP response written to {}.", me.getRemoteAddress());
+                    LOG.info("HTTP response written to {}.", me.getRemoteAddress());
                 }
             });
         }
     }
+
+//            if(responseFormatType == RDF){
+//                if(me.getMessage() instanceof EmptyAccessResult){
+//                    EmptyAccessResult emptyAccessResult = (EmptyAccessResult) me.getMessage();
+//                    int codeNumber = emptyAccessResult.getCode().getCodeNumber();
+//                    HttpResponseStatus responseStatus = HttpResponseStatus.valueOf(codeNumber);
+//                    String content = emptyAccessResult.getMessage();
+//                    httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, responseStatus, content);
+//                }
+//
+//                else if(me.getMessage() instanceof ExpiringGraph){
+//                    ExpiringGraph expiringGraph = (ExpiringGraph) me.getMessage();
+//                    Language format = (Language) acceptedFormat;
+//                    httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, format, expiringGraph);
+//                }
+//            }
+//
+//            else{
+//                HttpResponseStatus status = HttpResponseStatus.INTERNAL_SERVER_ERROR;
+//                String content = "Format Type for GraphStatusMessage was " + responseFormatType;
+//                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, status, content);
+//            }
+//        }
+//
+//        else if(me.getMessage() instanceof ResultSet){
+//            if(responseFormatType == SPARQL_RESULT){
+//                ResultSet resultSet = (ResultSet) me.getMessage();
+//                QueryResultsFormat format = (QueryResultsFormat) acceptedFormat;
+//
+//                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, resultSet, format);
+//            }
+//
+//            else{
+//                HttpResponseStatus status = HttpResponseStatus.INTERNAL_SERVER_ERROR;
+//                String content = "Format Type for QueryResult was " + responseFormatType;
+//                httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, status, content);
+//            }
+//        }
+//
+//        else if(me.getMessage() instanceof HttpResponse){
+//            httpResponse = (HttpResponse) me.getMessage();
+//        }
+//
+//
+//        if(httpResponse == null){
+//            HttpResponseStatus status = HttpResponseStatus.INTERNAL_SERVER_ERROR;
+//            String content = "Unsupported internal message " + me.getMessage();
+//            httpResponse = HttpResponseFactory.createHttpResponse(httpVersion, status, content);
+//        }
+//
+//
+//        httpResponse.headers().add("Access-Control-Allow-Origin", "*");
+//        httpResponse.headers().add("Access-Control-Allow-Credentials", "true");
+//
+//        Channels.write(ctx, me.getFuture(), httpResponse, me.getRemoteAddress());
+//
+//        if(LOG.isInfoEnabled()){
+//            me.getFuture().addListener(new ChannelFutureListener() {
+//                @Override
+//                public void operationComplete(ChannelFuture future) throws Exception {
+//                    LOG.info("HTTP response written to {}.", me.getRemoteAddress());
+//                }
+//            });
+//        }
+//    }
 
 
     /**
@@ -230,10 +354,10 @@ public class HttpSemanticPayloadFormatter extends SimpleChannelHandler {
         for(String acceptedMediaType : headerValue.split(",")){
             ArrayList<String> parts = new ArrayList<>(Arrays.asList(acceptedMediaType.split(";")));
 
-            if(log.isDebugEnabled()){
-                log.debug("Media type (from HTTP ACCEPT header): {}.", acceptedMediaType);
+            if(LOG.isDebugEnabled()){
+                LOG.debug("Media type (from HTTP ACCEPT header): {}.", acceptedMediaType);
                 for(int i = 0; i < parts.size(); i++){
-                    log.debug("Part {}: {}", i + 1, parts.get(i));
+                    LOG.debug("Part {}: {}", i + 1, parts.get(i));
                 }
             }
 
@@ -254,15 +378,15 @@ public class HttpSemanticPayloadFormatter extends SimpleChannelHandler {
             else
                 httpMediaType = parts.get(0).replace(" ", "");
 
-            log.debug("Found accepted media type {} with priority {}.", httpMediaType, priority);
+            LOG.debug("Found accepted media type {} with priority {}.", httpMediaType, priority);
 
             if(httpMediaType.contains("*")){
-                log.warn("There is no support for wildcard types ({})", httpMediaType);
+                LOG.warn("There is no support for wildcard types ({})", httpMediaType);
                 continue;
             }
 
             result.put(priority * (-1), httpMediaType);
-            log.debug("Added media type {} with priority {}.", httpMediaType, priority);
+            LOG.debug("Added media type {} with priority {}.", httpMediaType, priority);
 
         }
 

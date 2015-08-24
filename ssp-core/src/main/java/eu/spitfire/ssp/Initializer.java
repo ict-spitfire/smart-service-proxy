@@ -1,13 +1,12 @@
 package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import eu.spitfire.ssp.backends.external.coap.CoapBackendComponentFactory;
-import eu.spitfire.ssp.backends.external.turtlefiles.TurtleFileBackendComponentFactory;
-import eu.spitfire.ssp.backends.generic.BackendComponentFactory;
-import eu.spitfire.ssp.backends.internal.se.SemanticEntityBackendComponentFactory;
-import eu.spitfire.ssp.backends.internal.vs.VirtualSensorBackendComponentFactory;
+import eu.spitfire.ssp.backend.coap.CoapComponentFactory;
+import eu.spitfire.ssp.backend.files.TurtleFilesComponentFactory;
+import eu.spitfire.ssp.backend.generic.ComponentFactory;
+import eu.spitfire.ssp.backend.vs.VirtualSensorsComponentFactory;
 import eu.spitfire.ssp.server.handler.SemanticCache;
-import eu.spitfire.ssp.server.internal.messages.requests.WebserviceRegistration;
+import eu.spitfire.ssp.server.internal.message.WebserviceRegistration;
 import eu.spitfire.ssp.server.handler.HttpRequestDispatcher;
 import eu.spitfire.ssp.server.pipelines.HttpProxyPipelineFactory;
 import eu.spitfire.ssp.server.webservices.*;
@@ -57,7 +56,7 @@ public abstract class Initializer {
     private HttpRequestDispatcher httpRequestDispatcher;
     protected SemanticCache semanticCache;
 
-    private Collection<BackendComponentFactory> componentFactories;
+    private Collection<ComponentFactory> componentFactories;
 
     public Initializer(String configPath) throws Exception {
         //initialize logging
@@ -97,13 +96,14 @@ public abstract class Initializer {
         registerHomepage();
         registerFavicon();
         registerSparqlEndpoint();
-        registerResourceList();
+        registerResourceDirectory();
+        registerGraphDirectory();
 
         //this is just an example on what is possible...
         registerTrafficMonitoring();
 
-        //Start the backends
-        for (BackendComponentFactory componentFactory : this.getComponentFactories()) {
+        //Start the backend
+        for (ComponentFactory componentFactory : this.getComponentFactories()) {
             componentFactory.createComponents(config);
         }
 
@@ -154,7 +154,7 @@ public abstract class Initializer {
     }
 
 
-    public Collection<BackendComponentFactory> getComponentFactories() {
+    public Collection<ComponentFactory> getComponentFactories() {
         return this.componentFactories;
     }
 
@@ -162,26 +162,26 @@ public abstract class Initializer {
     private void createBackendComponentFactories() throws Exception {
         this.componentFactories = new ArrayList<>();
 
-        //Add backend for semantic entities (default)
-        ChannelPipeline localPipeline = internalPipelineFactory.getPipeline();
-        LocalServerChannel localChannel = localChannelFactory.newChannel(localPipeline);
-        this.componentFactories.add(new SemanticEntityBackendComponentFactory(
-                this.config, localChannel, this.internalTasksExecutor, this.ioExecutor)
-        );
+//        //Add backend for semantic entities (default)
+//        ChannelPipeline localPipeline = internalPipelineFactory.getPipeline();
+//        LocalServerChannel localChannel = localChannelFactory.newChannel(localPipeline);
+//        this.componentFactories.add(new SemanticEntityBackendComponentFactory(
+//                this.config, localChannel, this.internalTasksExecutor, this.ioExecutor)
+//        );
 
         //Add backend for virtual sensors (default)
-        localPipeline = internalPipelineFactory.getPipeline();
-        localChannel = localChannelFactory.newChannel(localPipeline);
-        this.componentFactories.add(new VirtualSensorBackendComponentFactory(
+        ChannelPipeline localPipeline = internalPipelineFactory.getPipeline();
+        LocalServerChannel localChannel = localChannelFactory.newChannel(localPipeline);
+        this.componentFactories.add(new VirtualSensorsComponentFactory(
                 this.config, localChannel, this.internalTasksExecutor, this.ioExecutor)
         );
 
         //Add Turtle file backend
-        if(this.config.getBoolean("turtlefiles.enabled", false)){
+        if(this.config.getBoolean("files.enabled", false)){
             localPipeline = internalPipelineFactory.getPipeline();
             localChannel = localChannelFactory.newChannel(localPipeline);
 
-            this.componentFactories.add(new TurtleFileBackendComponentFactory(
+            this.componentFactories.add(new TurtleFilesComponentFactory(
                     this.config, localChannel, this.internalTasksExecutor, this.ioExecutor)
             );
         }
@@ -191,7 +191,7 @@ public abstract class Initializer {
             localPipeline = internalPipelineFactory.getPipeline();
             localChannel = localChannelFactory.newChannel(localPipeline);
 
-            this.componentFactories.add(new CoapBackendComponentFactory(
+            this.componentFactories.add(new CoapComponentFactory(
                     this.config, localChannel, this.internalTasksExecutor, this.ioExecutor)
             );
         }
@@ -348,19 +348,28 @@ public abstract class Initializer {
         registerHttpWebservice(uri, httpWebservice);
     }
 
-    private void registerResourceList() throws Exception{
+
+    private void registerGraphDirectory() throws Exception{
         registerHttpWebservice(
-                new URI(null, null, null, -1, "/services/semantic-entities/resource-list", null, null),
-                new ResourceList(this.ioExecutor, this.internalTasksExecutor)
+                new URI(null, null, null, -1, "/services/graph-directory", null, null),
+                new GraphDirectory(this.ioExecutor, this.internalTasksExecutor)
+        );
+    }
+
+
+    private void registerResourceDirectory() throws Exception{
+        registerHttpWebservice(
+                new URI(null, null, null, -1, "/services/resource-directory", null, null),
+                new ResourceDirectory(this.ioExecutor, this.internalTasksExecutor)
         );
     }
 
     private void registerTrafficMonitoring() throws Exception{
-        URI uri = new URI(null, null, null, -1, "/services/geo-views/traffic-monitoring", null, null);
+        URI uri = new URI(null, null, null, -1, "/applications/traffic-monitoring", null, null);
 
-        LocalServerChannel localChannel = this.localChannelFactory.newChannel(
-                this.internalPipelineFactory.getPipeline()
-        );
+//        LocalServerChannel localChannel = this.localChannelFactory.newChannel(
+//                this.internalPipelineFactory.getPipeline()
+//        );
 
         HttpWebservice httpWebservice = new TrafficMonitoring(
                 this.ioExecutor, this.internalTasksExecutor

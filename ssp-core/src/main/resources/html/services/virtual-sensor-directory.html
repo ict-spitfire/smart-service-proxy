@@ -1,0 +1,119 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Virtual Sensors</title>
+    <link href="../../../style/css/semantic.css" rel="stylesheet" type="text/css" />
+    <link href="../../../style/css/semantic.min.css" rel="stylesheet" type="text/css"/>
+    <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Open+Sans:300italic,400,300,700'
+          rel='stylesheet' type='text/css'>
+
+    <style type="text/css">
+        :not(i){
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        *{
+            font-size: 13px;
+        }
+    </style>
+
+    <script src="../../../style/javascript/jquery-1.11.1.min.js"></script>
+
+</head>
+
+<body>
+<div class="ui one column page grid">
+    <div class="column">
+        <div id="header">
+        </div>
+        <script src="../../../style/javascript/ssp-menu.js"></script>
+
+        <h4 class="ui top attached header">
+            List of Virtual Sensors
+        </h4>
+
+        <div class="ui form segment attached">
+            <table class="ui basic table">
+                <thead>
+                    <tr>
+                        <th>Sensor Name</th>
+                        <th>Observation Value</th>
+                        <th>DELETE</th>
+                    </tr>
+                </thead>
+                <tbody id="virtualSensors">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    $(document).ready(function(){
+
+        var formData = new FormData();
+        formData.append('query', '' +
+            'PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n' +
+            'PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n' +
+            'PREFIX vs: <http://example.org/virtual-sensors#>\n' +
+            'PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>\n' +
+            'SELECT DISTINCT ?s ?v WHERE {\n' +
+            '  ?s rdf:type ?t .\n' +
+            '  ?t rdfs:subClassOf ssn:Sensor .\n' +
+            '  ?s ssn:madeObservation ?o .\n' +
+            '  ?o ssn:observationResult ?r .\n' +
+            '  ?r ssn:hasValue ?v\n' +
+            '} ORDER BY ASC(?s)');
+
+        $.ajax({
+            type: "POST",
+            beforeSend: function (request)
+            {
+                request.setRequestHeader("Accept", 'application/sparql-results+json');
+            },
+            url: '/services/sparql-endpoint',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function(e){
+                var parsedJSON = JSON.parse(e['results']);
+                var vsListContent = '';
+                parsedJSON['results']['bindings'].forEach(function(graph){
+                    var vSensorName = graph['s']['value'];
+                    var vSensorResult = graph['v']['value'];
+                    vsListContent += '<tr>' +
+                        '<td><a href="/?graph=' + encodeURIComponent(vSensorName) + '">' + vSensorName + '</a></td>' +
+                        '<td>&nbsp;&nbsp;' + vSensorResult + '</td>' +
+                        '<td>&nbsp;&nbsp;<div class="ui small red icon button" onclick=deleteVirtualSensor("' + vSensorName + '")><i class="trash icon"></i></div></td>' +
+                        '</tr>\n';
+                });
+
+                $('#virtualSensors').html(vsListContent);
+            },
+            error: function(e){
+                window.alert('ERROR:' + e);
+            }
+        });
+    });
+
+    function deleteVirtualSensor(uri){
+        console.log("DELETE " + uri);
+
+        $.ajax({
+            type: "DELETE",
+            url: '/?graph=' + encodeURIComponent(uri),
+            contentType: false,
+            processData: false,
+            success: function(e){
+                location.reload();
+            },
+            error: function(e){
+                window.alert('ERROR:' + e);
+            }
+        });
+    }
+</script>
+</body>
+</html>

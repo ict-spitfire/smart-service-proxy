@@ -27,15 +27,13 @@ package eu.spitfire.ssp.server.handler;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backends.generic.DataOriginMapper;
-import eu.spitfire.ssp.server.internal.messages.requests.DataOriginDeregistrationRequest;
-import eu.spitfire.ssp.server.internal.messages.requests.DataOriginRegistrationRequest;
-import eu.spitfire.ssp.server.internal.messages.requests.WebserviceRegistration;
+import eu.spitfire.ssp.backend.generic.DataOriginMapper;
+import eu.spitfire.ssp.server.internal.message.DataOriginDeregistrationRequest;
+import eu.spitfire.ssp.server.internal.message.DataOriginRegistrationRequest;
+import eu.spitfire.ssp.server.internal.message.WebserviceRegistration;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import eu.spitfire.ssp.server.webservices.Styles;
 import eu.spitfire.ssp.utils.HttpResponseFactory;
-//import eu.spitfire.ssp.utils.exceptions.IdentifierAlreadyRegisteredException;
-//import eu.spitfire.ssp.utils.exceptions.WebserviceAlreadyRegisteredException;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
@@ -46,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
@@ -75,7 +74,7 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
 
 
     /**
-     * This method is invoked by the netty framework for incoming messages from remote peers. It forwards the incoming
+     * This method is invoked by the netty framework for incoming message from remote peers. It forwards the incoming
      * {@link HttpRequest} contained in the {@link MessageEvent} to the proper instance of
      * {@link eu.spitfire.ssp.server.webservices.HttpWebservice}, awaits its result asynchronously and sends the
      * response to the client.
@@ -96,8 +95,8 @@ public class HttpRequestDispatcher extends SimpleChannelHandler {
         final HttpRequest httpRequest = (HttpRequest) me.getMessage();
 
         //Create resource proxy uri from request
-//        String proxyUri = httpRequest.getUri();
-        URI proxyURI = new URI(httpRequest.getUri());
+        //String tmp = ;
+        URI proxyURI = new URI(URLDecoder.decode(httpRequest.getUri().replace("+", "%2B"), "UTF-8").replace("%2B", "+"));
 
         log.info("Received HTTP request for proxy Webservice {}", proxyURI.toString());
 

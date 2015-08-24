@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.LinkedHashSet;
 
 /**
- * Factory class to create the channels for internal messages, e.g. for resource registration or resource status
+ * Factory class to create the channels for internal message, e.g. for resource registration or resource status
  * update. The framework automatically provides one seperate channel per backend.
  *
  * @author Oliver Kleine

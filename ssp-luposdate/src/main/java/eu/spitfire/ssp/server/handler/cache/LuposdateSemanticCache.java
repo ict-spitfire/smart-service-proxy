@@ -1,33 +1,35 @@
 package eu.spitfire.ssp.server.handler.cache;
 
-import com.google.common.util.concurrent.*;
-import com.hp.hpl.jena.datatypes.RDFDatatype;
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.query.Query;
-import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.query.ResultSetFactory;
-import com.hp.hpl.jena.query.Syntax;
-import com.hp.hpl.jena.rdf.model.*;
-import com.hp.hpl.jena.sparql.core.Var;
-import com.hp.hpl.jena.sparql.engine.binding.Binding;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.server.handler.SemanticCache;
-import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
-import eu.spitfire.ssp.server.internal.messages.responses.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.QueryExecutionResults;
+import eu.spitfire.ssp.utils.Converter;
+import lupos.datastructures.items.Triple;
 import lupos.datastructures.items.literal.LiteralFactory;
 import lupos.datastructures.items.literal.URILiteral;
+import lupos.datastructures.queryresult.GraphResult;
 import lupos.datastructures.queryresult.QueryResult;
 import lupos.endpoint.server.format.XMLFormatter;
 import lupos.engine.evaluators.BasicIndexQueryEvaluator;
 import lupos.engine.evaluators.CommonCoreQueryEvaluator;
 import lupos.engine.evaluators.MemoryIndexQueryEvaluator;
-import lupos.engine.evaluators.RDF3XQueryEvaluator;
 import lupos.engine.operators.index.Indices;
 import lupos.geo.geosparql.GeoFunctionRegisterer;
+import org.apache.jena.query.Query;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.query.ResultSetFactory;
+import org.apache.jena.query.Syntax;
+import org.apache.jena.rdf.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -39,7 +41,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class LuposdateSemanticCache extends SemanticCache {
 
-    private static Logger log = LoggerFactory.getLogger(LuposdateSemanticCache.class.getName());
+    private static Logger LOG = LoggerFactory.getLogger(LuposdateSemanticCache.class.getName());
 
     private BasicIndexQueryEvaluator evaluator;
     private AtomicInteger waitingOperations = new AtomicInteger(0);
@@ -83,7 +85,7 @@ public class LuposdateSemanticCache extends SemanticCache {
             GeoFunctionRegisterer.registerGeoFunctions();
         }
         catch (Exception ex){
-            log.error("This should never happen!", ex);
+            LOG.error("This should never happen!", ex);
         }
     }
 
@@ -101,7 +103,7 @@ public class LuposdateSemanticCache extends SemanticCache {
         final SettableFuture<ExpiringNamedGraph> result = SettableFuture.create();
 
         int waiting = waitingOperations.incrementAndGet();
-        log.debug("Wait for DB (now waiting: {})", waiting);
+        LOG.debug("Wait for DB (now waiting: {})", waiting);
 
         this.getInternalTasksExecutor().execute(new DatabaseTask() {
 
@@ -110,7 +112,7 @@ public class LuposdateSemanticCache extends SemanticCache {
                 try {
                     result.set(getNamedGraph2(graphName));
                 } catch (Exception ex) {
-                    log.error("Exception while putting graph {} to cache!", graphName, ex);
+                    LOG.error("Exception while putting graph {} to cache!", graphName, ex);
                     result.setException(ex);
                 }
             }
@@ -121,12 +123,12 @@ public class LuposdateSemanticCache extends SemanticCache {
 
 
     private ExpiringNamedGraph getNamedGraph2(URI graphName) throws Exception{
-        String query = "SELECT ?s ?p ?o WHERE {GRAPH <" + graphName + "> { ?s ?p ?o }}";
+        String query = "SELECT ?s ?p ?o  WHERE {GRAPH <" + graphName + "> { ?s ?p ?o }}";
 
         QueryResult result = this.evaluator.getResult(query);
-        Model graph = toModel(toResultSet(result));
+        Model model = Converter.toModel(toResultSet(result));
 
-        return new ExpiringNamedGraph(graphName, graph, new Date());
+        return new ExpiringNamedGraph(graphName, model, new Date());
     }
 
 
@@ -136,7 +138,7 @@ public class LuposdateSemanticCache extends SemanticCache {
         final SettableFuture<Void> result = SettableFuture.create();
 
         int waiting = waitingOperations.incrementAndGet();
-        log.debug("Wait for DB thread (now waiting: {})", waiting);
+        LOG.debug("Wait for DB thread (now waiting: {})", waiting);
 
         this.getInternalTasksExecutor().execute(new DatabaseTask() {
 
@@ -146,7 +148,7 @@ public class LuposdateSemanticCache extends SemanticCache {
                     putNamedGraphToCache2(graphName, namedGraph);
                     result.set(null);
                 } catch (Exception ex) {
-                    log.error("Exception while putting graph {} to cache!", graphName, ex);
+                    LOG.error("Exception while putting graph {} to cache!", graphName, ex);
                     result.setException(ex);
                 }
             }
@@ -161,11 +163,11 @@ public class LuposdateSemanticCache extends SemanticCache {
 
         //delete old triples
         this.evaluator.getResult(createDeleteQuery(graphName));
-        log.info("Deleted graph \"{}\" (duration: {} ms)", graphName, System.currentTimeMillis() - start);
+        LOG.info("Deleted graph \"{}\" (duration: {} ms)", graphName, System.currentTimeMillis() - start);
 
         //insert new triples from given graph
         this.evaluator.getResult(createInsertQuery(graphName, graph));
-        log.info("Deleted old and inserted new graph \"{}\" ({} ms)", graphName, System.currentTimeMillis() - start);
+        LOG.info("Deleted old and inserted new graph \"{}\" ({} ms)", graphName, System.currentTimeMillis() - start);
     }
 
     private static final String DELETE_QUERY_TEMPLATE =
@@ -178,7 +180,7 @@ public class LuposdateSemanticCache extends SemanticCache {
 
     private static String createDeleteQuery(URI graphName){
         String query = String.format(Locale.ENGLISH, DELETE_QUERY_TEMPLATE, graphName, graphName);
-        log.debug("\n" + query);
+        LOG.debug("\n" + query);
         return query;
     }
 
@@ -198,7 +200,7 @@ public class LuposdateSemanticCache extends SemanticCache {
         }
 
         String query = String.format(Locale.ENGLISH, INSERT_QUERY_TEMPLATE, graphName.toString(), "\t" + triples, triples);
-        log.debug("\n" + query);
+        LOG.debug("\n" + query);
         return query;
     }
 
@@ -246,46 +248,13 @@ public class LuposdateSemanticCache extends SemanticCache {
         return createInsertQuery(graphName, statements);
     }
 
-    private static String createInsertQueryOld(URI graphName, Model graph){
-
-        //create triples to be inserted
-        StmtIterator statements = graph.listStatements();
-        StringBuilder triples = new StringBuilder();
-        while(statements.hasNext()){
-            Statement statement = statements.nextStatement();
-            triples.append("\t<").append(statement.getSubject().toString()).append("> <")
-                    .append(statement.getPredicate().toString()).append("> ");
-
-            if(statement.getObject().isLiteral()){
-                if(statement.getObject().toString().contains("^^")){
-                    String[] parts = statement.getObject().toString().split("\\^\\^");
-                    triples.append("\"").append(parts[0]).append("\"^^<").append(parts[1]).append("> .\n");
-                }
-                else{
-                    triples.append("\"").append(statement.getObject().toString()).append("\" .\n");
-                }
-            }
-
-            else{
-                triples.append("<").append(statement.getObject().toString()).append("> .\n");
-            }
-        }
-
-        String query = "INSERT DATA {\n\tGRAPH <" + graphName + "> {\n\t" + triples.toString() + " }\n" +
-                        triples.toString() + " } ";
-
-        log.info("\n" + query);
-        return query;
-
-    }
-
 
     @Override
     public ListenableFuture<Void> updateSensorValue(final URI graphName, final RDFNode sensorValue) {
         final SettableFuture<Void> result = SettableFuture.create();
 
         int waiting = waitingOperations.incrementAndGet();
-        log.debug("Wait for DB thread (now waiting: {})", waiting);
+        LOG.debug("Wait for DB thread (now waiting: {})", waiting);
 
         this.getInternalTasksExecutor().execute(new DatabaseTask() {
 
@@ -295,7 +264,7 @@ public class LuposdateSemanticCache extends SemanticCache {
                     updateSensorValue2(graphName, sensorValue);
                     result.set(null);
                 } catch (Exception ex) {
-                    log.error("Exception while putting graph {} to cache!", graphName, ex);
+                    LOG.error("Exception while putting graph {} to cache!", graphName, ex);
                     result.setException(ex);
                 }
             }
@@ -305,30 +274,34 @@ public class LuposdateSemanticCache extends SemanticCache {
     }
 
     @Override
-    public ListenableFuture<ResultSet> processSparqlQuery(Query query){
+    public ListenableFuture<QueryExecutionResults> processSparqlQuery(Query query){
         return processSparqlQuery(query.toString(Syntax.syntaxSPARQL));
     }
 
 
-    private ListenableFuture<ResultSet> processSparqlQuery(final String query) {
-        final SettableFuture<ResultSet> resultFuture = SettableFuture.create();
+    private ListenableFuture<QueryExecutionResults> processSparqlQuery(final String query) {
+        final SettableFuture<QueryExecutionResults> resultFuture = SettableFuture.create();
 
         int waiting = waitingOperations.incrementAndGet();
-        log.debug("Wait for DB thread (now waiting: {})", waiting);
+        LOG.debug("Wait for DB thread (now waiting: {})", waiting);
 
         this.getInternalTasksExecutor().execute(new DatabaseTask() {
             @Override
             public void process() {
                 try {
-                    log.debug("Start SPARQL query: \n{}", query);
+                    LOG.debug("Start SPARQL query: \n{}", query);
+
                     long startTime = System.currentTimeMillis();
-                    resultFuture.set(processSparqlQuery2(query));
-                    log.debug("Query execution finished (duration: {} millis)", System.currentTimeMillis() - startTime);
+                    ResultSet resultSet = processSparqlQuery2(query);
+                    long duration = System.currentTimeMillis() - startTime;
+                    resultFuture.set(new QueryExecutionResults(duration, resultSet));
+
+                    LOG.debug("Query execution finished (duration: {} millis)", duration);
                 } catch (Exception e) {
-                    log.error("Exception while processing SPARQL query.", e);
+                    LOG.error("Exception while processing SPARQL query.", e);
                     resultFuture.setException(e);
                 } finally {
-                    log.debug("Finished SPARQL query. \n{}");
+                    LOG.debug("Finished SPARQL query. \n{}");
                 }
             }
         });
@@ -336,11 +309,27 @@ public class LuposdateSemanticCache extends SemanticCache {
         return resultFuture;
     }
 
-
     @Override
     public ListenableFuture<Void> deleteNamedGraph(final URI graphName) {
         final SettableFuture<Void> result = SettableFuture.create();
-        result.set(null);
+
+        int waiting = waitingOperations.incrementAndGet();
+        LOG.debug("Wait for DB thread (now waiting: {})", waiting);
+
+        this.getInternalTasksExecutor().execute(new DatabaseTask() {
+
+            @Override
+            public void process() {
+                try {
+                    LuposdateSemanticCache.this.evaluator.getResult(createDeleteQuery(graphName));
+                    result.set(null);
+                } catch (Exception ex) {
+                    LOG.error("Exception while deleting graph {}!", graphName, ex);
+                    result.setException(ex);
+                }
+            }
+        });
+
         return result;
     }
 
@@ -361,62 +350,9 @@ public class LuposdateSemanticCache extends SemanticCache {
     }
 
 
-    private Model toModel(ResultSet resultSet){
-        Model model = ModelFactory.createDefaultModel();
-
-        if(resultSet == null){
-            log.error("ResultSet was NULL!!!");
-            return null;
-        }
-
-
-        while(resultSet.hasNext()){
-            Binding binding = resultSet.nextBinding();
-
-            Node subject = binding.get(Var.alloc("s"));
-            Node predicate = binding.get(Var.alloc("p"));
-            Node object = binding.get(Var.alloc("o"));
-
-            Resource s = subject.isBlank() ? ResourceFactory.createResource(subject.getBlankNodeLabel()) :
-                    ResourceFactory.createResource(subject.getURI());
-
-            Property p =  ResourceFactory.createProperty(predicate.getURI());
-
-            RDFNode o = createRDFNode(object);
-//            if(object.isBlank()){
-//                o = ResourceFactory.createResource(object.getBlankNodeLabel());
-//            }
-//            else if(!object.isLiteral()){
-//                ResourceFactory.createResource(object.getURI());
-//            }? :
-//                    !object.getLiteralDatatype().equals(null) ? ResourceFactory.createPlainLiteral(object.getLiteralLexicalForm());
-
-            model.add(model.createStatement(s, p, o));
-
-        }
-
-        return model;
-    }
-
-    private static RDFNode createRDFNode(Node object){
-        if(object.isBlank())
-            return ResourceFactory.createResource(object.getBlankNodeLabel());
-
-        if(!object.isLiteral())
-            return ResourceFactory.createResource(object.getURI());
-
-        RDFDatatype datatype = object.getLiteralDatatype();
-        if(datatype.equals(null)){
-            return ResourceFactory.createPlainLiteral(object.getLiteralLexicalForm());
-        }
-
-        return ResourceFactory.createTypedLiteral(object.getLiteralLexicalForm(), datatype);
-    }
 
     private ResultSet toResultSet(final QueryResult queryResult) throws IOException {
         long start = System.currentTimeMillis();
-
-//        final File tmpFile = File.createTempFile("queryResult", ".xml");
 
         XMLFormatter formatter = new XMLFormatter();
 
@@ -426,15 +362,8 @@ public class LuposdateSemanticCache extends SemanticCache {
         ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
         ResultSet resultSet = ResultSetFactory.fromXML(inputStream);
 
-        //Solution with TMP files (works!)
-//        formatter.writeResult(new FileOutputStream(tmpFile), queryResult.getVariableSet(), queryResult);
-//        ResultSet resultSet = ResultSetFactory.fromXML(new FileInputStream(tmpFile));
+        LOG.debug("Time to re-format result-set: {} millis", System.currentTimeMillis() - start);
 
-//        if(!tmpFile.delete()){
-//            log.error("Temporary file {} could not deleted...", tmpFile.getAbsolutePath());
-//        }
-
-        log.debug("Time to re-format result-set: {} millis", System.currentTimeMillis() - start);
         return resultSet;
     }
 
@@ -446,13 +375,13 @@ public class LuposdateSemanticCache extends SemanticCache {
             int stillWaiting = waitingOperations.decrementAndGet();
 
             lock.lock();
-            log.debug("Start DB operation (still waiting: {})", stillWaiting);
+            LOG.debug("Start DB operation (still waiting: {})", stillWaiting);
             process();
             lock.unlock();
 
             int finished = finishedOperations.incrementAndGet();
-            if(log.isInfoEnabled() && (finished % 100 == 0 || stillWaiting == 0)){
-                log.info("Finished DB operation #{} (still waiting: {}) ", finished, stillWaiting);
+            if(LOG.isInfoEnabled() && (finished % 100 == 0 || stillWaiting == 0)){
+                LOG.info("Finished DB operation #{} (still waiting: {}) ", finished, stillWaiting);
             }
         }
         

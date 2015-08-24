@@ -2,12 +2,12 @@ package eu.spitfire.ssp.utils;
 
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
-import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.query.ResultSetFormatter;
-import com.hp.hpl.jena.rdf.model.Model;
-import eu.spitfire.ssp.server.internal.messages.responses.EmptyAccessResult;
-import eu.spitfire.ssp.server.internal.messages.responses.ExpiringGraph;
-import org.apache.jena.riot.Lang;
+
+import eu.spitfire.ssp.server.internal.ExpiringGraph;
+
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.query.ResultSetFormatter;
+import org.apache.jena.rdf.model.Model;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFFormat;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -17,7 +17,6 @@ import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.Charset;
@@ -30,8 +29,8 @@ import static org.jboss.netty.handler.codec.http.HttpResponseStatus.OK;
 
 public class HttpResponseFactory {
 
-    private static Logger log = LoggerFactory.getLogger(HttpResponseFactory.class.getName());
-    private static Gson gson = new Gson();
+    private static Logger LOG = LoggerFactory.getLogger(HttpResponseFactory.class.getName());
+    private static Gson GSON = new Gson();
 
     public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
     static{
@@ -53,7 +52,7 @@ public class HttpResponseFactory {
     public static HttpResponse createHttpJsonResponse(HttpVersion version, Map<String, String> content){
         HttpResponse httpResponse = new DefaultHttpResponse(version, HttpResponseStatus.OK);
 
-        ChannelBuffer payload = ChannelBuffers.wrappedBuffer(gson.toJson(content).getBytes(Charset.forName("UTF-8")));
+        ChannelBuffer payload = ChannelBuffers.wrappedBuffer(GSON.toJson(content).getBytes(Charset.forName("UTF-8")));
         httpResponse.setContent(payload);
         httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
 
@@ -85,54 +84,44 @@ public class HttpResponseFactory {
         return createHttpResponse(version, status, errors.toString());
     }
 
-//    public static HttpResponse createHttpResponse(HttpVersion version, HttpResponseStatus status,
-//                                                  Multimap<String, String> headers, ChannelBuffer payload){
-//
-//        HttpResponse response = new DefaultHttpResponse(version, status);
-//        setHeaders(response, headers);
-//
-//        response.setContent(payload);
-//        response.headers().add("Content-Length", payload.readableBytes());
-//        return response;
-//    }
-//
-    public static HttpResponse createHttpResponse(HttpVersion version, ResultSet resultSet,
-                                                  QueryResultFormat queryResultFormat){
+
+    public static HttpResponse createHttpResponse(HttpVersion version, QueryResultsFormat queryResultsFormat,
+            ResultSet resultSet){
 
         ChannelBuffer payload = ChannelBuffers.dynamicBuffer();
         ChannelBufferOutputStream outputStream = new ChannelBufferOutputStream(payload);
 
-        ResultSetFormatter.output(outputStream, resultSet, queryResultFormat.resultsFormat);
+        ResultSetFormatter.output(outputStream, resultSet, queryResultsFormat.getResultsFormat());
 
         HttpResponse httpResponse = new DefaultHttpResponse(version, HttpResponseStatus.OK);
         httpResponse.setContent(payload);
 
-        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, queryResultFormat.mimeType);
+        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, queryResultsFormat.getMimeType());
         httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
 
         return httpResponse;
 
     }
 
-    public static HttpResponse createHttpResponse(HttpVersion version, EmptyAccessResult emptyAccessResult){
-
-        int codeNumber = emptyAccessResult.getCode().getCodeNumber();
-
-        return HttpResponseFactory.createHttpResponse(
-                version, HttpResponseStatus.valueOf(codeNumber), emptyAccessResult.getMessage()
-        );
-    }
+//    public static HttpResponse createHttpResponse(HttpVersion version, EmptyAccessResult emptyAccessResult){
+//
+//        int codeNumber = emptyAccessResult.getCode().getCodeNumber();
+//
+//        return HttpResponseFactory.createHttpResponse(
+//                version, HttpResponseStatus.valueOf(codeNumber), emptyAccessResult.getMessage()
+//        );
+//    }
 
 
     public static HttpResponse createHttpResponse(HttpVersion version, Language language, ExpiringGraph expiringGraph){
 
-        Model model = expiringGraph.getGraph();
+        Model model = expiringGraph.getModel();
         StringWriter writer = new StringWriter();
-        model.write(writer, language.lang);
-
+        //model.write(writer, language.getRdfFormat().getLang().getName());
+        RDFDataMgr.write(writer, model, language.getRdfFormat());
         //ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
-        log.info("Model to be serialized{}", model);
+        LOG.info("Model to be serialized{}", model);
 
         //Serialize the model associated with the resource and write on OutputStream
         //model.write(byteArrayOutputStream, language.lang);
@@ -144,7 +133,7 @@ public class HttpResponseFactory {
         httpResponse.setContent(payload);
 
         //Set HTTP response headers
-        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, language.mimeType);
+        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, language.getMimeType());
         httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
         httpResponse.headers().add(HttpHeaders.Names.EXPIRES, DATE_FORMAT.format(expiringGraph.getExpiry()));
         httpResponse.headers().add(HttpHeaders.Names.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
@@ -159,7 +148,7 @@ public class HttpResponseFactory {
         for(String headerName : headers.keySet()){
             Iterable<String> headerValue = headers.get(headerName);
             httpMessage.headers().add(headerName, headerValue);
-            log.debug("Set Header: {} (Name), {} (Value(s))", headerName, headerValue);
+            LOG.debug("Set Header: {} (Name), {} (Value(s))", headerName, headerValue);
         }
     }
 }

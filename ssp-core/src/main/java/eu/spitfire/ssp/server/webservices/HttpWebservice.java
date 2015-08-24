@@ -23,7 +23,7 @@ import java.util.concurrent.ScheduledExecutorService;
  * usage.
  *
  * For semantic (i.e. proxying) Webservices extend
- * {@link eu.spitfire.ssp.backends.generic.DataOriginMapper}!
+ * {@link eu.spitfire.ssp.backend.generic.DataOriginMapper}!
  *
  * @author Oliver Kleine
  */
@@ -207,7 +207,7 @@ public abstract class HttpWebservice extends SimpleChannelHandler {
         return this.ioExecutor;
     }
 
-    protected ScheduledExecutorService getInternalTasksExecutor(){
+    protected ScheduledExecutorService getInternalExecutor(){
         return this.internalTasksExecutor;
     }
 }

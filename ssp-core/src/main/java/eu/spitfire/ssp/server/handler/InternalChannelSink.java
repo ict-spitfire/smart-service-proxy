@@ -7,7 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The internal channel sink has no functionality but to discard messages written downstream on the
+ * The internal channel sink has no functionality but to discard message written downstream on the
  * internal channel. If the logging level for this class is set to DEBUG, it will log a discard message. So it
  * is only existent for debugging purposes.
  *

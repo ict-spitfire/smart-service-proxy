@@ -3117,7 +3117,7 @@ $.fn.chatroom = function(parameters) {
             users        = $module.data('users');
             loggedInUser = $module.data('user');
             if(users[ message.userID] !== undefined) {
-              // logged in user's messages already pushed instantly
+              // logged in user's message already pushed instantly
               if(loggedInUser === undefined || loggedInUser.id != message.userID) {
                 message.user = users[ message.userID ];
                 module.message.display(message);
