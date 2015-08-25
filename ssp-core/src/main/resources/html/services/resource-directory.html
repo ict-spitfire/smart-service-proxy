@@ -76,6 +76,9 @@
                     }
                     // list URIs as hyperlinks (/?resource=...)
                     var graphName = graph['s']['value'];
+                    if(graphName.indexOf('://') == -1){
+                        return;
+                    }
                     seListContent += '<tr>\
                             <td><a href="/?resource=' + encodeURIComponent(graphName) + '">' + graphName + '</a></td>\
                             <td>\
