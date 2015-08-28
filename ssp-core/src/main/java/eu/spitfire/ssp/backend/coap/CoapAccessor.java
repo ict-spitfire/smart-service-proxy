@@ -2,15 +2,14 @@ package eu.spitfire.ssp.backend.coap;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
-import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
-import de.uniluebeck.itm.ncoap.application.client.Token;
-import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
-import de.uniluebeck.itm.ncoap.message.CoapRequest;
-import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import de.uniluebeck.itm.ncoap.message.MessageCode;
-import de.uniluebeck.itm.ncoap.message.MessageType;
-import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
+
+import de.uzl.itm.ncoap.application.peer.CoapPeerApplication;
+import de.uzl.itm.ncoap.communication.dispatching.client.ClientCallback;
+import de.uzl.itm.ncoap.message.CoapRequest;
+import de.uzl.itm.ncoap.message.CoapResponse;
+import de.uzl.itm.ncoap.message.MessageCode;
+import de.uzl.itm.ncoap.message.MessageType;
+import de.uzl.itm.ncoap.message.options.ContentFormat;
 import eu.spitfire.ssp.backend.generic.Accessor;
 
 import eu.spitfire.ssp.server.internal.ExpiringNamedGraph;
@@ -31,7 +30,7 @@ import java.util.Date;
  */
 public class CoapAccessor extends Accessor<URI, CoapWebservice> {
 
-    private CoapClientApplication coapClient;
+    private CoapPeerApplication coapApplication;
 
     /**
      * Creates a new instance of {@link CoapAccessor}
@@ -41,7 +40,7 @@ public class CoapAccessor extends Accessor<URI, CoapWebservice> {
      */
     public CoapAccessor(CoapComponentFactory componentFactory) {
         super(componentFactory);
-        this.coapClient = componentFactory.getCoapClient();
+        this.coapApplication = componentFactory.getCoapApplication();
     }
 
 
@@ -59,7 +58,7 @@ public class CoapAccessor extends Accessor<URI, CoapWebservice> {
             InetAddress remoteAddress = InetAddress.getByName(webserviceUri.getHost());
             int port = webserviceUri.getPort() == -1 ? 5683 : webserviceUri.getPort();
 
-            coapClient.sendCoapRequest(coapRequest,
+            coapApplication.sendCoapRequest(coapRequest,
                 new InternalCoapResponseProcessor(resultFuture, webserviceUri), new InetSocketAddress(remoteAddress, port)
             );
         }
@@ -71,7 +70,7 @@ public class CoapAccessor extends Accessor<URI, CoapWebservice> {
     }
 
 
-    private class InternalCoapResponseProcessor implements CoapResponseProcessor, RetransmissionTimeoutProcessor {
+    private class InternalCoapResponseProcessor extends ClientCallback {
 
         private SettableFuture<ExpiringNamedGraph> resultFuture;
         private URI webserviceUri;
@@ -97,7 +96,7 @@ public class CoapAccessor extends Accessor<URI, CoapWebservice> {
 
 
         @Override
-        public void processRetransmissionTimeout(InetSocketAddress remoteEndpoint, int messageID, Token token) {
+        public void processTransmissionTimeout() {
             resultFuture.setException(new OperationTimeoutException(
                 String.format("No response received from \"%s\" (Request timed out.)",  this.webserviceUri)
             ));

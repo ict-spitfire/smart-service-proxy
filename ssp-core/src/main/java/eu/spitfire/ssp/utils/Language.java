@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.utils;
 
-import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
+import de.uzl.itm.ncoap.message.options.ContentFormat;
 import org.apache.jena.riot.RDFFormat;
 
 /**

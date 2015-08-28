@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.backend.coap.registry;
 
-import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
+import de.uzl.itm.ncoap.application.peer.CoapPeerApplication;
 import eu.spitfire.ssp.backend.coap.CoapWebservice;
 import eu.spitfire.ssp.backend.coap.CoapComponentFactory;
 import eu.spitfire.ssp.backend.generic.Registry;
@@ -12,23 +12,23 @@ import java.net.URI;
 /**
  * The {@link CoapRegistry} starts a
  * {@link CoapRegistryWebservice} on the
- * {@link de.uniluebeck.itm.ncoap.application.server.CoapServerApplication} returned by
- * {@link eu.spitfire.ssp.backend.coap.CoapComponentFactory#getCoapServer()} and
+ * {@link de.uzl.itm.ncoap.application.peer.CoapPeerApplication} returned by
+ * {@link eu.spitfire.ssp.backend.coap.CoapComponentFactory#getCoapApplication()} and
  * waits for external CoAP Web Services to register.
  *
  * @author Oliver Kleine
  */
 public class CoapRegistry extends Registry<URI, CoapWebservice> {
 
-    private Logger log = LoggerFactory.getLogger(CoapRegistry.class.getName());
+    private static Logger LOG = LoggerFactory.getLogger(CoapRegistry.class.getName());
 
     private CoapComponentFactory componentFactory;
-    private CoapServerApplication coapServer;
+    private CoapPeerApplication coapApplication;
 
     public CoapRegistry(CoapComponentFactory componentFactory) {
         super(componentFactory);
         this.componentFactory = componentFactory;
-        this.coapServer = componentFactory.getCoapServer();
+        this.coapApplication = componentFactory.getCoapApplication();
     }
 
     /**
@@ -38,6 +38,6 @@ public class CoapRegistry extends Registry<URI, CoapWebservice> {
      */
     @Override
     public void startRegistry() throws Exception {
-        coapServer.registerService(new CoapRegistryWebservice(componentFactory));
+        coapApplication.registerResource(new CoapRegistryWebservice(componentFactory));
     }
 }

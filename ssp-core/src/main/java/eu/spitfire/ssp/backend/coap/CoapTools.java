@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.backend.coap;
 
-import de.uniluebeck.itm.ncoap.message.CoapResponse;
+import de.uzl.itm.ncoap.message.CoapResponse;
 import eu.spitfire.ssp.utils.Language;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
@@ -19,14 +19,14 @@ public abstract class CoapTools {
     private static Logger log = LoggerFactory.getLogger(CoapTools.class.getName());
 
     /**
-     * Reads the content of the given {@link de.uniluebeck.itm.ncoap.message.CoapResponse} and deserializes that content
+     * Reads the content of the given {@link de.uzl.itm.ncoap.message.CoapResponse} and deserializes that content
      * into a {@link org.apache.jena.rdf.model.Model} according to the
-     * {@link de.uniluebeck.itm.ncoap.message.options.OptionValue.Name#CONTENT_FORMAT}.
+     * {@link de.uzl.itm.ncoap.message.options.OptionValue.Name#CONTENT_FORMAT}.
      *
-     * @param coapResponse the {@link de.uniluebeck.itm.ncoap.message.CoapResponse} to read the content from.
+     * @param coapResponse the {@link de.uzl.itm.ncoap.message.CoapResponse} to read the content from.
      *
      * @return a {@link org.apache.jena.rdf.model.Model} that contains the triples from the given
-     * {@link de.uniluebeck.itm.ncoap.message.CoapResponse}s content
+     * {@link de.uzl.itm.ncoap.message.CoapResponse}s content
      */
     public static Model getModelFromCoapResponse(CoapResponse coapResponse){
 

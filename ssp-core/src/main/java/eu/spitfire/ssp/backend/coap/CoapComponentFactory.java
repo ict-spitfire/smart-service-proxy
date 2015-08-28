@@ -1,12 +1,15 @@
 package eu.spitfire.ssp.backend.coap;
 
-import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
-import de.uniluebeck.itm.ncoap.application.server.CoapServerApplication;
+
+import de.uzl.itm.ncoap.application.peer.CoapPeerApplication;
+import de.uzl.itm.ncoap.communication.dispatching.server.NotFoundHandler;
 import eu.spitfire.ssp.backend.coap.registry.CoapRegistry;
 import eu.spitfire.ssp.backend.generic.ComponentFactory;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.channel.local.LocalServerChannel;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -14,15 +17,13 @@ import java.util.concurrent.ScheduledExecutorService;
 /**
  * The {@link CoapComponentFactory} provides all components that are
  * either mandatory, i.e. due to inheritance from  {@link eu.spitfire.ssp.backend.generic.ComponentFactory} or
- * shared by multiple components, i.e. the {@link de.uniluebeck.itm.ncoap.application.client.CoapClientApplication}
- * and the {@link de.uniluebeck.itm.ncoap.application.server.CoapServerApplication}.
+ * shared by multiple components, i.e. the {@link de.uzl.itm.ncoap.application.peer.CoapPeerApplication}.
  *
  * @author Oliver Kleine
  */
 public class CoapComponentFactory extends ComponentFactory<URI, CoapWebservice> {
 
-    private CoapClientApplication coapClient;
-    private CoapServerApplication coapServer;
+    private CoapPeerApplication coapApplication;
     private CoapRegistry registry;
     private CoapAccessor accessor;
     private CoapObserver observer;
@@ -34,8 +35,10 @@ public class CoapComponentFactory extends ComponentFactory<URI, CoapWebservice> 
 
         super("coap", config, localChannel, internalTasksExecutor, ioExecutor);
 
-        this.coapClient = new CoapClientApplication("SSP CoAP Client");
-        this.coapServer = new CoapServerApplication();
+        InetSocketAddress socketAddress = new InetSocketAddress(
+                InetAddress.getByName(config.getString("ssp.hostname")), 5683
+        );
+        this.coapApplication = new CoapPeerApplication(NotFoundHandler.getDefault(), socketAddress);
 
         this.registry = new CoapRegistry(this);
         this.accessor = new CoapAccessor(this);
@@ -49,26 +52,26 @@ public class CoapComponentFactory extends ComponentFactory<URI, CoapWebservice> 
     }
 
     /**
-     * Returns the {@link de.uniluebeck.itm.ncoap.application.client.CoapClientApplication} to communicate with
-     * external CoAP servers.
+     * Returns the {@link de.uzl.itm.ncoap.application.peer.CoapPeerApplication} to communicate with
+     * external CoAP servers and clients.
      *
-     * @return the {@link de.uniluebeck.itm.ncoap.application.client.CoapClientApplication} to communicate with
-     * external CoAP servers.
+     * @return the {@link de.uzl.itm.ncoap.application.peer.CoapPeerApplication} to communicate with
+     * external CoAP servers and clients.
      */
-    public CoapClientApplication getCoapClient(){
-        return this.coapClient;
+    public CoapPeerApplication getCoapApplication(){
+        return this.coapApplication;
     }
 
-    /**
-     * Returns the {@link de.uniluebeck.itm.ncoap.application.server.CoapServerApplication} to provide services such as
-     * the registry.
-     *
-     * @return the {@link de.uniluebeck.itm.ncoap.application.server.CoapServerApplication} to provide services such as
-     * the registry.
-     */
-    public CoapServerApplication getCoapServer(){
-        return this.coapServer;
-    }
+//    /**
+//     * Returns the {@link de.uniluebeck.itm.ncoap.application.server.CoapServerApplication} to provide services such as
+//     * the registry.
+//     *
+//     * @return the {@link de.uniluebeck.itm.ncoap.application.server.CoapServerApplication} to provide services such as
+//     * the registry.
+//     */
+//    public CoapServerApplication getCoapServer(){
+//        return this.coapServer;
+//    }
 
 
     @Override
@@ -93,6 +96,6 @@ public class CoapComponentFactory extends ComponentFactory<URI, CoapWebservice> 
 
     @Override
     public void shutdown() {
-        this.coapServer.shutdown();
+        this.coapApplication.shutdown();
     }
 }

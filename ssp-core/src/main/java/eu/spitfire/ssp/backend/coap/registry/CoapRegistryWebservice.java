@@ -5,14 +5,14 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
-import de.uniluebeck.itm.ncoap.application.server.webservice.NotObservableWebservice;
-import de.uniluebeck.itm.ncoap.application.server.webservice.linkformat.LinkAttribute;
-import de.uniluebeck.itm.ncoap.message.CoapRequest;
-import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import de.uniluebeck.itm.ncoap.message.MessageCode;
-import de.uniluebeck.itm.ncoap.message.MessageType;
-import de.uniluebeck.itm.ncoap.message.options.OptionValue;
+import de.uzl.itm.ncoap.application.peer.CoapPeerApplication;
+import de.uzl.itm.ncoap.application.server.webresource.NotObservableWebresource;
+import de.uzl.itm.ncoap.application.server.webresource.linkformat.LinkAttribute;
+import de.uzl.itm.ncoap.message.CoapRequest;
+import de.uzl.itm.ncoap.message.CoapResponse;
+import de.uzl.itm.ncoap.message.MessageCode;
+import de.uzl.itm.ncoap.message.MessageType;
+import de.uzl.itm.ncoap.message.options.OptionValue;
 import eu.spitfire.ssp.backend.coap.CoapComponentFactory;
 import eu.spitfire.ssp.backend.coap.CoapWebservice;
 import org.slf4j.Logger;
@@ -33,11 +33,11 @@ import java.util.concurrent.ScheduledExecutorService;
  *
  * @author Oliver Kleine
  */
-public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
+public class CoapRegistryWebservice extends NotObservableWebresource<Void> {
 
     private Logger log = LoggerFactory.getLogger(CoapRegistryWebservice.class.getName());
 
-    private CoapClientApplication coapClient;
+    private CoapPeerApplication coapApplication;
     private ScheduledExecutorService internalTasksExecutor;
     private CoapRegistry registry;
 
@@ -45,12 +45,12 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
      * Creates a new instance of {@link CoapRegistryWebservice}.
      *
      * @param componentFactory the {@link eu.spitfire.ssp.backend.coap.CoapComponentFactory} to
-     *                         get the {@link de.uniluebeck.itm.ncoap.application.client.CoapClientApplication}, and the
+     *                         get the {@link CoapPeerApplication}, and the
      *                         {@link CoapRegistry} from.
      */
     public CoapRegistryWebservice(CoapComponentFactory componentFactory){
-        super("/registry", null, OptionValue.MAX_AGE_DEFAULT);
-        this.coapClient = componentFactory.getCoapClient();
+        super("/registry", null, OptionValue.MAX_AGE_DEFAULT, componentFactory.getInternalTasksExecutor());
+        this.coapApplication = componentFactory.getCoapApplication();
         this.internalTasksExecutor = componentFactory.getInternalTasksExecutor();
         this.registry = componentFactory.getRegistry();
     }
@@ -113,9 +113,9 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
 
         URI uri = new URI("coap", null, remoteHostName, 5683, "/.well-known/core", null, null);
         CoapRequest coapRequest = new CoapRequest(MessageType.Name.CON, MessageCode.Name.GET, uri);
-        WellKnownCoreProcessor responseProcessor = new WellKnownCoreProcessor(internalTasksExecutor);
+        WellKnownCoreCallback responseProcessor = new WellKnownCoreCallback();
 
-        this.coapClient.sendCoapRequest(coapRequest, responseProcessor, new InetSocketAddress(remoteAddress, 5683));
+        this.coapApplication.sendCoapRequest(coapRequest, responseProcessor, new InetSocketAddress(remoteAddress, 5683));
 
         Futures.addCallback(responseProcessor.getWellKnownCoreFuture(),
                 new FutureCallback<Multimap<String, LinkAttribute>>() {
@@ -130,7 +130,6 @@ public class CoapRegistryWebservice extends NotObservableWebservice<Void> {
 
                             Set<URI> serviceUris = new HashSet<>(result.keySet().size());
                             for(String servicePath : result.keySet()){
-//                        String path = "/" + servicePath.substring(1, servicePath.length() - 1);
                                 URI serviceUri = new URI("coap", null, remoteHostName, 5683, "/" + servicePath, null, null);
                                 serviceUris.add(serviceUri);
 

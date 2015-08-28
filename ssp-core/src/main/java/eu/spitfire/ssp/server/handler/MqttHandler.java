@@ -2,9 +2,7 @@
 //
 //import com.google.common.base.Joiner;
 //import com.google.common.collect.Multimap;
-//import com.hp.hpl.jena.rdf.model.*;
 //import de.uniluebeck.itm.spitfire.ssphttpobserveovermqttlib.HttpObserveOverMqttLib;
-//import eu.spitfire.ssp.backend.generic.message.ExpiringNamedGraphHttpResponse;
 //import eu.spitfire.ssp.utils.Language;
 //import org.eclipse.paho.client.mqttv3.MqttException;
 //import org.jboss.netty.channel.ChannelHandlerContext;

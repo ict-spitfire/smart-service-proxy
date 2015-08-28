@@ -3,41 +3,36 @@ package eu.spitfire.ssp.backend.coap.registry;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.SettableFuture;
-import de.uniluebeck.itm.ncoap.application.client.CoapResponseProcessor;
-import de.uniluebeck.itm.ncoap.application.client.Token;
-import de.uniluebeck.itm.ncoap.application.server.webservice.linkformat.EmptyLinkAttribute;
-import de.uniluebeck.itm.ncoap.application.server.webservice.linkformat.LinkAttribute;
-import de.uniluebeck.itm.ncoap.application.server.webservice.linkformat.LongLinkAttribute;
-import de.uniluebeck.itm.ncoap.application.server.webservice.linkformat.StringLinkAttribute;
-import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
-import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.TransmissionInformationProcessor;
-import de.uniluebeck.itm.ncoap.message.CoapResponse;
+import de.uzl.itm.ncoap.application.server.webresource.linkformat.EmptyLinkAttribute;
+import de.uzl.itm.ncoap.application.server.webresource.linkformat.LinkAttribute;
+import de.uzl.itm.ncoap.application.server.webresource.linkformat.LongLinkAttribute;
+import de.uzl.itm.ncoap.application.server.webresource.linkformat.StringLinkAttribute;
+import de.uzl.itm.ncoap.communication.dispatching.client.ClientCallback;
+import de.uzl.itm.ncoap.message.CoapResponse;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.handler.timeout.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Instance of {@link CoapResponseProcessor} to process incoming responses from <code>.well-known/core</code> CoAP
- * resources.
+ * Instance of {@link de.uzl.itm.ncoap.communication.dispatching.client.ClientCallback} to process incoming responses
+ * from <code>.well-known/core</code> CoAP resources.
  *
  * @author Oliver Kleine
  */
-public class WellKnownCoreProcessor implements CoapResponseProcessor, RetransmissionTimeoutProcessor,
-        TransmissionInformationProcessor{
+public class WellKnownCoreCallback extends ClientCallback{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     private SettableFuture<Multimap<String, LinkAttribute>> wellKnownCoreFuture;
     private AtomicInteger transmissionCounter;
 
-    public WellKnownCoreProcessor(ExecutorService internalTasksExecutor){
+    public WellKnownCoreCallback(){
         this.transmissionCounter = new AtomicInteger(0);
         this.wellKnownCoreFuture = SettableFuture.create();
     }
@@ -45,11 +40,11 @@ public class WellKnownCoreProcessor implements CoapResponseProcessor, Retransmis
     /**
      * Returns the {@link com.google.common.util.concurrent.SettableFuture} that is set with a
      * {@link com.google.common.collect.Multimap} with the paths to the detected CoAP Web Services as keys and their
-     * {@link de.uniluebeck.itm.ncoap.application.server.webservice.linkformat.LinkAttribute}s as values.
+     * {@link de.uzl.itm.ncoap.application.server.webresource.linkformat.LinkAttribute}s as values.
      *
      * @return the {@link com.google.common.util.concurrent.SettableFuture} that is set with a
      * {@link com.google.common.collect.Multimap} with the paths to the detected CoAP Web Services as keys and their
-     * {@link de.uniluebeck.itm.ncoap.application.server.webservice.linkformat.LinkAttribute}s as values.
+     * {@link de.uzl.itm.ncoap.application.server.webresource.linkformat.LinkAttribute}s as values.
      */
     public SettableFuture<Multimap<String, LinkAttribute>> getWellKnownCoreFuture(){
         return this.wellKnownCoreFuture;
@@ -57,11 +52,11 @@ public class WellKnownCoreProcessor implements CoapResponseProcessor, Retransmis
 
     /**
      * Sets the {@link com.google.common.util.concurrent.SettableFuture} returned by {@link #getWellKnownCoreFuture()}
-     * according to the content of the given {@link de.uniluebeck.itm.ncoap.message.CoapResponse} which is supposed
-     * to be in {@link de.uniluebeck.itm.ncoap.message.options.ContentFormat#APP_LINK_FORMAT}.
+     * according to the content of the given {@link de.uzl.itm.ncoap.message.CoapResponse} which is supposed
+     * to be in {@link de.uzl.itm.ncoap.message.options.ContentFormat#APP_LINK_FORMAT}.
      *
-     * @param coapResponse the {@link de.uniluebeck.itm.ncoap.message.CoapResponse} which contains some content in
-     *                     {@link de.uniluebeck.itm.ncoap.message.options.ContentFormat#APP_LINK_FORMAT}
+     * @param coapResponse the {@link de.uzl.itm.ncoap.message.CoapResponse} which contains some content in
+     *                     {@link de.uzl.itm.ncoap.message.options.ContentFormat#APP_LINK_FORMAT}
      */
     @Override
     public void processCoapResponse(final CoapResponse coapResponse) {
@@ -140,7 +135,7 @@ public class WellKnownCoreProcessor implements CoapResponseProcessor, Retransmis
         Collection<LinkAttribute> result = new ArrayList<>();
 
         if(attributeType == LinkAttribute.EMPTY_ATTRIBUTE){
-            result.add(new EmptyLinkAttribute(key, null));
+            result.add(new EmptyLinkAttribute(key));
             return result;
         }
 
@@ -164,18 +159,16 @@ public class WellKnownCoreProcessor implements CoapResponseProcessor, Retransmis
 
 
     @Override
-    public void processRetransmissionTimeout(InetSocketAddress remoteEndpoint, int messageID, Token token) {
-        String message = "Transmission of request for .well-known/core of host " + remoteEndpoint + " timed out!";
+    public void processTransmissionTimeout() {
+        String message = "Transmission of request for .well-known/core timed out!";
         log.error(message);
         wellKnownCoreFuture.setException(new TimeoutException(message));
     }
 
 
     @Override
-    public void messageTransmitted(InetSocketAddress remoteEndpoint, int messageID, Token token,
-                                   boolean retransmission){
-
+    public void processRetransmission(){
         int count = this.transmissionCounter.incrementAndGet();
-        log.info("Transmit #{} of request for .well-known/core resource of host {} completed.", count, remoteEndpoint);
+        log.info("Transmit #{} of request for .well-known/core resource of host {} completed.", count);
     }
 }

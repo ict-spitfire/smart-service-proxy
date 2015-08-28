@@ -3,15 +3,14 @@ package eu.spitfire.ssp.backend.coap;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import de.uniluebeck.itm.ncoap.application.client.CoapClientApplication;
-import de.uniluebeck.itm.ncoap.application.client.Token;
-import de.uniluebeck.itm.ncoap.communication.observe.client.UpdateNotificationProcessor;
-import de.uniluebeck.itm.ncoap.communication.reliability.outgoing.RetransmissionTimeoutProcessor;
-import de.uniluebeck.itm.ncoap.message.CoapRequest;
-import de.uniluebeck.itm.ncoap.message.CoapResponse;
-import de.uniluebeck.itm.ncoap.message.MessageCode;
-import de.uniluebeck.itm.ncoap.message.MessageType;
-import de.uniluebeck.itm.ncoap.message.options.ContentFormat;
+
+import de.uzl.itm.ncoap.application.peer.CoapPeerApplication;
+import de.uzl.itm.ncoap.communication.dispatching.client.ClientCallback;
+import de.uzl.itm.ncoap.message.CoapRequest;
+import de.uzl.itm.ncoap.message.CoapResponse;
+import de.uzl.itm.ncoap.message.MessageCode;
+import de.uzl.itm.ncoap.message.MessageType;
+import de.uzl.itm.ncoap.message.options.ContentFormat;
 import eu.spitfire.ssp.backend.generic.DataOriginObserver;
 import eu.spitfire.ssp.server.internal.ExpiringNamedGraph;
 import org.apache.jena.rdf.model.Model;
@@ -33,7 +32,7 @@ import java.util.Date;
 public class CoapObserver extends DataOriginObserver<URI, CoapWebservice> {
 
     private Logger log = LoggerFactory.getLogger(CoapObserver.class.getName());
-    private CoapClientApplication coapClient;
+    private CoapPeerApplication coapApplication;
 
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backend.generic.DataOriginObserver}.
@@ -44,12 +43,12 @@ public class CoapObserver extends DataOriginObserver<URI, CoapWebservice> {
      */
     protected CoapObserver(CoapComponentFactory componentFactory) {
         super(componentFactory);
-        this.coapClient = componentFactory.getCoapClient();
+        this.coapApplication = componentFactory.getCoapApplication();
     }
 
     /**
      * Starting an observation means to send a GET request with the
-     * {@link de.uniluebeck.itm.ncoap.message.options.OptionValue.Name#OBSERVE} set to the CoAP Web Service to be
+     * {@link de.uzl.itm.ncoap.message.options.OptionValue.Name#OBSERVE} set to the CoAP Web Service to be
      * observed.
      *
      * @param coapWebservice the {@link CoapWebservice} to be observed
@@ -62,12 +61,12 @@ public class CoapObserver extends DataOriginObserver<URI, CoapWebservice> {
             coapRequest.setAccept(ContentFormat.APP_RDF_XML);
             coapRequest.setAccept(ContentFormat.APP_N3);
             coapRequest.setAccept(ContentFormat.APP_TURTLE);
-            coapRequest.setObserve();
+            coapRequest.setObserve(0);
 
             InetAddress remoteAddress = InetAddress.getByName(webserviceUri.getHost());
             int port = webserviceUri.getPort() == -1 ? 5683 : webserviceUri.getPort();
 
-            coapClient.sendCoapRequest(coapRequest,
+            coapApplication.sendCoapRequest(coapRequest,
                     new CoapUpdateNotificationProcessor(webserviceUri), new InetSocketAddress(remoteAddress, port)
             );
         }
@@ -77,8 +76,7 @@ public class CoapObserver extends DataOriginObserver<URI, CoapWebservice> {
     }
 
 
-    private class CoapUpdateNotificationProcessor implements UpdateNotificationProcessor,
-            RetransmissionTimeoutProcessor {
+    private class CoapUpdateNotificationProcessor extends ClientCallback {
 
 
         private URI graphName;
@@ -90,7 +88,7 @@ public class CoapObserver extends DataOriginObserver<URI, CoapWebservice> {
 
 
         @Override
-        public void processRetransmissionTimeout(InetSocketAddress remoteEndpoint, int messageID, Token token) {
+        public void processTransmissionTimeout() {
             log.error("Request to {} timed out!", graphName);
         }
 
