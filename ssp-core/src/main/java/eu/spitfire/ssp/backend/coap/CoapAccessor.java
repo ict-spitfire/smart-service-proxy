@@ -3,7 +3,7 @@ package eu.spitfire.ssp.backend.coap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 
-import de.uzl.itm.ncoap.application.peer.CoapPeerApplication;
+import de.uzl.itm.ncoap.application.endpoint.CoapEndpoint;
 import de.uzl.itm.ncoap.communication.dispatching.client.ClientCallback;
 import de.uzl.itm.ncoap.message.CoapRequest;
 import de.uzl.itm.ncoap.message.CoapResponse;
@@ -12,8 +12,8 @@ import de.uzl.itm.ncoap.message.MessageType;
 import de.uzl.itm.ncoap.message.options.ContentFormat;
 import eu.spitfire.ssp.backend.generic.Accessor;
 
-import eu.spitfire.ssp.server.internal.ExpiringNamedGraph;
-import eu.spitfire.ssp.server.internal.message.exception.OperationTimeoutException;
+import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.exception.OperationTimeoutException;
 import org.apache.jena.rdf.model.Model;
 
 import java.net.InetAddress;
@@ -23,14 +23,14 @@ import java.util.Date;
 
 /**
  * A {@link CoapAccessor} is the component to access external
- * {@link CoapWebservice}s, i.e. send GET, POST, PUT, or DELETE
+ * {@link CoapWebresource}s, i.e. send GET, POST, PUT, or DELETE
  * message. Currently, only GET is supported.
  *
  * @author Oliver Kleine
  */
-public class CoapAccessor extends Accessor<URI, CoapWebservice> {
+public class CoapAccessor extends Accessor<URI, CoapWebresource> {
 
-    private CoapPeerApplication coapApplication;
+    private CoapEndpoint coapApplication;
 
     /**
      * Creates a new instance of {@link CoapAccessor}
@@ -45,11 +45,11 @@ public class CoapAccessor extends Accessor<URI, CoapWebservice> {
 
 
     @Override
-    public ListenableFuture<ExpiringNamedGraph> getStatus(CoapWebservice coapWebservice){
+    public ListenableFuture<ExpiringNamedGraph> getStatus(CoapWebresource coapWebresource){
         final SettableFuture<ExpiringNamedGraph> resultFuture = SettableFuture.create();
 
         try{
-            URI webserviceUri = coapWebservice.getIdentifier();
+            URI webserviceUri = coapWebresource.getIdentifier();
             CoapRequest coapRequest = new CoapRequest(MessageType.Name.CON, MessageCode.Name.GET, webserviceUri);
             coapRequest.setAccept(ContentFormat.APP_RDF_XML);
             coapRequest.setAccept(ContentFormat.APP_N3);

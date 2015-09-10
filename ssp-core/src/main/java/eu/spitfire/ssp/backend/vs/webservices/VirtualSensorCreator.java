@@ -5,7 +5,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backend.vs.VirtualSensor;
 import eu.spitfire.ssp.backend.vs.VirtualSensorsComponentFactory;
-import eu.spitfire.ssp.utils.HttpResponseFactory;
+import eu.spitfire.ssp.server.internal.utils.HttpResponseFactory;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.rdf.model.Model;

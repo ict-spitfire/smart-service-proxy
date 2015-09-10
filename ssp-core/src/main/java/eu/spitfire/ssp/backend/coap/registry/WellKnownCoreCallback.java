@@ -3,11 +3,13 @@ package eu.spitfire.ssp.backend.coap.registry;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.SettableFuture;
+import de.uzl.itm.ncoap.application.client.linkformat.LinkFormatDecoder;
 import de.uzl.itm.ncoap.application.server.webresource.linkformat.EmptyLinkAttribute;
 import de.uzl.itm.ncoap.application.server.webresource.linkformat.LinkAttribute;
 import de.uzl.itm.ncoap.application.server.webresource.linkformat.LongLinkAttribute;
 import de.uzl.itm.ncoap.application.server.webresource.linkformat.StringLinkAttribute;
 import de.uzl.itm.ncoap.communication.dispatching.client.ClientCallback;
+import de.uzl.itm.ncoap.message.CoapMessage;
 import de.uzl.itm.ncoap.message.CoapResponse;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.handler.timeout.TimeoutException;
@@ -15,8 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -29,7 +30,7 @@ public class WellKnownCoreCallback extends ClientCallback{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private SettableFuture<Multimap<String, LinkAttribute>> wellKnownCoreFuture;
+    private SettableFuture<Map<String, Set<LinkAttribute>>> wellKnownCoreFuture;
     private AtomicInteger transmissionCounter;
 
     public WellKnownCoreCallback(){
@@ -46,7 +47,7 @@ public class WellKnownCoreCallback extends ClientCallback{
      * {@link com.google.common.collect.Multimap} with the paths to the detected CoAP Web Services as keys and their
      * {@link de.uzl.itm.ncoap.application.server.webresource.linkformat.LinkAttribute}s as values.
      */
-    public SettableFuture<Multimap<String, LinkAttribute>> getWellKnownCoreFuture(){
+    public SettableFuture<Map<String, Set<LinkAttribute>>> getWellKnownCoreFuture(){
         return this.wellKnownCoreFuture;
     }
 
@@ -61,68 +62,13 @@ public class WellKnownCoreCallback extends ClientCallback{
     @Override
     public void processCoapResponse(final CoapResponse coapResponse) {
         try {
-            Multimap<String, LinkAttribute> webservices = processWellKnownCoreResponse(coapResponse);
-            wellKnownCoreFuture.set(webservices);
+            ChannelBuffer payload = coapResponse.getContent();
+            wellKnownCoreFuture.set(LinkFormatDecoder.decode(payload.toString(CoapMessage.CHARSET)));
         }
         catch (Exception ex) {
             log.error("Could not process .well-known/core resource!", ex);
             wellKnownCoreFuture.setException(ex);
         }
-    }
-
-
-    private Multimap<String, LinkAttribute> processWellKnownCoreResponse(CoapResponse coapResponse){
-
-        ChannelBuffer payload = coapResponse.getContent();
-        log.debug("Process ./well-known/core resource {}", payload.toString(Charset.forName("UTF-8")));
-
-        Multimap<String, LinkAttribute> result = HashMultimap.create();
-
-        //Check if there is content at all
-        if(payload.readableBytes() == 0)
-            return result;
-
-        //add links to the result set
-        String[] webservices = payload.toString(Charset.forName("UTF-8")).split(",");
-
-        for (String webservice : webservices){
-            if(webservice.contains(".well-known/core")){
-                continue;
-            }
-
-            String[] attributes = webservice.split(";");
-
-            if(attributes[0].startsWith("\n")){
-                attributes[0] = attributes[0].substring(1);
-            }
-
-
-            if(!(attributes[0].startsWith("</") && attributes[0].endsWith(">"))){
-                log.error("Malformed webservice path in .well-known/core: {}", attributes[0]);
-                continue;
-            }
-
-            String webservicePath = attributes[0].substring(2, attributes[0].length() - 1);
-            log.info("Found webservice path in .well-known/core: {}", webservicePath);
-
-            if(attributes.length == 1){
-                result.put(webservicePath, null);
-            }
-
-            else{
-                for(int i = 1; i < attributes.length; i++){
-                    try{
-                        result.putAll(webservicePath, deserializeLinkAttributes(attributes[i]));
-                    }
-                    catch(IllegalArgumentException ex){
-                        log.warn("Could not de-serialize link attribute for webservice {}: {}!", webservicePath,
-                                attributes[i]);
-                    }
-                }
-            }
-        }
-
-        return result;
     }
 
 
@@ -169,6 +115,6 @@ public class WellKnownCoreCallback extends ClientCallback{
     @Override
     public void processRetransmission(){
         int count = this.transmissionCounter.incrementAndGet();
-        log.info("Transmit #{} of request for .well-known/core resource of host {} completed.", count);
+        log.warn("Transmit #{} of request for .well-known/core completed.", count);
     }
 }

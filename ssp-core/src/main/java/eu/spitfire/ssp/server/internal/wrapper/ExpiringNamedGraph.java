@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.server.internal;
+package eu.spitfire.ssp.server.internal.wrapper;
 
 
 import org.apache.jena.rdf.model.Model;

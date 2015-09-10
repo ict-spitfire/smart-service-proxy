@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.utils;
+package eu.spitfire.ssp.server.internal.utils;
 
 import eu.spitfire.ssp.backend.vs.VirtualSensor;
 import org.apache.jena.datatypes.RDFDatatype;
@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 

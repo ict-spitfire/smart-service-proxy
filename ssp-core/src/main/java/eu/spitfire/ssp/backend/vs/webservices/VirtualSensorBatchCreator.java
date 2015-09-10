@@ -7,7 +7,7 @@ import de.uzl.itm.ssp.jaxb4vs.jaxb.JAXBVirtualSensor;
 import de.uzl.itm.ssp.jaxb4vs.tools.VirtualSensorsUnmarshaller;
 import eu.spitfire.ssp.backend.vs.VirtualSensor;
 import eu.spitfire.ssp.backend.vs.VirtualSensorsComponentFactory;
-import eu.spitfire.ssp.utils.HttpResponseFactory;
+import eu.spitfire.ssp.server.internal.utils.HttpResponseFactory;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryFactory;
 import org.jboss.netty.channel.Channel;

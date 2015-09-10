@@ -3,8 +3,8 @@ package eu.spitfire.ssp.server.handler.cache;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.server.handler.SemanticCache;
-import eu.spitfire.ssp.server.internal.ExpiringNamedGraph;
-import eu.spitfire.ssp.server.internal.QueryExecutionResults;
+import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults;
 
 import org.apache.jena.query.Query;
 import org.apache.jena.rdf.model.Model;

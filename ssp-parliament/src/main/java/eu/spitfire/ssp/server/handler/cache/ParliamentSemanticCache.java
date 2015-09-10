@@ -6,7 +6,7 @@
 //import com.hp.hpl.jena.query.Query;
 //import com.hp.hpl.jena.rdf.model.Model;
 //import com.hp.hpl.jena.rdf.model.RDFNode;
-//import eu.spitfire.ssp.server.internal.ExpiringGraph;
+//import eu.spitfire.ssp.server.internal.wrapper.ExpiringGraph;
 //import eu.spitfire.ssp.server.internal.message.responses.QueryResult;
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;

@@ -4,7 +4,8 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.server.internal.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.message.DataOriginReplacementRequest;
+import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.internal.message.DataOriginDeregistrationRequest;
 import eu.spitfire.ssp.server.internal.message.DataOriginRegistrationRequest;
 import org.apache.jena.rdf.model.Model;
@@ -14,6 +15,7 @@ import org.jboss.netty.channel.Channels;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
 import java.util.Date;
 
 /**
@@ -71,6 +73,23 @@ public abstract class Registry<I, D extends DataOrigin<I>> {
         });
 
         return registrationFuture;
+    }
+
+    /**
+     * Replaces one {@link eu.spitfire.ssp.backend.generic.DataOrigin} with another. This method may be used if either
+     * the data origins identifier, the graph name or both changed.
+     *
+     * @param oldDataOrigin the {@link eu.spitfire.ssp.backend.generic.DataOrigin} to be replaced
+     * @param newDataOrigin the {@link eu.spitfire.ssp.backend.generic.DataOrigin} replace the old one
+     *
+     * @return the {@link com.google.common.util.concurrent.ListenableFuture} which contains the result of the
+     * replacement process upon completion,  i.e. with <code>null</code> if successful or with an
+     * {@link java.lang.Exception} in case of an error.
+     */
+    public final ListenableFuture<Void> replaceDataOrigin(final D oldDataOrigin, D newDataOrigin){
+        DataOriginReplacementRequest<I, D> request = new DataOriginReplacementRequest(oldDataOrigin, newDataOrigin);
+        Channels.write(componentFactory.getLocalChannel(), request);
+        return request.getReplacementFuture();
     }
 
 

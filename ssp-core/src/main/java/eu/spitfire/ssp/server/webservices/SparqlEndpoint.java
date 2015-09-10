@@ -4,11 +4,10 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.server.internal.message.InternalQueryExecutionRequest;
-import eu.spitfire.ssp.server.internal.QueryExecutionResults;
-import eu.spitfire.ssp.utils.HttpResponseFactory;
+import eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults;
+import eu.spitfire.ssp.server.internal.utils.HttpResponseFactory;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryFactory;
-import org.apache.jena.query.ResultSet;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -21,8 +20,6 @@ import org.jboss.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import org.jboss.netty.handler.codec.http.multipart.MixedAttribute;
 
 import java.net.InetSocketAddress;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 

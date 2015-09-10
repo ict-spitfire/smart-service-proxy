@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.utils;
+package eu.spitfire.ssp.server.internal.utils;
 
 
 import org.apache.jena.sparql.resultset.ResultsFormat;
@@ -51,7 +51,7 @@ public enum QueryResultsFormat {
      * Returns the {@link QueryResultsFormat} according to the given HTTP mime type or
      * <code>null</code> if the given mime type is not supported.
      *
-     * @param mimeType the HTTP mime type to lookup the corresponding {@link eu.spitfire.ssp.utils.Language} for
+     * @param mimeType the HTTP mime type to lookup the corresponding {@link eu.spitfire.ssp.server.internal.utils.Language} for
      *
      * @return the {@link QueryResultsFormat} according to the given HTTP mime type or
      * <code>null</code> if the given mime type is not supported.

@@ -26,13 +26,12 @@ package eu.spitfire.ssp.server.handler;
 
 import com.google.common.collect.Multimap;
 import com.google.common.collect.TreeMultimap;
-import eu.spitfire.ssp.server.internal.ExpiringGraph;
-import eu.spitfire.ssp.server.internal.QueryExecutionResults;
-import eu.spitfire.ssp.utils.HttpResponseFactory;
-import eu.spitfire.ssp.utils.Language;
-import eu.spitfire.ssp.utils.QueryResultsFormat;
+import eu.spitfire.ssp.server.internal.wrapper.ExpiringGraph;
+import eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults;
+import eu.spitfire.ssp.server.internal.utils.HttpResponseFactory;
+import eu.spitfire.ssp.server.internal.utils.Language;
+import eu.spitfire.ssp.server.internal.utils.QueryResultsFormat;
 import org.apache.jena.query.ResultSetFormatter;
-import org.jboss.netty.buffer.ChannelBufferOutputStream;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -53,9 +52,9 @@ import java.util.Map;
  * supported one with the highest priority.
  *
  * For request addressed to URIs like "/?graph=..." and "/?resource=..." the supported content formats, i.e.
- * supported accept headers of HTTP requests are those defined in {@link eu.spitfire.ssp.utils.Language}. For
+ * supported accept headers of HTTP requests are those defined in {@link eu.spitfire.ssp.server.internal.utils.Language}. For
  * POST requests addressed to the SPARQL endpoint, i.e. URI "/sparql" the supported content formats are defined
- * in {@link eu.spitfire.ssp.utils.QueryResultsFormat}.
+ * in {@link eu.spitfire.ssp.server.internal.utils.QueryResultsFormat}.
  *
  * @author Oliver Kleine
  */

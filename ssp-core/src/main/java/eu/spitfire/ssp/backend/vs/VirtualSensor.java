@@ -5,7 +5,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backend.generic.DataOrigin;
-import eu.spitfire.ssp.server.internal.QueryExecutionResults;
+import eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults;
 import eu.spitfire.ssp.server.internal.message.InternalQueryExecutionRequest;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QuerySolution;

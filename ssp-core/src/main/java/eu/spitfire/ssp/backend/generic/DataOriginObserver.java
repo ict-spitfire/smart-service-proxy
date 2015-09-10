@@ -1,11 +1,8 @@
 package eu.spitfire.ssp.backend.generic;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.server.internal.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.internal.message.InternalCacheUpdateRequest;
-import org.jboss.netty.channel.ChannelFuture;
-import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
@@ -14,7 +11,7 @@ import org.slf4j.LoggerFactory;
 /**
  * An {@link DataOriginObserver} is the component to observe the status of one or more instances of
  * {@link eu.spitfire.ssp.backend.generic.DataOrigin}. Whenever that status changes, the observer
- * is supposed to invoke {@link #updateCache(eu.spitfire.ssp.server.internal.ExpiringNamedGraph)}.
+ * is supposed to invoke {@link #updateCache(eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph)}.
  *
  * @param <I> the type of the identifier of the {@link eu.spitfire.ssp.backend.generic.DataOrigin}
  * @param <D> the type of the {@link eu.spitfire.ssp.backend.generic.DataOrigin}.
@@ -39,9 +36,9 @@ public abstract class DataOriginObserver<I, D extends DataOrigin<I>>{
 
 
     /**
-     * Updates the cache according to the given {@link eu.spitfire.ssp.server.internal.ExpiringNamedGraph}.
+     * Updates the cache according to the given {@link eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph}.
      *
-     * @param expiringNamedGraph the {@link eu.spitfire.ssp.server.internal.ExpiringNamedGraph}
+     * @param expiringNamedGraph the {@link eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph}
      *                           to be used to update the cache
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} that is set with <code>null</code> if the
@@ -112,7 +109,7 @@ public abstract class DataOriginObserver<I, D extends DataOrigin<I>>{
      * Starts the observation of the given {@link eu.spitfire.ssp.backend.generic.DataOrigin}.
      *
      * Whenever the status of the observed {@link eu.spitfire.ssp.backend.generic.DataOrigin} changes, extending
-     * classes are supposed to invoke {@link #updateCache(eu.spitfire.ssp.server.internal.ExpiringNamedGraph)}.
+     * classes are supposed to invoke {@link #updateCache(eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph)}.
      *
      * If the observed {@link eu.spitfire.ssp.backend.generic.DataOrigin} is no longer available then extending classes
      * are supposed to invoke {@link eu.spitfire.ssp.backend.generic.Registry#unregisterDataOrigin(DataOrigin)} on the

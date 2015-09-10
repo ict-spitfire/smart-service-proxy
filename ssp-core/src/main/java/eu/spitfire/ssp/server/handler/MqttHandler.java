@@ -3,7 +3,7 @@
 //import com.google.common.base.Joiner;
 //import com.google.common.collect.Multimap;
 //import de.uniluebeck.itm.spitfire.ssphttpobserveovermqttlib.HttpObserveOverMqttLib;
-//import eu.spitfire.ssp.utils.Language;
+//import eu.spitfire.ssp.server.internal.utils.Language;
 //import org.eclipse.paho.client.mqttv3.MqttException;
 //import org.jboss.netty.channel.ChannelHandlerContext;
 //import org.jboss.netty.channel.MessageEvent;

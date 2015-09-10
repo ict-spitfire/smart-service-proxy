@@ -9,14 +9,14 @@ import java.net.URI;
  *
  * @author Oliver Kleine
  */
-public class CoapWebservice extends DataOrigin<URI> {
+public class CoapWebresource extends DataOrigin<URI> {
 
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backend.generic.DataOrigin}
      *
      * @param identifier the identifier for this {@link eu.spitfire.ssp.backend.generic.DataOrigin}
      */
-    public CoapWebservice(URI identifier) {
+    public CoapWebresource(URI identifier) {
         super(identifier, identifier);
     }
 
@@ -36,11 +36,11 @@ public class CoapWebservice extends DataOrigin<URI> {
 
     @Override
     public boolean equals(Object object) {
-        if(object == null | !(object instanceof CoapWebservice)){
+        if(object == null | !(object instanceof CoapWebresource)){
             return false;
         }
 
-        CoapWebservice other = (CoapWebservice) object;
+        CoapWebresource other = (CoapWebresource) object;
         return this.getIdentifier().equals(other.getIdentifier());
     }
 

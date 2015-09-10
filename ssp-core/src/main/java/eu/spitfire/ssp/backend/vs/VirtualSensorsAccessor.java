@@ -6,7 +6,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backend.generic.Accessor;
 import eu.spitfire.ssp.backend.generic.ComponentFactory;
-import eu.spitfire.ssp.server.internal.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

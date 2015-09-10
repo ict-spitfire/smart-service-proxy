@@ -1,7 +1,8 @@
 package eu.spitfire.ssp.backend.coap;
 
+import de.uzl.itm.ncoap.message.CoapMessage;
 import de.uzl.itm.ncoap.message.CoapResponse;
-import eu.spitfire.ssp.utils.Language;
+import eu.spitfire.ssp.server.internal.utils.Language;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.slf4j.Logger;
@@ -41,6 +42,8 @@ public abstract class CoapTools {
 
             if(language == null)
                 return null;
+
+            log.debug("RDF Payload:\n{}", new String(coapPayload, CoapMessage.CHARSET));
 
             resourceStatus.read(new ByteArrayInputStream(coapPayload), null, language.getRdfFormat().getLang().getName());
             return resourceStatus;

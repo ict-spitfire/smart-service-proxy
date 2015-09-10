@@ -11,7 +11,7 @@
 //import com.hp.hpl.jena.tdb.TDBFactory;
 //
 //import eu.spitfire.ssp.server.handler.SemanticCache;
-//import eu.spitfire.ssp.server.internal.ExpiringGraph;
+//import eu.spitfire.ssp.server.internal.wrapper.ExpiringGraph;
 //import eu.spitfire.ssp.server.internal.message.responses.ExpiringNamedGraph;
 //import org.apache.commons.configuration.Configuration;
 //import org.apache.commons.configuration.ConfigurationException;

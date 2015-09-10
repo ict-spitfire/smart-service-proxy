@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.server.webservices;
 
-import eu.spitfire.ssp.utils.HttpResponseFactory;
+import eu.spitfire.ssp.server.internal.utils.HttpResponseFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;

@@ -46,8 +46,12 @@ public abstract class DataOrigin<I> {
      *
      * @return the identifier of this data origin
      */
-    public final I getIdentifier(){
+    public I getIdentifier(){
         return this.identifier;
+    }
+
+    void setIdentifier(I identifier){
+        this.identifier = identifier;
     }
 
 
@@ -59,8 +63,12 @@ public abstract class DataOrigin<I> {
      *
      * @return the graph backendName of the model hosted by this data origin
      */
-    public final URI getGraphName(){
+    public URI getGraphName(){
         return this.graphName;
+    }
+
+    void setGraphName(URI graphName){
+        this.graphName = graphName;
     }
 
     @Override

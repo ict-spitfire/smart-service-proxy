@@ -1,15 +1,14 @@
-package eu.spitfire.ssp.utils;
+package eu.spitfire.ssp.server.internal.utils;
 
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
 
-import eu.spitfire.ssp.server.internal.ExpiringGraph;
+import eu.spitfire.ssp.server.internal.wrapper.ExpiringGraph;
 
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.ResultSetFormatter;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.riot.RDFFormat;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferOutputStream;
 import org.jboss.netty.buffer.ChannelBuffers;

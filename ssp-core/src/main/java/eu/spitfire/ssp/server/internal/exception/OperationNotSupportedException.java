@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.server.internal.message.exception;
+package eu.spitfire.ssp.server.internal.exception;
 
 /**
  * Created by olli on 21.08.15.

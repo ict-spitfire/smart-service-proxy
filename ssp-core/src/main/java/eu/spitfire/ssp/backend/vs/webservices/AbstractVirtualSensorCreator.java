@@ -7,7 +7,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backend.vs.VirtualSensor;
 import eu.spitfire.ssp.backend.vs.VirtualSensorsComponentFactory;
 import eu.spitfire.ssp.backend.vs.VirtualSensorsRegistry;
-import eu.spitfire.ssp.server.internal.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 import org.apache.jena.query.Query;
 import org.slf4j.Logger;

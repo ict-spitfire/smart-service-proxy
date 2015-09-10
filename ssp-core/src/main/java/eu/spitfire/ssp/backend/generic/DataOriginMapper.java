@@ -4,12 +4,13 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.server.internal.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.message.DataOriginReplacementRequest;
+import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.internal.message.DataOriginRegistrationRequest;
-import eu.spitfire.ssp.server.internal.message.exception.OperationNotSupportedException;
+import eu.spitfire.ssp.server.internal.exception.OperationNotSupportedException;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
-import eu.spitfire.ssp.utils.HttpResponseFactory;
-import eu.spitfire.ssp.utils.Language;
+import eu.spitfire.ssp.server.internal.utils.HttpResponseFactory;
+import eu.spitfire.ssp.server.internal.utils.Language;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.jboss.netty.buffer.ChannelBufferInputStream;
@@ -22,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Locale;
@@ -114,19 +114,15 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
                 @Override
                 public void onFailure(Throwable throwable) {
                     LOG.error("Error in registration of {}", proxyUri, throwable);
-//                    if(!(th instanceof IdentifierAlreadyRegisteredException) &&
-//                            !(th instanceof WebserviceAlreadyRegisteredException)){
                     removeDataOrigin(proxyUri, dataOrigin);
-//                    }
                 }
             });
-//            }
-//
-//            catch (IdentifierAlreadyRegisteredException ex) {
-//                LOG.warn("Data origin {} was already registered!", ex.getIdentifier());
-//                registrationFuture.setException(ex);
-//            }
 
+        }
+
+        else if(me.getMessage() instanceof DataOriginReplacementRequest){
+            DataOriginReplacementRequest<I, D> request = (DataOriginReplacementRequest<I, D>) me.getMessage();
+            replaceDataOrigin(request.getOldDataOrigin(), request.getNewDataOrigin());
         }
 
         ctx.sendDownstream(me);
@@ -136,10 +132,6 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
     private void addDataOrigin(String proxyUri, D dataOrigin){
 
         I identifier = dataOrigin.getIdentifier();
-
-//        if(identifierToDataOrigin.containsKey(identifier)) {
-//            return;
-//        }
 
         try {
             synchronized (monitor) {
@@ -172,6 +164,11 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
         }
     }
 
+    private void replaceDataOrigin(D oldDataOrigin, D newDataOrigin){
+        final String oldProxyUri = "/?graph=" + oldDataOrigin.getGraphName();
+        removeDataOrigin("/?graph=" + oldDataOrigin.getGraphName(), oldDataOrigin);
+        addDataOrigin("/?graph=" + newDataOrigin.getGraphName(), newDataOrigin);
+    }
 
     @Override
     public void processHttpRequest(final Channel channel, final HttpRequest httpRequest,

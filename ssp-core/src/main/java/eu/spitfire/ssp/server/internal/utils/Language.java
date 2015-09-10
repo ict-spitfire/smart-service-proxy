@@ -1,4 +1,4 @@
-package eu.spitfire.ssp.utils;
+package eu.spitfire.ssp.server.internal.utils;
 
 import de.uzl.itm.ncoap.message.options.ContentFormat;
 import org.apache.jena.riot.RDFFormat;
@@ -42,12 +42,12 @@ public enum Language{
     }
 
     /**
-     * Returns the {@link eu.spitfire.ssp.utils.Language} according to the given HTTP mime type or <code>null</code>
+     * Returns the {@link eu.spitfire.ssp.server.internal.utils.Language} according to the given HTTP mime type or <code>null</code>
      * if the given mime type is not supported.
      *
-     * @param mimeType the HTTP mime type to lookup the corresponding {@link eu.spitfire.ssp.utils.Language} for
+     * @param mimeType the HTTP mime type to lookup the corresponding {@link eu.spitfire.ssp.server.internal.utils.Language} for
      *
-     * @return the {@link eu.spitfire.ssp.utils.Language} according to the given HTTP mime type or <code>null</code>
+     * @return the {@link eu.spitfire.ssp.server.internal.utils.Language} according to the given HTTP mime type or <code>null</code>
      * if the given mime type is not supported.
      */
     public static Language getByHttpMimeType(String mimeType){

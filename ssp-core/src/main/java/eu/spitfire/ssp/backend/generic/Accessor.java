@@ -2,11 +2,10 @@ package eu.spitfire.ssp.backend.generic;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.server.internal.ExpiringNamedGraph;
-import eu.spitfire.ssp.server.internal.message.exception.OperationNotSupportedException;
+import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
+import eu.spitfire.ssp.server.internal.exception.OperationNotSupportedException;
 
 import org.apache.jena.rdf.model.Model;
-import org.jboss.netty.handler.codec.http.HttpResponse;
 
 /**
  * A {@link Accessor} is a component to access a
@@ -42,7 +41,7 @@ public abstract class Accessor<I, D extends DataOrigin<I>> {
      * @param dataOrigin the {@link eu.spitfire.ssp.backend.generic.DataOrigin} to retrieve the status from
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with the the actual
-     * {@link eu.spitfire.ssp.server.internal.ExpiringNamedGraph} retrieved retrieved from the given given
+     * {@link eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph} retrieved retrieved from the given given
      * identifier of a {@link eu.spitfire.ssp.backend.generic.DataOrigin}.
      */
     public ListenableFuture<ExpiringNamedGraph> getStatus(D dataOrigin){
