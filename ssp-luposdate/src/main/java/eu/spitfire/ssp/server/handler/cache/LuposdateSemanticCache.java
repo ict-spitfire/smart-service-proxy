@@ -2,36 +2,42 @@ package eu.spitfire.ssp.server.handler.cache;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.hp.hpl.jena.query.Query;
+import com.hp.hpl.jena.query.ResultSet;
+import com.hp.hpl.jena.query.ResultSetFactory;
+import com.hp.hpl.jena.query.Syntax;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.RDFNode;
+import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.rdf.model.StmtIterator;
 import eu.spitfire.ssp.server.handler.SemanticCache;
+import eu.spitfire.ssp.server.internal.utils.Converter;
+import eu.spitfire.ssp.server.internal.wrapper.ExpiringGraph;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults;
-import eu.spitfire.ssp.server.internal.utils.Converter;
 import lupos.datastructures.items.literal.LiteralFactory;
 import lupos.datastructures.items.literal.URILiteral;
 import lupos.datastructures.queryresult.QueryResult;
+import lupos.endpoint.EvaluationHelper;
 import lupos.endpoint.server.format.XMLFormatter;
-import lupos.engine.evaluators.BasicIndexQueryEvaluator;
 import lupos.engine.evaluators.CommonCoreQueryEvaluator;
 import lupos.engine.evaluators.MemoryIndexQueryEvaluator;
+import lupos.engine.evaluators.QueryEvaluator;
 import lupos.engine.operators.index.Indices;
 import lupos.geo.geosparql.GeoFunctionRegisterer;
-import org.apache.jena.query.Query;
-import org.apache.jena.query.ResultSet;
-import org.apache.jena.query.ResultSetFactory;
-import org.apache.jena.query.Syntax;
-import org.apache.jena.rdf.model.*;
+import lupos.misc.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Created by olli on 17.06.14.
@@ -40,23 +46,24 @@ public class LuposdateSemanticCache extends SemanticCache {
 
     private static Logger LOG = LoggerFactory.getLogger(LuposdateSemanticCache.class.getName());
 
-    private BasicIndexQueryEvaluator evaluator;
+    private QueryEvaluator evaluator;
     private AtomicInteger waitingOperations = new AtomicInteger(0);
     private AtomicInteger finishedOperations = new AtomicInteger(0);
 
-    private ReentrantLock lock;
+    private ReentrantReadWriteLock lock;
 
-//    private ExecutorService cacheExecutor;
+    private ScheduledExecutorService cacheExecutor;
 
     public LuposdateSemanticCache(ExecutorService ioExecutorService,
                                   ScheduledExecutorService internalTasksExecutorService) {
 
         super(ioExecutorService, internalTasksExecutorService);
         this.initialize();
-        this.lock = new ReentrantLock();
-//        this.cacheExecutor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat(
-//                "SSP Cache Thread #%d"
-//        ).build());
+        this.lock = new ReentrantReadWriteLock();
+        //this.cacheExecutor = Executors.newSingleThreadScheduledExecutor();
+        this.cacheExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat(
+                "SSP Luposdate Thread #%d"
+        ).build());
     }
 
     private void initialize(){
@@ -80,12 +87,72 @@ public class LuposdateSemanticCache extends SemanticCache {
 
             //queryEvaluator.getDataset().addNamedGraph(LiteralFactory.createStringURILiteral("<nameofgraph>"), LiteralFactory.createStringURILiteral("<inlinedata:<a> <b> <c>>"), false, false);
             GeoFunctionRegisterer.registerGeoFunctions();
+            EvaluationHelper.registerEvaluator("MIQE", MemoryIndexQueryEvaluator.class);
         }
         catch (Exception ex){
             LOG.error("This should never happen!", ex);
         }
     }
 
+    public ScheduledExecutorService getInternalTasksExecutor(){
+        return this.cacheExecutor;
+    }
+
+//    private QueryEvaluator getRuleEvaluator() throws Exception{
+////        return this.evaluator;
+//
+//        BufferedReader reader = new BufferedReader(new FileReader("/home/olli/ssp-files/inference-test/geonames.ttl"));
+//        String data = "";
+//        String line = reader.readLine();
+//        while(line != null){
+//            data += line;
+//            line = reader.readLine();
+//        }
+//
+//
+//
+//        EvaluationHelper.SPARQLINFERENCE inference = EvaluationHelper.SPARQLINFERENCE.OWL2RL;
+//        final String inferenceRules = inference.getRuleSet(new EvaluationHelper.RuleSets("/rif/"),
+//            EvaluationHelper.GENERATION.GENERATEDOPT, false, data, null);
+//
+//        if(inferenceRules != null){
+//            final BasicIndexRuleEvaluator bire = new BasicIndexRuleEvaluator((MemoryIndexQueryEvaluator) evaluator);
+//            bire.compileQuery(inferenceRules);
+//
+//            evaluator.logicalOptimization();
+//            bire.physicalOptimization();
+//
+//            RuleResult errorsInOntology = bire.inferTriplesAndStoreInDataset();
+//
+//            // compile and optimize query/ruleset
+//            evaluator.compileQuery(query);
+//            evaluator.logicalOptimization();
+//            evaluator.physicalOptimization();
+//
+//            QueryResult[] result;
+//            // start evaluation...
+//            if (evaluator instanceof CommonCoreQueryEvaluator || evaluator instanceof BasicIndexRuleEvaluator) {
+//                final CollectRIFResult crr = new CollectRIFResult(false);
+//                final Result resultOperator = (evaluator instanceof CommonCoreQueryEvaluator)?((CommonCoreQueryEvaluator<Node>)evaluator).getResultOperator(): ((BasicIndexRuleEvaluator)evaluator).getResultOperator();
+//                resultOperator.addApplication(crr);
+//                evaluator.evaluateQuery();
+//                result = crr.getQueryResults();
+//            } else {
+//                result = new QueryResult[1];
+//                result[0] = evaluator.getResult();
+//            }
+//            if(errorsInOntology!=null) {
+//                final QueryResult[] iresult = result;
+//                result = new QueryResult[result.length+1];
+//                System.arraycopy(iresult, 0, result, 0, iresult.length);
+//                result[result.length-1] = errorsInOntology;
+//            }
+//
+//
+//        basicIndexRuleEvaluator.prepareInputData("/home/olli/ssp-files/ontology/ontology_v3.1.rdf");
+//
+//        return basicIndexRuleEvaluator;
+//    }
 
     @Override
     public ListenableFuture<Boolean> containsNamedGraph(final URI graphName) {
@@ -118,6 +185,29 @@ public class LuposdateSemanticCache extends SemanticCache {
         return result;
     }
 
+    @Override
+    public ListenableFuture<ExpiringGraph> getDefaultGraph() {
+        final SettableFuture<ExpiringGraph> result = SettableFuture.create();
+
+        int waiting = waitingOperations.incrementAndGet();
+        LOG.debug("Wait for DB (now waiting: {})", waiting);
+
+        this.getInternalTasksExecutor().execute(new DatabaseTask() {
+
+            @Override
+            public void process() {
+                try {
+                    result.set(getDefaultGraph2());
+                } catch (Exception ex) {
+                    LOG.error("Exception while getting default graph!", ex);
+                    result.setException(ex);
+                }
+            }
+        });
+
+        return result;
+    }
+
 
     private ExpiringNamedGraph getNamedGraph2(URI graphName) throws Exception{
         String query = "SELECT ?s ?p ?o  WHERE {GRAPH <" + graphName + "> { ?s ?p ?o }}";
@@ -126,6 +216,15 @@ public class LuposdateSemanticCache extends SemanticCache {
         Model model = Converter.toModel(toResultSet(result));
 
         return new ExpiringNamedGraph(graphName, model, new Date());
+    }
+
+    private ExpiringGraph getDefaultGraph2() throws Exception{
+        String query = "SELECT ?s ?p ?o  WHERE { ?s ?p ?o }";
+
+        QueryResult result = this.evaluator.getResult(query);
+        Model model = Converter.toModel(toResultSet(result));
+
+        return new ExpiringGraph(model, new Date());
     }
 
 
@@ -222,12 +321,12 @@ public class LuposdateSemanticCache extends SemanticCache {
                 String[] parts = object.toString().split("\\^\\^");
                 return String.format(
                     Locale.ENGLISH, TRIPLE_TEMPLATE_WITH_TYPED_LITERAL, subject, predicate, parts[0], parts[1]
-                );
+                ).replace("\n", " ");
             }
             //untyped literal
             return String.format(
                 Locale.ENGLISH, TRIPLE_TEMPLATE_WITH_UNTYPED_LITERAL, subject, predicate, object.toString()
-            );
+            ).replace("\n", " ");
         }
 
         return String.format(Locale.ENGLISH, TRIPLE_TEMPLATE_WITH_RESOURCE, subject, predicate, object.toString());
@@ -289,7 +388,8 @@ public class LuposdateSemanticCache extends SemanticCache {
                     LOG.debug("Start SPARQL query: \n{}", query);
 
                     long startTime = System.currentTimeMillis();
-                    ResultSet resultSet = processSparqlQuery2(query);
+                    //ResultSet resultSet = processSparqlQuery2(query, !query.contains("GRAPH"));
+                    ResultSet resultSet = processSparqlQuery2(query, false);
                     long duration = System.currentTimeMillis() - startTime;
                     resultFuture.set(new QueryExecutionResults(duration, resultSet));
 
@@ -297,8 +397,11 @@ public class LuposdateSemanticCache extends SemanticCache {
                 } catch (Exception e) {
                     LOG.error("Exception while processing SPARQL query.", e);
                     resultFuture.setException(e);
+                } catch (Error e) {
+                    LOG.error("Error while processing SPARQL query.", e);
+                    resultFuture.setException(e);
                 } finally {
-                    LOG.debug("Finished SPARQL query. \n{}");
+                    LOG.debug("Finished SPARQL query. \n");
                 }
             }
         });
@@ -340,10 +443,36 @@ public class LuposdateSemanticCache extends SemanticCache {
     }
 
 
-    private ResultSet processSparqlQuery2(String query) throws Exception{
-        //Execute Query and make the result a JENA result set
-        QueryResult queryResult = this.evaluator.getResult(query);
-        return toResultSet(queryResult);
+    private ResultSet processSparqlQuery2(String query, boolean inference) throws Exception{
+//        //Execute Query and make the result a JENA result set
+//        QueryResult queryResult = this.getRuleEvaluator().getResult(query);
+//        return toResultSet(queryResult);
+
+        if(inference) {
+            BufferedReader reader = new BufferedReader(new FileReader("/home/olli/ssp-files/inference-test/geonames.ttl"));
+            String data = "";
+            String line = reader.readLine();
+            while(line != null){
+                data += "\n" + line;
+                line = reader.readLine();
+            }
+            reader.close();
+
+            int index = EvaluationHelper.getEvaluatorIndexByName("MIQE");
+            EvaluationHelper.SPARQLINFERENCE inf = EvaluationHelper.SPARQLINFERENCE.OWL2RL;
+            EvaluationHelper.GENERATION gen = EvaluationHelper.GENERATION.GENERATEDOPT;
+            EvaluationHelper.SPARQLINFERENCEMATERIALIZATION mat = EvaluationHelper.SPARQLINFERENCEMATERIALIZATION.MATERIALIZEALL;
+
+            Tuple<String, QueryResult[]> results = EvaluationHelper.getQueryResult(
+                index, false, inf, gen, mat, false, data, null, query
+            );
+
+            return toResultSet(results.getSecond()[0]);
+
+        } else {
+            QueryResult result = this.evaluator.getResult(query);
+            return toResultSet(result);
+        }
     }
 
 
@@ -370,15 +499,16 @@ public class LuposdateSemanticCache extends SemanticCache {
         @Override
         public void run(){
             int stillWaiting = waitingOperations.decrementAndGet();
-
-            lock.lock();
-            LOG.debug("Start DB operation (still waiting: {})", stillWaiting);
-            process();
-            lock.unlock();
-
-            int finished = finishedOperations.incrementAndGet();
-            if(LOG.isInfoEnabled() && (finished % 100 == 0 || stillWaiting == 0)){
-                LOG.info("Finished DB operation #{} (still waiting: {}) ", finished, stillWaiting);
+            try {
+                lock.writeLock().lock();
+                LOG.debug("Start DB operation (still waiting: {})", stillWaiting);
+                this.process();
+                int finished = finishedOperations.incrementAndGet();
+                if (LOG.isInfoEnabled() && (finished % 100 == 0 || stillWaiting == 0)) {
+                    LOG.info("Finished DB operation #{} (still waiting: {}) ", finished, stillWaiting);
+                }
+            } finally {
+                lock.writeLock().unlock();
             }
         }
         

@@ -2,14 +2,16 @@ package eu.spitfire.ssp.server.handler.cache;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.hp.hpl.jena.query.Query;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.RDFNode;
+import com.hp.hpl.jena.sparql.resultset.ResultSetMem;
 import eu.spitfire.ssp.server.handler.SemanticCache;
+import eu.spitfire.ssp.server.internal.wrapper.ExpiringGraph;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults;
 
-import org.apache.jena.query.Query;
-import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.RDFNode;
-import org.apache.jena.sparql.resultset.ResultSetMem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +42,13 @@ public class DummySemanticCache extends SemanticCache {
         resultFuture.set(null);
 
         return resultFuture;
+    }
+
+    @Override
+    public ListenableFuture<ExpiringGraph> getDefaultGraph() {
+        SettableFuture<ExpiringGraph> future = SettableFuture.create();
+        future.set(new ExpiringGraph(ModelFactory.createDefaultModel()));
+        return future;
     }
 
 

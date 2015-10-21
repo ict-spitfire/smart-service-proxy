@@ -1,0 +1,1 @@
+This module uses Jena TDB (see https://jena.apache.org/documentation/tdb/) for caching and SPARQL processing.

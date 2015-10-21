@@ -1,0 +1,1 @@
+This module uses Luposdate (see https://github.com/luposdate/luposdate) for caching and SPARQL processing.

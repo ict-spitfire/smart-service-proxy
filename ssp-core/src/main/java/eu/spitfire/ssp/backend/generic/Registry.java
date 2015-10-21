@@ -8,7 +8,7 @@ import eu.spitfire.ssp.server.internal.message.DataOriginReplacementRequest;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.internal.message.DataOriginDeregistrationRequest;
 import eu.spitfire.ssp.server.internal.message.DataOriginRegistrationRequest;
-import org.apache.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.Model;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;

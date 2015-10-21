@@ -9,7 +9,7 @@ import eu.spitfire.ssp.backend.vs.VirtualSensorsComponentFactory;
 import eu.spitfire.ssp.backend.vs.VirtualSensorsRegistry;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
-import org.apache.jena.query.Query;
+import com.hp.hpl.jena.query.Query;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

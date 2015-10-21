@@ -1,7 +1,8 @@
 package eu.spitfire.ssp.server.internal.message;
 
 
-import org.apache.jena.rdf.model.RDFNode;
+//import com.hp.hpl.jena.rdf.model.RDFNode;
+import com.hp.hpl.jena.rdf.model.RDFNode;
 
 import java.net.URI;
 import java.util.Date;

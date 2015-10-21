@@ -1,7 +1,7 @@
 package eu.spitfire.ssp.server.internal.message;
 
 import com.google.common.util.concurrent.SettableFuture;
-import org.apache.jena.update.UpdateRequest;
+import com.hp.hpl.jena.update.UpdateRequest;
 
 /**
  * Created by olli on 06.07.15.

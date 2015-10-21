@@ -2,11 +2,11 @@ package eu.spitfire.ssp.server.internal.message;
 
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults;
-import org.apache.jena.query.Query;
+import com.hp.hpl.jena.query.Query;
 
 
 /**
- * Wrapper class to combine a {@link org.apache.jena.query.Query} with a
+ * Wrapper class to combine a {@link com.hp.hpl.jena.query.Query} with a
  * {@link com.google.common.util.concurrent.SettableFuture} which contains the result of the
  * query after its execution.
  *
@@ -19,7 +19,7 @@ public class InternalQueryExecutionRequest {
 
     /**
      * Creates a new instance of {@link InternalQueryExecutionRequest}
-     * @param query the {@link org.apache.jena.query.Query} to be executed
+     * @param query the {@link com.hp.hpl.jena.query.Query} to be executed
      */
     public InternalQueryExecutionRequest(Query query) {
         this.query = query;
@@ -27,8 +27,8 @@ public class InternalQueryExecutionRequest {
     }
 
     /**
-     * Returns the {@link org.apache.jena.query.Query} to be executed.
-     * @return the {@link org.apache.jena.query.Query} to be executed.
+     * Returns the {@link com.hp.hpl.jena.query.Query} to be executed.
+     * @return the {@link com.hp.hpl.jena.query.Query} to be executed.
      */
     public Query getQuery() {
         return query;

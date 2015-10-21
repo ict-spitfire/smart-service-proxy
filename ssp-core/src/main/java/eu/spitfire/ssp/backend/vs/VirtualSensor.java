@@ -5,13 +5,14 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backend.generic.DataOrigin;
+import eu.spitfire.ssp.server.internal.utils.Converter;
 import eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults;
 import eu.spitfire.ssp.server.internal.message.InternalQueryExecutionRequest;
-import org.apache.jena.query.Query;
-import org.apache.jena.query.QuerySolution;
-import org.apache.jena.query.ResultSet;
-import org.apache.jena.rdf.model.*;
-import org.apache.jena.util.SplitIRI;
+import com.hp.hpl.jena.query.Query;
+import com.hp.hpl.jena.query.QuerySolution;
+import com.hp.hpl.jena.query.ResultSet;
+import com.hp.hpl.jena.rdf.model.*;
+//import com.hp.hpl.jena.util.SplitIRI;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.Channels;
 import org.slf4j.Logger;
@@ -190,10 +191,10 @@ public class VirtualSensor extends DataOrigin<URI>{
     }
 
     /**
-     * Returns a {@link org.apache.jena.rdf.model.Model} containing the description of the sensor itself as well as its
+     * Returns a {@link com.hp.hpl.jena.rdf.model.Model} containing the description of the sensor itself as well as its
      * latest observation
      *
-     * @return a {@link org.apache.jena.rdf.model.Model} containing the description of the sensor itself as well as its
+     * @return a {@link com.hp.hpl.jena.rdf.model.Model} containing the description of the sensor itself as well as its
      * latest observation
      */
     public Model createGraphAsModel(){
@@ -209,7 +210,7 @@ public class VirtualSensor extends DataOrigin<URI>{
         Resource featureOfInterest = model.createResource(this.featureOfInterest.toString());
         Property observedProperty = model.createProperty(this.observedProperty.toString());
 //        Resource observation = model.createResource(this.sensorName.toString() + "-Observation");
-        Resource result = model.createResource(this.sensorName.toString() + "-Result");
+        //Resource result = model.createResource(this.sensorName.toString() + "-Result");
 
         // sensor statement
         sensorName.addProperty(RDF_TYPE, sensorType);
@@ -250,24 +251,26 @@ public class VirtualSensor extends DataOrigin<URI>{
         int i = 0;
 
         // virtual sensor instance
-        String namespace = SplitIRI.namespace(sensorName.toString());
-        prefixes.put(namespace, "ssp");
+        String namespace = Converter.getNamespace(sensorName.toString());
+        if(namespace != null) {
+            prefixes.put(namespace, "ssp");
+        }
 
         // type
-        namespace = SplitIRI.namespace(sensorType.toString());
-        if(!prefixes.containsKey(namespace)){
+        namespace = Converter.getNamespace(sensorType.toString());
+        if(namespace != null && !prefixes.containsKey(namespace)){
             prefixes.put(namespace, "ns" + (i++));
         }
 
         // feature of interest
-        namespace = SplitIRI.namespace(featureOfInterest.toString());
-        if(!prefixes.containsKey(namespace)){
+        namespace = Converter.getNamespace(featureOfInterest.toString());
+        if(namespace != null && !prefixes.containsKey(namespace)){
             prefixes.put(namespace, "ns" + (i++));
         }
 
         // observed property
-        namespace = SplitIRI.namespace(observedProperty.toString());
-        if(!prefixes.containsKey(namespace)){
+        namespace = Converter.getNamespace(observedProperty.toString());
+        if(namespace != null && !prefixes.containsKey(namespace)){
             prefixes.put(namespace, "ns" + (i));
         }
 
@@ -287,7 +290,7 @@ public class VirtualSensor extends DataOrigin<URI>{
 
 
     /**
-     * Runs the {@link org.apache.jena.query.Query} to create a new observation value
+     * Runs the {@link com.hp.hpl.jena.query.Query} to create a new observation value
      *
      * @return A {@link com.google.common.util.concurrent.ListenableFuture} containing the duration of the query
      * execution in milliseconds.
@@ -375,8 +378,8 @@ public class VirtualSensor extends DataOrigin<URI>{
     }
 
     /**
-     * Returns the {@link org.apache.jena.query.Query} which is used to retrieve the actual sensor value.
-     * @return the {@link org.apache.jena.query.Query} which is used to retrieve the actual sensor value.
+     * Returns the {@link com.hp.hpl.jena.query.Query} which is used to retrieve the actual sensor value.
+     * @return the {@link com.hp.hpl.jena.query.Query} which is used to retrieve the actual sensor value.
      */
     public Query getQuery() {
         return this.query;
@@ -410,10 +413,10 @@ public class VirtualSensor extends DataOrigin<URI>{
 
     /**
      * Makes this {@link VirtualSensor} to periodically execute its
-     * {@link org.apache.jena.query.Query} and thus update its
+     * {@link com.hp.hpl.jena.query.Query} and thus update its
      * {@link VirtualSensor.ObservationValue}.
      *
-     * @param frequency the frequency of the periodic {@link org.apache.jena.query.Query} execution
+     * @param frequency the frequency of the periodic {@link com.hp.hpl.jena.query.Query} execution
      * @param timeUnit the {@link java.util.concurrent.TimeUnit} of the given frequency
      */
     public void startPeriodicObservations(int frequency, TimeUnit timeUnit){

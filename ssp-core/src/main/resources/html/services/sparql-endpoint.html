@@ -102,6 +102,8 @@ SELECT ?section ?length ?taperedBoundary ?vehicleCount WHERE {
                     <div class="ui top left attached label" id="resultsLabel">
                     </div>
                     <div id="resultsContent">
+                        <p id="duration"></p>
+                        <textarea id="results"></textarea>
                     </div>
                     <!--<div class="ui dimmer" id="dimmer">-->
                         <!--<div class="ui text loader">Executing...</div>-->
@@ -154,6 +156,10 @@ SELECT ?section ?length ?taperedBoundary ?vehicleCount WHERE {
                     //$('#fldQueryResult').html("" + e['results'] + "");
                     console.log(e);
                     $('#resultsLabel').html('SPARQL results').removeClass('red');
+//                    $('#duration').html('<p>Execution Duration: ' +  e['duration'] + ' ms.</p>');
+//                    $('#results').html('<textarea class="monospace" style="height: 800px" readonly="readonly">\n'+
+//                        (e['results']) + "'</textarea>'");
+//                    $('#resultsContent').show();
                     $('#resultsContent').html(
                         '<p>Execution Duration: ' +  e['duration'] + ' ms.</p>\n \
                          <textarea class="monospace" style="height: 800px" readonly="readonly">\n'+

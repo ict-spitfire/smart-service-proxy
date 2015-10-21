@@ -2,6 +2,7 @@ package eu.spitfire.ssp.server.internal.utils;
 
 import de.uzl.itm.ncoap.message.options.ContentFormat;
 import org.apache.jena.riot.RDFFormat;
+//import com.hp.hpl.jena.riot.RDFFormat;
 
 /**
  * A wrapper class for the internal representation of content format names in the JENA framework and corresponding

@@ -1,13 +1,13 @@
 package eu.spitfire.ssp.server.internal.utils;
 
 import eu.spitfire.ssp.backend.vs.VirtualSensor;
-import org.apache.jena.datatypes.RDFDatatype;
-import org.apache.jena.graph.Node;
-import org.apache.jena.query.ResultSet;
-import org.apache.jena.rdf.model.*;
-import org.apache.jena.sparql.core.Var;
-import org.apache.jena.sparql.engine.binding.Binding;
-import org.apache.jena.util.SplitIRI;
+import com.hp.hpl.jena.datatypes.RDFDatatype;
+import com.hp.hpl.jena.graph.Node;
+import com.hp.hpl.jena.query.ResultSet;
+import com.hp.hpl.jena.rdf.model.*;
+import com.hp.hpl.jena.sparql.core.Var;
+import com.hp.hpl.jena.sparql.engine.binding.Binding;
+//import com.hp.hpl.jena.util.SplitIRI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +55,9 @@ public class Converter {
 
         // set prefixes for better looking serialization
         for(Map.Entry<String, String> entry : prefixes.entrySet()){
-            model.setNsPrefix(entry.getValue(), entry.getKey());
+            if(!model.getResource(entry.getKey()).listProperties().hasNext()) {
+                model.setNsPrefix(entry.getValue(), entry.getKey());
+            }
         }
 
         return model;
@@ -89,17 +91,20 @@ public class Converter {
             Node s = binding.get(Var.alloc("s"));
             Resource subject = createSubject(s, model, blanks, prefixes);
             subject.addProperty(predicate, object);
+
+
         }
 
         // set prefixes for better looking serialization
         for(Map.Entry<String, String> entry : prefixes.entrySet()){
-            model.setNsPrefix(entry.getValue(), entry.getKey());
+            if(model.getResource(entry.getKey()) != null) {
+                model.setNsPrefix(entry.getValue(), entry.getKey());
+            }
         }
 
         return model;
 
     }
-
 
     private static RDFNode createObject(Node node, Model model, Map<String, Resource> blanks, Map<String, String> prefixes){
         RDFNode object;
@@ -170,8 +175,9 @@ public class Converter {
 
     private static void ensurePrefixExists(Map<String, String> prefixes, RDFNode node){
         if(node.isURIResource() && !((Resource) node).getURI().contains(":-")){
-            String namespace = SplitIRI.namespace(((Resource) node).getURI());
-            if(!prefixes.containsKey(namespace)){
+            //String namespace = SplitIRI.namespace(((Resource) node).getURI());
+            String namespace = getNamespace(((Resource) node).getURI());
+            if(namespace != null && !prefixes.containsKey(namespace)){
                 if(VirtualSensor.RDF_NAMESPACE.equals(namespace)){
                     prefixes.put(namespace, "rdf");
                 }
@@ -190,6 +196,29 @@ public class Converter {
         }
     }
 
+    public static String getNamespace(String resourceName){
+        try {
+            URI resourceUri = new URI(resourceName);
+            if(resourceUri.getRawFragment() != null){
+                LOG.debug("Full  URI: {}", resourceName);
+                LOG.debug("Namespace: {}", resourceUri.toString().substring(0, resourceUri.toString().lastIndexOf(resourceUri.getRawFragment())));
+                return resourceUri.toString().substring(0, resourceUri.toString().lastIndexOf(resourceUri.getRawFragment()));
+            } else if(resourceUri.getRawPath().length() > 1) {
+                String tmp = resourceUri.toString();
+                if(tmp.endsWith("/")){
+                    return null;
+                    //tmp = tmp.substring(0, tmp.length() - 2);
+                }
+                LOG.debug("Full  URI: {}", resourceName);
+                LOG.debug("Namespace: {}", tmp.substring(0, tmp.lastIndexOf("/") + 1));
+                return tmp.substring(0, tmp.lastIndexOf("/") + 1);
+            } else {
+                return null;
+            }
+        } catch(Exception ex){
+            return null;
+        }
+    }
 
     private static RDFNode createRDFNode(Node object, Model model){
         if(!object.isURI() || object.toString().contains(":-"))

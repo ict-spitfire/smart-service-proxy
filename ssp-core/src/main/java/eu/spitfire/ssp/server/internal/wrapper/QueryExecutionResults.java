@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.server.internal.wrapper;
 
-import org.apache.jena.query.ResultSet;
+import com.hp.hpl.jena.query.ResultSet;
 
 /**
  * Created by olli on 20.08.15.

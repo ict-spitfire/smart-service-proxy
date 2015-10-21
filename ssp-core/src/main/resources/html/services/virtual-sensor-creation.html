@@ -2,9 +2,8 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>VS Creation</title>
+    <title>Virtual Sensor Creation</title>
     <link href="../../../style/css/semantic.css" rel="stylesheet" type="text/css" />
-    <link href="../../../style/css/semantic.min.css" rel="stylesheet" type="text/css"/>
     <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700|Open+Sans:300italic,400,300,700'
           rel='stylesheet' type='text/css'>
 
@@ -25,6 +24,12 @@
         .monospace{
             font-family: monospace;
         }
+
+        .ui.form textarea {
+            max-height: none;
+            min-height: 100px
+        }
+
     </style>
 
     <script src="../../../style/javascript/jquery-1.11.1.min.js"></script>
@@ -66,7 +71,7 @@
                         </div>
                     </div>
                     <input class="monospace triplesPart" style="margin-top: 5px" type="text"
-                            value="TripleCounter" id="fldSensorName">
+                            value="VirtualTemperatureSensor-1" id="fldSensorName">
                 </div>
 
                 <div class="ui secondary segment">
@@ -86,7 +91,7 @@
                         <a href="http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#FeatureOfInterest">ssn:FeatureOfInterest</a>)
                     </p>
                     <input class="monospace triplesPart" type="text"
-                            value="http://example.org/ssp#ID" id="fldFeatureOfInterest">
+                            value="http://example.org/room#Room-1" id="fldFeatureOfInterest">
                 </div>
 
                 <div class="ui secondary segment">
@@ -96,7 +101,7 @@
                         <a href="http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#Property">ssn:Property</a>)
                     </p>
                     <input class="monospace triplesPart" type="text"
-                           value="http://example.org/ssp#numberOfTriples" id="fldProperty">
+                           value="http://example.org/environmental-property#temperature" id="fldProperty">
                 </div>
             </div>
 
@@ -108,16 +113,22 @@
                     </div>
                     <div style="font-weight: bold">Note:
                         <div style="font-weight: normal; display: inline">
-                           The query MUST return a value for parameter ?val! The (first) value of paramter ?val is
+                           The query MUST return a value for parameter "?val". The (first) value of paramter ?val is
                            taken as <a href="http://www.w3.org/2005/Incubator/ssn/ssnx/ssn#ObservationValue">
                            ssn:ObservationValue</a>.
                         </div>
                     </div>
-                    <textarea class="sparqlPart monospace" id="fldQuery"  style="margin-top: 5px; height: 500px; min-height: 70px">
+                    <textarea class="sparqlPart monospace" id="fldQuery"  style="margin-top: 5px">
+PREFIX env: <http://example.org/environmental-property#>
+PREFIX rom: <http://example.org/room#>
+PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
-SELECT (xsd:int(COUNT(?s)) AS ?val) WHERE {
-  ?s ?p ?o
+SELECT (xsd:string(IF(AVG(?temp) < 20, "cold", "warm")) AS ?val) WHERE {
+  ?observation  ssn:featureOfInterest  rom:Room-1 .
+  ?observation  ssn:observedProperty   env:temperature .
+  ?observation  ssn:observationResult  ?result .
+  ?result  ssn:hasValue  ?temp .
 }</textarea>
                 </div>
             </div>
@@ -176,8 +187,8 @@ SELECT (xsd:int(COUNT(?s)) AS ?val) WHERE {
                     $('#resultLabel').html('RDF representation of virtual sensor (Turtle-Preview)').removeClass('red');
                     $('#resultContent').html(
                         '<p> Query Execution Duration: ' +  e['duration'] + ' ms.</p>\n' +
-                        '<textarea class="monospace" style="height: 800px" readonly="readonly">\n' +
-                         (e['sensorStatus']) + '\n</textarea>').show();
+                        '<textarea class="monospace" readonly="readonly"></textarea>').show();
+                    $('#resultContent').find('textarea').val(e['sensorStatus']);
                 }
                 else{
                     $('#resultLabel').html('Virtual sensor Creation Result').removeClass('red');

@@ -31,7 +31,7 @@ import eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults;
 import eu.spitfire.ssp.server.internal.utils.HttpResponseFactory;
 import eu.spitfire.ssp.server.internal.utils.Language;
 import eu.spitfire.ssp.server.internal.utils.QueryResultsFormat;
-import org.apache.jena.query.ResultSetFormatter;
+import com.hp.hpl.jena.query.ResultSetFormatter;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;

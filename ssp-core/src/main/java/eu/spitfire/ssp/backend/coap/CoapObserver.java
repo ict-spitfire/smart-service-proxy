@@ -14,7 +14,7 @@ import de.uzl.itm.ncoap.message.options.ContentFormat;
 import eu.spitfire.ssp.backend.coap.registry.CoapRegistry;
 import eu.spitfire.ssp.backend.generic.DataOriginObserver;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
-import org.apache.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.Model;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

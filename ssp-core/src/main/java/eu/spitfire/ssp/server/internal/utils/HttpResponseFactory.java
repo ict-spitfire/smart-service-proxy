@@ -5,9 +5,9 @@ import com.google.gson.Gson;
 
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringGraph;
 
-import org.apache.jena.query.ResultSet;
-import org.apache.jena.query.ResultSetFormatter;
-import org.apache.jena.rdf.model.Model;
+import com.hp.hpl.jena.query.ResultSet;
+import com.hp.hpl.jena.query.ResultSetFormatter;
+import com.hp.hpl.jena.rdf.model.Model;
 import org.apache.jena.riot.RDFDataMgr;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferOutputStream;
@@ -41,7 +41,7 @@ public class HttpResponseFactory {
 
     public static HttpResponse createHttpResponse(HttpVersion version, HttpResponseStatus status, String content){
         HttpResponse response = new DefaultHttpResponse(version, status);
-        ChannelBuffer payloadBuffer = ChannelBuffers.wrappedBuffer(content.getBytes(Charset.forName("UTF-8")));
+        ChannelBuffer payloadBuffer = ChannelBuffers.wrappedBuffer(content.getBytes(Charset.forName("ISO-8859-1")));
         response.setContent(payloadBuffer);
         response.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payloadBuffer.readableBytes());
         return response;
@@ -51,7 +51,7 @@ public class HttpResponseFactory {
     public static HttpResponse createHttpJsonResponse(HttpVersion version, Map<String, String> content){
         HttpResponse httpResponse = new DefaultHttpResponse(version, HttpResponseStatus.OK);
 
-        ChannelBuffer payload = ChannelBuffers.wrappedBuffer(GSON.toJson(content).getBytes(Charset.forName("UTF-8")));
+        ChannelBuffer payload = ChannelBuffers.wrappedBuffer(GSON.toJson(content).getBytes(Charset.forName("ISO-8859-1")));
         httpResponse.setContent(payload);
         httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
 
@@ -74,11 +74,11 @@ public class HttpResponseFactory {
     }
 
     public static HttpResponse createHttpResponse(HttpVersion version, HttpResponseStatus status,
-                                                  Exception exception){
+                                                  Throwable throwable){
 
         //Write exceptions stack trace as payload for error message
         StringWriter errors = new StringWriter();
-        exception.printStackTrace(new PrintWriter(errors));
+        throwable.printStackTrace(new PrintWriter(errors));
 
         return createHttpResponse(version, status, errors.toString());
     }
@@ -116,8 +116,10 @@ public class HttpResponseFactory {
 
         Model model = expiringGraph.getModel();
         StringWriter writer = new StringWriter();
-        //model.write(writer, language.getRdfFormat().getLang().getName());
-        RDFDataMgr.write(writer, model, language.getRdfFormat());
+
+        model.write(writer, language.getRdfFormat().getLang().getName());
+//        RDFDataMgr.write(writer, model, language.getRdfFormat());
+
         //ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
         LOG.info("Model to be serialized{}", model);
@@ -128,7 +130,7 @@ public class HttpResponseFactory {
 
         HttpResponse httpResponse = new DefaultHttpResponse(version, OK);
 
-        ChannelBuffer payload = ChannelBuffers.wrappedBuffer(writer.toString().getBytes(Charset.forName("UTF-8")));
+        ChannelBuffer payload = ChannelBuffers.wrappedBuffer(writer.toString().getBytes(Charset.forName("ISO-8859-1")));
         httpResponse.setContent(payload);
 
         //Set HTTP response headers

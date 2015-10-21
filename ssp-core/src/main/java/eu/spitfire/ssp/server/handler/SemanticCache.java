@@ -31,12 +31,12 @@ import eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults;
 import eu.spitfire.ssp.server.internal.message.*;
 import eu.spitfire.ssp.server.internal.utils.Converter;
 import eu.spitfire.ssp.server.internal.utils.HttpResponseFactory;
-import org.apache.jena.query.Query;
-import org.apache.jena.query.QueryFactory;
-import org.apache.jena.query.ResultSet;
-import org.apache.jena.query.Syntax;
-import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.RDFNode;
+import com.hp.hpl.jena.query.Query;
+import com.hp.hpl.jena.query.QueryFactory;
+import com.hp.hpl.jena.query.ResultSet;
+import com.hp.hpl.jena.query.Syntax;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.RDFNode;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
 import org.slf4j.Logger;
@@ -53,7 +53,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-//import eu.spitfire.ssp.server.internal.utils.exceptions.GraphNameAlreadyExistsException;
 
 /**
  * Checks whether the incoming {@link HttpRequest} can be answered with cached information. This depends on the
@@ -67,7 +66,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
     public static final int DELAY_AFTER_EXPIRY_MILLIS = 10000;
     private static Logger LOG = LoggerFactory.getLogger(SemanticCache.class.getName());
-    private static final TimeUnit MILLIS = TimeUnit.MILLISECONDS;
+    //private static final TimeUnit MILLIS = TimeUnit.MILLISECONDS;
 
     private Map<URI, ScheduledFuture> namedGraphExpiryFutures = Collections.synchronizedMap(new HashMap<>());
 
@@ -87,7 +86,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
     /**
      * This method is invoked for upstream {@link MessageEvent}s and handles incoming {@link HttpRequest}s.
      * It tries to find a fresh status of the requested resource (identified using the requests target URI) in its
-     * internal cache. If a fresh status is found, it sends this status (as an instance of {@link org.apache.jena.rdf.model.Model})
+     * internal cache. If a fresh status is found, it sends this status (as an instance of {@link com.hp.hpl.jena.rdf.model.Model})
      * downstream to the {@link eu.spitfire.ssp.server.handler.HttpSemanticPayloadFormatter}.
      *
      * @param ctx The {@link ChannelHandlerContext} to relate this handler with its current {@link Channel}
@@ -107,8 +106,12 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                     String[] queryParts = uriQuery.split("&");
                     for (String queryPart : queryParts) {
                         if (queryPart.startsWith("graph=")) {
-                            URI graphName = new URI(queryPart.substring(6).replace(" ", "%20"));
-                            internalTasksExecutor.execute(new GraphRequestHandler(graphName, ctx, me));
+                            if(queryPart.equals("graph=default")) {
+                                internalTasksExecutor.execute(new GraphRequestHandler(null, ctx, me));
+                            } else {
+                                URI graphName = new URI(queryPart.substring(6).replace(" ", "%20"));
+                                internalTasksExecutor.execute(new GraphRequestHandler(graphName, ctx, me));
+                            }
                             return;
                         }
                         else if (queryPart.startsWith("resource=")) {
@@ -130,14 +133,14 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
         private URI resourceName;
         private ChannelHandlerContext ctx;
-        private InetSocketAddress remoteAdress;
+        private InetSocketAddress remoteSocket;
         private HttpVersion httpVersion;
 
         private ResourceRequestHandler(URI resourceName, ChannelHandlerContext ctx, MessageEvent me){
             this.resourceName = resourceName;
             this.ctx = ctx;
             this.httpVersion = ((HttpRequest) me.getMessage()).getProtocolVersion();
-            this.remoteAdress = (InetSocketAddress) me.getRemoteAddress();
+            this.remoteSocket = (InetSocketAddress) me.getRemoteAddress();
         }
 
         @Override
@@ -157,7 +160,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                         //Send expiring graph
                         ExpiringGraph expiringGraph = new ExpiringGraph(model, new Date());
                         ChannelFuture channelFuture = Channels.future(ctx.getChannel());
-                        Channels.write(ctx, channelFuture, expiringGraph, remoteAdress);
+                        Channels.write(ctx, channelFuture, expiringGraph, remoteSocket);
                         channelFuture.addListener(ChannelFutureListener.CLOSE);
                     }
 
@@ -167,7 +170,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                                 HttpResponseStatus.INTERNAL_SERVER_ERROR, t.getMessage());
 
                         ChannelFuture channelFuture = Channels.future(ctx.getChannel());
-                        Channels.write(ctx, channelFuture, httpResponse, remoteAdress);
+                        Channels.write(ctx, channelFuture, httpResponse, remoteSocket);
 
                         channelFuture.addListener(ChannelFutureListener.CLOSE);
                     }
@@ -183,7 +186,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                                 HttpResponseStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
 
                         ChannelFuture channelFuture = Channels.future(ctx.getChannel());
-                        Channels.write(ctx, channelFuture, httpResponse, remoteAdress);
+                        Channels.write(ctx, channelFuture, httpResponse, remoteSocket);
 
                         channelFuture.addListener(ChannelFutureListener.CLOSE);
                     }
@@ -208,7 +211,15 @@ public abstract class SemanticCache extends SimpleChannelHandler {
         @Override
         public void run() {
             LOG.debug("Lookup graph \"{}\".", graphName);
-            Futures.addCallback(getNamedGraph(graphName), new FutureCallback<ExpiringGraph>() {
+
+            ListenableFuture<? extends ExpiringGraph> future;
+            if(graphName == null){
+                future = getDefaultGraph();
+            } else {
+                future = getNamedGraph(graphName);
+            }
+
+            Futures.addCallback(future, new FutureCallback<ExpiringGraph>() {
 
                 @Override
                 public void onSuccess(ExpiringGraph expiringGraph) {
@@ -291,6 +302,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      */
     public abstract ListenableFuture<ExpiringNamedGraph> getNamedGraph(URI graphName);
 
+    public abstract ListenableFuture<ExpiringGraph> getDefaultGraph();
 
     /**
      * Method to put a named graph into the cache. The returned future MUST be set with <code>null</code> if
@@ -326,7 +338,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      * {@link SemanticCache} should override this method in order to support
      * SPAQRL queries.
      *
-     * @param query the {@link org.apache.jena.query.Query} to be processed.
+     * @param query the {@link com.hp.hpl.jena.query.Query} to be processed.
      *
      * @return a {@link com.google.common.util.concurrent.ListenableFuture} to be set with an instance of
      * {@link eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults}.

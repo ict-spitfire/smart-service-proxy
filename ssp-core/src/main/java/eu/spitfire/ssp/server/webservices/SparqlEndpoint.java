@@ -6,8 +6,8 @@ import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.server.internal.message.InternalQueryExecutionRequest;
 import eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults;
 import eu.spitfire.ssp.server.internal.utils.HttpResponseFactory;
-import org.apache.jena.query.Query;
-import org.apache.jena.query.QueryFactory;
+import com.hp.hpl.jena.query.Query;
+import com.hp.hpl.jena.query.QueryFactory;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -66,7 +66,7 @@ public class SparqlEndpoint extends HttpWebservice{
             public void onFailure(Throwable t) {
                 HttpResponseStatus status = HttpResponseStatus.INTERNAL_SERVER_ERROR;
                 HttpResponse httpResponse = HttpResponseFactory.createHttpResponse(
-                        httpRequest.getProtocolVersion(), status, t.getMessage()
+                        httpRequest.getProtocolVersion(), status, t
                 );
 
                 writeHttpResponse(channel, httpResponse, clientAddress);

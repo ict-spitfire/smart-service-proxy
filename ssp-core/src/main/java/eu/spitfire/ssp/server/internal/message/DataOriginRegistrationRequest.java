@@ -3,7 +3,7 @@ package eu.spitfire.ssp.server.internal.message;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backend.generic.DataOrigin;
 import eu.spitfire.ssp.backend.generic.DataOriginMapper;
-import org.apache.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.Model;
 
 import java.util.Date;
 

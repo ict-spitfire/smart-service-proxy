@@ -5,7 +5,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.internal.exception.OperationNotSupportedException;
 
-import org.apache.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.Model;
 
 /**
  * A {@link Accessor} is a component to access a

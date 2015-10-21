@@ -14,7 +14,7 @@ import eu.spitfire.ssp.backend.generic.Accessor;
 
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.internal.exception.OperationTimeoutException;
-import org.apache.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.Model;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;

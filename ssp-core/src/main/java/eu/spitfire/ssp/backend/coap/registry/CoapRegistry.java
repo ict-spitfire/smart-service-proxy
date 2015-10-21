@@ -59,7 +59,7 @@ public class CoapRegistry extends Registry<URI, CoapWebresource> {
      */
     @Override
     public void startRegistry() throws Exception {
-        coapApplication.registerResource(new CoapRegistryWebservice(componentFactory));
+        coapApplication.registerWebresource(new CoapRegistryWebservice(componentFactory));
     }
 
 
@@ -68,7 +68,6 @@ public class CoapRegistry extends Registry<URI, CoapWebresource> {
         private Logger log = LoggerFactory.getLogger(CoapRegistryWebservice.class.getName());
 
         private CoapEndpoint coapApplication;
-        private ScheduledExecutorService internalTasksExecutor;
 
         /**
          * Creates a new instance of {@link CoapRegistryWebservice}.
@@ -80,8 +79,6 @@ public class CoapRegistry extends Registry<URI, CoapWebresource> {
         public CoapRegistryWebservice(CoapComponentFactory componentFactory) {
             super("/registry", null, OptionValue.MAX_AGE_DEFAULT, componentFactory.getInternalTasksExecutor());
             this.coapApplication = componentFactory.getCoapApplication();
-            this.internalTasksExecutor = componentFactory.getInternalTasksExecutor();
-            //this.registry = componentFactory.getRegistry();
         }
 
 

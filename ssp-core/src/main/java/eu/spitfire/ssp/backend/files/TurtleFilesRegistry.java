@@ -84,6 +84,14 @@ public class TurtleFilesRegistry extends Registry<Path, TurtleFile> {
                         } catch (URISyntaxException ex) {
                             LOG.error("This should never happen!", ex);
                         }
+                    } else if (filePath.toString().endsWith(".rdf")) {
+                        try {
+                            TurtleFile turtleFile = new TurtleFile(
+                                    directoryPath, filePath, componentFactory.getHostName(), componentFactory.getPort());
+                            registerDataOrigin(turtleFile);
+                        } catch (URISyntaxException ex) {
+                            LOG.error("This should never happen!", ex);
+                        }
                     } else
                         LOG.debug("No Turtle file: \"{}\"", filePath);
 
@@ -123,7 +131,7 @@ public class TurtleFilesRegistry extends Registry<Path, TurtleFile> {
 
             try{
                 LinkedHashMultimap<TurtleFile, WatchEvent.Kind> detectedEvents = LinkedHashMultimap.create();
-                LOG.debug("Time: " + System.currentTimeMillis());
+                //LOG.debug("Time: " + System.currentTimeMillis());
 
                 WatchKey watchKey = null;
                 for(int i = 0; i < 2; i++) {
@@ -147,9 +155,9 @@ public class TurtleFilesRegistry extends Registry<Path, TurtleFile> {
                             continue;
                         }
 
-                        //Ignore events on files whose names do not end with ".ttl"
-                        if (!filePath.toString().endsWith(".ttl")) {
-                            LOG.debug("Event on file {} will be ignored (no *.ttl)", filePath);
+                        //Ignore events on files whose names do not end with ".ttl" or ".rdf"
+                        if (!filePath.toString().endsWith(".ttl") && !filePath.toString().endsWith(".rdf")) {
+                            LOG.debug("Event on file {} will be ignored (no *.ttl or *.rdf)", filePath);
                             continue;
                         }
 

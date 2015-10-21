@@ -1,13 +1,13 @@
 package eu.spitfire.ssp.server.internal.wrapper;
 
 
-import org.apache.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.Model;
 
 import java.net.URI;
 import java.util.Date;
 
 /**
- * Wrapper class to contain a {@link org.apache.jena.rdf.model.Model}, a {@link java.util.Date} indicating the
+ * Wrapper class to contain a {@link com.hp.hpl.jena.rdf.model.Model}, a {@link java.util.Date} indicating the
  * validity lifetime of the model, and the {@link java.net.URI} representing the name of the graph represented
  * by the model.
  *

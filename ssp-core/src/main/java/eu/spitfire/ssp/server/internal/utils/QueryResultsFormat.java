@@ -1,7 +1,7 @@
 package eu.spitfire.ssp.server.internal.utils;
 
 
-import org.apache.jena.sparql.resultset.ResultsFormat;
+import com.hp.hpl.jena.sparql.resultset.ResultsFormat;
 
 /**
  * A wrapper class for the internal representation of serialization format names for SPARQL results in the JENA
@@ -32,7 +32,7 @@ public enum QueryResultsFormat {
     TSV(ResultsFormat.FMT_RS_TSV, "text/tab-separated-values");
 
     /**
-     * The corresponding {@link org.apache.jena.sparql.resultset.ResultsFormat}
+     * The corresponding {@link com.hp.hpl.jena.sparql.resultset.ResultsFormat}
      */
     private ResultsFormat resultsFormat;
 
