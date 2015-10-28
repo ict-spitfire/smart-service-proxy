@@ -101,7 +101,6 @@ public abstract class SemanticCache extends SimpleChannelHandler {
 
             if (httpRequest.getMethod() == HttpMethod.GET) {
                 String uriQuery = new URI(httpRequest.getUri()).getQuery();
-
                 if (uriQuery != null) {
                     String[] queryParts = uriQuery.split("&");
                     for (String queryPart : queryParts) {

@@ -54,7 +54,6 @@
 
         var formData = new FormData();
         formData.append('query', 'SELECT DISTINCT ?g WHERE { GRAPH ?g {?s ?p ?o} } ORDER BY ASC(?g)');
-        //formData.append('query', 'SELECT DISTINCT ?s WHERE {?s ?p ?o} ORDER BY ASC(?s)');
 
         $.ajax({
             type: "POST",

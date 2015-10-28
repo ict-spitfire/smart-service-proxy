@@ -3,31 +3,56 @@ package eu.spitfire.ssp;
 import eu.spitfire.ssp.server.handler.SemanticCache;
 import eu.spitfire.ssp.server.handler.cache.JenaTdbSemanticCache;
 import org.apache.commons.configuration.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.File;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
 * Created by olli on 06.07.15.
 */
 public class Main {
 
+    private static Logger LOG = LoggerFactory.getLogger(Main.class.getName());
+
+    private static Set<String> getFiles(String path) {
+        Set<String> files = new HashSet<>();
+        File directory = new File(path);
+        for (File file : directory.listFiles()) {
+            if (file.isDirectory()) {
+                files.addAll(getFiles(file.getAbsolutePath()));
+            } else {
+                if(file.getAbsolutePath().endsWith("ttl") || file.getAbsolutePath().endsWith("rdf")) {
+                    files.add(file.getAbsolutePath());
+                }
+            }
+        }
+        return files;
+    }
+
     public static void main(String[] args) throws Exception{
         Initializer initializer = new Initializer("ssp.properties") {
 
             @Override
             public SemanticCache createSemanticCache(Configuration config){
-                Path tdb = Paths.get("/home", "olli", "jena-tdb");
-                Path index = Paths.get("/home", "olli", "jena-tdb-index");
 
-                String ontologyPath = config.getString("cache.ontology.path");
-                System.out.println("Using Ontology at: " + ontologyPath);
-                return new JenaTdbSemanticCache(this.getIoExecutor(), this.getInternalTasksExecutor(), tdb, ontologyPath);
+                String[] ontologyDirectories = config.getStringArray("cache.ontology.directory");
+                Set<String> ontologyFiles = new HashSet<>();
+
+                for(String directory : ontologyDirectories) {
+                    ontologyFiles.addAll(getFiles(directory));
+                }
+
+                String tdbDirectory = config.getString("cache.tdb.directory");
+
+                return new JenaTdbSemanticCache(
+                    this.getIoExecutor(), this.getInternalTasksExecutor(), tdbDirectory, ontologyFiles
+                );
             }
-
         };
 
         initializer.initialize();
     }
-
 }

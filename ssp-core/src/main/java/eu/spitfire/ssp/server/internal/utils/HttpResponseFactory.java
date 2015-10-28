@@ -8,7 +8,9 @@ import eu.spitfire.ssp.server.internal.wrapper.ExpiringGraph;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.hp.hpl.jena.rdf.model.Model;
+import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.riot.RDFFormat;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferOutputStream;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -55,7 +57,7 @@ public class HttpResponseFactory {
         httpResponse.setContent(payload);
         httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
 
-        httpResponse.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/json");
+        httpResponse.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/json; charset=ISO-8859-1");
 
         return httpResponse;
 
@@ -95,21 +97,13 @@ public class HttpResponseFactory {
         HttpResponse httpResponse = new DefaultHttpResponse(version, HttpResponseStatus.OK);
         httpResponse.setContent(payload);
 
-        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, queryResultsFormat.getMimeType());
+        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE,
+            queryResultsFormat.getMimeType()  + "; charset=ISO-8859-1");
         httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
 
         return httpResponse;
 
     }
-
-//    public static HttpResponse createHttpResponse(HttpVersion version, EmptyAccessResult emptyAccessResult){
-//
-//        int codeNumber = emptyAccessResult.getCode().getCodeNumber();
-//
-//        return HttpResponseFactory.createHttpResponse(
-//                version, HttpResponseStatus.valueOf(codeNumber), emptyAccessResult.getMessage()
-//        );
-//    }
 
 
     public static HttpResponse createHttpResponse(HttpVersion version, Language language, ExpiringGraph expiringGraph){
@@ -117,16 +111,11 @@ public class HttpResponseFactory {
         Model model = expiringGraph.getModel();
         StringWriter writer = new StringWriter();
 
-        model.write(writer, language.getRdfFormat().getLang().getName());
-//        RDFDataMgr.write(writer, model, language.getRdfFormat());
-
-        //ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        //model.write(writer, language.getRdfFormat().getLang().getName());
+        //RDFDataMgr.write(writer, model, language.getRdfFormat().getLang());
+        RDFDataMgr.write(writer, model, Lang.TTL);
 
         LOG.info("Model to be serialized{}", model);
-
-        //Serialize the model associated with the resource and write on OutputStream
-        //model.write(byteArrayOutputStream, language.lang);
-        //RDFDataMgr.write(byteArrayOutputStream, model, Lang.RDFXML);
 
         HttpResponse httpResponse = new DefaultHttpResponse(version, OK);
 
@@ -134,7 +123,7 @@ public class HttpResponseFactory {
         httpResponse.setContent(payload);
 
         //Set HTTP response headers
-        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, language.getMimeType());
+        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, language.getMimeType() + "; charset=ISO-8859-1");
         httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
         httpResponse.headers().add(HttpHeaders.Names.EXPIRES, DATE_FORMAT.format(expiringGraph.getExpiry()));
         httpResponse.headers().add(HttpHeaders.Names.CACHE_CONTROL, "no-cache, no-store, must-revalidate");

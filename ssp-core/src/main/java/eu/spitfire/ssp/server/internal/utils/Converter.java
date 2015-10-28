@@ -1,5 +1,8 @@
 package eu.spitfire.ssp.server.internal.utils;
 
+import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
+import com.hp.hpl.jena.datatypes.xsd.impl.XSDBaseNumericType;
+import com.hp.hpl.jena.vocabulary.XSD;
 import eu.spitfire.ssp.backend.vs.VirtualSensor;
 import com.hp.hpl.jena.datatypes.RDFDatatype;
 import com.hp.hpl.jena.graph.Node;
@@ -22,6 +25,57 @@ public class Converter {
 
     private static Logger LOG = LoggerFactory.getLogger(Converter.class.getName());
 
+    /**
+     * <a href="http://www.w3.org/2001/XMLSchema#">http://www.w3.org/2001/XMLSchema#</a>
+     */
+    public static final String XSD_NAMESAPCE = "http://www.w3.org/2001/XMLSchema#";
+
+    /**
+     * <a href="http://purl.oclc.org/NET/ssnx/ssn#">http://purl.oclc.org/NET/ssnx/ssn#</a>
+     */
+    public static final String SSN_NAMESPACE = "http://purl.oclc.org/NET/ssnx/ssn#";
+
+    /**
+     * <a href="http://www.w3.org/1999/02/22-rdf-syntax-ns#">http://www.w3.org/1999/02/22-rdf-syntax-ns#</a>
+     */
+    public static final String RDF_NAMESPACE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+
+    /**
+     * <a href="http://www.w3.org/2000/01/rdf-schema#">http://www.w3.org/2000/01/rdf-schema#</a>
+     */
+    public static final String RDFS_NAMESPACE = "http://www.w3.org/2000/01/rdf-schema#";
+
+    /**
+     * <a href="http://www.w3.org/2002/07/owl#">http://www.w3.org/2002/07/owl#</a>
+     */
+    public static final String OWL_NAMESPACE = "http://www.w3.org/2002/07/owl#";
+
+    /**
+     * <a href="http://www.geonames.org/ontology#">http://www.geonames.org/ontology#</a>
+     */
+    public static final String GEONAMES_NAMESPACE = "http://www.geonames.org/ontology#";
+
+    /**
+     * <a href="http://www.loa-cnr.it/ontologies/DUL.owl#">http://www.loa-cnr.it/ontologies/DUL.owl#</a>
+     */
+    public static final String DUL_NAMESPACE = "http://www.loa-cnr.it/ontologies/DUL.owl#";
+
+
+
+    private static Map<String, String> RDF_PREFIXES = new HashMap<>();
+    static{
+        RDF_PREFIXES.put(XSD_NAMESAPCE, "xsd");
+        RDF_PREFIXES.put(SSN_NAMESPACE, "ssn");
+        RDF_PREFIXES.put(RDF_NAMESPACE, "rdf");
+        RDF_PREFIXES.put(RDFS_NAMESPACE, "rdfs");
+        RDF_PREFIXES.put(OWL_NAMESPACE, "owl");
+        RDF_PREFIXES.put(GEONAMES_NAMESPACE, "gn");
+        RDF_PREFIXES.put(DUL_NAMESPACE, "dul");
+    }
+
+    private static String getPrefix(String namespace){
+        return RDF_PREFIXES.get(namespace);
+    }
 
     public static Model toModel(ResultSet resultSet, String resource){
 
@@ -126,8 +180,10 @@ public class Converter {
             RDFDatatype datatype = node.getLiteralDatatype();
             if(datatype == null){
                 object = model.createLiteral(node.getLiteralLexicalForm());
-            }
-            else{
+            } else if (datatype.getURI().endsWith("#integer")) {
+                object = model.createTypedLiteral(node.getLiteralLexicalForm(), XSDDatatype.XSDint);
+                ensurePrefixExists(prefixes, object);
+            } else {
                 object = model.createTypedLiteral(node.getLiteralLexicalForm(), datatype);
                 ensurePrefixExists(prefixes, object);
             }
@@ -178,21 +234,23 @@ public class Converter {
             //String namespace = SplitIRI.namespace(((Resource) node).getURI());
             String namespace = getNamespace(((Resource) node).getURI());
             if(namespace != null && !prefixes.containsKey(namespace)){
-                if(VirtualSensor.RDF_NAMESPACE.equals(namespace)){
-                    prefixes.put(namespace, "rdf");
+                String prefix = getPrefix(namespace);
+                if(prefix == null){
+                    int number = 1;
+                    for(String p : prefixes.values()){
+                        if(p.startsWith("ns")){
+                            number++;
+                        }
+                    }
+                    prefix = "ns" + number;
                 }
-                else if(VirtualSensor.SSN_NAMESPACE.equals(namespace)){
-                    prefixes.put(namespace, "ssn");
-                }
-                else {
-                    prefixes.put(namespace, "ns" + (prefixes.keySet().size()));
-                }
+                prefixes.put(namespace, prefix);
             }
         }
         else if(node.isLiteral() && ((Literal) node).getDatatype() != null
-                && ((Literal) node).getDatatypeURI().startsWith(VirtualSensor.XSD_NAMESAPCE)){
+                && ((Literal) node).getDatatypeURI().startsWith(XSD_NAMESAPCE)){
 
-            prefixes.put(VirtualSensor.XSD_NAMESAPCE, "xsd");
+            prefixes.put(XSD_NAMESAPCE, "xsd");
         }
     }
 

@@ -141,12 +141,12 @@ public class TurtleFilesRegistry extends Registry<Path, TurtleFile> {
                         continue;
                     }
 
-                    Path directory = (Path) watchKey.watchable();
+                    //Path directory2 = (Path) watchKey.watchable();
 
                     for (WatchEvent event : watchKey.pollEvents()) {
 
                         WatchEvent.Kind eventKind = event.kind();
-                        final Path filePath = directory.resolve((Path) event.context());
+                        final Path filePath = ((Path) watchKey.watchable()).resolve((Path) event.context());
 
                         //Handle events on directories
                         if (Files.isDirectory(filePath) && eventKind == ENTRY_CREATE) {
@@ -183,9 +183,6 @@ public class TurtleFilesRegistry extends Registry<Path, TurtleFile> {
                 if(!detectedEvents.isEmpty()) {
                     LOG.info("Number of Events: " + detectedEvents.size());
                     handleTurtleFileEvents(detectedEvents);
-                    if(detectedEvents.size() != 3){
-                        LOG.debug("...");
-                    }
                 }
 
 //                // reset watchkey and remove from set if directory is no longer accessible

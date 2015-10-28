@@ -26,6 +26,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import static eu.spitfire.ssp.server.internal.utils.Converter.*;
+
 /**
  * Created by olli on 06.05.14.
  */
@@ -33,20 +35,20 @@ public class VirtualSensor extends DataOrigin<URI>{
 
     private static Logger LOG = LoggerFactory.getLogger(VirtualSensor.class.getName());
 
-    /**
-     * <a href="http://www.w3.org/2001/XMLSchema#">http://www.w3.org/2001/XMLSchema#</a>
-     */
-    public static final String XSD_NAMESAPCE = "http://www.w3.org/2001/XMLSchema#";
-
-    /**
-     * <a href="http://purl.oclc.org/NET/ssnx/ssn#">http://purl.oclc.org/NET/ssnx/ssn#</a>
-     */
-    public static final String SSN_NAMESPACE = "http://purl.oclc.org/NET/ssnx/ssn#";
-
-    /**
-     * <a href="http://www.w3.org/1999/02/22-rdf-syntax-ns#">http://www.w3.org/1999/02/22-rdf-syntax-ns#</a>
-     */
-    public static final String RDF_NAMESPACE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+//    /**
+//     * <a href="http://www.w3.org/2001/XMLSchema#">http://www.w3.org/2001/XMLSchema#</a>
+//     */
+//    public static final String XSD_NAMESAPCE = "http://www.w3.org/2001/XMLSchema#";
+//
+//    /**
+//     * <a href="http://purl.oclc.org/NET/ssnx/ssn#">http://purl.oclc.org/NET/ssnx/ssn#</a>
+//     */
+//    public static final String SSN_NAMESPACE = "http://purl.oclc.org/NET/ssnx/ssn#";
+//
+//    /**
+//     * <a href="http://www.w3.org/1999/02/22-rdf-syntax-ns#">http://www.w3.org/1999/02/22-rdf-syntax-ns#</a>
+//     */
+//    public static final String RDF_NAMESPACE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 
     /**
      * <a href="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">http://www.w3.org/1999/02/22-rdf-syntax-ns#type</a>

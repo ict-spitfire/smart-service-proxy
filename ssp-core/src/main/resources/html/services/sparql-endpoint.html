@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html;charset=ISO-8859-1">
     <title>SPARQL GUI</title>
     <link href="../../style/css/semantic.css" rel="stylesheet" type="text/css" />
     <link href="../../style/css/semantic.min.css" rel="stylesheet" type="text/css"/>
@@ -156,14 +156,13 @@ SELECT ?section ?length ?taperedBoundary ?vehicleCount WHERE {
                     //$('#fldQueryResult').html("" + e['results'] + "");
                     console.log(e);
                     $('#resultsLabel').html('SPARQL results').removeClass('red');
-//                    $('#duration').html('<p>Execution Duration: ' +  e['duration'] + ' ms.</p>');
-//                    $('#results').html('<textarea class="monospace" style="height: 800px" readonly="readonly">\n'+
-//                        (e['results']) + "'</textarea>'");
-//                    $('#resultsContent').show();
-                    $('#resultsContent').html(
-                        '<p>Execution Duration: ' +  e['duration'] + ' ms.</p>\n \
-                         <textarea class="monospace" style="height: 800px" readonly="readonly">\n'+
-                        (e['results']) + '\n</textarea>').show();
+                    $('#duration').text('Execution Duration: ' +  e['duration'] + ' ms.');
+                    $('#results').val(e['results']);
+                    $('#resultsContent').show();
+//                    $('#resultsContent').html(
+//                        '<p>Execution Duration: ' +  e['duration'] + ' ms.</p>\n \
+//                         <textarea class="monospace" style="height: 800px" readonly="readonly" id>\n'+
+//                        (e['results']) + '\n</textarea>').show();
 //                    $('#dimmer').removeClass('active');
                 },
                 error: function(e){

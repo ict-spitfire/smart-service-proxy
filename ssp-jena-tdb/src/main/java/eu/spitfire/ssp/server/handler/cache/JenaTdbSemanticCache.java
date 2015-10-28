@@ -1,24 +1,26 @@
 package eu.spitfire.ssp.server.handler.cache;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.hp.hpl.jena.ontology.OntModel;
 import com.hp.hpl.jena.ontology.OntModelSpec;
 import com.hp.hpl.jena.query.*;
-import com.hp.hpl.jena.rdf.model.InfModel;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.RDFNode;
+import com.hp.hpl.jena.rdf.model.*;
 import com.hp.hpl.jena.reasoner.Reasoner;
 import com.hp.hpl.jena.reasoner.ReasonerRegistry;
 import com.hp.hpl.jena.shared.impl.JenaParameters;
 import com.hp.hpl.jena.tdb.TDB;
 import com.hp.hpl.jena.tdb.TDBFactory;
 import eu.spitfire.ssp.server.handler.SemanticCache;
+import eu.spitfire.ssp.server.internal.utils.Converter;
 import eu.spitfire.ssp.server.internal.utils.Language;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringGraph;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.riot.RDFFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,8 +29,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.StringWriter;
 import java.net.URI;
-import java.nio.file.Path;
 import java.util.Date;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -41,14 +43,14 @@ import java.util.concurrent.ScheduledExecutorService;
 */
 public class JenaTdbSemanticCache extends SemanticCache {
 
-    private static Logger log = LoggerFactory.getLogger(JenaTdbSemanticCache.class.getName());
+    private static Logger LOG = LoggerFactory.getLogger(JenaTdbSemanticCache.class.getName());
 
     private Dataset dataset;
 	private Reasoner reasoner;
 
 
 	public JenaTdbSemanticCache(ExecutorService ioExecutor, ScheduledExecutorService internalTasksExecutor,
-				Path dbDirectory, String ontologyPath){
+				String tdbDirectory, Set<String> ontologyPaths){
 
 		super(ioExecutor, internalTasksExecutor);
 
@@ -58,30 +60,37 @@ public class JenaTdbSemanticCache extends SemanticCache {
         //Disable acceptence of literals having an illegal value for the given XSD datatype
         JenaParameters.enableEagerLiteralValidation = true;
 
-		File directory = dbDirectory.toFile();
+		File directory = new File(tdbDirectory);
 		File[] oldFiles = directory.listFiles();
 
         assert oldFiles != null;
         for (File dbFile : oldFiles) {
             if(!dbFile.delete()){
-                log.error("Could not delete old DB file: {}", dbFile);
+                LOG.error("Could not delete old DB file: {}", dbFile);
             }
         }
 
-		dataset = TDBFactory.createDataset(dbDirectory.toString());
+		dataset = TDBFactory.createDataset(tdbDirectory);
 		TDB.getContext().set(TDB.symUnionDefaultGraph, true);
 
 		//Build the reasoner to infer new statements
-		try {
-			FileInputStream inputStream = new FileInputStream(ontologyPath);
-			OntModel ontologyModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);
-			ontologyModel.read(inputStream, "RDF/XML");
-			inputStream.close();
-			this.reasoner = ReasonerRegistry.getRDFSSimpleReasoner().bindSchema(ontologyModel);
+		OntModel ontologyModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_DL_MEM);
+		for(String ontologyPath : ontologyPaths) {
+			try {
+				if(!(new File(ontologyPath).isDirectory()) && ontologyPath.endsWith(".ttl")) {
+					LOG.info("Read ontology: {}", ontologyPath);
+					FileInputStream inputStream = new FileInputStream(ontologyPath);
+					//ontologyModel.read(inputStream, "TTL");
+					ontologyModel.read(ontologyPath);
+					inputStream.close();
+					LOG.info("Successfully read ontology: {}", ontologyPath);
+				}
 
-		} catch (Exception ex) {
-			log.error("Error while reading ontology...");
+			} catch (Exception ex) {
+				LOG.error("Error while reading... ontology: {}", ontologyPath, ex);
+			}
 		}
+		this.reasoner = ReasonerRegistry.getOWLReasoner().bindSchema(ontologyModel);
 	}
 
 
@@ -94,7 +103,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
             dataset.begin(ReadWrite.READ);
 
 			if (graphName == null){
-				log.error("Resource URI was NULL!");
+				LOG.error("Resource URI was NULL!");
                 resultFuture.set(null);
                 return resultFuture;
             }
@@ -102,21 +111,25 @@ public class JenaTdbSemanticCache extends SemanticCache {
 			Model dbModel = dataset.getNamedModel(graphName.toString());
 
 			if (dbModel.isEmpty()) {
-				log.warn("No cached status found for resource {}", graphName);
+				LOG.warn("No cached status found for resource {}", graphName);
 				resultFuture.set(null);
 			}
 
             else{
-                log.info("Cached status found for resource {}", graphName);
+                LOG.info("Cached status found for resource {}", graphName);
 
 				StringWriter writer = new StringWriter();
-				dbModel.write(writer, Language.RDF_TURTLE.getRdfFormat().getLang().getName());
+				RDFDataMgr.write(writer, dbModel, RDFFormat.TURTLE);
+				//dbModel.write(writer, Language.RDF_TURTLE.getRdfFormat().getLang().getName());
 				writer.flush();
 				writer.close();
 
+				//LOG.error(writer.toString());
+
 				ByteArrayInputStream inputStream = new ByteArrayInputStream(writer.toString().getBytes());
 				Model outModel = ModelFactory.createDefaultModel();
-				outModel.read(inputStream, Language.RDF_TURTLE.getRdfFormat().getLang().getName());
+				RDFDataMgr.read(outModel, inputStream, RDFFormat.TURTLE.getLang());
+				//outModel.read(inputStream, Language.RDF_TURTLE.getRdfFormat().getLang().getName());
 				inputStream.close();
 
                 resultFuture.set(new ExpiringNamedGraph(graphName, outModel, new Date()));
@@ -139,7 +152,27 @@ public class JenaTdbSemanticCache extends SemanticCache {
 	@Override
 	public ListenableFuture<ExpiringGraph> getDefaultGraph() {
 		SettableFuture<ExpiringGraph> future = SettableFuture.create();
-		future.setException(new RuntimeException("Not supported (default Graph)!"));
+	    try{
+			Query query = QueryFactory.create("SELECT ?s ?p ?o WHERE {?s ?p ?o}");
+			ListenableFuture<QueryExecutionResults> resultsFuture = processSparqlQuery(query);
+
+			Futures.addCallback(resultsFuture, new FutureCallback<QueryExecutionResults>() {
+				@Override
+				public void onSuccess(QueryExecutionResults queryExecutionResults) {
+					Model model = Converter.toModel(queryExecutionResults.getResultSet());
+					future.set(new ExpiringGraph(model, new Date()));
+				}
+
+				@Override
+				public void onFailure(Throwable throwable) {
+					future.setException(throwable);
+				}
+			});
+		} catch(Exception ex) {
+			LOG.error("Could not read default (union) graph: {}", ex);
+			future.setException(ex);
+		}
+
 		return future;
 	}
 
@@ -172,12 +205,12 @@ public class JenaTdbSemanticCache extends SemanticCache {
 
             long start = System.currentTimeMillis();
 
-			InfModel infModel = ModelFactory.createInfModel(reasoner, namedGraph);
-			dataset.replaceNamedModel(graphName.toString(), infModel);
-
+			//InfModel infModel = ModelFactory.createInfModel(reasoner, namedGraph);
+//			dataset.removeNamedModel(graphName.toString());
+			dataset.getNamedModel(graphName.toString()).removeAll().add(namedGraph);
 			dataset.commit();
-            log.info("Deleted old and inserted new graph \"{}\" ({} ms)", graphName, System.currentTimeMillis() - start);
-			log.debug("Added status for resource {}", graphName);
+            LOG.info("Deleted old and inserted new graph \"{}\" ({} ms)", graphName, System.currentTimeMillis() - start);
+			LOG.debug("Added status for resource {}", graphName);
 
             resultFuture.set(null);
             return resultFuture;
@@ -209,7 +242,7 @@ public class JenaTdbSemanticCache extends SemanticCache {
             dataset.begin(ReadWrite.WRITE);
 			dataset.removeNamedModel(graphName.toString());
 			dataset.commit();
-			log.debug("Removed status for resource {}", graphName);
+			LOG.debug("Removed status for resource {}", graphName);
             resultFuture.set(null);
             return resultFuture;
 		} catch(Exception ex){
@@ -227,15 +260,25 @@ public class JenaTdbSemanticCache extends SemanticCache {
 		dataset.begin(ReadWrite.READ);
 
 		try {
-			log.info("Start SPARQL query processing: {}", sparqlQuery.toString(Syntax.syntaxSPARQL));
-			QueryExecution queryExecution = QueryExecutionFactory.create(sparqlQuery, dataset);
+			String queryString = sparqlQuery.toString(Syntax.syntaxSPARQL);
+			LOG.info("Start SPARQL query processing:\n{}", queryString);
+
+			long start;
+			QueryExecution queryExecution;
+			if(!sparqlQuery.hasDatasetDescription() && !queryString.contains("GRAPH")) {
+				start = System.nanoTime();
+				InfModel model = ModelFactory.createInfModel(reasoner, dataset.getNamedModel("urn:x-arq:UnionGraph"));
+				queryExecution = QueryExecutionFactory.create(sparqlQuery, model);
+			} else {
+				start = System.nanoTime();
+				queryExecution = QueryExecutionFactory.create(sparqlQuery, dataset);
+			}
 
 			try {
-				long start = System.currentTimeMillis();
 				ResultSet resultSet = queryExecution.execSelect();
-				long duration = System.currentTimeMillis() - start;
-                resultFuture.set(new QueryExecutionResults(duration, ResultSetFactory.copyResults(resultSet)));
-				log.info("SPARQL query successfully executed!");
+				long duration = System.nanoTime() - start;
+                resultFuture.set(new QueryExecutionResults(duration/1000000, ResultSetFactory.copyResults(resultSet)));
+				LOG.info("SPARQL query successfully executed (duration: {} ns.)", duration);
 			} finally {
 				queryExecution.close();
 			}

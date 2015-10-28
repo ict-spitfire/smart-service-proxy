@@ -1,8 +1,6 @@
 package eu.spitfire.ssp.server.handler.cache;
 
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.common.util.concurrent.*;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFactory;
@@ -192,18 +190,30 @@ public class LuposdateSemanticCache extends SemanticCache {
         int waiting = waitingOperations.incrementAndGet();
         LOG.debug("Wait for DB (now waiting: {})", waiting);
 
-        this.getInternalTasksExecutor().execute(new DatabaseTask() {
+        ListenableFuture<QueryExecutionResults> future = processSparqlQuery("SELECT ?s ?p ?o WHERE {?s ?p ?o}");
+        Futures.addCallback(future, new FutureCallback<QueryExecutionResults>() {
+            @Override
+            public void onSuccess(QueryExecutionResults queryExecutionResults) {
+                result.set(new ExpiringGraph(Converter.toModel(queryExecutionResults.getResultSet())));
+            }
 
             @Override
-            public void process() {
-                try {
-                    result.set(getDefaultGraph2());
-                } catch (Exception ex) {
-                    LOG.error("Exception while getting default graph!", ex);
-                    result.setException(ex);
-                }
+            public void onFailure(Throwable throwable) {
+                result.setException(throwable);
             }
         });
+//        this.getInternalTasksExecutor().execute(new DatabaseTask() {
+//
+//            @Override
+//            public void process() {
+//                try {
+//                    result.set(getDefaultGraph2());
+//                } catch (Exception ex) {
+//                    LOG.error("Exception while getting default graph!", ex);
+//                    result.setException(ex);
+//                }
+//            }
+//        });
 
         return result;
     }
@@ -220,6 +230,19 @@ public class LuposdateSemanticCache extends SemanticCache {
 
     private ExpiringGraph getDefaultGraph2() throws Exception{
         String query = "SELECT ?s ?p ?o  WHERE { ?s ?p ?o }";
+
+        ListenableFuture<QueryExecutionResults> future = processSparqlQuery(query);
+        Futures.addCallback(future, new FutureCallback<QueryExecutionResults>() {
+            @Override
+            public void onSuccess(QueryExecutionResults queryExecutionResults) {
+
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+
+            }
+        });
 
         QueryResult result = this.evaluator.getResult(query);
         Model model = Converter.toModel(toResultSet(result));
@@ -389,7 +412,7 @@ public class LuposdateSemanticCache extends SemanticCache {
 
                     long startTime = System.currentTimeMillis();
                     //ResultSet resultSet = processSparqlQuery2(query, !query.contains("GRAPH"));
-                    ResultSet resultSet = processSparqlQuery2(query, false);
+                    ResultSet resultSet = processSparqlQuery2(query);
                     long duration = System.currentTimeMillis() - startTime;
                     resultFuture.set(new QueryExecutionResults(duration, resultSet));
 
@@ -443,13 +466,13 @@ public class LuposdateSemanticCache extends SemanticCache {
     }
 
 
-    private ResultSet processSparqlQuery2(String query, boolean inference) throws Exception{
+    private ResultSet processSparqlQuery2(String query) throws Exception{
 //        //Execute Query and make the result a JENA result set
 //        QueryResult queryResult = this.getRuleEvaluator().getResult(query);
 //        return toResultSet(queryResult);
 
-        if(inference) {
-            BufferedReader reader = new BufferedReader(new FileReader("/home/olli/ssp-files/inference-test/geonames.ttl"));
+        if(!query.contains("GRAPH")) {
+            BufferedReader reader = new BufferedReader(new FileReader("/home/olli/ssp-files/acme-luposdate/ontology.ttl"));
             String data = "";
             String line = reader.readLine();
             while(line != null){
@@ -458,6 +481,7 @@ public class LuposdateSemanticCache extends SemanticCache {
             }
             reader.close();
 
+            long start = System.nanoTime();
             int index = EvaluationHelper.getEvaluatorIndexByName("MIQE");
             EvaluationHelper.SPARQLINFERENCE inf = EvaluationHelper.SPARQLINFERENCE.OWL2RL;
             EvaluationHelper.GENERATION gen = EvaluationHelper.GENERATION.GENERATEDOPT;
@@ -466,7 +490,7 @@ public class LuposdateSemanticCache extends SemanticCache {
             Tuple<String, QueryResult[]> results = EvaluationHelper.getQueryResult(
                 index, false, inf, gen, mat, false, data, null, query
             );
-
+            LOG.info("Execution duration (incl. inference): {} ns.", System.nanoTime() - start);
             return toResultSet(results.getSecond()[0]);
 
         } else {
