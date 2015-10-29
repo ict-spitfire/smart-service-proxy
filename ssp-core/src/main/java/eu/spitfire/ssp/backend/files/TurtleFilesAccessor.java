@@ -10,9 +10,8 @@ import com.hp.hpl.jena.rdf.model.ModelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
+import java.io.*;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 
 
@@ -42,7 +41,9 @@ public class TurtleFilesAccessor extends Accessor<Path, TurtleFile> {
                 ));
             }
             else{
-                BufferedReader fileReader = new BufferedReader(new FileReader(dataOrigin.getIdentifier().toString()));
+                BufferedReader fileReader = new BufferedReader(new InputStreamReader(
+                        new FileInputStream(new File(dataOrigin.getIdentifier().toString())), "UTF-8"
+                ));
 
                 Model model = ModelFactory.createDefaultModel();
                 if(dataOrigin.getIdentifier().toString().endsWith(".ttl")) {
@@ -50,6 +51,11 @@ public class TurtleFilesAccessor extends Accessor<Path, TurtleFile> {
                 } else if(dataOrigin.getIdentifier().toString().endsWith(".rdf")){
                     model.read(fileReader, null, Language.RDF_XML.getRdfFormat().getLang().getName());
                 }
+
+//                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+//                model.write(outputStream);
+//
+//                LOG.error("\n{}", outputStream.toString("UTF-8"));
 
                 //URI graphName = new URI("file", null, sspHost, -1, dataOrigin.getIdentifier().toString(), null, null);
 

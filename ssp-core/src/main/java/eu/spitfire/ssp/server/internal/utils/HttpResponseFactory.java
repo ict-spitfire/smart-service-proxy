@@ -53,11 +53,11 @@ public class HttpResponseFactory {
     public static HttpResponse createHttpJsonResponse(HttpVersion version, Map<String, String> content){
         HttpResponse httpResponse = new DefaultHttpResponse(version, HttpResponseStatus.OK);
 
-        ChannelBuffer payload = ChannelBuffers.wrappedBuffer(GSON.toJson(content).getBytes(Charset.forName("ISO-8859-1")));
+        ChannelBuffer payload = ChannelBuffers.wrappedBuffer(GSON.toJson(content).getBytes(Charset.forName("UTF-8")));
         httpResponse.setContent(payload);
         httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
 
-        httpResponse.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/json; charset=ISO-8859-1");
+        httpResponse.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/json; charset=UTF-8");
 
         return httpResponse;
 
@@ -118,12 +118,14 @@ public class HttpResponseFactory {
         LOG.info("Model to be serialized{}", model);
 
         HttpResponse httpResponse = new DefaultHttpResponse(version, OK);
-
-        ChannelBuffer payload = ChannelBuffers.wrappedBuffer(writer.toString().getBytes(Charset.forName("ISO-8859-1")));
+        byte[] content = writer.toString().getBytes(Charset.forName("UTF-8"));
+        ChannelBuffer payload = ChannelBuffers.wrappedBuffer(content);
         httpResponse.setContent(payload);
 
+        LOG.error("\n{}", new String(content, Charset.forName("UTF-8")));
+
         //Set HTTP response headers
-        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, language.getMimeType() + "; charset=ISO-8859-1");
+        httpResponse.headers().add(HttpHeaders.Names.CONTENT_TYPE, language.getMimeType() + "; charset=UTF-8");
         httpResponse.headers().add(HttpHeaders.Names.CONTENT_LENGTH, payload.readableBytes());
         httpResponse.headers().add(HttpHeaders.Names.EXPIRES, DATE_FORMAT.format(expiringGraph.getExpiry()));
         httpResponse.headers().add(HttpHeaders.Names.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
