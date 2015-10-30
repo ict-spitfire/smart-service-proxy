@@ -60,6 +60,22 @@ public class Converter {
      */
     public static final String DUL_NAMESPACE = "http://www.loa-cnr.it/ontologies/DUL.owl#";
 
+    /**
+     * <a href="http://www.opengis.net/ont/sf#">http://www.opengis.net/ont/sf#</a>
+     */
+    public static final String SF_NAMESPACE = "http://www.opengis.net/ont/sf#";
+
+    /**
+     * <a href="http://www.opengis.net/ont/geosparql#">http://www.opengis.net/ont/geosparql#</a>
+     */
+    public static final String GEOSPARQL_NAMESPACE = "http://www.opengis.net/ont/geosparql#";
+
+    /**
+     * <a href="http://www.opengis.net/def/function/geosparql/">http://www.opengis.net/def/function/geosparql/</a>
+     */
+    public static final String GEOFUNCTIONS_NAMESPACE = "http://www.opengis.net/def/function/geosparql/";
+
+
 
 
     private static Map<String, String> RDF_PREFIXES = new HashMap<>();
@@ -71,6 +87,9 @@ public class Converter {
         RDF_PREFIXES.put(OWL_NAMESPACE, "owl");
         RDF_PREFIXES.put(GEONAMES_NAMESPACE, "gn");
         RDF_PREFIXES.put(DUL_NAMESPACE, "dul");
+        RDF_PREFIXES.put(SF_NAMESPACE, "sf");
+        RDF_PREFIXES.put(GEOSPARQL_NAMESPACE, "geo");
+        RDF_PREFIXES.put(GEOFUNCTIONS_NAMESPACE, "geof");
     }
 
     private static String getPrefix(String namespace){

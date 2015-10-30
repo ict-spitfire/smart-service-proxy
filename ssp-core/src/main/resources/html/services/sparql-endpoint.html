@@ -95,31 +95,18 @@ SELECT ?section ?length ?taperedBoundary ?vehicleCount WHERE {
                     Execute Query
                 </div>
 
-
-
                 <!--Results-->
-                <div class="ui secondary segment" id="resultsSegment" style="display: none">
+                <div class="ui secondary segment" id="resultsSegment">
                     <div class="ui top left attached label" id="resultsLabel">
                     </div>
                     <div id="resultsContent">
                         <p id="duration"></p>
                         <textarea id="results"></textarea>
                     </div>
-                    <!--<div class="ui dimmer" id="dimmer">-->
-                        <!--<div class="ui text loader">Executing...</div>-->
-                    <!--</div>-->
+                    <div class="ui dimmer" id="dimmer">
+                        <div class="ui text loader">Executing...</div>
+                    </div>
                 </div>
-
-                <!--<div class="ui secondary segment" id="queryResult" style="margin-top: 20px; display: none">-->
-                    <!--<div class="ui small grey top left attached label">Query Result</div>-->
-                    <!--<div id="queryResultContent">-->
-                        <!--<textarea class="monospace" id="fldQueryResult"-->
-                                  <!--style="height: 200px; max-height: none !important"></textarea>-->
-                    <!--</div>-->
-                    <!--<div class="ui dimmer" id="dimmer">-->
-                        <!--<div class="ui text loader">Executing...</div>-->
-                    <!--</div>-->
-                <!--</div>-->
             </div>
         </div>
     </div>
@@ -135,7 +122,7 @@ SELECT ?section ?length ?taperedBoundary ?vehicleCount WHERE {
 
         $('#btnExecute').click(function(event){
 
-            //$('#dimmer').addClass('active');
+            $('#dimmer').addClass('active');
             $('#resultsSegment').show();
             event.preventDefault();
 
@@ -163,13 +150,13 @@ SELECT ?section ?length ?taperedBoundary ?vehicleCount WHERE {
 //                        '<p>Execution Duration: ' +  e['duration'] + ' ms.</p>\n \
 //                         <textarea class="monospace" style="height: 800px" readonly="readonly" id>\n'+
 //                        (e['results']) + '\n</textarea>').show();
-//                    $('#dimmer').removeClass('active');
+                    $('#dimmer').removeClass('active');
                 },
                 error: function(e){
                     console.log(e);
                     $('#resultsLabel').html('Some error occurred...').addClass('red');
                     $('#resultsContent').html(e['responseText']);
-//                    $('#dimmer').removeClass('active');
+                    $('#dimmer').removeClass('active');
                 }
             });
         });

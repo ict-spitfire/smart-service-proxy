@@ -142,15 +142,10 @@
 
             query = 'PREFIX osm: <http://example.org/osm#>\n' +
                     'PREFIX geo: <http://www.opengis.net/ont/geosparql#>\n' +
-                    'PREFIX geof: <http://www.opengis.net/def/function/geosparql/>\n' +
-                    'PREFIX vs: <http://example.org/virtual-sensors#>\n' +
-                    'PREFIX ssn: <http://purl.oclc.org/NET/ssnx/ssn#>\n\n' +
+                    'PREFIX geof: <http://www.opengis.net/def/function/geosparql/>\n\n' +
 
                     'SELECT ?lane ?density ?linestring WHERE {\n\t' +
-                        '?obs a ssn:Observation .\n\t' +
-                        '?obs ssn:featureOfInterest ?lane .\n\t' +
-                        '?obs ssn:observedResult ?output .\n\t' +
-                        '?output ssn:hasValue ?density .\n\t' +
+                        '?lane osm:trafficDensity ?density .\n\t' +
                         '?lane osm:centerLine ?line .\n\t' +
                         '?line geo:asWKT ?linestring\n\t' +
                         'FILTER (geof:sfWithin(?linestring, "POLYGON(( ' +
@@ -198,7 +193,8 @@
 
         function updatePolylines(queryResult){
 
-            queryResult.results.bindings.forEach(function(binding){
+            var payload = jQuery.parseJSON(queryResult.results);
+            payload.results.bindings.forEach(function(binding){
 
                 var lane = binding.lane.value;
                 var density = binding.density.value;
@@ -216,19 +212,14 @@
 
                 var hexColor;
 
-                if(density == 0){
+                if(density == 'low'){
                     hexColor = '#00800d';
-                }
-                else{
-                    if(density > 2){
-                        hexColor = '#8b1a1a';
-                    }
-                    else if(density > 1){
-                        hexColor = '#ffa500';
-                    }
-                    else{
-                        hexColor = '#00800d';
-                    }
+                } else if (density == 'medium') {
+                    hexColor = '#ffa500';
+                } else if (density == 'high') {
+                    hexColor = '#8b1a1a';
+                } else {
+                    hexColor = '#00800d'
                 }
 
                 var polyOptions = {

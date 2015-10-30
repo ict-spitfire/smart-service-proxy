@@ -115,7 +115,7 @@ public class HttpResponseFactory {
         //RDFDataMgr.write(writer, model, language.getRdfFormat().getLang());
         RDFDataMgr.write(writer, model, Lang.TTL);
 
-        LOG.info("Model to be serialized{}", model);
+        LOG.info("Model to be serialized:\n{}", model);
 
         HttpResponse httpResponse = new DefaultHttpResponse(version, OK);
         byte[] content = writer.toString().getBytes(Charset.forName("UTF-8"));
