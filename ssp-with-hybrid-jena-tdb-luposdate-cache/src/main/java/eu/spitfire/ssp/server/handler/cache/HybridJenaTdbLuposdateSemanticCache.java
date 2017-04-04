@@ -81,6 +81,7 @@ public class HybridJenaTdbLuposdateSemanticCache extends SemanticCache {
         //Disable acceptence of literals having an illegal value for the given XSD datatype
         JenaParameters.enableEagerLiteralValidation = false;
 
+        LOG.info("TDB Directory: {}", tdbDirectory);
 		File directory = new File(tdbDirectory);
 		File[] oldFiles = directory.listFiles();
 

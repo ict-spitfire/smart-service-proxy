@@ -268,7 +268,12 @@ public class JenaTdbSemanticCache extends SemanticCache {
 		}
 	}
 
-    @Override
+	@Override
+	protected ScheduledExecutorService getCacheTasksExecutor() {
+		return this.getInternalTasksExecutor();
+	}
+
+	@Override
 	public ListenableFuture<QueryExecutionResults> processSparqlQuery(Query sparqlQuery) {
 
         SettableFuture<QueryExecutionResults> resultFuture = SettableFuture.create();
