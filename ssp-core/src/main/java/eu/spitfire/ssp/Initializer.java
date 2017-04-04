@@ -1,10 +1,10 @@
 package eu.spitfire.ssp;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import eu.spitfire.ssp.backend.coap.CoapComponentFactory;
-import eu.spitfire.ssp.backend.files.TurtleFilesComponentFactory;
-import eu.spitfire.ssp.backend.generic.ComponentFactory;
-import eu.spitfire.ssp.backend.vs.VirtualSensorsComponentFactory;
+import eu.spitfire.ssp.backend.coap.CoapBackendComponentFactory;
+import eu.spitfire.ssp.backend.files.RdfFilesBackendComponentFactory;
+import eu.spitfire.ssp.backend.generic.BackendComponentFactory;
+import eu.spitfire.ssp.backend.vs.VirtualSensorsBackendComponentFactory;
 import eu.spitfire.ssp.server.handler.SemanticCache;
 import eu.spitfire.ssp.server.internal.message.WebserviceRegistration;
 import eu.spitfire.ssp.server.handler.HttpRequestDispatcher;
@@ -56,7 +56,7 @@ public abstract class Initializer {
     private HttpRequestDispatcher httpRequestDispatcher;
     protected SemanticCache semanticCache;
 
-    private Collection<ComponentFactory> componentFactories;
+    private Collection<BackendComponentFactory> componentFactories;
 
     public Initializer(String configPath) throws Exception {
         //initialize logging
@@ -103,7 +103,7 @@ public abstract class Initializer {
         registerTrafficMonitoring();
 
         //Start the backend
-        for (ComponentFactory componentFactory : this.getComponentFactories()) {
+        for (BackendComponentFactory componentFactory : this.getComponentFactories()) {
             componentFactory.createComponents(config);
         }
 
@@ -154,7 +154,7 @@ public abstract class Initializer {
     }
 
 
-    public Collection<ComponentFactory> getComponentFactories() {
+    public Collection<BackendComponentFactory> getComponentFactories() {
         return this.componentFactories;
     }
 
@@ -172,7 +172,7 @@ public abstract class Initializer {
         //Add backend for virtual sensors (default)
         ChannelPipeline localPipeline = internalPipelineFactory.getPipeline();
         LocalServerChannel localChannel = localChannelFactory.newChannel(localPipeline);
-        this.componentFactories.add(new VirtualSensorsComponentFactory(
+        this.componentFactories.add(new VirtualSensorsBackendComponentFactory(
                 this.config, localChannel, this.internalTasksExecutor, this.ioExecutor)
         );
 
@@ -181,7 +181,7 @@ public abstract class Initializer {
             localPipeline = internalPipelineFactory.getPipeline();
             localChannel = localChannelFactory.newChannel(localPipeline);
 
-            this.componentFactories.add(new TurtleFilesComponentFactory(
+            this.componentFactories.add(new RdfFilesBackendComponentFactory(
                     this.config, localChannel, this.internalTasksExecutor, this.ioExecutor)
             );
         }
@@ -191,7 +191,7 @@ public abstract class Initializer {
             localPipeline = internalPipelineFactory.getPipeline();
             localChannel = localChannelFactory.newChannel(localPipeline);
 
-            this.componentFactories.add(new CoapComponentFactory(
+            this.componentFactories.add(new CoapBackendComponentFactory(
                     this.config, localChannel, this.internalTasksExecutor, this.ioExecutor)
             );
         }

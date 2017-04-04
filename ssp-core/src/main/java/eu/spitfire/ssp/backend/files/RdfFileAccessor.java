@@ -2,7 +2,7 @@ package eu.spitfire.ssp.backend.files;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backend.generic.Accessor;
+import eu.spitfire.ssp.backend.generic.DataOriginAccessor;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.internal.utils.Language;
 import com.hp.hpl.jena.rdf.model.Model;
@@ -11,26 +11,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.nio.charset.Charset;
 import java.nio.file.Path;
 
 
 /**
- * A {@link TurtleFilesAccessor} is the component to read RDF data from local turtle files.
+ * A {@link RdfFileAccessor} is the component to read RDF data from local turtle files.
  *
  * @author Oliver Kleine
  */
-public class TurtleFilesAccessor extends Accessor<Path, TurtleFile> {
+public class RdfFileAccessor extends DataOriginAccessor<Path, RdfFile> {
 
-    private static Logger LOG = LoggerFactory.getLogger(TurtleFilesAccessor.class.getName());
+    private static Logger LOG = LoggerFactory.getLogger(RdfFileAccessor.class.getName());
 
-    public TurtleFilesAccessor(TurtleFilesComponentFactory componentFactory) {
+    public RdfFileAccessor(RdfFilesBackendComponentFactory componentFactory) {
         super(componentFactory);
     }
 
 
     @Override
-    public ListenableFuture<ExpiringNamedGraph> getStatus(TurtleFile dataOrigin){
+    public ListenableFuture<ExpiringNamedGraph> getStatus(RdfFile dataOrigin){
         SettableFuture<ExpiringNamedGraph> statusFuture = SettableFuture.create();
 
         try{

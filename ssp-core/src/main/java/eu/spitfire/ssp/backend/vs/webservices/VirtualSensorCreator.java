@@ -4,7 +4,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backend.vs.VirtualSensor;
-import eu.spitfire.ssp.backend.vs.VirtualSensorsComponentFactory;
+import eu.spitfire.ssp.backend.vs.VirtualSensorsBackendComponentFactory;
 import eu.spitfire.ssp.server.internal.utils.HttpResponseFactory;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryFactory;
@@ -38,7 +38,7 @@ public class VirtualSensorCreator extends AbstractVirtualSensorCreator {
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
 
-    public VirtualSensorCreator(VirtualSensorsComponentFactory componentFactory){
+    public VirtualSensorCreator(VirtualSensorsBackendComponentFactory componentFactory){
         super(componentFactory, "html/services/virtual-sensor-creation.html");
     }
 

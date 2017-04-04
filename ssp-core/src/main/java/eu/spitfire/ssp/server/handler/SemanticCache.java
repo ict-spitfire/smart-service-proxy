@@ -331,6 +331,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
      */
     public abstract ListenableFuture<Void> deleteNamedGraph(URI graphName);
 
+    protected abstract ScheduledExecutorService getCacheTasksExecutor();
 
     /**
      * Method to process SPAQRL queries. Inheriting classes of
@@ -351,19 +352,19 @@ public abstract class SemanticCache extends SimpleChannelHandler {
             if(me.getMessage() instanceof DataOriginRegistrationRequest){
                 DataOriginRegistrationRequest request = (DataOriginRegistrationRequest) me.getMessage();
                 DataOriginRegistrationTask task = new DataOriginRegistrationTask(request);
-                MoreExecutors.directExecutor().execute(task);
+                this.getCacheTasksExecutor().execute(task);
             }
 
             else if(me.getMessage() instanceof DataOriginDeregistrationRequest){
                 DataOriginDeregistrationRequest request = (DataOriginDeregistrationRequest) me.getMessage();
                 DataOriginDeregistrationTask task = new DataOriginDeregistrationTask(request);
-                MoreExecutors.directExecutor().execute(task);
+                this.getCacheTasksExecutor().execute(task);
             }
 
             else if (me.getMessage() instanceof ExpiringNamedGraph) {
                 ExpiringNamedGraph graph = (ExpiringNamedGraph) me.getMessage();
                 PutExpiringNamedGraphToCacheTask task = new PutExpiringNamedGraphToCacheTask(graph);
-                this.internalTasksExecutor.execute(task);
+                this.getCacheTasksExecutor().execute(task);
             }
 
             else if (me.getMessage() instanceof InternalCacheUpdateRequest){
@@ -371,12 +372,12 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                 PutExpiringNamedGraphToCacheTask task = new PutExpiringNamedGraphToCacheTask(
                         request.getExpiringNamedGraph(), request.getCacheUpdateFuture()
                 );
-                this.internalTasksExecutor.execute(task);
+                this.getCacheTasksExecutor().execute(task);
             }
 
             else if (me.getMessage() instanceof InternalQueryExecutionRequest) {
                 QueryProcessingTask task = new QueryProcessingTask((InternalQueryExecutionRequest) me.getMessage());
-                MoreExecutors.directExecutor().execute(task);
+                this.getCacheTasksExecutor().execute(task);
             }
 
             else if (me.getMessage() instanceof DataOriginReplacementRequest){
@@ -384,7 +385,7 @@ public abstract class SemanticCache extends SimpleChannelHandler {
                 DataOriginDeletionTask task = new DataOriginDeletionTask(
                     request.getOldDataOrigin().getGraphName(), request.getReplacementFuture()
                 );
-                MoreExecutors.directExecutor().execute(task);
+                this.getCacheTasksExecutor().execute(task);
             }
 
             ctx.sendDownstream(me);

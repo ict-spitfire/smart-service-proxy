@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.backend.files;
 
-import eu.spitfire.ssp.backend.generic.ComponentFactory;
+import eu.spitfire.ssp.backend.generic.BackendComponentFactory;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
@@ -14,16 +14,16 @@ import java.util.concurrent.ScheduledExecutorService;
 /**
  * Created by olli on 11.04.14.
  */
-public class TurtleFilesComponentFactory extends ComponentFactory<Path, TurtleFile> {
+public class RdfFilesBackendComponentFactory extends BackendComponentFactory<Path, RdfFile> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private TurtleFilesAccessor turtleFilesAccessor;
-    private TurtleFilesObserver turtleFilesObserver;
+    private RdfFileAccessor rdfFileAccessor;
+    private RdfFilesObserver turtleFilesObserver;
     private Path directoryPath;
 
     /**
-     * Creates a new instance of {@link eu.spitfire.ssp.backend.generic.ComponentFactory}.
+     * Creates a new instance of {@link eu.spitfire.ssp.backend.generic.BackendComponentFactory}.
      *
      * @param config          the SSP config
      * @param backendTasksExecutorService the {@link java.util.concurrent.ScheduledExecutorService} for backend tasks,
@@ -31,8 +31,8 @@ public class TurtleFilesComponentFactory extends ComponentFactory<Path, TurtleFi
      *
      * @throws Exception if something went terribly wrong
      */
-    public TurtleFilesComponentFactory(Configuration config, LocalServerChannel localChannel,
-            ScheduledExecutorService backendTasksExecutorService, ExecutorService ioExecutorService) throws Exception {
+    public RdfFilesBackendComponentFactory(Configuration config, LocalServerChannel localChannel,
+                                           ScheduledExecutorService backendTasksExecutorService, ExecutorService ioExecutorService) throws Exception {
 
         super("files", config, localChannel, backendTasksExecutorService, ioExecutorService);
         this.directoryPath = new File(config.getString("files.directory")).toPath();
@@ -41,31 +41,31 @@ public class TurtleFilesComponentFactory extends ComponentFactory<Path, TurtleFi
 
     @Override
     public void initialize() throws Exception{
-        this.turtleFilesAccessor = new TurtleFilesAccessor(this);
-        this.turtleFilesObserver = new TurtleFilesObserver(this);
+        this.rdfFileAccessor = new RdfFileAccessor(this);
+        this.turtleFilesObserver = new RdfFilesObserver(this);
     }
 
 
     @Override
-    public TurtleFilesObserver getObserver(TurtleFile dataOrigin) {
+    public RdfFilesObserver getObserver(RdfFile dataOrigin) {
         return this.turtleFilesObserver;
     }
 
 
     @Override
-    public TurtleFilesAccessor getAccessor(TurtleFile dataOrigin) {
-        return this.turtleFilesAccessor;
+    public RdfFileAccessor getAccessor(RdfFile dataOrigin) {
+        return this.rdfFileAccessor;
     }
 
     @Override
-    public TurtleFilesRegistry getRegistry() {
-        return (TurtleFilesRegistry) super.getRegistry();
+    public RdfFilesRegistry getRegistry() {
+        return (RdfFilesRegistry) super.getRegistry();
     }
 
 
     @Override
-    public TurtleFilesRegistry createRegistry(Configuration config) throws Exception {
-        return new TurtleFilesRegistry(this);
+    public RdfFilesRegistry createRegistry(Configuration config) throws Exception {
+        return new RdfFilesRegistry(this);
     }
 
 

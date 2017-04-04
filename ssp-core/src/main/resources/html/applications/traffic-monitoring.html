@@ -45,7 +45,7 @@
                     featureType: "all",
                     elementType: "all",
                     stylers: [
-                        { saturation: -90 } // <-- THIS
+                        { saturation: -90 }
                     ]
                 },
                 {
@@ -64,15 +64,15 @@
                 center: new google.maps.LatLng(53.865382, 10.687259),
                 scaleControl: true,
                 mapTypeControlOptions: {
-                    mapTypeIds: [] //'tehgrayz'
+                    mapTypeIds: []
                 }
             };
 
             map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
 
             var mapType = new google.maps.StyledMapType(stylez, { name:"Low Saturation" });
-            map.mapTypes.set('tehgrayz', mapType);
-            map.setMapTypeId('tehgrayz');
+            map.mapTypes.set('low-saturation', mapType);
+            map.setMapTypeId('low-saturation');
 
             initializeB();
         }
@@ -88,16 +88,13 @@
 
             google.maps.event.addListener(map, 'bounds_changed', function() {
                 updateMapCorners();
-                //console.log("Zoom changed to level: " + map.zoom);
                 updateStrokeWeight();
-                //console.log("New stroke weight: " + strokeWeight);
                 redrawOverlay();
             });
 
             mapReady = true;
-            //sendQuery();
             sendQuery();
-            //setInterval(sendQuery, 10000);
+            setInterval(sendQuery, 60000);
         }
 
         function updateMapCorners(){
@@ -107,33 +104,12 @@
 
             northWest = new google.maps.LatLng(northEast.lat(), southWest.lng());
             southEast = new google.maps.LatLng(southWest.lat(), northEast.lng());
-
-            //console.log("NE: " + northEast + ", SW: " + southWest);
         }
 
         function updateStrokeWeight(){
             strokeWeight = Math.pow(1.5, map.zoom - 14);
         }
 
-//        function drawBoundingBox(){
-//            var gmapsPoints = [];
-//            gmapsPoints.push(new google.maps.LatLng(53.850284, 10.670866));
-//            gmapsPoints.push(new google.maps.LatLng(53.850284, 10.707601));
-//            gmapsPoints.push(new google.maps.LatLng(53.882068, 10.707601));
-//            gmapsPoints.push(new google.maps.LatLng(53.882068, 10.670866));
-//            gmapsPoints.push(new google.maps.LatLng(53.850284, 10.670866));
-//
-//            var gmapsPolygon = new google.maps.Polygon({
-//                paths:  gmapsPoints,
-//                strokeColor: '8b1a1a',
-//                strokeOpacity: 0.8,
-//                strokeWeight: 2,
-//                fillColor: '8b1a1a',
-//                fillOpacity: 0.0
-//            });
-//
-//            gmapsPolygon.setMap(map);
-//        }
 
         function sendQuery(){
             if(mapReady == false){
@@ -179,7 +155,6 @@
                 contentType: false,
                 processData: false,
                 success: function(queryResult){
-                    //console.log("Query result received!");
                     updatePolylines(queryResult);
                     mapReady = true;
                 },
@@ -206,7 +181,6 @@
                 var points = linestring.split(", ");
                 points.forEach(function(point){
                     var coordinates = point.split(" ");
-                    //console.log("LAT: " + coordinates[1] + " LON: " + coordinates[0]);
                     gmapsPoints.push(new google.maps.LatLng(coordinates[1], coordinates[0]));
                 });
 
@@ -214,7 +188,7 @@
 
                 if(density == 'low'){
                     hexColor = '#00800d';
-                } else if (density == 'medium') {
+                } else if (density == 'moderate') {
                     hexColor = '#ffa500';
                 } else if (density == 'high') {
                     hexColor = '#8b1a1a';
@@ -240,12 +214,9 @@
                 gmapsPolyline.setMap(map);
                 lanes[lane] = gmapsPolyline;
             });
-
-            console.log("No of Lanes: " + Object.keys(lanes).length);
         }
 
         function redrawOverlay(){
-            //console.log("Redraw");
             for (var lane in lanes) {
                 if (lanes.hasOwnProperty(lane)) {
                     lanes[lane].strokeWeight = strokeWeight;
@@ -260,18 +231,13 @@
 <body style="height: 100%">
 <div class="ui one column page grid" style="height: 100%">
     <div class="column" style="height: 80%">
-        <div id="header">
-        </div>
+        <div id="header"></div>
         <script src="../../style/javascript/ssp-menu.js"></script>
-
         <h4 class="ui top attached header">
             Traffic Monitoring
         </h4>
-
         <div class="ui segment attached" style="height:100%">
             <div id="map-canvas" style="height:100%; margin: 0; padding: 0"></div>
         </div>
-
-
     </div>
 </div>

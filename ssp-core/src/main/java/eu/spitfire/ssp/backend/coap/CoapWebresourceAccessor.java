@@ -3,14 +3,14 @@ package eu.spitfire.ssp.backend.coap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 
+import de.uzl.itm.ncoap.application.client.ClientCallback;
 import de.uzl.itm.ncoap.application.endpoint.CoapEndpoint;
-import de.uzl.itm.ncoap.communication.dispatching.client.ClientCallback;
 import de.uzl.itm.ncoap.message.CoapRequest;
 import de.uzl.itm.ncoap.message.CoapResponse;
 import de.uzl.itm.ncoap.message.MessageCode;
 import de.uzl.itm.ncoap.message.MessageType;
 import de.uzl.itm.ncoap.message.options.ContentFormat;
-import eu.spitfire.ssp.backend.generic.Accessor;
+import eu.spitfire.ssp.backend.generic.DataOriginAccessor;
 
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.internal.exception.OperationTimeoutException;
@@ -22,23 +22,23 @@ import java.net.URI;
 import java.util.Date;
 
 /**
- * A {@link CoapAccessor} is the component to access external
+ * A {@link CoapWebresourceAccessor} is the component to access external
  * {@link CoapWebresource}s, i.e. send GET, POST, PUT, or DELETE
  * message. Currently, only GET is supported.
  *
  * @author Oliver Kleine
  */
-public class CoapAccessor extends Accessor<URI, CoapWebresource> {
+public class CoapWebresourceAccessor extends DataOriginAccessor<URI, CoapWebresource> {
 
     private CoapEndpoint coapApplication;
 
     /**
-     * Creates a new instance of {@link CoapAccessor}
+     * Creates a new instance of {@link CoapWebresourceAccessor}
      *
-     * @param componentFactory the {@link CoapComponentFactory} to
+     * @param componentFactory the {@link CoapBackendComponentFactory} to
      *                         provide the appropriate resources
      */
-    public CoapAccessor(CoapComponentFactory componentFactory) {
+    public CoapWebresourceAccessor(CoapBackendComponentFactory componentFactory) {
         super(componentFactory);
         this.coapApplication = componentFactory.getCoapApplication();
     }
@@ -50,7 +50,7 @@ public class CoapAccessor extends Accessor<URI, CoapWebresource> {
 
         try{
             URI webserviceUri = coapWebresource.getIdentifier();
-            CoapRequest coapRequest = new CoapRequest(MessageType.Name.CON, MessageCode.Name.GET, webserviceUri);
+            CoapRequest coapRequest = new CoapRequest(MessageType.CON, MessageCode.GET, webserviceUri);
             coapRequest.setAccept(ContentFormat.APP_RDF_XML);
             coapRequest.setAccept(ContentFormat.APP_N3);
             coapRequest.setAccept(ContentFormat.APP_TURTLE);
@@ -59,7 +59,7 @@ public class CoapAccessor extends Accessor<URI, CoapWebresource> {
             int port = webserviceUri.getPort() == -1 ? 5683 : webserviceUri.getPort();
 
             coapApplication.sendCoapRequest(coapRequest,
-                new InternalCoapResponseProcessor(resultFuture, webserviceUri), new InetSocketAddress(remoteAddress, port)
+                new InternalCoapResponseCallback(resultFuture, webserviceUri), new InetSocketAddress(remoteAddress, port)
             );
         }
         catch(Exception ex){
@@ -70,12 +70,12 @@ public class CoapAccessor extends Accessor<URI, CoapWebresource> {
     }
 
 
-    private class InternalCoapResponseProcessor extends ClientCallback {
+    private class InternalCoapResponseCallback extends ClientCallback {
 
         private SettableFuture<ExpiringNamedGraph> resultFuture;
         private URI webserviceUri;
 
-        private InternalCoapResponseProcessor(SettableFuture<ExpiringNamedGraph> resultFuture, URI webserviceUri) {
+        private InternalCoapResponseCallback(SettableFuture<ExpiringNamedGraph> resultFuture, URI webserviceUri) {
             this.resultFuture = resultFuture;
             this.webserviceUri = webserviceUri;
         }

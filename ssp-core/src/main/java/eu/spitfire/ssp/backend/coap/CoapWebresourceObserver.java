@@ -4,14 +4,14 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import de.uzl.itm.ncoap.application.client.ClientCallback;
 import de.uzl.itm.ncoap.application.endpoint.CoapEndpoint;
-import de.uzl.itm.ncoap.communication.dispatching.client.ClientCallback;
 import de.uzl.itm.ncoap.message.CoapRequest;
 import de.uzl.itm.ncoap.message.CoapResponse;
 import de.uzl.itm.ncoap.message.MessageCode;
 import de.uzl.itm.ncoap.message.MessageType;
 import de.uzl.itm.ncoap.message.options.ContentFormat;
-import eu.spitfire.ssp.backend.coap.registry.CoapRegistry;
+import eu.spitfire.ssp.backend.coap.registry.CoapWebresourceRegistry;
 import eu.spitfire.ssp.backend.generic.DataOriginObserver;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import com.hp.hpl.jena.rdf.model.Model;
@@ -25,32 +25,32 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * The {@link CoapObserver} is the component to observe registered
+ * The {@link CoapWebresourceObserver} is the component to observe registered
  * CoAP Web Services (as {@link eu.spitfire.ssp.backend.generic.DataOrigin}) and update the SSPs cache according to
  * the observations, i.e. status changes.
  *
  * @author Oliver Kleine
  */
-public class CoapObserver extends DataOriginObserver<URI, CoapWebresource> {
+public class CoapWebresourceObserver extends DataOriginObserver<URI, CoapWebresource> {
 
-    private Logger log = LoggerFactory.getLogger(CoapObserver.class.getName());
+    private Logger log = LoggerFactory.getLogger(CoapWebresourceObserver.class.getName());
     private CoapEndpoint coapApplication;
 
     /**
      * Creates a new instance of {@link eu.spitfire.ssp.backend.generic.DataOriginObserver}.
      *
-     * @param componentFactory the {@link eu.spitfire.ssp.backend.generic.ComponentFactory} that provides
+     * @param componentFactory the {@link eu.spitfire.ssp.backend.generic.BackendComponentFactory} that provides
      *                         all components to handle instances of
      *                         {@link CoapWebresource}.
      */
-    protected CoapObserver(CoapComponentFactory componentFactory) {
+    protected CoapWebresourceObserver(CoapBackendComponentFactory componentFactory) {
         super(componentFactory);
         this.coapApplication = componentFactory.getCoapApplication();
     }
 
     /**
      * Starting an observation means to send a GET request with the
-     * {@link de.uzl.itm.ncoap.message.options.OptionValue.Name#OBSERVE} set to the CoAP Web Service to be
+     * {@link de.uzl.itm.ncoap.message.options.Option#OBSERVE} set to the CoAP Web Service to be
      * observed.
      *
      * @param coapWebresource the {@link CoapWebresource} to be observed
@@ -59,7 +59,7 @@ public class CoapObserver extends DataOriginObserver<URI, CoapWebresource> {
     public void startObservation(CoapWebresource coapWebresource) {
         try{
             URI webserviceUri = coapWebresource.getIdentifier();
-            CoapRequest coapRequest = new CoapRequest(MessageType.Name.CON, MessageCode.Name.GET, webserviceUri);
+            CoapRequest coapRequest = new CoapRequest(MessageType.CON, MessageCode.GET, webserviceUri);
             coapRequest.setAccept(ContentFormat.APP_RDF_XML);
             coapRequest.setAccept(ContentFormat.APP_N3);
             coapRequest.setAccept(ContentFormat.APP_TURTLE);
@@ -118,7 +118,7 @@ public class CoapObserver extends DataOriginObserver<URI, CoapWebresource> {
             try{
                  // the remote changed since the last update notification
                 if(updatedRemoteSocket != null){
-                    CoapRegistry registry = (CoapRegistry) getRegistry();
+                    CoapWebresourceRegistry registry = (CoapWebresourceRegistry) getRegistry();
 
                     // create "old" data origin
                     CoapWebresource oldDataOrigin = new CoapWebresource(this.graphName);
@@ -171,7 +171,7 @@ public class CoapObserver extends DataOriginObserver<URI, CoapWebresource> {
                 Date expiry = new Date(System.currentTimeMillis() + coapResponse.getMaxAge() * 1000);
                 ExpiringNamedGraph expiringNamedGraph = new ExpiringNamedGraph(graphName, model, expiry);
 
-                Futures.addCallback(CoapObserver.super.updateCache(expiringNamedGraph), new FutureCallback<Void>() {
+                Futures.addCallback(CoapWebresourceObserver.super.updateCache(expiringNamedGraph), new FutureCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
                         log.debug("Successfully updated graph {}.", graphName);

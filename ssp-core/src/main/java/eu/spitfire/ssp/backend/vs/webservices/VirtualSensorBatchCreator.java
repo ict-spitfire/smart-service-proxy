@@ -6,7 +6,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import de.uzl.itm.ssp.jaxb4vs.jaxb.JAXBVirtualSensor;
 import de.uzl.itm.ssp.jaxb4vs.tools.VirtualSensorsUnmarshaller;
 import eu.spitfire.ssp.backend.vs.VirtualSensor;
-import eu.spitfire.ssp.backend.vs.VirtualSensorsComponentFactory;
+import eu.spitfire.ssp.backend.vs.VirtualSensorsBackendComponentFactory;
 import eu.spitfire.ssp.server.internal.utils.HttpResponseFactory;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryFactory;
@@ -32,7 +32,7 @@ public class VirtualSensorBatchCreator extends AbstractVirtualSensorCreator {
 
     private static Logger LOG = LoggerFactory.getLogger(VirtualSensorBatchCreator.class.getName());
 
-    public VirtualSensorBatchCreator(VirtualSensorsComponentFactory componentFactory){
+    public VirtualSensorBatchCreator(VirtualSensorsBackendComponentFactory componentFactory){
         super(
                 componentFactory,
                 "html/services/virtual-sensor-batch-creation.html"

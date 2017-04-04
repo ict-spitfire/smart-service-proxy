@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.backend.vs.webservices;
 
-import eu.spitfire.ssp.backend.vs.VirtualSensorsComponentFactory;
+import eu.spitfire.ssp.backend.vs.VirtualSensorsBackendComponentFactory;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
 
 /**
@@ -8,7 +8,7 @@ import eu.spitfire.ssp.server.webservices.HttpWebservice;
  */
 public class VirtualSensorDirectory extends HttpWebservice {
 
-    public VirtualSensorDirectory(VirtualSensorsComponentFactory componentFactory) {
+    public VirtualSensorDirectory(VirtualSensorsBackendComponentFactory componentFactory) {
         super(
                 componentFactory.getIoExecutor(),
                 componentFactory.getInternalTasksExecutor(),

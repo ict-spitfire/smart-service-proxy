@@ -22,15 +22,15 @@ public abstract class DataOriginObserver<I, D extends DataOrigin<I>>{
 
     private Logger log = LoggerFactory.getLogger(DataOriginObserver.class.getName());
 
-    private ComponentFactory<I, D> componentFactory;
+    private BackendComponentFactory<I, D> componentFactory;
 
     /**
      * Creates a new instance of {@link DataOriginObserver}.
      *
-     * @param componentFactory the {@link ComponentFactory} that provides
+     * @param componentFactory the {@link BackendComponentFactory} that provides
      *                         all components to handle instances of {@link D}.
      */
-    protected DataOriginObserver(ComponentFactory<I, D> componentFactory){
+    protected DataOriginObserver(BackendComponentFactory<I, D> componentFactory){
         this.componentFactory = componentFactory;
     }
 
@@ -92,15 +92,15 @@ public abstract class DataOriginObserver<I, D extends DataOrigin<I>>{
 //    }
 
     /**
-     * Returns the {@link eu.spitfire.ssp.backend.generic.Registry} suitable for the instances of
+     * Returns the {@link DataOriginRegistry} suitable for the instances of
      * {@link eu.spitfire.ssp.backend.generic.DataOrigin} this {@link DataOriginObserver}
      * observes.
      *
-     * @return the {@link eu.spitfire.ssp.backend.generic.Registry} suitable for the instances of
+     * @return the {@link DataOriginRegistry} suitable for the instances of
      * {@link eu.spitfire.ssp.backend.generic.DataOrigin} this {@link DataOriginObserver}
      * observes.
      */
-    protected Registry<I, ? extends D> getRegistry(){
+    protected DataOriginRegistry<I, ? extends D> getRegistry(){
         return this.componentFactory.getRegistry();
     }
 
@@ -112,8 +112,8 @@ public abstract class DataOriginObserver<I, D extends DataOrigin<I>>{
      * classes are supposed to invoke {@link #updateCache(eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph)}.
      *
      * If the observed {@link eu.spitfire.ssp.backend.generic.DataOrigin} is no longer available then extending classes
-     * are supposed to invoke {@link eu.spitfire.ssp.backend.generic.Registry#unregisterDataOrigin(DataOrigin)} on the
-     * {@link eu.spitfire.ssp.backend.generic.Registry} returned by {@link #getRegistry()}.
+     * are supposed to invoke {@link DataOriginRegistry#unregisterDataOrigin(DataOrigin)} on the
+     * {@link DataOriginRegistry} returned by {@link #getRegistry()}.
      *
      * @param dataOrigin the {@link eu.spitfire.ssp.backend.generic.DataOrigin} to be observed.
      */

@@ -5,16 +5,17 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import de.uzl.itm.ncoap.application.endpoint.CoapEndpoint;
-import de.uzl.itm.ncoap.application.server.webresource.NotObservableWebresource;
-import de.uzl.itm.ncoap.application.server.webresource.linkformat.LinkAttribute;
+import de.uzl.itm.ncoap.application.linkformat.LinkParam;
+import de.uzl.itm.ncoap.application.linkformat.LinkValueList;
+import de.uzl.itm.ncoap.application.server.resource.NotObservableWebresource;
 import de.uzl.itm.ncoap.message.CoapRequest;
 import de.uzl.itm.ncoap.message.CoapResponse;
 import de.uzl.itm.ncoap.message.MessageCode;
 import de.uzl.itm.ncoap.message.MessageType;
 import de.uzl.itm.ncoap.message.options.OptionValue;
 import eu.spitfire.ssp.backend.coap.CoapWebresource;
-import eu.spitfire.ssp.backend.coap.CoapComponentFactory;
-import eu.spitfire.ssp.backend.generic.Registry;
+import eu.spitfire.ssp.backend.coap.CoapBackendComponentFactory;
+import eu.spitfire.ssp.backend.generic.DataOriginRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,29 +25,25 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * The {@link CoapRegistry} starts a
+ * The {@link CoapWebresourceRegistry} starts a
  * {@link CoapRegistryWebservice} on the
  * {@link de.uzl.itm.ncoap.application.endpoint.CoapEndpoint} returned by
- * {@link eu.spitfire.ssp.backend.coap.CoapComponentFactory#getCoapApplication()} and
+ * {@link eu.spitfire.ssp.backend.coap.CoapBackendComponentFactory#getCoapApplication()} and
  * waits for external CoAP Web Services to register.
  *
  * @author Oliver Kleine
  */
-public class CoapRegistry extends Registry<URI, CoapWebresource> {
+public class CoapWebresourceRegistry extends DataOriginRegistry<URI, CoapWebresource> {
 
-    private int nextGraphNo;
+    private static Logger LOG = LoggerFactory.getLogger(CoapWebresourceRegistry.class.getName());
 
-    private static Logger LOG = LoggerFactory.getLogger(CoapRegistry.class.getName());
-
-    private CoapComponentFactory componentFactory;
+    private CoapBackendComponentFactory componentFactory;
     private CoapEndpoint coapApplication;
 
-    public CoapRegistry(CoapComponentFactory componentFactory) {
+    public CoapWebresourceRegistry(CoapBackendComponentFactory componentFactory) {
         super(componentFactory);
-        this.nextGraphNo = 1;
         this.componentFactory = componentFactory;
         this.coapApplication = componentFactory.getCoapApplication();
     }
@@ -72,11 +69,11 @@ public class CoapRegistry extends Registry<URI, CoapWebresource> {
         /**
          * Creates a new instance of {@link CoapRegistryWebservice}.
          *
-         * @param componentFactory the {@link eu.spitfire.ssp.backend.coap.CoapComponentFactory} to
+         * @param componentFactory the {@link eu.spitfire.ssp.backend.coap.CoapBackendComponentFactory} to
          *                         get the {@link de.uzl.itm.ncoap.application.endpoint.CoapEndpoint}, and the
-         *                         {@link CoapRegistry} from.
+         *                         {@link CoapWebresourceRegistry} from.
          */
-        public CoapRegistryWebservice(CoapComponentFactory componentFactory) {
+        public CoapRegistryWebservice(CoapBackendComponentFactory componentFactory) {
             super("/registry", null, OptionValue.MAX_AGE_DEFAULT, componentFactory.getInternalTasksExecutor());
             this.coapApplication = componentFactory.getCoapApplication();
         }
@@ -90,9 +87,9 @@ public class CoapRegistry extends Registry<URI, CoapWebresource> {
                 log.info("Received CoAP registration message from {}: {}", remoteAddress.getAddress(), coapRequest);
 
                 //Only POST message are allowed
-                if (coapRequest.getMessageCodeName() != MessageCode.Name.POST) {
-                    CoapResponse coapResponse = CoapResponse.createErrorResponse(coapRequest.getMessageTypeName(),
-                            MessageCode.Name.METHOD_NOT_ALLOWED_405, "Only POST messages are allowed!");
+                if (coapRequest.getMessageCode() != MessageCode.POST) {
+                    CoapResponse coapResponse = CoapResponse.createErrorResponse(coapRequest.getMessageType(),
+                            MessageCode.METHOD_NOT_ALLOWED_405, "Only POST messages are allowed!");
 
                     registrationResponseFuture.set(coapResponse);
                     return;
@@ -100,13 +97,13 @@ public class CoapRegistry extends Registry<URI, CoapWebresource> {
 
 
                 // Get, await and handle the set of available Services on the newly registered Server
-                Futures.addCallback(requestWellKnownCore(remoteAddress), new FutureCallback<Map<String, Set<LinkAttribute>>>() {
+                Futures.addCallback(requestWellKnownCore(remoteAddress), new FutureCallback<LinkValueList>() {
                     @Override
-                    public void onSuccess(Map<String, Set<LinkAttribute>> resources) {
+                    public void onSuccess(LinkValueList resources) {
                         try {
                             HashSet<ListenableFuture<Void>> registrationFutures = new HashSet<>();
 
-                            for (String uriPath : resources.keySet()) {
+                            for (String uriPath : resources.getUriReferences()) {
                                 String remoteHost = remoteAddress.getAddress().getHostAddress();
                                 int remotePort = remoteAddress.getPort() == 5683 ? -1 : remoteAddress.getPort();
                                 URI resourceUri = new URI("coap", null, remoteHost, remotePort, uriPath, null, null);
@@ -122,7 +119,7 @@ public class CoapRegistry extends Registry<URI, CoapWebresource> {
                             Futures.addCallback(combinedRegistrationFuture, new FutureCallback<List<Void>>() {
                                 @Override
                                 public void onSuccess(List<Void> voids) {
-                                    CoapResponse coapResponse = new CoapResponse(MessageType.Name.NON, MessageCode.Name.CREATED_201);
+                                    CoapResponse coapResponse = new CoapResponse(MessageType.NON, MessageCode.CREATED_201);
                                     registrationResponseFuture.set(coapResponse);
                                 }
 
@@ -162,7 +159,7 @@ public class CoapRegistry extends Registry<URI, CoapWebresource> {
         }
 
 
-        private ListenableFuture<Map<String, Set<LinkAttribute>>> requestWellKnownCore(final InetSocketAddress remoteSocket) throws Exception {
+        private ListenableFuture<LinkValueList> requestWellKnownCore(final InetSocketAddress remoteSocket) throws Exception {
 
             // create URI
             final String remoteHost = remoteSocket.getHostName();
@@ -170,7 +167,7 @@ public class CoapRegistry extends Registry<URI, CoapWebresource> {
             URI uri = new URI("coap", null, remoteHost, remotePort, "/.well-known/core", null, null);
 
             // create and send request
-            CoapRequest coapRequest = new CoapRequest(MessageType.Name.CON, MessageCode.Name.GET, uri);
+            CoapRequest coapRequest = new CoapRequest(MessageType.CON, MessageCode.GET, uri);
             WellKnownCoreCallback wncCallback = new WellKnownCoreCallback();
             this.coapApplication.sendCoapRequest(coapRequest, wncCallback, remoteSocket);
 

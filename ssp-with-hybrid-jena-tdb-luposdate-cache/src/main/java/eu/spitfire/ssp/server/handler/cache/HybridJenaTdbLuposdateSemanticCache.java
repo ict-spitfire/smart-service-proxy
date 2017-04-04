@@ -1,9 +1,7 @@
 package eu.spitfire.ssp.server.handler.cache;
 
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.io.Files;
+import com.google.common.util.concurrent.*;
 import com.hp.hpl.jena.ontology.OntModel;
 import com.hp.hpl.jena.ontology.OntModelSpec;
 import com.hp.hpl.jena.query.*;
@@ -37,14 +35,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 /**
@@ -63,10 +62,16 @@ public class HybridJenaTdbLuposdateSemanticCache extends SemanticCache {
 	private ReentrantReadWriteLock lock;
 	private QueryEvaluator queryEvaluator;
 
+	private ScheduledExecutorService cacheTasksExecutor;
+
 	public HybridJenaTdbLuposdateSemanticCache(ExecutorService ioExecutor, ScheduledExecutorService internalTasksExecutor,
-											   String tdbDirectory, Set<String> ontologyPaths){
+											   String tdbDirectory, Set<String> ontologyPaths) {
 
 		super(ioExecutor, internalTasksExecutor);
+
+		this.cacheTasksExecutor = Executors.newSingleThreadScheduledExecutor(
+				new ThreadFactoryBuilder().setNameFormat("SSP Cache Thread #%d").build()
+		);
 
 		this.lock = new ReentrantReadWriteLock();
 
@@ -87,7 +92,7 @@ public class HybridJenaTdbLuposdateSemanticCache extends SemanticCache {
         }
 
 		dataset = TDBFactory.createDataset(tdbDirectory);
-		TDB.getContext().set(TDB.symUnionDefaultGraph, true);
+		//TDB.getContext().set(TDB.symUnionDefaultGraph, true);
 
 		//Build the reasoner to infer new statements
 		OntModel ontologyModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_LITE_MEM);
@@ -109,7 +114,39 @@ public class HybridJenaTdbLuposdateSemanticCache extends SemanticCache {
 		this.reasoner = ReasonerRegistry.getOWLReasoner().bindSchema(ontologyModel);
 		LOG.info("Reasoner created!");
 
-		this.getInternalTasksExecutor().scheduleAtFixedRate(new InferenceTask(), 0, 30, TimeUnit.SECONDS);
+		//initializeQueryEvaluator();
+
+		getCacheTasksExecutor().schedule(new InferenceTask(), 30, TimeUnit.SECONDS);
+	}
+
+	private void initializeQueryEvaluator() {
+		try {
+			long start = System.currentTimeMillis();
+
+			GeoFunctionRegisterer.registerGeoFunctions();
+			LOG.info("GeoFunctions registered ({} ms)", System.currentTimeMillis() - start);
+			queryEvaluator = new MemoryIndexQueryEvaluator();
+
+			queryEvaluator.setupArguments();
+			queryEvaluator.getArgs().set("result", lupos.datastructures.queryresult.QueryResult.TYPE.MEMORY);
+			queryEvaluator.getArgs().set("codemap", LiteralFactory.MapType.TRIEMAP);
+			queryEvaluator.getArgs().set("distinct", CommonCoreQueryEvaluator.DISTINCT.HASHSET);
+			queryEvaluator.getArgs().set("join", CommonCoreQueryEvaluator.JOIN.HASHMAPINDEX);
+			queryEvaluator.getArgs().set("optional", CommonCoreQueryEvaluator.JOIN.HASHMAPINDEX);
+			queryEvaluator.getArgs().set("datastructure", Indices.DATA_STRUCT.HASHMAP);
+
+			LOG.info("QueryEvaluator created ({})", System.currentTimeMillis() - start);
+
+			queryEvaluator.init();
+
+			LOG.info("QueryEvaluator initialized ({})", System.currentTimeMillis() - start);
+
+			Collection<URILiteral> uriLiterals = new LinkedList<>();
+			uriLiterals.add(LiteralFactory.createStringURILiteral("<inlinedata:>"));
+			queryEvaluator.prepareInputData(uriLiterals, new LinkedList<>());
+		} catch (Exception ex) {
+			LOG.error("Could not initialize Query Evaluator...", ex);
+		}
 	}
 
 	@Override
@@ -216,9 +253,9 @@ public class HybridJenaTdbLuposdateSemanticCache extends SemanticCache {
         try {
 			lockDataset();
             long start = System.currentTimeMillis();
-			dataset.removeNamedModel(graphName.toString());
-			LOG.info("Removed old graph \"{}\" (duration: {} ms)", graphName, System.currentTimeMillis() - start);
-			dataset.addNamedModel(graphName.toString(), namedGraph);
+//			dataset.removeNamedModel(graphName.toString());
+//			LOG.info("Removed old graph \"{}\" (duration: {} ms)", graphName, System.currentTimeMillis() - start);
+			dataset.replaceNamedModel(graphName.toString(), namedGraph);
 			LOG.info("Deleted old and inserted new graph \"{}\" ({} ms)", graphName, System.currentTimeMillis() - start);
 
             resultFuture.set(null);
@@ -264,41 +301,10 @@ public class HybridJenaTdbLuposdateSemanticCache extends SemanticCache {
 		}
 	}
 
-//	private QueryEvaluator getValidQueryEvaluator() throws Exception {
-//		try {
-//			this.lock.writeLock().lock();
-//			if(isEvaluatorRecreationNecessary()) {
-//				InfModel infModel = ModelFactory.createInfModel(reasoner, dataset.getNamedModel("urn:x-arq:UnionGraph"));
-//
-//				ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-//				RDFDataMgr.write(outputStream, infModel, RDFFormat.TURTLE_FLAT);
-//
-//				GeoFunctionRegisterer.registerGeoFunctions();
-//				this.queryEvaluator = new MemoryIndexQueryEvaluator();
-//
-//				this.queryEvaluator.setupArguments();
-//				this.queryEvaluator.getArgs().set("result", lupos.datastructures.queryresult.QueryResult.TYPE.MEMORY);
-//				this.queryEvaluator.getArgs().set("codemap", LiteralFactory.MapType.TRIEMAP);
-//				this.queryEvaluator.getArgs().set("distinct", CommonCoreQueryEvaluator.DISTINCT.HASHSET);
-//				this.queryEvaluator.getArgs().set("join", CommonCoreQueryEvaluator.JOIN.HASHMAPINDEX);
-//				this.queryEvaluator.getArgs().set("optional", CommonCoreQueryEvaluator.JOIN.HASHMAPINDEX);
-//				this.queryEvaluator.getArgs().set("datastructure", Indices.DATA_STRUCT.HASHMAP);
-//
-//				this.queryEvaluator.init();
-//
-//				Collection<URILiteral> uriLiterals = new LinkedList<>();
-//				uriLiterals.add(LiteralFactory.createStringURILiteral(
-//								"<inlinedata: " + new String(outputStream.toByteArray()) + ">")
-//				);
-//
-//				this.queryEvaluator.prepareInputData(uriLiterals, new LinkedList<>());
-//			}
-//			setEvaluatorRecreationNecessary(false);
-//			return this.queryEvaluator;
-//		} finally {
-//			this.lock.writeLock().unlock();
-//		}
-//	}
+	@Override
+	protected ScheduledExecutorService getCacheTasksExecutor() {
+		return this.cacheTasksExecutor;
+	}
 
 	private ResultSet toResultSet(final QueryResult queryResult) throws IOException {
 		long start = System.currentTimeMillis();
@@ -329,7 +335,7 @@ public class HybridJenaTdbLuposdateSemanticCache extends SemanticCache {
 			long start = System.currentTimeMillis();
 			QueryResult result = queryEvaluator.getResult(sparqlQuery.toString(Syntax.syntaxSPARQL));
 			long duration = System.currentTimeMillis() - start;
-			LOG.info("Query Execution finished (duration: {} ms)", duration);
+			LOG.debug("Query Execution finished (duration: {} ms)", duration);
 			ResultSet resultSet = toResultSet(result);
 			resultFuture.set(new QueryExecutionResults(duration, resultSet));
 		} catch (Exception ex) {
@@ -383,11 +389,20 @@ public class HybridJenaTdbLuposdateSemanticCache extends SemanticCache {
 		public void run() {
 			try {
 				lockDataset();
+
 				long start = System.currentTimeMillis();
 				InfModel infModel = ModelFactory.createInfModel(reasoner, dataset.getNamedModel("urn:x-arq:UnionGraph"));
 
-				ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-				RDFDataMgr.write(outputStream, infModel, RDFFormat.TURTLE_FLAT);
+				LOG.info("InfModel created ({} ms)", System.currentTimeMillis() - start);
+				start = System.currentTimeMillis();
+
+//				File tmp = File.createTempFile("jena-inf-", ".tmp");
+//				FileOutputStream outputStream = new FileOutputStream(tmp);
+				ByteArrayOutputStream outputStream = new ByteArrayOutputStream(4194304);
+
+				RDFDataMgr.write(outputStream, infModel, RDFFormat.TURTLE_BLOCKS);
+				LOG.info("InfModel written to Output Stream ({} ms)", System.currentTimeMillis() - start);
+				start = System.currentTimeMillis();
 
 				GeoFunctionRegisterer.registerGeoFunctions();
 				queryEvaluator = new MemoryIndexQueryEvaluator();
@@ -403,18 +418,28 @@ public class HybridJenaTdbLuposdateSemanticCache extends SemanticCache {
 				queryEvaluator.init();
 
 				Collection<URILiteral> uriLiterals = new LinkedList<>();
+//				uriLiterals.add(LiteralFactory.createStringURILiteral(
+//								"<inlinedata: " + Files.toString(tmp, Charset.defaultCharset()) + ">")
+//				);
 				uriLiterals.add(LiteralFactory.createStringURILiteral(
-								"<inlinedata: " + new String(outputStream.toByteArray()) + ">")
+								"<inlinedata: " + outputStream.toString() + ">")
 				);
 
+				LOG.info("New Query Evaluator created ({} ms)", System.currentTimeMillis() - start);
+				start = System.currentTimeMillis();
+
 				queryEvaluator.prepareInputData(uriLiterals, new LinkedList<>());
-				long duration = System.currentTimeMillis() - start;
-				LOG.info("Inference task finished (duration: {} ms)", duration);
+				LOG.info("Inference task finished ({} ms)", System.currentTimeMillis() - start);
+
+				//boolean deleted = tmp.delete();
+				//LOG.info("Temporary file {} deleted!", deleted ? "was" : "COULD NOT BE");
 
 			} catch(Exception ex) {
 				LOG.error("Error in inference task...", ex);
 			} finally {
 				unlockDataset();
+				getCacheTasksExecutor().schedule(new InferenceTask(), 30, TimeUnit.SECONDS);
+				System.gc();
 			}
 		}
 	}

@@ -11,13 +11,13 @@ import eu.spitfire.ssp.server.handler.SemanticCache;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringGraph;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.internal.wrapper.QueryExecutionResults;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+
 
 /**
  * A dummy implementation of {@link eu.spitfire.ssp.server.handler.SemanticCache} which actually does not
@@ -83,6 +83,10 @@ public class DummySemanticCache extends SemanticCache {
         resultFuture.set(null);
 
         return resultFuture;
+    }
+
+    protected ScheduledExecutorService getCacheTasksExecutor() {
+        return this.getCacheTasksExecutor();
     }
 
     @Override

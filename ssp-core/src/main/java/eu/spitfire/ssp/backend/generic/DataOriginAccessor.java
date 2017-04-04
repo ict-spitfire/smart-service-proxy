@@ -8,25 +8,25 @@ import eu.spitfire.ssp.server.internal.exception.OperationNotSupportedException;
 import com.hp.hpl.jena.rdf.model.Model;
 
 /**
- * A {@link Accessor} is a component to access a
+ * A {@link DataOriginAccessor} is a component to access a
  * {@link eu.spitfire.ssp.backend.generic.DataOrigin}, i.e. retrieve its actual status.
  *
  * @link Oliver Kleine
  */
-public abstract class Accessor<I, D extends DataOrigin<I>> {
+public abstract class DataOriginAccessor<I, D extends DataOrigin<I>> {
 
 
-    private ComponentFactory<I, D> componentFactory;
+    private BackendComponentFactory<I, D> componentFactory;
 
     /**
-     * Creates a new instance of {@link Accessor}
+     * Creates a new instance of {@link DataOriginAccessor}
      */
-    protected Accessor(ComponentFactory<I, D> componentFactory){
+    protected DataOriginAccessor(BackendComponentFactory<I, D> componentFactory){
         this.componentFactory = componentFactory;
     }
 
 
-    protected ComponentFactory<I, D> getComponentFactory(){
+    protected BackendComponentFactory<I, D> getComponentFactory(){
         return this.componentFactory;
     }
 

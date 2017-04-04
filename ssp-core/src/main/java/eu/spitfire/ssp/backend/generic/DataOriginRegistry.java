@@ -15,23 +15,22 @@ import org.jboss.netty.channel.Channels;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URI;
 import java.util.Date;
 
 /**
- * A {@link Registry} is the component to register new data origins, i.e. the resources from data origins.
+ * A {@link DataOriginRegistry} is the component to register new data origins, i.e. the resources from data origins.
  * A data origin could e.g. be a Webservice whose response contains the status of at least one semantic resource. In
  * that example the generic type T would be an {@link java.net.URI}.
  *
  * @author Oliver Kleine
  */
-public abstract class Registry<I, D extends DataOrigin<I>> {
+public abstract class DataOriginRegistry<I, D extends DataOrigin<I>> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    protected ComponentFactory<I, D> componentFactory;
+    protected BackendComponentFactory<I, D> componentFactory;
 
-    protected Registry(ComponentFactory<I, D> componentFactory) {
+    protected DataOriginRegistry(BackendComponentFactory<I, D> componentFactory) {
         this.componentFactory = componentFactory;
     }
 
@@ -56,7 +55,7 @@ public abstract class Registry<I, D extends DataOrigin<I>> {
         final SettableFuture<Void> registrationFuture = SettableFuture.create();
 
         //retrieve initial status
-        Accessor<I, D> accessor = componentFactory.getAccessor(dataOrigin);
+        DataOriginAccessor<I, D> accessor = componentFactory.getAccessor(dataOrigin);
         ListenableFuture<ExpiringNamedGraph> initialStatusFuture = accessor.getStatus(dataOrigin);
 
         //Await the initial status retrieval and perform the actual registration
@@ -205,7 +204,7 @@ public abstract class Registry<I, D extends DataOrigin<I>> {
     /**
      * This method is automatically invoked by the framework. Implementing classes are supposed to do everything that
      * is necessary to enable new data origins to register at this
-     * {@link Registry} instance.
+     * {@link DataOriginRegistry} instance.
      */
     public abstract void startRegistry() throws Exception;
 }

@@ -35,21 +35,21 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * A {@link ComponentFactory} instance is a software component to enable a client that is capable of
+ * A {@link BackendComponentFactory} instance is a software component to enable a client that is capable of
  * talking HTTP to communicate with an arbitrary server.
  *
- * Classes inheriting from {@link ComponentFactory} are responsible to provide the necessary components,
+ * Classes inheriting from {@link BackendComponentFactory} are responsible to provide the necessary components,
  * i.e. {@link eu.spitfire.ssp.server.webservices.HttpWebservice} instances to translate the incoming
  * {@link HttpRequest} to whatever (potentially proprietary) protocol the actual server talks and to enable the
  * SSP framework to produce a suitable {@link HttpResponse} which is then sent to the client.
  *
  * @author Oliver Kleine
  */
-public abstract class ComponentFactory<I, D extends DataOrigin<I>>{
+public abstract class BackendComponentFactory<I, D extends DataOrigin<I>>{
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    private Registry<I, D> registry;
+    private DataOriginRegistry<I, D> registry;
 
     private ScheduledExecutorService internalTasksExecutor;
     private ExecutorService ioExecutor;
@@ -62,7 +62,7 @@ public abstract class ComponentFactory<I, D extends DataOrigin<I>>{
 
 
     /**
-     * Creates a new instance of {@link ComponentFactory}.
+     * Creates a new instance of {@link BackendComponentFactory}.
      *
      * @param backendName the name of the backend this factory is for
      * @param localChannel the {@link org.jboss.netty.channel.local.LocalServerChannel} for internal message
@@ -72,9 +72,9 @@ public abstract class ComponentFactory<I, D extends DataOrigin<I>>{
      *
      * @throws Exception if something went terribly wrong
      */
-    protected ComponentFactory(String backendName, Configuration config,
-                               LocalServerChannel localChannel, ScheduledExecutorService internalTasksExecutor,
-                               ExecutorService ioExecutor) throws Exception {
+    protected BackendComponentFactory(String backendName, Configuration config,
+                                      LocalServerChannel localChannel, ScheduledExecutorService internalTasksExecutor,
+                                      ExecutorService ioExecutor) throws Exception {
 
         this.localChannel = localChannel;
         this.backendName = backendName;
@@ -87,7 +87,7 @@ public abstract class ComponentFactory<I, D extends DataOrigin<I>>{
 
 
     /**
-     * Initialize the components to run this backend, e.g. the {@link Registry}. This method is
+     * Initialize the components to run this backend, e.g. the {@link DataOriginRegistry}. This method is
      * automatically invoked by the SSP framework.
      */
     public final void createComponents(Configuration config) throws Exception{
@@ -155,12 +155,12 @@ public abstract class ComponentFactory<I, D extends DataOrigin<I>>{
 
 
     /**
-     * Returns the {@link Registry} which is necessary to register resources from a new data origin this
+     * Returns the {@link DataOriginRegistry} which is necessary to register resources from a new data origin this
      * backend is responsible for.
      *
-     * @return the {@link Registry} which is necessary to resources from a new data origin
+     * @return the {@link DataOriginRegistry} which is necessary to resources from a new data origin
      */
-    public Registry<I, D> getRegistry() {
+    public DataOriginRegistry<I, D> getRegistry() {
        return this.registry;
     }
 
@@ -183,35 +183,35 @@ public abstract class ComponentFactory<I, D extends DataOrigin<I>>{
      *
      * @param dataOrigin the {@link eu.spitfire.ssp.backend.generic.DataOrigin} to be observed
      *
-     * @return the {@link Accessor} to observe the given
+     * @return the {@link DataOriginAccessor} to observe the given
      * {@link eu.spitfire.ssp.backend.generic.DataOrigin}
      */
     public abstract DataOriginObserver<I, D> getObserver(D dataOrigin);
 
 
     /**
-     * Returns an appropriate {@link Accessor} to access the given
+     * Returns an appropriate {@link DataOriginAccessor} to access the given
      * {@link eu.spitfire.ssp.backend.generic.DataOrigin} or <code>null</code> if no such
-     * {@link Accessor} exists.
+     * {@link DataOriginAccessor} exists.
      *
      * @param dataOrigin the {@link eu.spitfire.ssp.backend.generic.DataOrigin} to return the associates
-     *                   {@link Accessor} for
+     *                   {@link DataOriginAccessor} for
      *
-     * @return an appropriate {@link Accessor} to access the given
+     * @return an appropriate {@link DataOriginAccessor} to access the given
      * {@link eu.spitfire.ssp.backend.generic.DataOrigin} or <code>null</code> if no such
-     * {@link Accessor} exists.
+     * {@link DataOriginAccessor} exists.
      */
-    public abstract Accessor<I, D> getAccessor(D dataOrigin);
+    public abstract DataOriginAccessor<I, D> getAccessor(D dataOrigin);
 
 
     /**
-     * Inheriting classes must return an instance of {@link Registry} capable to perform the
+     * Inheriting classes must return an instance of {@link DataOriginRegistry} capable to perform the
      * registration of new data origins identified by instances of the generic type T.
      *
-     * @return an instance of {@link Registry} capable to perform registration of new data origins identified
+     * @return an instance of {@link DataOriginRegistry} capable to perform registration of new data origins identified
      * by instances of the generic type T.
      */
-    public abstract Registry<I, D> createRegistry(Configuration config) throws Exception;
+    public abstract DataOriginRegistry<I, D> createRegistry(Configuration config) throws Exception;
 
 
     public abstract void shutdown();

@@ -238,8 +238,6 @@ public class VirtualSensor extends DataOrigin<URI>{
 
 
         // add inferred statements about FOI
-//        featureOfInterest.addProperty(RDF_TYPE, SSN_FEATURE_OF_INTEREST);
-//        featureOfInterest.addProperty(SSN_HAS_PROPERTY, observedProperty);
         featureOfInterest.addProperty(observedProperty, this.observationValue.getValue());
 
         return model;
@@ -422,7 +420,7 @@ public class VirtualSensor extends DataOrigin<URI>{
      * @param timeUnit the {@link java.util.concurrent.TimeUnit} of the given frequency
      */
     public void startPeriodicObservations(int frequency, TimeUnit timeUnit){
-        this.observationFuture = internalExecutor.scheduleAtFixedRate(new ObservationTask(), 0, frequency, timeUnit);
+        this.observationFuture = internalExecutor.scheduleAtFixedRate(new ObservationTask(), frequency, frequency, timeUnit);
         LOG.info("Virtual sensor \"{}\" started periodic observations!");
     }
 

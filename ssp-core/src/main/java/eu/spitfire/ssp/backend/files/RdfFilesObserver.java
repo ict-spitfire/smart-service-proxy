@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.backend.files;
 
-import eu.spitfire.ssp.backend.generic.ComponentFactory;
+import eu.spitfire.ssp.backend.generic.BackendComponentFactory;
 import eu.spitfire.ssp.backend.generic.DataOriginObserver;
 
 import java.nio.file.Path;
@@ -10,15 +10,15 @@ import java.nio.file.Path;
  *
  * @author Oliver Kleine
  */
-public class TurtleFilesObserver extends DataOriginObserver<Path, TurtleFile> {
+public class RdfFilesObserver extends DataOriginObserver<Path, RdfFile> {
 
-    public TurtleFilesObserver(ComponentFactory<Path, TurtleFile> componentFactory) {
+    public RdfFilesObserver(BackendComponentFactory<Path, RdfFile> componentFactory) {
         super(componentFactory);
     }
 
 
     @Override
-    public void startObservation(TurtleFile dataOrigin) {
+    public void startObservation(RdfFile dataOrigin) {
         //nothing to do (all files in the directory are automatically observed by the registry...)
     }
 }

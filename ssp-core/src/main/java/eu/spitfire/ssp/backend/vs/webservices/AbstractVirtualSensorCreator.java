@@ -5,7 +5,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import eu.spitfire.ssp.backend.vs.VirtualSensor;
-import eu.spitfire.ssp.backend.vs.VirtualSensorsComponentFactory;
+import eu.spitfire.ssp.backend.vs.VirtualSensorsBackendComponentFactory;
 import eu.spitfire.ssp.backend.vs.VirtualSensorsRegistry;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import eu.spitfire.ssp.server.webservices.HttpWebservice;
@@ -24,7 +24,7 @@ public abstract class AbstractVirtualSensorCreator extends HttpWebservice{
 
     private static Logger LOG = LoggerFactory.getLogger(AbstractVirtualSensorCreator.class.getName());
 
-    private VirtualSensorsComponentFactory componentFactory;
+    private VirtualSensorsBackendComponentFactory componentFactory;
 
 
     protected URI addPrefix(String sensorName) throws URISyntaxException {
@@ -35,7 +35,7 @@ public abstract class AbstractVirtualSensorCreator extends HttpWebservice{
     protected final String VS_PREFIX;
     protected final String VS_GRAPHNAME_TEMPLATE;
 
-    protected AbstractVirtualSensorCreator(VirtualSensorsComponentFactory componentFactory, String htmlResourcePath){
+    protected AbstractVirtualSensorCreator(VirtualSensorsBackendComponentFactory componentFactory, String htmlResourcePath){
 
         super(componentFactory.getIoExecutor(), componentFactory.getInternalTasksExecutor(), htmlResourcePath);
         this.componentFactory = componentFactory;

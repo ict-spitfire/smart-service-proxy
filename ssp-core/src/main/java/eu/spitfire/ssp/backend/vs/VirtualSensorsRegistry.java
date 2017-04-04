@@ -1,7 +1,7 @@
 package eu.spitfire.ssp.backend.vs;
 
-import eu.spitfire.ssp.backend.generic.ComponentFactory;
-import eu.spitfire.ssp.backend.generic.Registry;
+import eu.spitfire.ssp.backend.generic.BackendComponentFactory;
+import eu.spitfire.ssp.backend.generic.DataOriginRegistry;
 import eu.spitfire.ssp.backend.vs.webservices.VirtualSensorBatchCreator;
 import eu.spitfire.ssp.backend.vs.webservices.VirtualSensorCreator;
 import eu.spitfire.ssp.backend.vs.webservices.VirtualSensorDirectory;
@@ -18,11 +18,11 @@ import java.net.URI;
 /**
  * Created by olli on 06.05.14.
  */
-public class VirtualSensorsRegistry extends Registry<URI, VirtualSensor> {
+public class VirtualSensorsRegistry extends DataOriginRegistry<URI, VirtualSensor> {
 
     private Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-    protected VirtualSensorsRegistry(ComponentFactory<URI, VirtualSensor> componentFactory) {
+    protected VirtualSensorsRegistry(BackendComponentFactory<URI, VirtualSensor> componentFactory) {
         super(componentFactory);
     }
 
@@ -31,17 +31,17 @@ public class VirtualSensorsRegistry extends Registry<URI, VirtualSensor> {
     public void startRegistry() throws Exception {
         //Register Webservice for Virtual Sensor creation
         this.registerWebservice(
-                new VirtualSensorCreator((VirtualSensorsComponentFactory) this.componentFactory),
+                new VirtualSensorCreator((VirtualSensorsBackendComponentFactory) this.componentFactory),
                 new URI(null, null, null, -1, "/services/virtual-sensor-creation", null, null)
         );
 
         this.registerWebservice(
-                new VirtualSensorBatchCreator((VirtualSensorsComponentFactory) this.componentFactory),
+                new VirtualSensorBatchCreator((VirtualSensorsBackendComponentFactory) this.componentFactory),
                 new URI(null, null, null, -1, "/services/virtual-sensor-batch-creation", null, null)
         );
 
         this.registerWebservice(
-                new VirtualSensorDirectory((VirtualSensorsComponentFactory) this.componentFactory),
+                new VirtualSensorDirectory((VirtualSensorsBackendComponentFactory) this.componentFactory),
                 new URI(null, null, null, -1, "/services/virtual-sensor-directory", null, null)
         );
 

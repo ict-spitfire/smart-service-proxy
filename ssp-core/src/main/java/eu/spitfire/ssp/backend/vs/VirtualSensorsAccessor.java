@@ -4,8 +4,8 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import eu.spitfire.ssp.backend.generic.Accessor;
-import eu.spitfire.ssp.backend.generic.ComponentFactory;
+import eu.spitfire.ssp.backend.generic.DataOriginAccessor;
+import eu.spitfire.ssp.backend.generic.BackendComponentFactory;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,12 +15,12 @@ import java.net.URI;
 /**
  * Created by olli on 06.05.14.
  */
-public class VirtualSensorsAccessor extends Accessor<URI, VirtualSensor> {
+public class VirtualSensorsAccessor extends DataOriginAccessor<URI, VirtualSensor> {
 
     private static Logger LOG = LoggerFactory.getLogger(VirtualSensorsAccessor.class.getName());
 
 
-    protected VirtualSensorsAccessor(ComponentFactory<URI, VirtualSensor> componentFactory) {
+    protected VirtualSensorsAccessor(BackendComponentFactory<URI, VirtualSensor> componentFactory) {
         super(componentFactory);
     }
 

@@ -1,6 +1,6 @@
 package eu.spitfire.ssp.backend.vs;
 
-import eu.spitfire.ssp.backend.generic.ComponentFactory;
+import eu.spitfire.ssp.backend.generic.BackendComponentFactory;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.channel.local.LocalServerChannel;
 
@@ -11,15 +11,15 @@ import java.util.concurrent.ScheduledExecutorService;
 /**
  * Created by olli on 06.05.14.
  */
-public class VirtualSensorsComponentFactory extends ComponentFactory<URI, VirtualSensor> {
+public class VirtualSensorsBackendComponentFactory extends BackendComponentFactory<URI, VirtualSensor> {
 
     private VirtualSensorsAccessor virtualSensorsAccessor;
     private VirtualSensorsObserver virtualSensorObserver;
 
 
-    public VirtualSensorsComponentFactory(Configuration config, LocalServerChannel localChannel,
-                                          ScheduledExecutorService internalTasksExecutor,
-                                          ExecutorService ioExecutor) throws Exception {
+    public VirtualSensorsBackendComponentFactory(Configuration config, LocalServerChannel localChannel,
+                                                 ScheduledExecutorService internalTasksExecutor,
+                                                 ExecutorService ioExecutor) throws Exception {
 
         super("vs", config, localChannel, internalTasksExecutor, ioExecutor);
 

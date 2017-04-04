@@ -3,8 +3,8 @@ package eu.spitfire.ssp.backend.coap;
 
 import de.uzl.itm.ncoap.application.endpoint.CoapEndpoint;
 import de.uzl.itm.ncoap.communication.dispatching.server.NotFoundHandler;
-import eu.spitfire.ssp.backend.coap.registry.CoapRegistry;
-import eu.spitfire.ssp.backend.generic.ComponentFactory;
+import eu.spitfire.ssp.backend.coap.registry.CoapWebresourceRegistry;
+import eu.spitfire.ssp.backend.generic.BackendComponentFactory;
 import org.apache.commons.configuration.Configuration;
 import org.jboss.netty.channel.local.LocalServerChannel;
 import org.slf4j.Logger;
@@ -16,33 +16,33 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * The {@link CoapComponentFactory} provides all components that are
- * either mandatory, i.e. due to inheritance from  {@link eu.spitfire.ssp.backend.generic.ComponentFactory} or
+ * The {@link CoapBackendComponentFactory} provides all components that are
+ * either mandatory, i.e. due to inheritance from  {@link eu.spitfire.ssp.backend.generic.BackendComponentFactory} or
  * shared by multiple components, i.e. the {@link de.uzl.itm.ncoap.application.endpoint.CoapEndpoint}.
  *
  * @author Oliver Kleine
  */
-public class CoapComponentFactory extends ComponentFactory<URI, CoapWebresource> {
+public class CoapBackendComponentFactory extends BackendComponentFactory<URI, CoapWebresource> {
 
-    private static Logger LOG = LoggerFactory.getLogger(CoapComponentFactory.class.getName());
+    private static Logger LOG = LoggerFactory.getLogger(CoapBackendComponentFactory.class.getName());
 
     private CoapEndpoint coapApplication;
-    private CoapRegistry registry;
-    private CoapAccessor accessor;
-    private CoapObserver observer;
+    private CoapWebresourceRegistry registry;
+    private CoapWebresourceAccessor accessor;
+    private CoapWebresourceObserver observer;
 
 
-    public CoapComponentFactory(Configuration config, LocalServerChannel localChannel,
-                                ScheduledExecutorService internalTasksExecutor, ExecutorService ioExecutor)
+    public CoapBackendComponentFactory(Configuration config, LocalServerChannel localChannel,
+                                       ScheduledExecutorService internalTasksExecutor, ExecutorService ioExecutor)
             throws Exception {
 
         super("coap", config, localChannel, internalTasksExecutor, ioExecutor);
 
         InetSocketAddress socketAddress = new InetSocketAddress(5683);
         this.coapApplication = new CoapEndpoint("SSP CoAP", NotFoundHandler.getDefault(), socketAddress);
-        this.registry = new CoapRegistry(this);
-        this.accessor = new CoapAccessor(this);
-        this.observer = new CoapObserver(this);
+        this.registry = new CoapWebresourceRegistry(this);
+        this.accessor = new CoapWebresourceAccessor(this);
+        this.observer = new CoapWebresourceObserver(this);
     }
 
 
@@ -64,22 +64,22 @@ public class CoapComponentFactory extends ComponentFactory<URI, CoapWebresource>
 
 
     @Override
-    public CoapObserver getObserver(CoapWebresource externalWebservice) {
+    public CoapWebresourceObserver getObserver(CoapWebresource externalWebservice) {
         return this.observer;
     }
 
     @Override
-    public CoapAccessor getAccessor(CoapWebresource externalWebservice) {
+    public CoapWebresourceAccessor getAccessor(CoapWebresource externalWebservice) {
         return this.accessor;
     }
 
     @Override
-    public CoapRegistry createRegistry(Configuration config) throws Exception {
+    public CoapWebresourceRegistry createRegistry(Configuration config) throws Exception {
         return this.registry;
     }
 
     @Override
-    public CoapRegistry getRegistry() {
+    public CoapWebresourceRegistry getRegistry() {
         return this.registry;
     }
 

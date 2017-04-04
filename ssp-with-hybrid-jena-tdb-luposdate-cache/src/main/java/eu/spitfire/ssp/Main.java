@@ -41,6 +41,9 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception{
+
+        System.out.println("MAX MEMORY: " + (Runtime.getRuntime().maxMemory() / 1000000) + "MB");
+
         Initializer initializer = new Initializer("ssp.properties") {
 
             @Override

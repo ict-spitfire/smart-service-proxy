@@ -46,15 +46,15 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
     private Map<String, D> proxyUriToDataOrigin;
     private Map<I, D> identifierToDataOrigin;
 
-    protected ComponentFactory<I, D> componentFactory;
+    protected BackendComponentFactory<I, D> componentFactory;
 
     /**
      * Creates a new instance of {@link DataOriginMapper}.
-     * @param componentFactory the {@link ComponentFactory} that amongst other
+     * @param componentFactory the {@link BackendComponentFactory} that amongst other
      *                         things provides the components to forward incoming HTTP requests to the appropriate
      *                         {@link eu.spitfire.ssp.backend.generic.DataOrigin}.
      */
-    public DataOriginMapper(ComponentFactory<I, D> componentFactory){
+    public DataOriginMapper(BackendComponentFactory<I, D> componentFactory){
         super(componentFactory.getIoExecutor(), componentFactory.getInternalTasksExecutor(), null);
         this.componentFactory = componentFactory;
         this.proxyUriToDataOrigin = new HashMap<>();
@@ -193,7 +193,7 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
             LOG.debug("Found data origin for proxy URI {} (identifier: \"{}\")", proxyUri, dataOrigin.getIdentifier());
 
             //Look up appropriate accessor for proxy URI
-            Accessor<I, D> accessor = this.componentFactory.getAccessor(dataOrigin);
+            DataOriginAccessor<I, D> accessor = this.componentFactory.getAccessor(dataOrigin);
 
             if(accessor == null){
                 String content = String.format("No data origin accessor found for data origin with identifier %s",
@@ -242,8 +242,8 @@ public class DataOriginMapper<I, D extends DataOrigin<I>> extends HttpWebservice
 
                 @Override
                 public void onSuccess(Object result) {
-                    if(result instanceof Accessor.ModificationResult){
-                        if(result.equals(Accessor.ModificationResult.DELETED)){
+                    if(result instanceof DataOriginAccessor.ModificationResult){
+                        if(result.equals(DataOriginAccessor.ModificationResult.DELETED)){
                            result = HttpResponseFactory.createHttpResponse(
                                 httpRequest.getProtocolVersion(), HttpResponseStatus.NO_CONTENT, ""
                             );

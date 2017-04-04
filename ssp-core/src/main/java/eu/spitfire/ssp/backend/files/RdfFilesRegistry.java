@@ -4,7 +4,7 @@ import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import eu.spitfire.ssp.backend.generic.Registry;
+import eu.spitfire.ssp.backend.generic.DataOriginRegistry;
 import eu.spitfire.ssp.server.internal.wrapper.ExpiringNamedGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,14 +24,14 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 /**
  * Created by olli on 13.04.14.
  */
-public class TurtleFilesRegistry extends Registry<Path, TurtleFile> {
+public class RdfFilesRegistry extends DataOriginRegistry<Path, RdfFile> {
 
-    private static Logger LOG = LoggerFactory.getLogger(TurtleFilesRegistry.class.getName());
+    private static Logger LOG = LoggerFactory.getLogger(RdfFilesRegistry.class.getName());
 
     private Path directory;
     private WatchService watchService;
 
-    public TurtleFilesRegistry(TurtleFilesComponentFactory componentFactory) throws Exception {
+    public RdfFilesRegistry(RdfFilesBackendComponentFactory componentFactory) throws Exception {
         super(componentFactory);
         this.directory = componentFactory.getDirectoryPath();
         this.watchService = FileSystems.getDefault().newWatchService();
@@ -78,17 +78,17 @@ public class TurtleFilesRegistry extends Registry<Path, TurtleFile> {
                 public FileVisitResult visitFile(Path filePath, BasicFileAttributes attr) throws IOException {
                     if (filePath.toString().endsWith(".ttl")) {
                         try {
-                            TurtleFile turtleFile = new TurtleFile(
+                            RdfFile rdfFile = new RdfFile(
                                     directoryPath, filePath, componentFactory.getHostName(), componentFactory.getPort());
-                            registerDataOrigin(turtleFile);
+                            registerDataOrigin(rdfFile);
                         } catch (URISyntaxException ex) {
                             LOG.error("This should never happen!", ex);
                         }
                     } else if (filePath.toString().endsWith(".rdf")) {
                         try {
-                            TurtleFile turtleFile = new TurtleFile(
+                            RdfFile rdfFile = new RdfFile(
                                     directoryPath, filePath, componentFactory.getHostName(), componentFactory.getPort());
-                            registerDataOrigin(turtleFile);
+                            registerDataOrigin(rdfFile);
                         } catch (URISyntaxException ex) {
                             LOG.error("This should never happen!", ex);
                         }
@@ -105,14 +105,14 @@ public class TurtleFilesRegistry extends Registry<Path, TurtleFile> {
     }
 
 
-    private void handleFileModification(final TurtleFile dataOrigin){
+    private void handleFileModification(final RdfFile dataOrigin){
         LOG.info("File {} was updated!", dataOrigin);
-        TurtleFilesAccessor accessor = (TurtleFilesAccessor) componentFactory.getAccessor(dataOrigin);
+        RdfFileAccessor accessor = (RdfFileAccessor) componentFactory.getAccessor(dataOrigin);
         Futures.addCallback(accessor.getStatus(dataOrigin), new FutureCallback<ExpiringNamedGraph>() {
 
             @Override
             public void onSuccess(ExpiringNamedGraph graph) {
-                TurtleFilesObserver observer = (TurtleFilesObserver) componentFactory.getObserver(dataOrigin);
+                RdfFilesObserver observer = (RdfFilesObserver) componentFactory.getObserver(dataOrigin);
                 observer.updateCache(graph);
             }
 
@@ -130,7 +130,7 @@ public class TurtleFilesRegistry extends Registry<Path, TurtleFile> {
         public void run() {
 
             try{
-                LinkedHashMultimap<TurtleFile, WatchEvent.Kind> detectedEvents = LinkedHashMultimap.create();
+                LinkedHashMultimap<RdfFile, WatchEvent.Kind> detectedEvents = LinkedHashMultimap.create();
                 //LOG.debug("Time: " + System.currentTimeMillis());
 
                 WatchKey watchKey = null;
@@ -162,10 +162,10 @@ public class TurtleFilesRegistry extends Registry<Path, TurtleFile> {
                         }
 
                         //Collect events on turtle files
-                        TurtleFile turtleFile = new TurtleFile(
+                        RdfFile rdfFile = new RdfFile(
                                 directory, filePath, componentFactory.getHostName(), componentFactory.getPort()
                         );
-                        detectedEvents.put(turtleFile, eventKind);
+                        detectedEvents.put(rdfFile, eventKind);
                     }
 
                     // reset watchkey and remove from set if directory is no longer accessible
@@ -203,8 +203,8 @@ public class TurtleFilesRegistry extends Registry<Path, TurtleFile> {
         }
 
 
-        private void handleTurtleFileEvents(LinkedHashMultimap<TurtleFile, WatchEvent.Kind> events){
-            for(final TurtleFile file : events.keySet()){
+        private void handleTurtleFileEvents(LinkedHashMultimap<RdfFile, WatchEvent.Kind> events){
+            for(final RdfFile file : events.keySet()){
 
                 for(WatchEvent.Kind eventKind : events.get(file)){
                     LOG.info("Event {} on turtle file {}.", eventKind, file.getGraphName());
