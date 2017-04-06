@@ -539,4 +539,10 @@ public class LuposdateSemanticCache extends SemanticCache {
         public abstract void process();
     }
 
+
+	@Override
+	protected ScheduledExecutorService getCacheTasksExecutor() {
+		return this.getInternalTasksExecutor();
+	}
+
 }
